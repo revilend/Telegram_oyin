@@ -5,7 +5,7 @@ from typing import Any
 
 from core.db import SupabaseStore
 from engine.game_manager import GameManager
-from models.game import GameRoom
+from models.game import GameRoom, RoomStatus, ShieldOffer
 
 
 class ManagerPersistenceTest(unittest.TestCase):
@@ -168,6 +168,42 @@ class SupabaseMappingTest(unittest.TestCase):
         self.assertTrue(loaded_room.players[31].cards["luggage"].is_revealed)
         self.assertEqual(loaded_room.players[32].votes_against, 1)
         self.assertEqual(votes, {31: 32})
+
+    def test_round_trip_booster_and_shield_fields(self) -> None:
+        manager = GameManager(seed=22)
+        room = manager.create_room(41, "Ali", "ali", bunker_capacity=2)
+        manager.join_room(room.code, 42, "Vali", "vali")
+        manager.join_room(room.code, 43, "Zilola", "zilola")
+        manager.start_game(room.code)
+        room.players[41].double_vote = True
+        room.players[42].shield_used = True
+        room.vote_weights = {41: 2, 43: 1}
+        room.status = RoomStatus.SHIELD_OFFER
+        room.pending_shield = ShieldOffer(user_id=43, counts={43: 2, 41: 1})
+
+        fake_client = _FakeClient()
+        store = SupabaseStore(client=fake_client)
+        try:
+            store.save_room(room, votes={41: 43, 43: 41})
+            loaded = store.load_room(room.code)
+        finally:
+            store.close()
+
+        self.assertIsNotNone(loaded)
+        loaded_room, votes = loaded
+        self.assertEqual(loaded_room.status, RoomStatus.SHIELD_OFFER)
+        self.assertEqual(loaded_room.vote_weights, {41: 2, 43: 1})
+        self.assertEqual(loaded_room.pending_shield.user_id, 43)
+        self.assertEqual(loaded_room.pending_shield.counts, {43: 2, 41: 1})
+        self.assertTrue(loaded_room.players[41].double_vote)
+        self.assertTrue(loaded_room.players[42].shield_used)
+        self.assertEqual(votes, {41: 43, 43: 41})
+        shield_row = next(
+            row
+            for row in fake_client.tables["room_players"]
+            if row["user_id"] == 42
+        )
+        self.assertEqual(shield_row["shield_used"], True)
 
     def test_disabled_store_is_noop(self) -> None:
         store = SupabaseStore(url="", key="", client=None)

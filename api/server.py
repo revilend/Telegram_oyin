@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from dataclasses import asdict
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -29,8 +30,17 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from api.auth import TelegramUser, resolve_user_id, telegram_user
+from bot.handlers.boosters import send_shield_offer
 from bot.main import build_dispatcher, set_commands
+from core.billing import buy_booster, decline_shield
 from core.db import get_store
+from core.economy import (
+    COIN_PACKAGES,
+    EconomyError,
+    InsufficientCoinsError,
+    get_economy,
+)
+from engine.boosters import BoosterError, boosters_payload
 from engine.game_manager import (
     GameError,
     GameManager,
@@ -38,13 +48,16 @@ from engine.game_manager import (
     RoomNotFoundError,
     get_default_manager,
 )
-from models.game import GameRoom, Player
+from models.game import GameRoom, Player, RoomStatus
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEBAPP_DIR = PROJECT_ROOT / "webapp"
 
 GAME_TYPE = "bunker"
 logger = logging.getLogger(__name__)
+
+# Lifespan ichida yaratilgan bot: qalqon taklifini shaxsiy xabar bilan yuborish uchun.
+_runtime_bot: Bot | None = None
 
 GAMES: list[dict[str, Any]] = [
     {
@@ -88,11 +101,20 @@ class ActionRequest(BaseModel):
     """
 
     user_id: int | None = None
-    action: Literal["join", "start", "reveal", "vote", "tally"]
+    action: Literal[
+        "join",
+        "start",
+        "reveal",
+        "vote",
+        "tally",
+        "booster",
+        "shield_decline",
+    ]
     card_type: str | None = None
     target_id: int | None = None
     full_name: str | None = None
     username: str | None = None
+    booster: str | None = None
 
 
 # ----------------------------------------------------------------------
@@ -142,6 +164,11 @@ def public_state(room: GameRoom, viewer_id: int = 0) -> dict[str, Any]:
         "catastrophe": room.catastrophe,
         "alive_count": len(room.alive_players),
         "eliminated_players": room.eliminated_players,
+        "pending_shield": (
+            room.pending_shield.model_dump(mode="json")
+            if room.pending_shield is not None
+            else None
+        ),
         "players": [_player_payload(player, viewer_id) for player in room.players.values()],
     }
 
@@ -159,6 +186,8 @@ def private_state(room: GameRoom, user_id: int) -> dict[str, Any]:
         "full_name": player.full_name,
         "is_alive": player.is_alive,
         "is_host": player.is_host,
+        "shield_used": player.shield_used,
+        "double_vote": player.double_vote,
         "status": room.status.value,
         "cards": {key: _card_payload(card) for key, card in player.cards.items()},
     }
@@ -224,11 +253,16 @@ def card_type_options() -> list[dict[str, str]]:
 # Lifespan: Supabase, bot polling va tozalash
 # ----------------------------------------------------------------------
 def setup_persistence() -> None:
-    """Supabase sozlangan bo'lsa, menejerga saqlash/yuklashni ulaydi."""
+    """Supabase sozlangan bo'lsa, saqlash/yuklash va hamyonni ulaydi."""
+    game_manager = get_default_manager()
+    economy = get_economy()
+    # Qalqon taklifi faqat tangasi yetadigan o'yinchiga ko'rsatiladi.
+    game_manager.set_coin_balance_reader(lambda user_id: economy.get_user(user_id).coins)
+    logger.info("Tanga hamyoni o'yin dvigateliga ulandi (Supabase: %s)", economy.enabled)
+
     store = get_store()
     if not store.enabled:
         return
-    game_manager = get_default_manager()
     game_manager.set_change_handler(store.persist)
     game_manager.set_room_loader(store.load_room)
     logger.info("Supabase saqlash va xona yuklash yoqilgan")
@@ -239,6 +273,7 @@ async def lifespan(app: FastAPI):
     """Server bilan birga aiogram botni ishga tushiradi va to'xtatadi."""
     setup_persistence()
 
+    global _runtime_bot
     bot: Bot | None = None
     polling: asyncio.Task[None] | None = None
     token = (os.getenv("BOT_TOKEN") or "").strip()
@@ -249,12 +284,14 @@ async def lifespan(app: FastAPI):
                 token=token,
                 default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
+            _runtime_bot = bot
             dispatcher = build_dispatcher()
             await set_commands(bot)
             polling = asyncio.create_task(dispatcher.start_polling(bot))
             logger.info("Aiogram polling fonda ishga tushdi")
         except Exception:  # bot xatosi Mini App'ni to'xtatmasligi kerak
             logger.exception("Botni ishga tushirib bo'lmadi")
+            _runtime_bot = None
             if bot is not None:
                 await bot.session.close()
             bot = None
@@ -268,6 +305,7 @@ async def lifespan(app: FastAPI):
         if polling is not None:
             polling.cancel()
             await asyncio.gather(polling, return_exceptions=True)
+        _runtime_bot = None
         if bot is not None:
             await bot.session.close()
         get_store().close()
@@ -289,6 +327,23 @@ async def player_not_found_handler(request: Any, exc: PlayerNotFoundError) -> JS
     return JSONResponse(status_code=404, content={"detail": str(exc)})
 
 
+@app.exception_handler(InsufficientCoinsError)
+async def insufficient_coins_handler(
+    request: Any, exc: InsufficientCoinsError
+) -> JSONResponse:
+    return JSONResponse(status_code=402, content={"detail": str(exc)})
+
+
+@app.exception_handler(BoosterError)
+async def booster_error_handler(request: Any, exc: BoosterError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(EconomyError)
+async def economy_error_handler(request: Any, exc: EconomyError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
 @app.exception_handler(GameError)
 async def game_error_handler(request: Any, exc: GameError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
@@ -296,6 +351,37 @@ async def game_error_handler(request: Any, exc: GameError) -> JSONResponse:
 
 def manager() -> GameManager:
     return get_default_manager()
+
+
+def _record_finished_room(room: GameRoom) -> None:
+    """FINISHED xonani statistika uchun bir marta qayd etadi."""
+    if room.status is not RoomStatus.FINISHED:
+        return
+    try:
+        get_economy().record_finished_game(
+            room.code,
+            room.players.keys(),
+            [player.user_id for player in room.alive_players],
+        )
+    except Exception:
+        logger.exception("Tugagan o'yin natijasini saqlab bo'lmadi: %s", room.code)
+
+
+async def _notify_shield_offer(room: GameRoom) -> None:
+    bot = _runtime_bot
+    if bot is not None and room.pending_shield is not None:
+        await send_shield_offer(bot, room)
+
+
+def _schedule_shield_offer(room: GameRoom) -> None:
+    if _runtime_bot is None or room.pending_shield is None:
+        return
+    task = asyncio.create_task(_notify_shield_offer(room))
+    task.add_done_callback(
+        lambda finished: finished.exception()
+        if not finished.cancelled()
+        else None
+    )
 
 
 @app.get("/api/health")
@@ -311,6 +397,44 @@ async def health() -> dict[str, str]:
 async def list_games() -> dict[str, Any]:
     """Mavjud o'yinlar ro'yxati."""
     return {"games": GAMES}
+
+
+def shop_meta() -> dict[str, Any]:
+    """Mini App do'koni uchun paketlar, karta va bot havolasi."""
+    return {
+        "packages": [
+            {"coins": coins, "price": price}
+            for coins, price in COIN_PACKAGES.items()
+        ],
+        "card_number": (os.getenv("CARD_NUMBER") or "").strip(),
+        "card_holder": (os.getenv("CARD_HOLDER") or "").strip(),
+        "bot_username": (os.getenv("BOT_USERNAME") or "revilend_gamesbot")
+        .strip()
+        .lstrip("@"),
+    }
+
+
+@app.get("/api/shop")
+async def get_shop() -> dict[str, Any]:
+    """Tanga paketlari va to'lov kartasi (ochiq ma'lumot)."""
+    return {"shop": shop_meta(), "boosters": boosters_payload()}
+
+
+@app.get("/api/me")
+async def my_profile(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """O'yinchining tanga balansi va statistikasi."""
+    resolved_id = resolve_user_id(user, user_id)
+    username = (user.username if user is not None else "") or ""
+    full_name = (user.full_name if user is not None else "") or ""
+    account = get_economy().ensure_user(resolved_id, username, full_name)
+    return {
+        "user": asdict(account),
+        "shop": shop_meta(),
+        "boosters": boosters_payload(),
+    }
 
 
 @app.get("/api/meta/cards")
@@ -368,6 +492,7 @@ async def room_action(
     if payload.action == "join":
         if not full_name:
             raise HTTPException(status_code=400, detail="full_name majburiy")
+        get_economy().ensure_user(actor_id, username, full_name)
         game_manager.join_room(code, actor_id, full_name, username)
     elif payload.action == "start":
         room = game_manager.get_room(code)
@@ -393,6 +518,7 @@ async def room_action(
                 detail="Ovozlarni faqat xona egasi sanaydi",
             )
         eliminated = game_manager.tally_votes(code)
+        current = game_manager.get_room(code)
         result = {
             "eliminated": (
                 {
@@ -402,10 +528,60 @@ async def room_action(
                 if eliminated is not None
                 else None
             ),
-            "tie": eliminated is None,
+            "tie": eliminated is None and current.pending_shield is None,
+            "shield_offer": (
+                current.pending_shield.model_dump(mode="json")
+                if current.pending_shield is not None
+                else None
+            ),
+        }
+        _schedule_shield_offer(current)
+    elif payload.action == "booster":
+        if not payload.booster:
+            raise HTTPException(status_code=400, detail="booster majburiy")
+        try:
+            purchase = buy_booster(
+                game_manager,
+                get_economy(),
+                code,
+                actor_id,
+                payload.booster,
+                payload.card_type,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        result = {
+            "booster": purchase.booster.key,
+            "price": purchase.booster.price,
+            "coins": purchase.account_coins,
+            "eliminated": (
+                {
+                    "user_id": purchase.eliminated.user_id,
+                    "full_name": purchase.eliminated.full_name,
+                }
+                if purchase.eliminated is not None
+                else None
+            ),
+            "card": _card_payload(purchase.card) if purchase.card is not None else None,
+        }
+    elif payload.action == "shield_decline":
+        room = game_manager.get_room(code)
+        offer = room.pending_shield
+        if offer is None or offer.user_id != actor_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Sizda faol qalqon taklifi yo'q",
+            )
+        _, eliminated = decline_shield(game_manager, code, actor_id)
+        result = {
+            "eliminated": {
+                "user_id": eliminated.user_id,
+                "full_name": eliminated.full_name,
+            }
         }
 
     room = game_manager.get_room(code)
+    _record_finished_room(room)
     state = public_state(room, viewer_id=actor_id)
     await hub.broadcast(code, {"type": "state", "state": state})
     return {
@@ -413,6 +589,7 @@ async def room_action(
         "state": state,
         "me": private_state(room, actor_id),
         "result": result,
+        "coins": get_economy().get_user(actor_id).coins,
     }
 
 

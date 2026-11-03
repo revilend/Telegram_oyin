@@ -20,7 +20,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from models.game import GameRoom, Player, PlayerCard
+from models.game import GameRoom, Player, PlayerCard, ShieldOffer
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
@@ -124,6 +124,14 @@ class SupabaseStore:
             "catastrophe": room.catastrophe,
             "eliminated_players": room.eliminated_players,
             "votes": {str(voter): int(target) for voter, target in votes.items()},
+            "vote_weights": {
+                str(voter): int(weight) for voter, weight in room.vote_weights.items()
+            },
+            "pending_shield": (
+                room.pending_shield.model_dump(mode="json")
+                if room.pending_shield is not None
+                else None
+            ),
             "updated_at": updated_at,
         }
         try:
@@ -152,6 +160,8 @@ class SupabaseStore:
                     for key, card in player.cards.items()
                 },
                 "votes_against": player.votes_against,
+                "shield_used": player.shield_used,
+                "double_vote": player.double_vote,
                 "updated_at": updated_at,
             }
             for player in room.players.values()
@@ -216,6 +226,8 @@ class SupabaseStore:
                 is_host=bool(player_row.get("is_host", False)),
                 cards=cards,
                 votes_against=int(player_row.get("votes_against") or 0),
+                shield_used=bool(player_row.get("shield_used", False)),
+                double_vote=bool(player_row.get("double_vote", False)),
             )
             players[player.user_id] = player
 
@@ -230,6 +242,15 @@ class SupabaseStore:
             catastrophe=row.get("catastrophe") or {},
             players=players,
             eliminated_players=[int(item) for item in row.get("eliminated_players") or []],
+            vote_weights={
+                int(voter): int(weight)
+                for voter, weight in (row.get("vote_weights") or {}).items()
+            },
+            pending_shield=(
+                ShieldOffer.model_validate(row["pending_shield"])
+                if row.get("pending_shield")
+                else None
+            ),
         )
 
         votes = {

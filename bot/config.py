@@ -26,6 +26,9 @@ class Config:
     bot_token: str
     bot_username: str
     mini_app_url: str
+    admin_id: int = 0
+    card_number: str = ""
+    card_holder: str = ""
 
     def mini_app_link(self, room_code: str | None = None) -> str:
         """Mini App havolasini qaytaradi, kerak bo'lsa xona kodi bilan."""
@@ -53,8 +56,17 @@ def get_config() -> Config:
     if not mini_app_url.startswith(("https://", "http://")):
         raise RuntimeError("MINI_APP_URL http:// yoki https:// bilan boshlanishi kerak")
 
+    raw_admin_id = (os.getenv("ADMIN_ID") or "0").strip()
+    try:
+        admin_id = int(raw_admin_id or 0)
+    except ValueError as exc:
+        raise RuntimeError("ADMIN_ID butun son bo'lishi kerak") from exc
+
     return Config(
         bot_token=token,
         bot_username=username,
         mini_app_url=mini_app_url,
+        admin_id=admin_id,
+        card_number=(os.getenv("CARD_NUMBER") or "").strip(),
+        card_holder=(os.getenv("CARD_HOLDER") or "").strip(),
     )

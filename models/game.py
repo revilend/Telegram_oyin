@@ -27,6 +27,7 @@ class RoomStatus(str, Enum):
     LOBBY = "LOBBY"
     PLAYING = "PLAYING"
     VOTING = "VOTING"
+    SHIELD_OFFER = "SHIELD_OFFER"
     FINISHED = "FINISHED"
 
 
@@ -57,6 +58,8 @@ class Player(BaseModel):
     is_host: bool = False
     cards: dict[str, PlayerCard] = Field(default_factory=dict)
     votes_against: int = Field(default=0, ge=0)
+    shield_used: bool = False
+    double_vote: bool = False
 
     @field_validator("cards")
     @classmethod
@@ -102,6 +105,20 @@ class Player(BaseModel):
         self.is_alive = False
 
 
+class ShieldOffer(BaseModel):
+    """Haydalishdan oldin o'yinchiga beriladigan qalqon taklifi."""
+
+    user_id: int
+    counts: dict[int, int] = Field(default_factory=dict)
+
+    @field_validator("counts")
+    @classmethod
+    def _validate_counts(cls, counts: dict[int, int]) -> dict[int, int]:
+        if any(count < 0 for count in counts.values()):
+            raise ValueError("Ovozlar soni manfiy bo'lishi mumkin emas")
+        return counts
+
+
 class GameRoom(BaseModel):
     """Bunker xonasining to'liq holati."""
 
@@ -115,6 +132,8 @@ class GameRoom(BaseModel):
     catastrophe: dict[str, Any] = Field(default_factory=dict)
     players: dict[int, Player] = Field(default_factory=dict)
     eliminated_players: list[int] = Field(default_factory=list)
+    vote_weights: dict[int, int] = Field(default_factory=dict)
+    pending_shield: ShieldOffer | None = None
 
     @field_validator("code")
     @classmethod
@@ -158,6 +177,17 @@ class GameRoom(BaseModel):
                 raise ValueError(
                     f"Tirik bo'lmagan o'yinchi {user_id} haydalganlar ro'yxatida yo'q"
                 )
+        if self.pending_shield is not None:
+            candidate = self.players.get(self.pending_shield.user_id)
+            if candidate is None:
+                raise ValueError("Qalqon taklifi noma'lum o'yinchiga berilgan")
+            if not candidate.is_alive:
+                raise ValueError("Haydalgan o'yinchiga qalqon taklif qilinmaydi")
+        unknown_voters = set(self.vote_weights) - set(self.players)
+        if unknown_voters:
+            raise ValueError(
+                f"Ovoz og'irligida noma'lum o'yinchilar bor: {sorted(unknown_voters)}"
+            )
         return self
 
     @property

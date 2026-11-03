@@ -212,6 +212,19 @@ class CharacterGenerator:
             self._generated += 1
             return cards
 
+    def generate_card(self, card_type: CardType | str) -> PlayerCard:
+        """Bitta turdagi yangi kartani yaratadi (reroll uchun)."""
+        normalized = card_type if isinstance(card_type, CardType) else CardType(str(card_type).lower())
+        if normalized is CardType.CATASTROPHE:
+            raise ValueError("Falokat kartasini almashtirish mumkin emas")
+        with self._lock:
+            if normalized is CardType.SPECIAL:
+                item = self._special_deck.draw()
+            else:
+                category = CHARACTER_CATEGORIES[normalized]
+                item = self._decks[normalized].draw()
+            return self._build_card(normalized, item)
+
     @staticmethod
     def _build_card(card_type: CardType, item: dict[str, Any]) -> PlayerCard:
         return PlayerCard(

@@ -861,6 +861,78 @@
     body.theme-light .btn.invite { background: rgba(15, 23, 42, 0.05); }
     body.theme-light .footer { color: #94a3b8; }
 
+    /* ---------- Hamyon, do'kon va boosterlar ---------- */
+    .wallet-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin: 14px 0; padding: 12px 14px; border-radius: 16px;
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(139, 92, 246, 0.12));
+      border: 1px solid rgba(251, 191, 36, 0.28);
+    }
+    .wallet-balance { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); }
+    .wallet-balance span { font-size: 20px; }
+    .wallet-balance b { font-size: 22px; color: var(--text); }
+    .coin-btn {
+      border: 0; border-radius: 999px; padding: 8px 13px; font-size: 12px; font-weight: 700;
+      color: #1f1300; background: linear-gradient(135deg, #fbbf24, #f59e0b); cursor: pointer;
+      box-shadow: 0 6px 16px rgba(245, 158, 11, 0.28);
+    }
+    .shop-overlay {
+      position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end;
+      background: rgba(3, 6, 14, 0.72); backdrop-filter: blur(5px);
+      padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+    .shop-sheet {
+      width: 100%; max-width: 560px; margin: 0 auto; max-height: 86vh; overflow-y: auto;
+      background: var(--bg-soft); border: 1px solid var(--border); border-radius: 24px;
+      padding: 20px; box-shadow: var(--shadow); animation: shopUp 0.22s ease-out;
+    }
+    .shop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+    .shop-head h2 { font-size: 20px; }
+    .shop-close { border: 0; background: var(--panel-strong); color: var(--text); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
+    .shop-lede { color: var(--muted); font-size: 13px; margin: 4px 0 16px; line-height: 1.5; }
+    .shop-packages { display: flex; flex-direction: column; gap: 9px; }
+    .shop-package {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      width: 100%; padding: 13px 14px; border-radius: 14px; text-align: left; cursor: pointer;
+      color: var(--text); background: var(--panel); border: 1px solid var(--border);
+    }
+    .shop-package.sel { border-color: var(--accent); background: rgba(139, 92, 246, 0.16); }
+    .shop-package b { font-size: 16px; }
+    .shop-package small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .shop-package .price { font-weight: 700; color: var(--warning); white-space: nowrap; }
+    .shop-card {
+      margin-top: 14px; padding: 13px; border-radius: 14px; background: var(--panel);
+      border: 1px dashed var(--border); font-size: 13px; line-height: 1.55;
+    }
+    .shop-card code { font-size: 16px; letter-spacing: 0.5px; color: var(--warning); }
+    .shop-note { color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 10px; }
+    .booster-panel { margin-top: 14px; padding: 15px; border-radius: 18px; background: var(--panel); border: 1px solid var(--border); }
+    .booster-panel h2 { font-size: 15px; margin-bottom: 4px; }
+    .booster-panel .lede { color: var(--muted); font-size: 11px; margin-bottom: 10px; }
+    .booster-list { display: flex; flex-direction: column; gap: 8px; }
+    .booster-btn {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      width: 100%; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+      color: var(--text); background: var(--panel-strong); border: 1px solid var(--border);
+      font-size: 12px; font-weight: 600;
+    }
+    .booster-btn[disabled] { opacity: 0.4; cursor: default; }
+    .booster-btn .cost { color: var(--warning); white-space: nowrap; }
+    .reroll-row { display: flex; gap: 6px; }
+    .reroll-row select {
+      min-width: 0; flex: 1; border-radius: 10px; padding: 8px; color: var(--text);
+      background: var(--panel-strong); border: 1px solid var(--border); font-size: 12px;
+    }
+    .shield-offer {
+      margin-top: 14px; padding: 18px; border-radius: 18px; text-align: center;
+      background: radial-gradient(380px 160px at 50% 0%, rgba(34, 211, 238, 0.18), transparent 70%), var(--panel);
+      border: 1px solid rgba(34, 211, 238, 0.38);
+    }
+    .shield-offer .shield-icon { font-size: 38px; margin-bottom: 6px; }
+    .shield-offer h2 { font-size: 18px; margin-bottom: 6px; }
+    .shield-offer p { color: var(--muted); font-size: 12px; line-height: 1.55; margin-bottom: 12px; }
+    .shield-offer .btn + .btn { margin-top: 8px; }
+    @keyframes shopUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @keyframes cardFlip { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
     @keyframes doorShut { from { transform: translateX(-50%) scaleY(0.86) translateY(-8px); opacity: 0.4; } to { transform: translateX(-50%) scaleY(1) translateY(0); opacity: 1; } }
     @keyframes warningPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -906,11 +978,15 @@
         LOBBY: "Kutilmoqda",
         PLAYING: "Davom etmoqda",
         VOTING: "Ovoz berish",
+        SHIELD_OFFER: "Qalqon qarori",
         FINISHED: "Tugadi"
       };
       var TIMER_DURATIONS = { PLAYING: 120, VOTING: 60 };
-      var PLAYER_BALANCE = 100;
       var PLAYER_LEVEL = 1;
+      var DEFAULT_SHOP = {
+        packages: [{ coins: 500, price: 10000 }, { coins: 1500, price: 25000 }, { coins: 4000, price: 60000 }],
+        card_number: "", card_holder: "", bot_username: "revilend_gamesbot"
+      };
       var GAMES = [
         {
           slug: "bunker", name: "Bunker", emoji: "☢️", status: "active", players: "2–12",
@@ -947,7 +1023,11 @@
         lastMeSig: "",
         notified: {},
         flipKey: null,
-        flipTimer: null
+        flipTimer: null,
+        shopOpen: false,
+        shopLoading: false,
+        shop: null,
+        shopPackage: null
       };
 
       var toastTimer = null;
@@ -989,6 +1069,10 @@
         return CARD_META[type] || { label: String(type || ""), emoji: "🃏" };
       }
 
+      function money(value) {
+        return String(Number(value) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      }
+
       function listify(value) {
         if (Array.isArray(value)) return value.filter(function (item) { return item != null && item !== ""; });
         if (value == null || value === "") return [];
@@ -996,7 +1080,7 @@
       }
 
       function statusClass(status) {
-        return status === "PLAYING" || status === "VOTING" || status === "FINISHED" ? status : "";
+        return status === "PLAYING" || status === "VOTING" || status === "SHIELD_OFFER" || status === "FINISHED" ? status : "";
       }
 
       function toast(message, kind) {
@@ -1130,9 +1214,13 @@
             '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
             '<div class="profile-handle">' + esc(handle) + '</div></div>' +
           '</div>' +
+          '<div class="wallet-row">' +
+            '<div class="wallet-balance"><span>🪙</span><b>' + esc(profile.balance) + '</b> tanga</div>' +
+            '<button class="coin-btn" data-act="shop">＋ Do‘kon</button>' +
+          '</div>' +
           '<div class="profile-stats">' +
-            '<div class="pstat"><span>🪙 Balans</span><b>' + esc(profile.balance) + ' tanga</b></div>' +
             '<div class="pstat"><span>⭐ Daraja</span><b>Level ' + esc(profile.level) + '</b></div>' +
+            '<div class="pstat"><span>🎮 O‘yinlar</span><b>' + esc(profile.games_played || 0) + '</b></div>' +
           '</div>' +
           '<div class="xp-row"><div class="xp-bar"><i></i></div><span class="xp-text">0 / 100 XP</span></div>' +
           '<button class="btn invite" data-act="invite">📤 Do\'stlarni taklif qilish</button>' +
@@ -1154,6 +1242,87 @@
         } else {
           window.open(url, "_blank", "noopener");
         }
+      }
+
+      function shopModalHtml() {
+        if (!view.shopOpen) return "";
+        var shop = view.shop || DEFAULT_SHOP;
+        var packages = (shop.packages && shop.packages.length ? shop.packages : DEFAULT_SHOP.packages);
+        var selected = null;
+        packages.forEach(function (pack) {
+          if (Number(pack.coins) === Number(view.shopPackage)) selected = pack;
+        });
+        var body = '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Tangalar do‘koni">' +
+          '<div class="shop-head"><div><h2>🪙 Tangalar do‘koni</h2>' +
+            '<p class="shop-lede">Balans: <b>' + esc(profile.balance) + ' tanga</b>. Paketni tanlab, botda chek yuboring.</p></div>' +
+            '<button class="shop-close" data-act="shop-close" aria-label="Yopish">✕</button></div>';
+
+        if (view.shopLoading) {
+          body += '<div class="notice">⏳ Paketlar yuklanmoqda…</div>';
+        } else {
+          body += '<div class="shop-packages">' + packages.map(function (pack) {
+            var isSelected = selected && Number(selected.coins) === Number(pack.coins);
+            return '<button class="shop-package' + (isSelected ? " sel" : "") + '" data-act="shop-pack" data-coins="' + esc(pack.coins) + '">' +
+              '<span><b>' + esc(money(pack.coins)) + ' tanga</b><small>Mini App va boosterlar uchun</small></span>' +
+              '<span class="price">' + esc(money(pack.price)) + ' so‘m</span></button>';
+          }).join("") + '</div>';
+
+          if (selected) {
+            body += '<div class="shop-card"><b>💳 To‘lov uchun karta</b><br>' +
+              '<code>' + esc(shop.card_number || "Karta kiritilmagan") + '</code>' +
+              '<br>' + esc(shop.card_holder || "Karta egasi kiritilmagan") +
+              '<br>Summa: <b>' + esc(money(selected.price)) + ' so‘m</b>' +
+              '<button class="btn primary block" style="margin-top:11px" data-act="shop-pay">Botda chek yuborish</button>' +
+              '<p class="shop-note">Botga o‘tib, chek (skrinshot) rasmini yuboring. Admin tasdiqlagach tangalar avtomatik qo‘shiladi.</p></div>';
+          } else {
+            body += '<p class="shop-note">Paketni tanlang — karta raqami va summa shu yerda ko‘rinadi.</p>';
+          }
+        }
+        body += '</section></div>';
+        return body;
+      }
+
+      async function openShop() {
+        if (view.code) return;
+        view.shopOpen = true;
+        view.shopPackage = null;
+        view.shopLoading = true;
+        renderHub();
+        try {
+          var data = await request("/api/shop");
+          if (data && data.shop) view.shop = data.shop;
+        } catch (error) {
+          view.shop = DEFAULT_SHOP;
+        }
+        view.shopLoading = false;
+        renderHub();
+      }
+
+      async function loadAccount() {
+        try {
+          var data = await request("/api/me?user_id=" + encodeURIComponent(profile.id));
+          if (!data || !data.user) return;
+          profile.balance = Number(data.user.coins) || 0;
+          profile.games_played = Number(data.user.games_played) || 0;
+          profile.wins = Number(data.user.wins) || 0;
+          profile.level = 1 + Math.floor(profile.games_played / 5);
+          if (!view.shopOpen) view.shop = data.shop || view.shop;
+          if (!view.code) renderHub();
+          else if (view.room) renderRoom(true);
+        } catch (error) {
+          /* Mehmon rejimida yoki tarmoq xatosida eski qiymat qoladi. */
+        }
+      }
+
+      function openShopPayment() {
+        var shop = view.shop || DEFAULT_SHOP;
+        var coins = Number(view.shopPackage);
+        if (!coins) return;
+        var username = String(shop.bot_username || "revilend_gamesbot").replace(/^@/, "");
+        var link = "https://t.me/" + username + "?start=shop_" + coins;
+        haptic("medium");
+        if (tg && tg.openTelegramLink) tg.openTelegramLink(link);
+        else window.open(link, "_blank", "noopener");
       }
 
       function announceTransitions(previous, next) {
@@ -1187,7 +1356,9 @@
             name: fullName || user.username || "O'yinchi",
             username: user.username || "",
             photo: user.photo_url || "",
-            balance: PLAYER_BALANCE,
+            balance: 0,
+            games_played: 0,
+            wins: 0,
             level: PLAYER_LEVEL,
             guest: false
           };
@@ -1202,7 +1373,9 @@
           name: window.sessionStorage.getItem("rg_guest_name") || "",
           username: "",
           photo: "",
-          balance: PLAYER_BALANCE,
+          balance: 0,
+          games_played: 0,
+          wins: 0,
           level: PLAYER_LEVEL,
           guest: true
         };
@@ -1279,7 +1452,8 @@
               '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker» xabaridan oling. O\'yin boshlanmagan bo\'lishi kerak.</p>' +
             '</section>' +
             '<div class="footer">Revilend Games · Bunker</div>' +
-          '</main>';
+          '</main>' +
+          shopModalHtml();
       }
 
       function gameCardHtml(game) {
@@ -1621,9 +1795,50 @@
           }).join("") + '</div></section>';
       }
 
+      function boosterPanelHtml(me) {
+        var cards = me.cards || {};
+        var options = CARD_ORDER.filter(function (key) {
+          return cards[key] && !cards[key].is_revealed;
+        }).map(function (key) {
+          var meta = cardMeta(key);
+          return '<option value="' + esc(key) + '">' + meta.emoji + ' ' + esc(meta.label) + '</option>';
+        }).join("");
+        var rerollDisabled = options ? "" : " disabled";
+        return '<section class="booster-panel">' +
+          '<h2>⚡ Kuchlar</h2>' +
+          '<p class="lede">Tangalar bilan joriy o‘yinda ustunlik oling.</p>' +
+          '<div class="booster-list">' +
+            '<button class="booster-btn" data-act="booster" data-booster="double_vote"' + (me.double_vote ? " disabled" : "") + '>' +
+              '<span>✖️ ' + (me.double_vote ? "2 karra ovoz faol" : "2 karra ovoz") + '</span><span class="cost">15 🪙</span></button>' +
+            '<div class="reroll-row">' +
+              '<select id="reroll-card" aria-label="Almashtiriladigan karta"' + rerollDisabled + '>' + (options || '<option value="">Yopiq karta yo‘q</option>') + '</select>' +
+              '<button class="btn small" data-act="reroll"' + rerollDisabled + '>🔄 20 🪙</button>' +
+            '</div>' +
+          '</div>' +
+        '</section>';
+      }
+
       function controlsHtml(room, me, alive) {
         var status = room.status;
         var parts = "";
+
+        if (status === "SHIELD_OFFER") {
+          var offer = room.pending_shield;
+          if (offer && me && Number(offer.user_id) === Number(me.user_id)) {
+            var canShield = Number(profile.balance) >= 50;
+            parts += '<section class="shield-offer">' +
+              '<div class="shield-icon">🛡️</div>' +
+              '<h2>Sizni haydashmoqchi!</h2>' +
+              '<p>Eng ko‘p ovoz sizga berildi. <b>50 tanga</b> evaziga Bunker Qalqonini faollashtirib, omon qolasizmi? Qalqon har bir xonada bir marta ishlaydi.</p>' +
+              '<button class="btn primary block" data-act="shield-accept"' + (canShield ? "" : " disabled") + '>🛡️ Bunker Qalqonini ishlatish (50 🪙)</button>' +
+              (canShield ? '' : '<p class="shop-note">Balansda 50 tanga yetarli emas. Do‘kondan tanga xarid qilishingiz mumkin.</p>') +
+              '<button class="btn block" data-act="shield-decline">Rad etish</button>' +
+            '</section>';
+          } else {
+            parts += '<div class="notice">🛡️ O‘yinchi qalqon taklifini ko‘rib chiqmoqda. Qaror qabul qilingach raund davom etadi.</div>';
+          }
+          return parts;
+        }
 
         if (status === "FINISHED") {
           return "";
@@ -1670,6 +1885,7 @@
                     (totalVotes > 0 ? "" : " disabled") + '>Ovozlarni sanash · ' + totalVotes + '</button>'
                 : '<p class="muted tiny" style="margin-top:10px;text-align:center">Ovozlarni xona egasi sanaydi.</p>') +
             '</section>';
+            parts += boosterPanelHtml(me);
           }
         }
 
@@ -1773,6 +1989,7 @@
         try {
           var data = await postAction(view.code, payload);
           var announced = announceTransitions(view.room, data.state);
+          if (data.coins != null) profile.balance = Number(data.coins) || 0;
           view.room = data.state;
           view.me = data.me;
           view.lastRoomSig = JSON.stringify(data.state);
@@ -1858,6 +2075,31 @@
           sendAction({ action: "tally" }, "Ovozlar sanaldi");
         } else if (act === "start") {
           sendAction({ action: "start" }, "O'yin boshlandi!");
+        } else if (act === "shop") {
+          openShop();
+        } else if (act === "shop-close") {
+          view.shopOpen = false;
+          view.shopPackage = null;
+          renderHub();
+        } else if (act === "shop-pack") {
+          view.shopPackage = Number(button.getAttribute("data-coins"));
+          renderHub();
+        } else if (act === "shop-pay") {
+          openShopPayment();
+        } else if (act === "shield-accept") {
+          sendAction({ action: "booster", booster: "shield" }, "Qalqon faollashtirildi!");
+        } else if (act === "shield-decline") {
+          sendAction({ action: "shield_decline" }, "Qalqon rad etildi");
+        } else if (act === "booster") {
+          sendAction({ action: "booster", booster: button.getAttribute("data-booster") }, "Booster faollashtirildi");
+        } else if (act === "reroll") {
+          var select = document.getElementById("reroll-card");
+          var cardType = select ? select.value : "";
+          if (!cardType) {
+            toast("Almashtirish uchun karta tanlang", "error");
+            return;
+          }
+          sendAction({ action: "booster", booster: "reroll", card_type: cardType }, "Karta almashtirildi");
         }
       }
 
@@ -1912,6 +2154,7 @@
       } else {
         renderHub();
       }
+      loadAccount();
     })();
   </script>
 </body>

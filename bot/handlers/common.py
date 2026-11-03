@@ -14,6 +14,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.economy import get_economy
 
 router = Router(name="common")
 
@@ -39,6 +40,8 @@ async def start_command(message: Message) -> None:
         return
 
     name = escape(user.full_name if user else "do'stim")
+    if user is not None:
+        get_economy().ensure_user(user.id, user.username or "", user.full_name)
     config = get_config()
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[

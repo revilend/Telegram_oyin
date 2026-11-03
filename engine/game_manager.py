@@ -24,8 +24,9 @@ import uuid
 from collections import Counter
 from collections.abc import Callable
 
+from engine.boosters import SHIELD
 from engine.generator import CharacterGenerator
-from models.game import CardType, GameRoom, Player, PlayerCard, RoomStatus
+from models.game import CardType, GameRoom, Player, PlayerCard, RoomStatus, ShieldOffer
 
 GAME_CODE_PREFIX = "BNK"
 GAME_CODE_LENGTH = 6
@@ -80,6 +81,7 @@ class GameManager:
         self._lock = threading.RLock()
         self._on_change: RoomChangeHandler | None = None
         self._room_loader: RoomLoader | None = None
+        self._coin_balance: Callable[[int], int] | None = None
 
     # ------------------------------------------------------------------
     # Xona yaratish va qo'shilish
@@ -177,8 +179,12 @@ class GameManager:
                 player.cards = self._generator.generate_character()
                 player.is_alive = True
                 player.votes_against = 0
+                player.shield_used = False
+                player.double_vote = False
 
             room.eliminated_players.clear()
+            room.vote_weights.clear()
+            room.pending_shield = None
             room.current_round = 1
             room.status = RoomStatus.PLAYING
             self._votes[room.code] = {}
@@ -245,6 +251,7 @@ class GameManager:
             room.status = RoomStatus.VOTING
             votes = self._votes.setdefault(room.code, {})
             votes[voter_id] = target_id
+            room.vote_weights[voter_id] = 2 if voter.double_vote else 1
             self._sync_vote_counts(room)
             self._notify(room)
             return target
@@ -256,8 +263,12 @@ class GameManager:
         Haydalgandan keyin tirik o'yinchilar soni bunker sig'imiga teng
         bo'lsa, o'yin FINISHED holatiga o'tadi.
 
+        Agar yetakchi o'yinchining qalqon olishga tangasi yetib, u hali
+        qalqondan foydalanmagan bo'lsa, xona SHIELD_OFFER holatida to'xtaydi va
+        qaror qabul qilingach davom etadi.
+
         Returns:
-            Haydalgan o'yinchi yoki durang bo'lsa ``None``.
+            Haydalgan o'yinchi, durang yoki qalqon taklifi bo'lsa ``None``.
         """
         with self._lock:
             room = self.get_room(code)
@@ -268,25 +279,185 @@ class GameManager:
             if not votes:
                 raise InvalidGameStateError("Hali hech kim ovoz bermagan")
 
-            counts = Counter(votes.values())
+            counts = self._weighted_counts(room)
+            if not counts:
+                raise InvalidGameStateError("Hali hech kim ovoz bermagan")
             max_votes = max(counts.values())
             leaders = [player_id for player_id, count in counts.items() if count == max_votes]
 
             eliminated: Player | None = None
             if len(leaders) == 1:
-                eliminated = room.eliminate_player(leaders[0])
+                candidate = room.players[leaders[0]]
+                if self._can_offer_shield(room, candidate):
+                    room.pending_shield = ShieldOffer(
+                        user_id=candidate.user_id,
+                        counts=dict(counts),
+                    )
+                    room.status = RoomStatus.SHIELD_OFFER
+                    self._sync_vote_counts(room)
+                    self._notify(room)
+                    return None
+                eliminated = room.eliminate_player(candidate.user_id)
 
-            self._votes[room.code] = {}
-            self._sync_vote_counts(room)
-
-            if len(room.alive_players) <= room.bunker_capacity:
-                room.status = RoomStatus.FINISHED
-            else:
-                room.status = RoomStatus.PLAYING
-                room.current_round += 1
-
+            self._complete_round(room)
             self._notify(room)
             return eliminated
+
+    def activate_shield(self, code: str, user_id: int) -> Player | None:
+        """Qalqonni faollashtiradi va navbatdagi nomzodni haydaydi.
+
+        Qalqon narxi API/bot qatlamida yechiladi; bu metod faqat o'yin holatini
+        o'zgartiradi. Qaytarilgan o'yinchi — qalqondan keyin haydalgan navbatdagi
+        nomzod (agar durang bo'lsa ``None``).
+        """
+        with self._lock:
+            room = self.get_room(code)
+            offer = room.pending_shield
+            if room.status is not RoomStatus.SHIELD_OFFER or offer is None:
+                raise InvalidGameStateError("Hozir qalqon taklifi faol emas")
+            if offer.user_id != int(user_id):
+                raise InvalidGameStateError("Bu qalqon taklifi sizga tegishli emas")
+            player = room.get_player(int(user_id))
+            if player is None or not player.is_alive:
+                raise InvalidGameStateError("Qalqon uchun o'yinchi topilmadi")
+            if player.shield_used:
+                raise InvalidGameStateError("Qalqondan bu xonada allaqachon foydalanilgan")
+
+            player.shield_used = True
+            room.pending_shield = None
+            next_eliminated = self._eliminate_next(room, offer.counts, int(user_id))
+            self._complete_round(room)
+            self._notify(room)
+            return next_eliminated
+
+    def decline_shield(self, code: str, user_id: int) -> Player:
+        """Qalqonni rad etadi va taklif olgan o'yinchini haydaydi."""
+        with self._lock:
+            room = self.get_room(code)
+            offer = room.pending_shield
+            if room.status is not RoomStatus.SHIELD_OFFER or offer is None:
+                raise InvalidGameStateError("Hozir qalqon taklifi faol emas")
+            if offer.user_id != int(user_id):
+                raise InvalidGameStateError("Bu qalqon taklifi sizga tegishli emas")
+            player = room.eliminate_player(int(user_id))
+            room.pending_shield = None
+            self._complete_round(room)
+            self._notify(room)
+            return player
+
+    def use_double_vote(self, code: str, user_id: int) -> Player:
+        """Joriy ovozni 2 karra qiladi (narx API/bot qatlamida yechiladi)."""
+        with self._lock:
+            room = self.get_room(code)
+            if room.status not in (RoomStatus.PLAYING, RoomStatus.VOTING):
+                raise InvalidGameStateError("2 karra ovoz faqat o'yin davomida ishlaydi")
+            player = room.get_player(int(user_id))
+            if player is None or not player.is_alive:
+                raise InvalidGameStateError("Booster uchun tirik o'yinchi topilmadi")
+            if player.double_vote:
+                raise InvalidGameStateError("2 karra ovoz allaqachon faol")
+            player.double_vote = True
+            if int(user_id) in self._votes.get(room.code, {}):
+                room.vote_weights[int(user_id)] = 2
+                self._sync_vote_counts(room)
+            self._notify(room)
+            return player
+
+    def reroll_card(self, code: str, user_id: int, card_type: str) -> PlayerCard:
+        """Ochilmagan kartani boshqa tasodifiy karta bilan almashtiradi."""
+        with self._lock:
+            room = self.get_room(code)
+            if room.status not in (RoomStatus.PLAYING, RoomStatus.VOTING):
+                raise InvalidGameStateError("Kartani faqat o'yin davomida almashtirish mumkin")
+            player = room.get_player(int(user_id))
+            if player is None or not player.is_alive:
+                raise InvalidGameStateError("Booster uchun tirik o'yinchi topilmadi")
+            normalized = self._card_type(card_type)
+            if normalized is CardType.CATASTROPHE:
+                raise CardNotFoundError("Falokat kartasini almashtirish mumkin emas")
+            card = player.get_card(normalized)
+            if card is None:
+                raise CardNotFoundError(f"'{normalized.value}' kartasi mavjud emas")
+            if card.is_revealed:
+                raise InvalidGameStateError("Ochilgan kartani almashtirish mumkin emas")
+            replacement = self._generator.generate_card(normalized)
+            player.add_card(replacement)
+            self._notify(room)
+            return replacement
+
+    def _weighted_counts(self, room: GameRoom) -> dict[int, int]:
+        """Ovozlarni og'irliklar bilan sanaydi."""
+        counts: Counter[int] = Counter()
+        for voter_id, target_id in self._votes.get(room.code, {}).items():
+            counts[int(target_id)] += int(room.vote_weights.get(voter_id, 1))
+        return dict(counts)
+
+    def _can_offer_shield(self, room: GameRoom, player: Player) -> bool:
+        """O'yinchiga qalqon taklif qilish mumkinmi (tanga yetadimi)."""
+        if player.shield_used or self._coin_balance is None:
+            return False
+        try:
+            return int(self._coin_balance(player.user_id)) >= SHIELD.price
+        except Exception:
+            logger.exception("Qalqon uchun balansni o'qib bo'lmadi: %s", player.user_id)
+            return False
+
+    def _eliminate_next(
+        self,
+        room: GameRoom,
+        counts: dict[int, int],
+        protected_id: int,
+    ) -> Player | None:
+        """Qalqondan keyin navbatdagi eng ko'p ovoz olganni haydaydi."""
+        candidates = {
+            int(player_id): int(count)
+            for player_id, count in counts.items()
+            if int(player_id) != protected_id
+            and int(player_id) in room.players
+            and room.players[int(player_id)].is_alive
+        }
+        if not candidates:
+            return None
+        max_votes = max(candidates.values())
+        leaders = [player_id for player_id, count in candidates.items() if count == max_votes]
+        if len(leaders) != 1:
+            return None
+        return room.eliminate_player(leaders[0])
+
+    def _complete_round(self, room: GameRoom) -> None:
+        """Ovozlarni tozalab, keyingi raund yoki FINISHED holatiga o'tadi."""
+        room.pending_shield = None
+        room.vote_weights.clear()
+        for player in room.players.values():
+            player.double_vote = False
+        self._votes[room.code] = {}
+        self._sync_vote_counts(room)
+        if len(room.alive_players) <= room.bunker_capacity:
+            room.status = RoomStatus.FINISHED
+        else:
+            room.status = RoomStatus.PLAYING
+            room.current_round += 1
+
+    @property
+    def active_room_count(self) -> int:
+        """Hozir o'ynalayotgan xonalar soni."""
+        with self._lock:
+            return sum(
+                1
+                for room in self._rooms.values()
+                if room.status
+                in (RoomStatus.PLAYING, RoomStatus.VOTING, RoomStatus.SHIELD_OFFER)
+            )
+
+    @property
+    def total_room_count(self) -> int:
+        """Xotiradagi barcha xonalar soni."""
+        with self._lock:
+            return len(self._rooms)
+
+    def set_coin_balance_reader(self, reader: Callable[[int], int] | None) -> None:
+        """Qalqon taklifi uchun tanga balansini o'quvchi funksiyani o'rnatadi."""
+        self._coin_balance = reader
 
     # ------------------------------------------------------------------
     # Yordamchi metodlar
@@ -310,6 +481,8 @@ class GameManager:
                 self._votes[normalized] = {
                     int(voter): int(target) for voter, target in votes.items()
                 }
+                for voter_id in self._votes[normalized]:
+                    room.vote_weights.setdefault(voter_id, 1)
                 self._sync_vote_counts(room)
         if room is None:
             raise RoomNotFoundError(f"'{normalized or code}' kodli xona topilmadi")
@@ -360,8 +533,10 @@ class GameManager:
     def _sync_vote_counts(self, room: GameRoom) -> None:
         for player in room.players.values():
             player.votes_against = 0
-        for target_id in self._votes.get(room.code, {}).values():
-            room.players[target_id].votes_against += 1
+        for voter_id, target_id in self._votes.get(room.code, {}).items():
+            target = room.players.get(target_id)
+            if target is not None:
+                target.votes_against += int(room.vote_weights.get(voter_id, 1))
 
 
 _default_manager: GameManager | None = None

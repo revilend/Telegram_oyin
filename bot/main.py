@@ -9,10 +9,11 @@ import sys
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from bot.config import get_config
-from bot.handlers import bunker_group, common
+from bot.handlers import admin, boosters, bunker_group, common, shop
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +21,17 @@ BOT_COMMANDS = [
     BotCommand(command="start", description="Revilend Games haqida"),
     BotCommand(command="bunker", description="Yangi Bunker o'yini (guruhda)"),
     BotCommand(command="newgame", description="Yangi Bunker o'yini (guruhda)"),
+    BotCommand(command="shop", description="Tangalar xarid qilish"),
 ]
 
 
 def build_dispatcher() -> Dispatcher:
     """Routerlarni ulab, tayyor Dispatcher qaytaradi."""
-    dispatcher = Dispatcher()
+    dispatcher = Dispatcher(storage=MemoryStorage())
+    # /start shop_... deep linki umumiy /start handleridan oldin ushlanishi kerak.
+    dispatcher.include_router(shop.router)
+    dispatcher.include_router(boosters.router)
+    dispatcher.include_router(admin.router)
     dispatcher.include_router(bunker_group.router)
     dispatcher.include_router(common.router)
     return dispatcher
