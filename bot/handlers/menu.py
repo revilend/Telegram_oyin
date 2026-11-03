@@ -1,14 +1,14 @@
 """Doimiy pastki menyu tugmalari uchun handlerlar.
 
 «👤 Mening profilim» ``bot.handlers.profile``da, «🏆 Reyting va Top»
-``bot.handlers.leaderboard``da, «👑 Admin panel» ``bot.handlers.admin``da
-ishlaydi. Bu modul qolgan tugmalarni ulaydi.
+``bot.handlers.leaderboard``da, «👑 Admin panel» ``bot.handlers.admin``da,
+«👥 Do'stlarni taklif qilish» (referallar) ``bot.handlers.common``da ishlaydi.
+Bu modul qolgan tugmalarni ulaydi.
 """
 
 from __future__ import annotations
 
 import logging
-from urllib.parse import quote
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -18,7 +18,6 @@ from bot.config import get_config
 from bot.handlers import admin, shop
 from bot.keyboards.main_menu import (
     ADMIN_BUTTON,
-    INVITE_BUTTON,
     NEW_GAME_BUTTON,
     RULES_BUTTON,
     SHOP_BUTTON,
@@ -87,42 +86,6 @@ async def menu_new_game(message: Message) -> None:
 async def menu_rules(message: Message) -> None:
     """ℹ️ Qoidalar / Yordam."""
     await message.answer(RULES_TEXT)
-
-
-@router.message(PRIVATE, F.text == INVITE_BUTTON)
-async def menu_invite(message: Message) -> None:
-    """👥 Do'stlarni taklif qilish."""
-    config = get_config()
-    link = f"https://t.me/{config.bot_username}"
-    share_text = "Revilend Games — Bunker o'yinini birga o'ynaymiz! 🎮"
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="📤 Do'stga ulashish",
-                    url=(
-                        "https://t.me/share/url"
-                        f"?url={quote(link, safe='')}&text={quote(share_text, safe='')}"
-                    ),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="➕ Guruhga qo'shish",
-                    url=f"https://t.me/{config.bot_username}?startgroup=true",
-                )
-            ],
-        ]
-    )
-    await message.answer(
-        "👥 <b>Do'stlarni taklif qilish</b>\n\n"
-        f"Bot havolasi: <code>{link}</code>\n\n"
-        "Havolani do'stlaringizga yuboring — ular botni ochib, birgalikda "
-        "guruhda Bunker o'ynashlari mumkin.\n\n"
-        "💡 Guruhga qo'shib, <code>/bunker</code> yuboring va o'yinni "
-        "boshlang.",
-        reply_markup=keyboard,
-    )
 
 
 @router.message(PRIVATE, F.text == ADMIN_BUTTON)

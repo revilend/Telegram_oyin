@@ -63,6 +63,7 @@ create table if not exists public.users (
     total_purchased  integer not null default 0,
     games_played     integer not null default 0,
     wins             integer not null default 0,
+    referral_count   integer not null default 0,
     role             text not null default 'user',
     created_at       timestamptz not null default now(),
     updated_at       timestamptz not null default now()
@@ -71,6 +72,20 @@ create table if not exists public.users (
 -- Eski jadvallar uchun migratsiya: rol ustuni keyin qo'shilgan bo'lsa ham ishlaydi.
 alter table public.users
     add column if not exists role text not null default 'user';
+alter table public.users
+    add column if not exists referral_count integer not null default 0;
+
+-- Referal tizimi: kim kimni taklif qilgani (har bir taklif bir marta).
+create table if not exists public.referrals (
+    id          bigserial primary key,
+    inviter_id  bigint not null,
+    invited_id  bigint not null unique,
+    bonus       integer not null default 50,
+    created_at  timestamptz not null default now()
+);
+
+create index if not exists referrals_inviter_idx
+    on public.referrals (inviter_id);
 
 create table if not exists public.payment_requests (
     id               text primary key,

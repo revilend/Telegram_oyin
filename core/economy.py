@@ -29,6 +29,7 @@ USERS_ID_COLUMN = "telegram_id"
 PAYMENTS_TABLE = "payment_requests"
 BOOSTERS_TABLE = "player_boosters"
 RESULTS_TABLE = "game_results"
+REFERRALS_TABLE = "referrals"
 
 PENDING = "PENDING"
 APPROVED = "APPROVED"
@@ -46,6 +47,8 @@ START_COINS = 100
 # Reyting: har bir g'alaba shu qadar ball qo'shadi.
 RATING_BASE = 1_000
 RATING_WIN_BONUS = 50
+# Har bir muvaffaqiyatli taklif uchun taklif qiluvchiga beriladigan tanga.
+REFERRAL_BONUS = 50
 
 
 class EconomyError(Exception):
@@ -67,6 +70,7 @@ class UserAccount:
     total_purchased: int = 0
     games_played: int = 0
     wins: int = 0
+    referral_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -101,6 +105,7 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         total_purchased=int(row.get("total_purchased") or 0),
         games_played=int(row.get("games_played") or 0),
         wins=int(row.get("wins") or 0),
+        referral_count=int(row.get("referral_count") or 0),
     )
 
 
@@ -138,6 +143,20 @@ def player_rating(account: UserAccount) -> int:
     return RATING_BASE + int(account.wins) * RATING_WIN_BONUS
 
 
+def referral_earnings(account: UserAccount) -> int:
+    """Takliflar hisobiga ishlangan tangalar."""
+    return int(account.referral_count) * REFERRAL_BONUS
+
+
+@dataclass(frozen=True)
+class ReferralResult:
+    """Muvaffaqiyatli taklif natijasi."""
+
+    inviter_id: int
+    invited_id: int
+    bonus: int
+
+
 class EconomyStore:
     """Foydalanuvchi balansi, cheklar va boosterlarni boshqaradi."""
 
@@ -155,6 +174,8 @@ class EconomyStore:
         self._payments: dict[str, dict[str, Any]] = {}
         self._boosters: set[tuple[str, int, str]] = set()
         self._finished_rooms: set[str] = set()
+        # taklif qilingan id -> taklif qilgan id
+        self._referrals: dict[int, int] = {}
 
     @property
     def enabled(self) -> bool:
@@ -212,6 +233,7 @@ class EconomyStore:
                         "total_purchased": 0,
                         "games_played": 0,
                         "wins": 0,
+                        "referral_count": 0,
                         "role": "user",
                         "created_at": _now(),
                     }
@@ -233,6 +255,7 @@ class EconomyStore:
                     "total_purchased": 0,
                     "games_played": 0,
                     "wins": 0,
+                    "referral_count": 0,
                     "role": "user",
                     "created_at": _now(),
                     "updated_at": _now(),
@@ -258,6 +281,14 @@ class EconomyStore:
     def get_user(self, user_id: int) -> UserAccount:
         """Hisobni qaytaradi; yo'q bo'lsa nol balans bilan yaratadi."""
         return self.ensure_user(user_id)
+
+    def has_user(self, user_id: int) -> bool:
+        """Foydalanuvchi bazada allaqachon bormi (yangi yozuv yaratmasdan)."""
+        uid = int(user_id)
+        with self._lock:
+            if not self.enabled:
+                return uid in self._users
+            return self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid}) is not None
 
     def get_role(self, user_id: int) -> str:
         """Foydalanuvchi rolini qaytaradi (``admin`` yoki ``user``)."""
@@ -287,6 +318,64 @@ class EconomyStore:
             reverse=True,
         )
         return accounts[:limit]
+
+    # ------------------------------------------------------------------
+    # Referallar
+    # ------------------------------------------------------------------
+    def register_referral(
+        self,
+        inviter_id: int,
+        invited_id: int,
+        bonus: int = REFERRAL_BONUS,
+    ) -> ReferralResult | None:
+        """Yangi taklifni yozib, taklif qiluvchiga tanga beradi.
+
+        O'zini taklif qilish, mavjud bo'lmagan taklif qiluvchi va takroriy
+        takliflar ``None`` qaytaradi (tanga qo'shilmaydi).
+        """
+        inviter = int(inviter_id)
+        invited = int(invited_id)
+        bonus = int(bonus)
+        if inviter <= 0 or invited <= 0 or inviter == invited or bonus <= 0:
+            return None
+
+        with self._lock:
+            if self.enabled:
+                if self._select_one(
+                    USERS_TABLE, **{USERS_ID_COLUMN: inviter}
+                ) is None:
+                    return None
+                row = {
+                    "inviter_id": inviter,
+                    "invited_id": invited,
+                    "bonus": bonus,
+                    "created_at": _now(),
+                }
+                try:
+                    self.client.table(REFERRALS_TABLE).insert(row).execute()
+                except Exception:
+                    # `invited_id` unikal — takroriy taklif hisobga olinmaydi.
+                    logger.info("Taklif allaqachon yozilgan: %s", invited)
+                    return None
+            else:
+                if inviter not in self._users:
+                    return None
+                if invited in self._referrals:
+                    return None
+                self._referrals[invited] = inviter
+
+            self.add_coins(inviter, bonus)
+            account = self.ensure_user(inviter)
+            new_count = account.referral_count + 1
+            if self.enabled:
+                self._update_user_row(inviter, {"referral_count": new_count})
+            else:
+                self._users[inviter]["referral_count"] = new_count
+        return ReferralResult(inviter_id=inviter, invited_id=invited, bonus=bonus)
+
+    def referral_count(self, user_id: int) -> int:
+        """Foydalanuvchi taklif qilgan do'stlar soni."""
+        return self.ensure_user(user_id).referral_count
 
     def add_coins(
         self,
@@ -320,6 +409,7 @@ class EconomyStore:
                 total_purchased=new_purchased,
                 games_played=account.games_played,
                 wins=account.wins,
+                referral_count=account.referral_count,
             )
 
     def spend_coins(self, user_id: int, amount: int) -> UserAccount:
@@ -348,6 +438,7 @@ class EconomyStore:
                 total_purchased=account.total_purchased,
                 games_played=account.games_played,
                 wins=account.wins,
+                referral_count=account.referral_count,
             )
 
     # ------------------------------------------------------------------

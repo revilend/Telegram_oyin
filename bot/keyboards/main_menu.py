@@ -40,19 +40,28 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
 INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker yozing"
 
 
-def build_main_menu(*, is_admin: bool = False) -> ReplyKeyboardMarkup:
+def build_main_menu(
+    *, is_admin: bool = False, include_web_app: bool = True
+) -> ReplyKeyboardMarkup:
     """Doimiy 2 ustunli pastki menyuni qaytaradi.
 
     Args:
         is_admin: ``True`` bo'lsa oxirgi qatorga «👑 Admin panel» qo'shiladi.
+        include_web_app: ``False`` bo'lsa «O'yinlar» oddiy matn tugmasi bo'ladi.
+            Telegram ``web_app`` tugmasini faqat to'g'ri HTTPS manzil bilan
+            qabul qiladi, shuning uchun xato bo'lsa shu rejim ishlatiladi.
     """
     config = get_config()
+    mini_app_url = config.mini_app_url or ""
+    games_button = KeyboardButton(text=GAMES_BUTTON)
+    if include_web_app and mini_app_url.startswith("https://"):
+        games_button = KeyboardButton(
+            text=GAMES_BUTTON,
+            web_app=WebAppInfo(url=mini_app_url),
+        )
     rows: list[list[KeyboardButton]] = [
         [
-            KeyboardButton(
-                text=GAMES_BUTTON,
-                web_app=WebAppInfo(url=config.mini_app_url),
-            ),
+            games_button,
             KeyboardButton(text=SHOP_BUTTON),
         ],
         [

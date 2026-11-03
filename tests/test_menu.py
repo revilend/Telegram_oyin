@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 from aiogram.types import ReplyKeyboardMarkup
 
+from aiogram.exceptions import TelegramBadRequest
+
 from bot.config import get_config
 from bot.handlers import common, leaderboard, menu, profile
 from bot.keyboards import main_menu
@@ -93,6 +95,12 @@ class MainMenuKeyboardTest(MenuTestCase):
         games = markup.keyboard[0][0]
         self.assertIsNotNone(games.web_app)
         self.assertEqual(games.web_app.url, get_config().mini_app_url)
+
+    def test_web_app_button_can_be_disabled(self) -> None:
+        # Telegram noto'g'ri HTTPS manzilni rad etadi: zaxira menyuda oddiy tugma.
+        markup = main_menu.build_main_menu(include_web_app=False)
+        self.assertIsNone(markup.keyboard[0][0].web_app)
+        self.assertEqual(markup.keyboard[0][0].text, "🎮 O'yinlar (Mini App)")
 
     def test_admin_button_is_only_for_admins(self) -> None:
         for_admin = main_menu.build_main_menu(is_admin=True)
@@ -188,21 +196,26 @@ class MenuHandlerTest(MenuTestCase):
         button = message.markups[-1].inline_keyboard[0][0]
         self.assertIn("startgroup=true", button.url)
 
-    def test_rules_and_invite_buttons(self) -> None:
+    def test_rules_button_shows_rules(self) -> None:
         message = FakeMessage(text=main_menu.RULES_BUTTON)
         asyncio.run(menu.menu_rules(message))
         self.assertIn("Qoidalar", message.answers[-1])
 
-        message = FakeMessage(text=main_menu.INVITE_BUTTON)
-        asyncio.run(menu.menu_invite(message))
-        self.assertIn("t.me/", message.answers[-1])
-        urls = [
-            button.url
-            for row in message.markups[-1].inline_keyboard
-            for button in row
-        ]
-        self.assertTrue(any("share/url" in url for url in urls))
-        self.assertTrue(any("startgroup=true" in url for url in urls))
+    def test_start_falls_back_when_web_app_button_is_rejected(self) -> None:
+        class StrictMessage(FakeMessage):
+            async def answer(self, text: str, **kwargs) -> None:
+                markup = kwargs.get("reply_markup")
+                rows = getattr(markup, "keyboard", None)
+                if rows and rows[0][0].web_app is not None:
+                    raise TelegramBadRequest(
+                        method=None, message="BUTTON_TYPE_INVALID"
+                    )
+                await super().answer(text, **kwargs)
+
+        message = StrictMessage()
+        asyncio.run(common.start_command(message, None))
+        self.assertIn("Salom", message.answers[-1])
+        self.assertIsNone(message.markups[-1].keyboard[0][0].web_app)
 
     def test_admin_button_opens_panel_for_admin(self) -> None:
         message = FakeMessage()
