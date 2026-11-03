@@ -9,9 +9,9 @@ from unittest.mock import patch
 from aiogram.types import ReplyKeyboardMarkup
 
 from bot.config import get_config
-from bot.handlers import common, menu
+from bot.handlers import common, leaderboard, menu, profile
 from bot.keyboards import main_menu
-from core.economy import EconomyStore
+from core.economy import START_COINS, EconomyStore
 
 
 class FakeBot:
@@ -134,30 +134,50 @@ class MenuHandlerTest(MenuTestCase):
             ["shop_pack_500", "shop_pack_1500", "shop_pack_4000", "shop_cancel"],
         )
 
-    def test_profile_button_shows_wallet_and_title(self) -> None:
+    def test_profile_button_shows_profile_card(self) -> None:
         store = EconomyStore(url="", key="", client=None)
         store.add_coins(90001, 500)
         store.record_finished_game("BNK900", [90001], [90001])
         message = FakeMessage(user_id=90001)
-        with patch.object(menu, "get_economy", return_value=store):
-            asyncio.run(menu.menu_profile(message))
+        with patch.object(profile, "get_economy", return_value=store):
+            asyncio.run(profile.show_profile(message))
         answer = message.answers[-1]
         self.assertIn("Mening profilim", answer)
-        self.assertIn("500", answer)
-        self.assertIn("Ilk g'alaba", answer)
+        self.assertIn(str(START_COINS + 500), answer)
         self.assertIn("90001", answer)
+        self.assertIn("Reyting", answer)
+        self.assertIn("1 050", answer)
+
+    def test_profile_creates_missing_user_with_bonus(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        message = FakeMessage(user_id=90009)
+        with patch.object(profile, "get_economy", return_value=store):
+            asyncio.run(profile.show_profile(message))
+        answer = message.answers[-1]
+        self.assertIn("Mening profilim", answer)
+        self.assertIn(f"{START_COINS}", answer)
+        self.assertIn("1 000", answer)  # yangi o'yinchining reytingi
+        self.assertEqual(store.get_user(90009).coins, START_COINS)
 
     def test_leaderboard_orders_by_wins(self) -> None:
         store = EconomyStore(url="", key="", client=None)
         store.record_finished_game("BNK901", [90002, 90003], [90002])
         store.record_finished_game("BNK902", [90002, 90003], [90002, 90003])
         message = FakeMessage(user_id=90003)
-        with patch.object(menu, "get_economy", return_value=store):
-            asyncio.run(menu.menu_leaderboard(message))
+        with patch.object(leaderboard, "get_economy", return_value=store):
+            asyncio.run(leaderboard.show_leaderboard(message))
         answer = message.answers[-1]
         self.assertIn("Reyting va Top", answer)
         self.assertLess(answer.index("90002"), answer.index("90003"))
-        self.assertIn("Sizning natijangiz", answer)
+        self.assertIn("Sizning reytingingiz", answer)
+
+    def test_leaderboard_shows_friendly_empty_message(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        message = FakeMessage(user_id=90010)
+        with patch.object(leaderboard, "get_economy", return_value=store):
+            asyncio.run(leaderboard.show_leaderboard(message))
+        answer = message.answers[-1]
+        self.assertIn("Hozircha reyting bo'sh", answer)
 
     def test_new_game_button_shows_group_guide(self) -> None:
         message = FakeMessage(text=main_menu.NEW_GAME_BUTTON)

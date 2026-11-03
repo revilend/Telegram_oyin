@@ -27,6 +27,7 @@ from core.economy import (
     get_economy,
     package_price,
 )
+from core.settings import format_card_number, get_settings_store
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +76,12 @@ def shop_text() -> str:
 
 
 def payment_text(coins: int, price: int) -> str:
-    """Karta ma'lumotlari va chek yuborish ko'rsatmasi."""
-    config = get_config()
+    """Karta ma'lumotlari (``system_settings``dan) va chek yuborish ko'rsatmasi."""
+    number, holder = get_settings_store().payment_card()
     return (
         "💳 <b>To'lov uchun karta</b>\n"
-        f"<code>{escape(config.card_number or 'Karta kiritilmagan')}</code>"
-        f" ({escape(config.card_holder or 'Karta egasi kiritilmagan')})\n"
+        f"<code>{escape(format_card_number(number) or 'Karta kiritilmagan')}</code>"
+        f" ({escape(holder or 'Karta egasi kiritilmagan')})\n"
         f"Summa: <b>{format_price(price)} so'm</b>\n\n"
         "To'lovni amalga oshirgach, chek (skrinshot) rasmini shu yerga yuboring!"
     )
@@ -115,8 +116,9 @@ def review_keyboard(request_id: str) -> InlineKeyboardMarkup:
 
 
 def _shop_ready() -> bool:
-    config = get_config()
-    return bool(config.card_number and config.card_holder and config.admin_id)
+    """To'lov uchun karta (``system_settings``) va admin sozlanganmi?"""
+    number, holder = get_settings_store().payment_card()
+    return bool(number and holder and get_config().admin_id)
 
 
 async def _begin_payment(event: Message | CallbackQuery, state: FSMContext, coins: int) -> None:
@@ -133,8 +135,8 @@ async def _begin_payment(event: Message | CallbackQuery, state: FSMContext, coin
 
     if not _shop_ready():
         text = (
-            "⚠️ To'lov hozircha sozlanmagan. Administrator CARD_NUMBER, "
-            "CARD_HOLDER va ADMIN_ID qiymatlarini kiritishi kerak."
+            "⚠️ To'lov hozircha sozlanmagan. Administrator «👑 Admin panel» → "
+            "«💳 Karta raqamini sozlash» orqali kartani kiritishi kerak."
         )
         if isinstance(event, CallbackQuery):
             await event.answer(text, show_alert=True)

@@ -7,7 +7,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from api.server import app
-from core.economy import get_economy
+from core.economy import START_COINS, get_economy
 from engine.game_manager import get_default_manager
 
 
@@ -29,6 +29,13 @@ class EconomyApiTest(unittest.TestCase):
         self.manager = get_default_manager()
         self.addCleanup(self.manager.set_coin_balance_reader, None)
 
+    def _drain(self, user_id: int) -> None:
+        """Yangi o'yinchi sovg'asini hisobga olib, balansni nolga tushiradi."""
+        economy = get_economy()
+        balance = economy.get_user(user_id).coins
+        if balance:
+            economy.spend_coins(user_id, balance)
+
     def test_shop_and_profile(self) -> None:
         shop = self.client.get("/api/shop")
         self.assertEqual(shop.status_code, 200)
@@ -45,7 +52,8 @@ class EconomyApiTest(unittest.TestCase):
 
         me = self.client.get("/api/me?user_id=99001")
         self.assertEqual(me.status_code, 200)
-        self.assertEqual(me.json()["user"]["coins"], 0)
+        # Yangi o'yinchi 100 tanga sovg'a bilan boshlaydi.
+        self.assertEqual(me.json()["user"]["coins"], START_COINS)
         self.assertIn("shop", me.json())
 
     def test_double_vote_booster(self) -> None:
@@ -53,6 +61,7 @@ class EconomyApiTest(unittest.TestCase):
         self.manager.join_room(room.code, 99102, "Vali", "vali")
         self.manager.join_room(room.code, 99103, "Zilola", "zilola")
         self.manager.start_game(room.code)
+        self._drain(99101)
         get_economy().add_coins(99101, 15)
 
         purchase = self.client.post(
@@ -78,6 +87,7 @@ class EconomyApiTest(unittest.TestCase):
         room = self.manager.create_room(99201, "Ali", "ali", bunker_capacity=2)
         self.manager.join_room(room.code, 99202, "Vali", "vali")
         self.manager.start_game(room.code)
+        self._drain(99201)
         response = self.client.post(
             f"/api/room/{room.code}/action",
             json={"user_id": 99201, "action": "booster", "booster": "double_vote"},
@@ -91,6 +101,7 @@ class EconomyApiTest(unittest.TestCase):
         for user_id in (99301, 99302, 99303):
             self.manager.join_room(room.code, user_id, f"P{user_id}", f"p{user_id}")
         self.manager.start_game(room.code)
+        self._drain(99301)
         economy.add_coins(99301, 100)
         self.manager.set_coin_balance_reader(
             lambda uid: economy.get_user(uid).coins

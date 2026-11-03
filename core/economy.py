@@ -41,6 +41,12 @@ COIN_PACKAGES: dict[int, int] = {
     4_000: 60_000,
 }
 
+# Yangi o'yinchiga sovg'a qilinadigan boshlang'ich tangalar.
+START_COINS = 100
+# Reyting: har bir g'alaba shu qadar ball qo'shadi.
+RATING_BASE = 1_000
+RATING_WIN_BONUS = 50
+
 
 class EconomyError(Exception):
     """Iqtisod amali bajarilmaydigan holat."""
@@ -127,6 +133,11 @@ def format_price(amount: int) -> str:
     return f"{int(amount):,}".replace(",", " ")
 
 
+def player_rating(account: UserAccount) -> int:
+    """O'yinchi reytingi: 1000 ball + har bir g'alaba uchun 50 ball."""
+    return RATING_BASE + int(account.wins) * RATING_WIN_BONUS
+
+
 class EconomyStore:
     """Foydalanuvchi balansi, cheklar va boosterlarni boshqaradi."""
 
@@ -197,7 +208,7 @@ class EconomyStore:
                         USERS_ID_COLUMN: uid,
                         "username": username,
                         "full_name": full_name,
-                        "coins": 0,
+                        "coins": START_COINS,
                         "total_purchased": 0,
                         "games_played": 0,
                         "wins": 0,
@@ -218,7 +229,7 @@ class EconomyStore:
                     USERS_ID_COLUMN: uid,
                     "username": username,
                     "full_name": full_name,
-                    "coins": 0,
+                    "coins": START_COINS,
                     "total_purchased": 0,
                     "games_played": 0,
                     "wins": 0,
@@ -271,7 +282,10 @@ class EconomyStore:
             else:
                 rows = self.client.table(USERS_TABLE).select("*").execute().data or []
         accounts = [_row_to_account(row) for row in rows]
-        accounts.sort(key=lambda acc: (acc.wins, acc.coins), reverse=True)
+        accounts.sort(
+            key=lambda acc: (player_rating(acc), acc.coins),
+            reverse=True,
+        )
         return accounts[:limit]
 
     def add_coins(
@@ -380,6 +394,28 @@ class EconomyStore:
                 return _row_to_payment(row) if row else None
             row = self._select_one(PAYMENTS_TABLE, id=str(request_id))
             return _row_to_payment(row) if row else None
+
+    def list_pending_payments(self) -> list[PaymentRequest]:
+        """Tasdiqlanmagan (PENDING) cheklarni eski tartibda qaytaradi."""
+        with self._lock:
+            if not self.enabled:
+                rows = [
+                    row
+                    for row in self._payments.values()
+                    if str(row.get("status")) == PENDING
+                ]
+            else:
+                rows = (
+                    self.client.table(PAYMENTS_TABLE)
+                    .select("*")
+                    .eq("status", PENDING)
+                    .execute()
+                    .data
+                    or []
+                )
+        payments = [_row_to_payment(row) for row in rows]
+        payments.sort(key=lambda payment: payment.created_at)
+        return payments
 
     def _set_payment_status(self, request_id: str, status: str, admin_id: int) -> None:
         if not self.enabled:

@@ -7,6 +7,7 @@ from core.economy import (
     APPROVED,
     PENDING,
     REJECTED,
+    START_COINS,
     EconomyError,
     EconomyStore,
     InsufficientCoinsError,
@@ -88,17 +89,22 @@ class EconomyStoreTest(unittest.TestCase):
     def setUp(self) -> None:
         self.store = EconomyStore(url="", key="", client=None)
 
-    def test_wallet_starts_empty_and_add_spend(self) -> None:
+    def test_wallet_starts_with_welcome_coins_and_add_spend(self) -> None:
         account = self.store.ensure_user(100, "ali", "Ali")
-        self.assertEqual(account.coins, 0)
+        self.assertEqual(account.coins, START_COINS)
         self.assertEqual(account.games_played, 0)
 
         self.store.add_coins(100, 500)
-        self.assertEqual(self.store.get_user(100).coins, 500)
-        self.assertEqual(self.store.spend_coins(100, 120).coins, 380)
+        self.assertEqual(self.store.get_user(100).coins, START_COINS + 500)
+        self.assertEqual(self.store.spend_coins(100, 120).coins, START_COINS + 380)
         with self.assertRaises(InsufficientCoinsError):
-            self.store.spend_coins(100, 1000)
-        self.assertEqual(self.store.get_user(100).coins, 380)
+            self.store.spend_coins(100, 10_000)
+        self.assertEqual(self.store.get_user(100).coins, START_COINS + 380)
+
+    def test_new_user_gets_start_coins_once(self) -> None:
+        self.assertEqual(self.store.ensure_user(150).coins, START_COINS)
+        self.store.spend_coins(150, START_COINS)
+        self.assertEqual(self.store.ensure_user(150).coins, 0)
 
     def test_payment_approval_credits_once(self) -> None:
         payment = self.store.create_payment(200, "vali", "Vali", 500, "file-id")
@@ -108,18 +114,18 @@ class EconomyStoreTest(unittest.TestCase):
         approved = self.store.approve_payment(payment.id, 1)
         self.assertEqual(approved.status, APPROVED)
         account = self.store.get_user(200)
-        self.assertEqual(account.coins, 500)
+        self.assertEqual(account.coins, START_COINS + 500)
         self.assertEqual(account.total_purchased, 500)
 
         with self.assertRaises(EconomyError):
             self.store.approve_payment(payment.id, 1)
-        self.assertEqual(self.store.get_user(200).coins, 500)
+        self.assertEqual(self.store.get_user(200).coins, START_COINS + 500)
 
     def test_payment_rejection_does_not_credit(self) -> None:
         payment = self.store.create_payment(201, "", "Zilola", 1500, "receipt")
         rejected = self.store.reject_payment(payment.id, 1)
         self.assertEqual(rejected.status, REJECTED)
-        self.assertEqual(self.store.get_user(201).coins, 0)
+        self.assertEqual(self.store.get_user(201).coins, START_COINS)
         with self.assertRaises(EconomyError):
             self.store.reject_payment(payment.id, 1)
 
@@ -153,7 +159,7 @@ class EconomyStoreTest(unittest.TestCase):
         stats = self.store.stats(active_rooms=2, total_rooms=4)
         self.assertEqual(stats["users"], 2)
         self.assertEqual(stats["coins_purchased"], 500)
-        self.assertEqual(stats["coins_in_balance"], 550)
+        self.assertEqual(stats["coins_in_balance"], 2 * START_COINS + 550)
         self.assertEqual(stats["active_rooms"], 2)
         self.assertEqual(self.store.list_user_ids(), [300, 301])
 
@@ -190,7 +196,7 @@ class UsersTelegramIdColumnTest(unittest.TestCase):
         row = client.tables["users"][0]
         self.assertEqual(row["telegram_id"], 901)
         self.assertNotIn("user_id", row)
-        self.assertEqual(row["coins"], 50)
+        self.assertEqual(row["coins"], START_COINS + 50)
         self.assertEqual(store.list_user_ids(), [901])
         self.assertEqual(store.stats()["users"], 1)
 

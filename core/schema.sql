@@ -97,6 +97,13 @@ create table if not exists public.player_boosters (
     primary key (room_code, user_id, booster)
 );
 
+-- Admin panel orqali o'zgartiriladigan sozlamalar (karta raqami va egasi).
+create table if not exists public.system_settings (
+    key         text primary key,
+    value       text not null default '',
+    updated_at  timestamptz not null default now()
+);
+
 create table if not exists public.game_results (
     room_code        text primary key,
     winner_ids       jsonb not null default '[]'::jsonb,

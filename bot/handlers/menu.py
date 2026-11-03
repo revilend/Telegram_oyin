@@ -1,13 +1,13 @@
 """Doimiy pastki menyu tugmalari uchun handlerlar.
 
-Har bir tugma mavjud funksiyalarga ulanadi: do'kon, guruhga o'yin ochish
-qo'llanmasi, profil, reyting, qoidalar, taklif va admin panel.
+«👤 Mening profilim» ``bot.handlers.profile``da, «🏆 Reyting va Top»
+``bot.handlers.leaderboard``da, «👑 Admin panel» ``bot.handlers.admin``da
+ishlaydi. Bu modul qolgan tugmalarni ulaydi.
 """
 
 from __future__ import annotations
 
 import logging
-from html import escape
 from urllib.parse import quote
 
 from aiogram import F, Router
@@ -19,75 +19,16 @@ from bot.handlers import admin, shop
 from bot.keyboards.main_menu import (
     ADMIN_BUTTON,
     INVITE_BUTTON,
-    LEADERBOARD_BUTTON,
     NEW_GAME_BUTTON,
-    PROFILE_BUTTON,
     RULES_BUTTON,
     SHOP_BUTTON,
 )
-from core.economy import UserAccount, format_price, get_economy
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="menu")
 
 PRIVATE = F.chat.type == "private"
-
-
-def rank_title(wins: int) -> str:
-    """G'alabalar soniga qarab unvonni qaytaradi."""
-    wins = int(wins)
-    if wins >= 10:
-        return "👑 Afsonaviy omon qoluvchi"
-    if wins >= 5:
-        return "🏅 Bunker ustasi"
-    if wins >= 2:
-        return "🎖 Tajribali o'yinchi"
-    if wins >= 1:
-        return "🌱 Ilk g'alaba"
-    return "🪖 Yangi o'yinchi"
-
-
-def _display_name(account: UserAccount) -> str:
-    return account.full_name or account.username or str(account.user_id)
-
-
-def profile_text(account: UserAccount) -> str:
-    """«👤 Mening profilim» xabari."""
-    username = f"@{escape(account.username)}" if account.username else "—"
-    return (
-        "👤 <b>Mening profilim</b>\n\n"
-        f"Ism: <b>{escape(_display_name(account))}</b>\n"
-        f"Username: {username}\n"
-        f"🆔 <code>{account.user_id}</code>\n\n"
-        f"🪙 Tangalar: <b>{format_price(account.coins)}</b>\n"
-        f"🏆 Unvon: <b>{rank_title(account.wins)}</b>\n"
-        f"🎮 O'ynagan o'yinlari: <b>{account.games_played}</b>\n"
-        f"🥇 G'alabalari: <b>{account.wins}</b>"
-    )
-
-
-def leaderboard_text(top: list[UserAccount], me: UserAccount | None) -> str:
-    """«🏆 Reyting va Top» xabari."""
-    lines = ["🏆 <b>Reyting va Top</b>", ""]
-    if not top:
-        lines.append("Hali natijalar yo'q — birinchi bo'lib o'ynang! 🎯")
-    else:
-        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-        for place, account in enumerate(top, start=1):
-            prefix = medals.get(place, f"{place}.")
-            lines.append(
-                f"{prefix} {escape(_display_name(account))} — "
-                f"<b>{account.wins}</b> g'alaba · "
-                f"{format_price(account.coins)} tanga"
-            )
-    if me is not None:
-        lines.append("")
-        lines.append(
-            f"📊 Sizning natijangiz: <b>{me.wins}</b> g'alaba, "
-            f"<b>{me.games_played}</b> o'yin."
-        )
-    return "\n".join(lines)
 
 
 RULES_TEXT = (
@@ -113,42 +54,6 @@ RULES_TEXT = (
 async def menu_shop(message: Message, state: FSMContext) -> None:
     """🪙 Tangalar do'koni — /shop menyusini ochadi."""
     await shop.send_shop(message, state)
-
-
-@router.message(PRIVATE, F.text == PROFILE_BUTTON)
-async def menu_profile(message: Message) -> None:
-    """👤 Mening profilim — tanga, g'alaba va unvon."""
-    user = message.from_user
-    if user is None:
-        return
-    try:
-        account = get_economy().ensure_user(
-            user.id, user.username or "", user.full_name
-        )
-    except Exception:
-        logger.exception("Profilni yuklab bo'lmadi: %s", user.id)
-        await message.answer(
-            "⚠️ Profilni yuklab bo'lmadi. Birozdan keyin qayta urinib ko'ring."
-        )
-        return
-    await message.answer(profile_text(account))
-
-
-@router.message(PRIVATE, F.text == LEADERBOARD_BUTTON)
-async def menu_leaderboard(message: Message) -> None:
-    """🏆 Reyting va Top — eng ko'p g'alaba qozongan o'yinchilar."""
-    user = message.from_user
-    try:
-        economy = get_economy()
-        top = economy.top_users(10)
-        me = economy.get_user(user.id) if user is not None else None
-    except Exception:
-        logger.exception("Reytingni yuklab bo'lmadi")
-        await message.answer(
-            "⚠️ Reytingni yuklab bo'lmadi. Birozdan keyin qayta urinib ko'ring."
-        )
-        return
-    await message.answer(leaderboard_text(top, me))
 
 
 @router.message(PRIVATE, F.text == NEW_GAME_BUTTON)
@@ -221,6 +126,6 @@ async def menu_invite(message: Message) -> None:
 
 
 @router.message(PRIVATE, F.text == ADMIN_BUTTON)
-async def menu_admin(message: Message) -> None:
-    """👑 Admin panel — /admin bilan bir xil panelni ochadi."""
-    await admin.admin_panel(message)
+async def menu_admin(message: Message, state: FSMContext | None = None) -> None:
+    """👑 Admin panel — statistika va inline boshqaruv tugmalari."""
+    await admin.admin_panel(message, state)

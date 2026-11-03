@@ -10,7 +10,15 @@ from aiogram.filters import CommandObject
 
 from bot.config import get_config
 from bot.handlers import admin, shop
-from core.economy import EconomyStore, get_economy
+from core.economy import START_COINS, EconomyStore, get_economy
+from core.settings import SettingsStore
+
+
+def make_settings() -> SettingsStore:
+    """Karta ma'lumotlari saqlangan xotiradagi sozlamalar ombori."""
+    settings = SettingsStore(url="", key="", client=None)
+    settings.set_payment_card("9860 0000 0000 0000", "Falonchi Pistonchiyev")
+    return settings
 
 
 class ShopPresentationTest(unittest.TestCase):
@@ -28,6 +36,14 @@ class ShopPresentationTest(unittest.TestCase):
         self.addCleanup(self.env.stop)
         get_config.cache_clear()
         self.addCleanup(get_config.cache_clear)
+
+        # Do'kon kartani `system_settings`dan oladi.
+        self.settings = make_settings()
+        settings_patch = patch.object(
+            shop, "get_settings_store", return_value=self.settings
+        )
+        settings_patch.start()
+        self.addCleanup(settings_patch.stop)
 
     def test_config_reads_payment_settings(self) -> None:
         config = get_config()
@@ -116,12 +132,14 @@ class AdminHandlerTest(unittest.TestCase):
         give = CommandObject(args="88001 250")
         asyncio.run(admin.give_coins(message, give))
         self.assertIn("+250", message.answers[-1])
-        self.assertEqual(get_economy().get_user(88001).coins, 250)
+        self.assertEqual(
+            get_economy().get_user(88001).coins, START_COINS + 250
+        )
 
         user = CommandObject(args="88001")
         asyncio.run(admin.user_info(message, user))
         self.assertIn("88001", message.answers[-1])
-        self.assertIn("250", message.answers[-1])
+        self.assertIn(str(START_COINS + 250), message.answers[-1])
 
     def test_non_admin_is_rejected(self) -> None:
         message = FakeMessage(user_id=999)

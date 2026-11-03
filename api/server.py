@@ -40,6 +40,7 @@ from core.economy import (
     InsufficientCoinsError,
     get_economy,
 )
+from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
 from engine.game_manager import (
     GameError,
@@ -400,14 +401,18 @@ async def list_games() -> dict[str, Any]:
 
 
 def shop_meta() -> dict[str, Any]:
-    """Mini App do'koni uchun paketlar, karta va bot havolasi."""
+    """Mini App do'koni uchun paketlar, karta va bot havolasi.
+
+    Karta raqami admin panel orqali saqlanadigan ``system_settings``dan olinadi.
+    """
+    card_number, card_holder = get_settings_store().payment_card()
     return {
         "packages": [
             {"coins": coins, "price": price}
             for coins, price in COIN_PACKAGES.items()
         ],
-        "card_number": (os.getenv("CARD_NUMBER") or "").strip(),
-        "card_holder": (os.getenv("CARD_HOLDER") or "").strip(),
+        "card_number": card_number,
+        "card_holder": card_holder,
         "bot_username": (os.getenv("BOT_USERNAME") or "revilend_gamesbot")
         .strip()
         .lstrip("@"),

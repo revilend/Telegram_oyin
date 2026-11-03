@@ -13,7 +13,16 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from bot.config import get_config
-from bot.handlers import admin, boosters, bunker_group, common, menu, shop
+from bot.handlers import (
+    admin,
+    boosters,
+    bunker_group,
+    common,
+    leaderboard,
+    menu,
+    profile,
+    shop,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +31,8 @@ BOT_COMMANDS = [
     BotCommand(command="bunker", description="Yangi Bunker o'yini (guruhda)"),
     BotCommand(command="newgame", description="Yangi Bunker o'yini (guruhda)"),
     BotCommand(command="shop", description="Tangalar xarid qilish"),
+    BotCommand(command="profile", description="Mening profilim"),
+    BotCommand(command="top", description="Reyting va Top"),
 ]
 
 
@@ -33,6 +44,8 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(boosters.router)
     dispatcher.include_router(admin.router)
     dispatcher.include_router(bunker_group.router)
+    dispatcher.include_router(profile.router)
+    dispatcher.include_router(leaderboard.router)
     # Doimiy pastki menyu tugmalari /start va boshqa buyruqlardan keyin keladi.
     dispatcher.include_router(menu.router)
     dispatcher.include_router(common.router)
