@@ -8,7 +8,8 @@ from urllib.parse import quote
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
-from aiogram.filters import CommandObject, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from bot.config import get_config
@@ -27,7 +28,16 @@ logger = logging.getLogger(__name__)
 
 router = Router(name="common")
 
+# Yuqori ustuvorlikdagi bekor qilish routeri: Dispatcher'ga birinchi ulanadi,
+# shuning uchun FSM holatidagi handlerlardan oldin ishlaydi.
+cancel_router = Router(name="cancel")
+
 REFERRAL_PREFIX = "ref_"
+
+CANCEL_TEXTS: frozenset[str] = frozenset(
+    {"❌ Bekor qilish", "/cancel", "Bekor qilish", "❌ To'lov bekor qilindi."}
+)
+CANCELLED_TEXT = "❌ Jarayon bekor qilindi."
 
 WELCOME_TEXT = (
     "Salom, <b>{name}</b>! 👋\n\n"
@@ -120,6 +130,33 @@ async def _notify_inviter(
         logger.info("Taklif egasiga xabar yuborilmadi: %s", result.inviter_id)
     except Exception:
         logger.exception("Taklif egasiga xabar yuborishda xatolik")
+
+
+# ----------------------------------------------------------------------
+# Global bekor qilish
+# ----------------------------------------------------------------------
+@cancel_router.message(Command("cancel"))
+@cancel_router.message(F.text.in_(CANCEL_TEXTS))
+async def cancel_process(message: Message, state: FSMContext) -> None:
+    """Har qanday FSM holatida ishlaydi: holatni tozalab, menyuga qaytaradi."""
+    try:
+        await state.clear()
+    except Exception:  # holat yo'q bo'lsa ham xabar yuborilishi kerak
+        logger.exception("FSM holatini tozalab bo'lmadi")
+
+    if message.chat.type == "private":
+        user = message.from_user
+        try:
+            await message.answer(
+                CANCELLED_TEXT,
+                reply_markup=build_main_menu(
+                    is_admin=is_admin(user.id) if user is not None else False
+                ),
+            )
+            return
+        except TelegramAPIError:
+            logger.exception("Bekor qilish xabarini menyu bilan yuborib bo'lmadi")
+    await message.answer(CANCELLED_TEXT)
 
 
 # ----------------------------------------------------------------------

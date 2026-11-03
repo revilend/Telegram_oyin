@@ -33,12 +33,15 @@ BOT_COMMANDS = [
     BotCommand(command="shop", description="Tangalar xarid qilish"),
     BotCommand(command="profile", description="Mening profilim"),
     BotCommand(command="top", description="Reyting va Top"),
+    BotCommand(command="cancel", description="Jarayonni bekor qilish"),
 ]
 
 
 def build_dispatcher() -> Dispatcher:
     """Routerlarni ulab, tayyor Dispatcher qaytaradi."""
     dispatcher = Dispatcher(storage=MemoryStorage())
+    # /cancel har qanday FSM holatida ishlashi uchun birinchi ulanadi.
+    dispatcher.include_router(common.cancel_router)
     # /start shop_... deep linki umumiy /start handleridan oldin ushlanishi kerak.
     dispatcher.include_router(shop.router)
     dispatcher.include_router(boosters.router)

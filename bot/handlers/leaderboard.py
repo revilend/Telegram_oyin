@@ -13,7 +13,7 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from bot.handlers.profile import display_name
+from bot.handlers.profile import display_name, safe_int
 from bot.keyboards.main_menu import LEADERBOARD_BUTTON
 from core.economy import UserAccount, format_price, get_economy, player_rating
 
@@ -41,7 +41,7 @@ def leaderboard_text(
         lines.append(
             f"{prefix} {escape(display_name(account))} — "
             f"<b>{format_price(player_rating(account))}</b> reyting · "
-            f"{account.wins} g'alaba"
+            f"{safe_int(account.wins)} g'alaba"
         )
 
     if me is not None:
@@ -62,9 +62,8 @@ async def show_leaderboard(message: Message) -> None:
         economy = get_economy()
         top = economy.top_users(TOP_LIMIT)
         me = economy.get_user(user.id) if user is not None else None
-    except Exception:
-        # Baza xatosi reytingni ko'rsatishga to'sqinlik qilmasin.
-        logger.exception("Reytingni yuklab bo'lmadi")
-        await message.answer(leaderboard_text([]))
+    except Exception as exc:  # xatoni yashirmaymiz
+        logger.exception("Reyting xatosi")
+        await message.answer(f"⚠️ Reyting xatosi: {escape(str(exc))}")
         return
     await message.answer(leaderboard_text(top, me))

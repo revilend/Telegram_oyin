@@ -217,62 +217,95 @@ async def cancel_payment(callback: CallbackQuery, state: FSMContext) -> None:
             pass
 
 
-@router.message(ShopStates.waiting_receipt, F.photo)
-async def receipt_photo(message: Message, state: FSMContext) -> None:
-    """Chek rasmini qabul qilib, adminga yuboradi."""
-    data = await state.get_data()
-    coins = data.get("package_coins")
-    if not coins or not message.photo:
-        await message.answer("⚠️ Paket aniqlanmadi. /shop orqali qaytadan boshlang.")
-        await state.clear()
-        return
+def receipt_file_id(message: Message) -> str | None:
+    """Chek fayli id'sini oladi (rasm yoki hujjat)."""
+    if message.photo:
+        return message.photo[-1].file_id
+    if message.document:
+        return message.document.file_id
+    return None
 
+
+async def _send_receipt_to_admin(message: Message, payment) -> None:
+    """Chekni adminga rasm yoki hujjat sifatida yuboradi."""
     config = get_config()
     if not config.admin_id:
-        await message.answer("⚠️ ADMIN_ID sozlanmagan, chekni yuborib bo'lmaydi.")
-        return
-
+        raise RuntimeError("ADMIN_ID sozlanmagan")
     user = message.from_user
-    economy = get_economy()
-    try:
-        payment = economy.create_payment(
-            user_id=user.id,
-            username=user.username or "",
-            full_name=user.full_name,
-            package_coins=int(coins),
-            receipt_file_id=message.photo[-1].file_id,
-        )
-    except EconomyError as exc:
-        logger.exception("Chekni saqlab bo'lmadi")
-        await message.answer(f"⚠️ Chekni qabul qilib bo'lmadi: {escape(str(exc))}")
-        return
-
-    await state.clear()
-    await message.answer(
-        "✅ Chek qabul qilindi! Administrator tekshirib, tasdiqlagach tangalar "
-        "balansingizga qo'shiladi."
+    caption = receipt_caption(
+        payment,
+        (user.username or "") if user is not None else "",
+        (user.full_name if user is not None else "") or "",
     )
-
-    caption = receipt_caption(payment, user.username or "", user.full_name)
-    try:
+    keyboard = review_keyboard(payment.id)
+    if message.photo:
         await message.bot.send_photo(
             chat_id=config.admin_id,
             photo=payment.receipt_file_id,
             caption=caption,
-            reply_markup=review_keyboard(payment.id),
+            reply_markup=keyboard,
         )
-    except TelegramAPIError:
+    else:
+        await message.bot.send_document(
+            chat_id=config.admin_id,
+            document=payment.receipt_file_id,
+            caption=caption,
+            reply_markup=keyboard,
+        )
+
+
+@router.message(ShopStates.waiting_receipt, F.photo | F.document)
+async def receipt_file(message: Message, state: FSMContext) -> None:
+    """Chek (rasm yoki hujjat)ni qabul qilib, adminga yuboradi."""
+    try:
+        data = await state.get_data()
+        coins = data.get("package_coins")
+        file_id = receipt_file_id(message)
+        user = message.from_user
+        if not coins or not file_id or user is None:
+            await message.answer(
+                "⚠️ Paket aniqlanmadi. /shop orqali qaytadan boshlang."
+            )
+            await state.clear()
+            return
+
+        if not get_config().admin_id:
+            await message.answer("⚠️ ADMIN_ID sozlanmagan, chekni yuborib bo'lmaydi.")
+            return
+
+        payment = get_economy().create_payment(
+            user_id=user.id,
+            username=user.username or "",
+            full_name=user.full_name or "",
+            package_coins=int(coins),
+            receipt_file_id=file_id,
+        )
+    except Exception as exc:  # foydalanuvchi jim qolmasligi kerak
+        logger.exception("Chekni qayta ishlashda xatolik")
+        await message.answer(f"⚠️ Chek xatosi: {escape(str(exc))}")
+        return
+
+    await state.clear()
+    await message.answer(
+        "✅ Chekingiz qabul qilindi! Administrator tasdiqlashini kuting."
+    )
+
+    try:
+        await _send_receipt_to_admin(message, payment)
+    except Exception as exc:
         logger.exception("Chekni adminga yuborib bo'lmadi: %s", payment.id)
         await message.answer(
-            "⚠️ Chek saqlandi, ammo adminga yuborishda xatolik bo'ldi. "
-            "Administrator bilan bog'laning."
+            f"⚠️ Chek saqlandi, ammo adminga yuborishda xatolik: {escape(str(exc))}"
         )
 
 
 @router.message(ShopStates.waiting_receipt)
 async def receipt_expected(message: Message) -> None:
-    """Rasm o'rniga matn kelsa, qayta so'raydi."""
-    await message.answer("📸 Iltimos, chekni rasm (skrinshot) ko'rinishida yuboring.")
+    """Matn kelsa, chekni rasm yoki fayl sifatida so'raydi."""
+    await message.answer(
+        "📸 Iltimos, chekni rasm (skrinshot) yoki PDF fayl ko'rinishida "
+        "yuboring. Bekor qilish uchun /cancel yuboring."
+    )
 
 
 async def _review(callback: CallbackQuery, approve: bool) -> None:
