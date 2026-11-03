@@ -1,0 +1,1244 @@
+{
+  "meta": {
+    "name": "Bunker katalogi",
+    "language": "uz",
+    "version": 1,
+    "counts": {
+      "catastrophes": 8,
+      "professions": 40,
+      "biologies": 29,
+      "health": 24,
+      "hobbies": 22,
+      "luggage": 27,
+      "facts": 22,
+      "special_actions": 16
+    }
+  },
+  "catastrophes": [
+    {
+      "id": "yadro_urushi",
+      "name": "Global yadro urushi",
+      "description": "Bir necha davlat o'rtasida yadroviy zarbalar boshlanadi. Shaharlar vayron bo'ladi, havo radioaktiv chang bilan to'ladi, quyosh nuri oylab ko'rinmaydi. Yer usti 30 yil davomida yashash uchun yaroqsiz hisoblanadi.",
+      "bunker_supplies": [
+        "3 yillik konservalangan oziq-ovqat zaxirasi",
+        "Radiatsiya dozimetri va himoya kostyumi (10 ta)",
+        "Havo filtrlash qurilmasi",
+        "Yod tabletkalari (5000 dona)",
+        "5 yillik yonilg'i zaxirasi"
+      ],
+      "survival_requirements": [
+        "Bunker germetik yopilishi va havo filtri ishlashi shart",
+        "Har bir a'zo radiatsiya darajasini kunlik tekshirib borishi kerak",
+        "Bunkerdan tashqariga faqat himoya kostyumida chiqish mumkin",
+        "Tibbiyot xodimi yoki radiatsiya bo'yicha bilimli a'zo zarur"
+      ]
+    },
+    {
+      "id": "pandemiya",
+      "name": "Qora vabo-27 pandemiyasi",
+      "description": "Laboratoriyadan chiqib ketgan sun'iy virus havo orqali tarqaladi. Aholining 80 foizi kasallanadi, kasallik 5 kunda o'limga olib keladi. Karantin va izolyatsiya butun dunyoda e'lon qilinadi.",
+      "bunker_supplies": [
+        "Vaksina prototipi va uni saqlash uchun muzlatgich",
+        "Bir martalik himoya niqoblari va qo'lqoplar (2000 ta)",
+        "Dezinfeksiya vositalari va avtoklav",
+        "Antibiotik va antiviral dorilar zaxirasi",
+        "Laboratoriya uskunalari to'plami"
+      ],
+      "survival_requirements": [
+        "Bunkerga kirishda majburiy karantin va tekshiruv",
+        "Haftalik tibbiy ko'rik o'tkazilishi shart",
+        "Har bir a'zo himoya vositalaridan foydalanishi kerak",
+        "Bunkerdagi a'zolarning sog'lig'i zaif bo'lmasligi kerak"
+      ]
+    },
+    {
+      "id": "asteroid",
+      "name": "Asteroid zarbasi",
+      "description": "Diametri 12 kilometr bo'lgan asteroid Yerga uriladi. Urilish to'lqini shaharlarni yo'q qiladi, chang buluti quyoshni to'sadi, harorat 20 darajaga tushadi. Oziq-ovqat zanjiri buziladi.",
+      "bunker_supplies": [
+        "Zilzilaga chidamli mustahkamlangan bunker",
+        "1 yillik oziq-ovqat va suv zaxirasi",
+        "Geotermal isitish tizimi",
+        "Ko'mir va o'tin zaxirasi",
+        "Urug'lik banki (100 dan ortiq tur)"
+      ],
+      "survival_requirements": [
+        "Bunker yer ostida kamida 50 metr chuqurlikda bo'lishi kerak",
+        "Isitish tizimi uzluksiz ishlashi zarur",
+        "Dehqonchilik va o'simlikshunoslik bo'yicha bilim shart",
+        "Har bir a'zo jismonan chidamli bo'lishi kerak"
+      ]
+    },
+    {
+      "id": "iqlim_toshqini",
+      "name": "Global suv toshqini",
+      "description": "Muzliklar butunlay erib ketadi va okean sathi 60 metrga ko'tariladi. Qirg'oq shaharlari suv ostida qoladi, ichimlik suvi sho'rlanadi, millionlab odamlar boshpanasiz qoladi.",
+      "bunker_supplies": [
+        "Suvni tuzsizlantiruvchi qurilma",
+        "Havo nasosi va filtr tizimi",
+        "6 oylik ichimlik suvi zaxirasi",
+        "Suzish vositalari va qayiq",
+        "Suv o'tkazmaydigan kiyimlar"
+      ],
+      "survival_requirements": [
+        "Bunker suv sathidan yuqorida joylashgan bo'lishi kerak",
+        "Ichimlik suvi faqat filtrlashdan keyin ishlatiladi",
+        "Suv bilan ishlashni biladigan mutaxassis zarur",
+        "Namlik va zamburug'ga qarshi kurash olib boriladi"
+      ]
+    },
+    {
+      "id": "emp_quyosh_boroni",
+      "name": "Quyosh bo'roni va EMP",
+      "description": "Kuchli quyosh bo'roni barcha elektrik tarmoqlarini, sun'iy yo'ldoshlarni va elektronikani ishdan chiqaradi. Elektrsiz, aloqasiz va transportysiz dunyo paydo bo'ladi. Bunkerdagi generatordan tashqari hech qanday texnika ishlamaydi.",
+      "bunker_supplies": [
+        "Qo'rg'oshin bilan qoplangan elektromagnit himoya kamerasi",
+        "Dizel generator va 2 yillik yonilg'i",
+        "Elektrsiz ishlaydigan qo'l nasosi va asboblar",
+        "Mexanik soatlar va kompaslar",
+        "Zaxira elektronika (himoyalangan)"
+      ],
+      "survival_requirements": [
+        "Barcha elektronika himoya kamerasida saqlanadi",
+        "Elektr va mexanika bo'yicha mutaxassis zarur",
+        "Yonilg'i sarfi qat'iy nazorat qilinadi",
+        "Aloqa uchun radio havaskor yoki signalchi kerak"
+      ]
+    },
+    {
+      "id": "supervulqon",
+      "name": "Supervulqon otilishi",
+      "description": "Yelloustoun supervulqoni otilib, kul butun atmosferani qoplaydi. Vulqon qishi 5 yil davom etadi, harorat 15 darajaga tushadi, ekinlar nobud bo'ladi. Kul nafas olish yo'llarini zararlaydi.",
+      "bunker_supplies": [
+        "Kul va zaharli gazdan himoyalovchi havo filtri",
+        "Issiqxona uchun sun'iy yoritish uskunalari",
+        "5 yillik oziq-ovqat zaxirasi",
+        "Respiratorlar (500 ta)",
+        "Issiqlik izolyatsiyasi va qishki kiyimlar"
+      ],
+      "survival_requirements": [
+        "Bunker havo filtri kul zarralarini ushlab turishi shart",
+        "Ichki issiqxona ishlashi uchun elektr energiya zarur",
+        "Nafas yo'llari mutaxassisi yoki shifokor kerak",
+        "Haroratni doimiy nazorat qiluvchi a'zo tayinlanadi"
+      ]
+    },
+    {
+      "id": "kimyoviy_falokat",
+      "name": "Zaharli gaz buluti",
+      "description": "Yirik kimyoviy zavodda avariya yuz beradi va zaharli gaz buluti shamol bilan shaharlar ustidan o'tadi. Havo 72 soat davomida nafas olish uchun yaroqsiz bo'ladi, suv manbalari zaharlanadi.",
+      "bunker_supplies": [
+        "Sanoat tipidagi gaz niqoblari (50 ta)",
+        "Havo tozalash va regeneratsiya qurilmasi",
+        "Kimyoviy yelka himoya kostyumlari",
+        "Zaharlanishga qarshi dorilar (atropin va boshqalar)",
+        "Suvni kimyoviy tozalash to'plami"
+      ],
+      "survival_requirements": [
+        "Bunkerning havo kirish tizimi germetik yopiladi",
+        "Tashqi havoga chiqish faqat himoya kostyumida bo'ladi",
+        "Kimyogar yoki zaharli moddalar bo'yicha mutaxassis zarur",
+        "Suv faqat kimyoviy tahlildan keyin iste'mol qilinadi"
+      ]
+    },
+    {
+      "id": "muzlik_davri",
+      "name": "Yangi muzlik davri",
+      "description": "Golfstrim oqimi to'xtaydi va sayyora bo'ylab harorat keskin pasayadi. Qor va muz hamma joyni qoplaydi, oziq-ovqat ishlab chiqarish to'xtaydi. Faqat issiq va mustahkam bunkerda omon qolish mumkin.",
+      "bunker_supplies": [
+        "Kuchli isitish qozoni va 3 yillik yoqilg'i",
+        "Issiq kiyim va termo ko'rpalar",
+        "Muzlatilgan go'sht va quritilgan oziq-ovqat",
+        "Qor eritish va suv tozalash qurilmasi",
+        "Issiqxona uchun urug' va o'g'it"
+      ],
+      "survival_requirements": [
+        "Bunker isitish tizimi uzluksiz ishlashi shart",
+        "Yoqilg'i sarfi qat'iy reja asosida amalga oshiriladi",
+        "Issiqxona uchun energiya tejovchi yoritish kerak",
+        "Jismonan chidamli va sovuqqa moslashgan a'zolar afzal"
+      ]
+    }
+  ],
+  "professions": [
+    {
+      "id": "shifokor",
+      "title": "Shifokor",
+      "tag": "tibbiyot",
+      "description": "Umumiy amaliyot shifokori. Kasalliklarni tashxislash, davolash va operatsiyadan keyingi parvarish bilan shug'ullanadi. Bunkerde eng qimmatli mutaxassis."
+    },
+    {
+      "id": "jarroh",
+      "title": "Jarroh",
+      "tag": "tibbiyot",
+      "description": "Jarrohlik operatsiyalarini bajaradi, jarohatlar va sinishlarni davolaydi. Cheklangan sharoitda ham ishlay oladi."
+    },
+    {
+      "id": "hamshira",
+      "title": "Hamshira",
+      "tag": "tibbiyot",
+      "description": "Bemorlarni parvarish qiladi, in'ektsiya va dorilarni to'g'ri taqsimlaydi. Shifokorga har qanday sharoitda yordam beradi."
+    },
+    {
+      "id": "farmatsevt",
+      "title": "Farmatsevt",
+      "tag": "tibbiyot",
+      "description": "Dorilarni tayyorlaydi va saqlash muddatini nazorat qiladi. Dorilar zaxirasini to'g'ri taqsimlash uning vazifasi."
+    },
+    {
+      "id": "stomatolog",
+      "title": "Stomatolog",
+      "tag": "tibbiyot",
+      "description": "Tish va og'iz bo'shlig'i kasalliklarini davolaydi. Infeksiya manbalarini bartaraf etib, umumiy sog'liqni saqlaydi."
+    },
+    {
+      "id": "harbiy_ofitser",
+      "title": "Harbiy ofitser",
+      "tag": "harbiy",
+      "description": "Harbiy tartib, qo'riqlash va mudofaa bo'yicha tajribali. Bunkerdagi intizom va xavfsizlikni ta'minlaydi."
+    },
+    {
+      "id": "snayper",
+      "title": "Snayper",
+      "tag": "harbiy",
+      "description": "Aniq nishonga olish va yashirin harakat qilish bo'yicha mutaxassis. Ovchilik va tashqi razvedkada foydali."
+    },
+    {
+      "id": "qoriqchi",
+      "title": "Qo'riqchi",
+      "tag": "xavfsizlik",
+      "description": "Xavfsizlik va nazorat bo'yicha ishlagan. Kirish-chiqish tartibini va tungi navbatchilikni yaxshi biladi."
+    },
+    {
+      "id": "dasturchi",
+      "title": "Dasturchi",
+      "tag": "texnika",
+      "description": "Kompyuter tizimlari, aloqa va avtomatlashtirish bo'yicha bilimli. Bunkerdagi elektronika va tizimlarni boshqaradi."
+    },
+    {
+      "id": "muhandis",
+      "title": "Muhandis",
+      "tag": "texnika",
+      "description": "Qurilish va texnik tizimlarni loyihalaydi va ta'mirlaydi. Bunker infratuzilmasining ishonchliligi unga bog'liq."
+    },
+    {
+      "id": "elektrik",
+      "title": "Elektrik",
+      "tag": "texnika",
+      "description": "Elektr tarmoqlari, generatorlar va simlarni o'rnatadi. Elektrsiz bunker tezda yashash uchun yaroqsiz bo'lib qoladi."
+    },
+    {
+      "id": "quruvchi",
+      "title": "Quruvchi",
+      "tag": "texnika",
+      "description": "Bino va inshootlarni quradi, mustahkamlaydi, buzilgan qismlarni tiklaydi. Bunkerni kengaytirishda foydali."
+    },
+    {
+      "id": "mexanik",
+      "title": "Mexanik",
+      "tag": "texnika",
+      "description": "Mashina va mexanizmlarni ta'mirlaydi. Nasos, generator va ventilyatsiya uskunalarini ish holatida saqlaydi."
+    },
+    {
+      "id": "haydovchi",
+      "title": "Haydovchi",
+      "tag": "texnika",
+      "description": "Yuk va yengil transportni boshqaradi, qiyin yo'llarda harakat qiladi. Tashqi qidiruv ishlarida muhim."
+    },
+    {
+      "id": "uchuvchi",
+      "title": "Uchuvchi",
+      "tag": "texnika",
+      "description": "Samolyot va vertolyot boshqarish tajribasiga ega. Uzoq masofaga tez yetib borish va evakuatsiya uchun kerak."
+    },
+    {
+      "id": "konchi",
+      "title": "Konchi",
+      "tag": "texnika",
+      "description": "Yer osti ishlarida tajribali, portlatish va qazishni biladi. Bunker kengaytmasi va resurs qazib olishda foydali."
+    },
+    {
+      "id": "neftchi",
+      "title": "Neftchi",
+      "tag": "texnika",
+      "description": "Neft va gaz uskunalariga xizmat ko'rsatadi. Yoqilg'i zaxirasini topish va qayta ishlashni biladi."
+    },
+    {
+      "id": "oshpaz",
+      "title": "Oshpaz",
+      "tag": "oziq-ovqat",
+      "description": "Kam mahsulotdan mazali va to'yimli taom tayyorlaydi. Oziq-ovqatni tejash va ratsion tuzishda usta."
+    },
+    {
+      "id": "novvoy",
+      "title": "Novvoy",
+      "tag": "oziq-ovqat",
+      "description": "Non va xamir mahsulotlarini tayyorlaydi. Un zaxirasidan uzoq saqlanadigan mahsulot chiqaradi."
+    },
+    {
+      "id": "dehqon",
+      "title": "Dehqon",
+      "tag": "oziq-ovqat",
+      "description": "Yer haydash, ekish va hosil yig'ishni biladi. Bunkerdagi issiqxonada oziq-ovqat yetishtira oladi."
+    },
+    {
+      "id": "chorvador",
+      "title": "Chorvador",
+      "tag": "oziq-ovqat",
+      "description": "Hayvonlarni boqish, sog'ish va parvarishlash bo'yicha tajribali. Go'sht va sut mahsulotlari manbai."
+    },
+    {
+      "id": "baliqchi",
+      "title": "Baliqchi",
+      "tag": "oziq-ovqat",
+      "description": "Baliq ovlash va konservalashni biladi. Suv yaqinida qo'shimcha oziq-ovqat manbai bo'la oladi."
+    },
+    {
+      "id": "agronom",
+      "title": "Agronom",
+      "tag": "oziq-ovqat",
+      "description": "Tuproq, urug' va hosildorlik bo'yicha mutaxassis. Oziq-ovqat ishlab chiqarishni rejalashtiradi."
+    },
+    {
+      "id": "psixolog",
+      "title": "Psixolog",
+      "tag": "ijtimoiy",
+      "description": "Stress, qo'rquv va mojarolarni boshqaradi. Yopiq sharoitda guruh ruhiyatini saqlashda muhim."
+    },
+    {
+      "id": "oqituvchi",
+      "title": "O'qituvchi",
+      "tag": "ijtimoiy",
+      "description": "Bilim berish va bolalarni tarbiyalash bo'yicha tajribali. Bunkerdagi avlodni o'qitish uchun kerak."
+    },
+    {
+      "id": "tarjimon",
+      "title": "Tarjimon",
+      "tag": "ijtimoiy",
+      "description": "Bir necha tilni biladi, muzokaralar olib boradi. Boshqa guruhlar bilan aloqa qilishda qo'l keladi."
+    },
+    {
+      "id": "huquqshunos",
+      "title": "Huquqshunos",
+      "tag": "ijtimoiy",
+      "description": "Qonun va nizolarni biladi, adolatli qoidalar tuzadi. Bunkerdagi kelishmovchiliklarni hal qiladi."
+    },
+    {
+      "id": "jurnalist",
+      "title": "Jurnalist",
+      "tag": "ijtimoiy",
+      "description": "Axborot yig'ish va tekshirishda tajribali, ishonchli ma'lumot topadi va vahima tarqalishini oldini oladi."
+    },
+    {
+      "id": "aktyor",
+      "title": "Aktyor",
+      "tag": "ijtimoiy",
+      "description": "Tomosha va nutq san'ati ustasi. Guruh ruhini ko'taradi va muzokaralarda ishonch uyg'otadi."
+    },
+    {
+      "id": "sartarosh",
+      "title": "Sartarosh",
+      "tag": "ijtimoiy",
+      "description": "Soch va gigiyena xizmatlarini ko'rsatadi. Odamlarning ko'rinishi va ruhiy holatiga ijobiy ta'sir qiladi."
+    },
+    {
+      "id": "iqtisodchi",
+      "title": "Iqtisodchi",
+      "tag": "fan",
+      "description": "Resurslarni hisoblaydi va taqsimlaydi. Oziq-ovqat va materiallar yetishmovchiligini oldindan rejalashtiradi."
+    },
+    {
+      "id": "biolog",
+      "title": "Biolog",
+      "tag": "fan",
+      "description": "Tirik organizmlar, ekologiya va mikrobiologiyani biladi. O'simlik va hayvon resurslaridan foydalanishni rejalashtiradi."
+    },
+    {
+      "id": "kimyogar",
+      "title": "Kimyogar",
+      "tag": "fan",
+      "description": "Kimyoviy moddalar va tozalash usullarini biladi. Suv, havo va dorilarni tahlil qiladi."
+    },
+    {
+      "id": "fizik",
+      "title": "Fizik",
+      "tag": "fan",
+      "description": "Energiya va texnik qonuniyatlarni biladi. Muammolarni ilmiy yondashuv bilan hal qiladi."
+    },
+    {
+      "id": "geolog",
+      "title": "Geolog",
+      "tag": "fan",
+      "description": "Tuproq, suv va foydali qazilmalarni aniqlaydi. Suv manbai va qurilish materiallarini topishda foydali."
+    },
+    {
+      "id": "ormonchi",
+      "title": "O'rmonchi",
+      "tag": "tabiat",
+      "description": "O'rmon resurslari, daraxt turlari va yovvoyi tabiatni biladi. O'tin va oziq-ovqat topishda yordam beradi."
+    },
+    {
+      "id": "tikuvchi",
+      "title": "Tikuvchi",
+      "tag": "hunarmandchilik",
+      "description": "Kiyim, chodir va matolarni tika oladi va ta'mirlaydi. Kiyim-kechak zaxirasini uzaytiradi."
+    },
+    {
+      "id": "duradgor",
+      "title": "Duradgor",
+      "tag": "hunarmandchilik",
+      "description": "Yog'ochdan mebel, eshik va asboblar yasaydi. Ta'mirlash va qurilish ishlarida muhim."
+    },
+    {
+      "id": "kulol",
+      "title": "Kulol",
+      "tag": "hunarmandchilik",
+      "description": "Loydan idish va suv saqlash uchun keramika yasaydi. Oziq-ovqat va suvni uzoq saqlashga yordam beradi."
+    },
+    {
+      "id": "sportchi",
+      "title": "Sportchi",
+      "tag": "boshqa",
+      "description": "Jismonan kuchli va chidamli, jamoaviy ishda faol. Og'ir jismoniy mehnat va tashqi vazifalarda birinchi navbatda yuboriladi."
+    }
+  ],
+  "biologies": [
+    {
+      "id": "ayol_18",
+      "gender": "Ayol",
+      "age": 18,
+      "can_have_children": true,
+      "title": "Ayol, 18 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 18 · Bola ko'rish qobiliyati: bor. Yosh va chidamli, lekin hayotiy tajribasi kam."
+    },
+    {
+      "id": "erkak_19",
+      "gender": "Erkak",
+      "age": 19,
+      "can_have_children": true,
+      "title": "Erkak, 19 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 19 · Bola ko'rish qobiliyati: bor. Jismonan kuchli, tez o'rganadi."
+    },
+    {
+      "id": "ayol_22",
+      "gender": "Ayol",
+      "age": 22,
+      "can_have_children": true,
+      "title": "Ayol, 22 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 22 · Bola ko'rish qobiliyati: bor. Universitetni endi bitirgan, g'ayratli."
+    },
+    {
+      "id": "erkak_23",
+      "gender": "Erkak",
+      "age": 23,
+      "can_have_children": true,
+      "title": "Erkak, 23 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 23 · Bola ko'rish qobiliyati: bor. Sport bilan shug'ullanadi, chidamli."
+    },
+    {
+      "id": "ayol_24",
+      "gender": "Ayol",
+      "age": 24,
+      "can_have_children": true,
+      "title": "Ayol, 24 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 24 · Bola ko'rish qobiliyati: bor. Ikki yillik ish tajribasiga ega."
+    },
+    {
+      "id": "erkak_25",
+      "gender": "Erkak",
+      "age": 25,
+      "can_have_children": true,
+      "title": "Erkak, 25 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 25 · Bola ko'rish qobiliyati: bor. Kuch-quvvatning eng yuqori cho'qqisida."
+    },
+    {
+      "id": "ayol_26",
+      "gender": "Ayol",
+      "age": 26,
+      "can_have_children": true,
+      "title": "Ayol, 26 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 26 · Bola ko'rish qobiliyati: bor. Amaliy ko'nikmalarga ega, xotirjam."
+    },
+    {
+      "id": "erkak_27",
+      "gender": "Erkak",
+      "age": 27,
+      "can_have_children": true,
+      "title": "Erkak, 27 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 27 · Bola ko'rish qobiliyati: bor. Harbiy xizmatni o'tagan, tartibni biladi."
+    },
+    {
+      "id": "ayol_28",
+      "gender": "Ayol",
+      "age": 28,
+      "can_have_children": false,
+      "title": "Ayol, 28 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 28 · Bola ko'rish qobiliyati: yo'q (tibbiy sabab). Aqlli va sovuqqon."
+    },
+    {
+      "id": "erkak_29",
+      "gender": "Erkak",
+      "age": 29,
+      "can_have_children": true,
+      "title": "Erkak, 29 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 29 · Bola ko'rish qobiliyati: bor. Uy qurilishi va ta'mirlashni biladi."
+    },
+    {
+      "id": "ayol_30",
+      "gender": "Ayol",
+      "age": 30,
+      "can_have_children": false,
+      "title": "Ayol, 30 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 30 · Bola ko'rish qobiliyati: yo'q. Karyerasiga urg'u bergan, bilimli."
+    },
+    {
+      "id": "erkak_31",
+      "gender": "Erkak",
+      "age": 31,
+      "can_have_children": true,
+      "title": "Erkak, 31 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 31 · Bola ko'rish qobiliyati: bor. Oila qurish tajribasi va mas'uliyati bor."
+    },
+    {
+      "id": "ayol_32",
+      "gender": "Ayol",
+      "age": 32,
+      "can_have_children": true,
+      "title": "Ayol, 32 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 32 · Bola ko'rish qobiliyati: bor. Ikki farzandni tarbiyalagan, chidamli."
+    },
+    {
+      "id": "erkak_33",
+      "gender": "Erkak",
+      "age": 33,
+      "can_have_children": false,
+      "title": "Erkak, 33 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 33 · Bola ko'rish qobiliyati: yo'q. Kuchli va tajribali mutaxassis."
+    },
+    {
+      "id": "ayol_34",
+      "gender": "Ayol",
+      "age": 34,
+      "can_have_children": true,
+      "title": "Ayol, 34 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 34 · Bola ko'rish qobiliyati: bor. Hayotda ko'p sinovlardan o'tgan."
+    },
+    {
+      "id": "erkak_35",
+      "gender": "Erkak",
+      "age": 35,
+      "can_have_children": false,
+      "title": "Erkak, 35 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 35 · Bola ko'rish qobiliyati: yo'q. Og'ir mehnatga o'rganib qolgan."
+    },
+    {
+      "id": "ayol_36",
+      "gender": "Ayol",
+      "age": 36,
+      "can_have_children": false,
+      "title": "Ayol, 36 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 36 · Bola ko'rish qobiliyati: yo'q. Tajribali, sovuqqon va ehtiyotkor."
+    },
+    {
+      "id": "erkak_38",
+      "gender": "Erkak",
+      "age": 38,
+      "can_have_children": true,
+      "title": "Erkak, 38 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 38 · Bola ko'rish qobiliyati: bor. Yetakchilik va tashkilotchilik qobiliyati kuchli."
+    },
+    {
+      "id": "ayol_40",
+      "gender": "Ayol",
+      "age": 40,
+      "can_have_children": false,
+      "title": "Ayol, 40 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 40 · Bola ko'rish qobiliyati: yo'q. Hayotiy tajribasi boy, xotirjam."
+    },
+    {
+      "id": "erkak_42",
+      "gender": "Erkak",
+      "age": 42,
+      "can_have_children": true,
+      "title": "Erkak, 42 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 42 · Bola ko'rish qobiliyati: bor. Uzoq yillik kasbiy tajribaga ega."
+    },
+    {
+      "id": "ayol_45",
+      "gender": "Ayol",
+      "age": 45,
+      "can_have_children": false,
+      "title": "Ayol, 45 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 45 · Bola ko'rish qobiliyati: yo'q. Dono va mojarolarni hal qilishda usta."
+    },
+    {
+      "id": "erkak_48",
+      "gender": "Erkak",
+      "age": 48,
+      "can_have_children": false,
+      "title": "Erkak, 48 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 48 · Bola ko'rish qobiliyati: yo'q. Katta tajriba, ammo sog'lig'iga e'tibor kerak."
+    },
+    {
+      "id": "ayol_52",
+      "gender": "Ayol",
+      "age": 52,
+      "can_have_children": false,
+      "title": "Ayol, 52 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 52 · Bola ko'rish qobiliyati: yo'q. Tajribali rahbar, sovuqqon qaror qabul qiladi."
+    },
+    {
+      "id": "erkak_55",
+      "gender": "Erkak",
+      "age": 55,
+      "can_have_children": false,
+      "title": "Erkak, 55 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 55 · Bola ko'rish qobiliyati: yo'q. Hunar va hayotiy tajribasi chuqur."
+    },
+    {
+      "id": "ayol_58",
+      "gender": "Ayol",
+      "age": 58,
+      "can_have_children": false,
+      "title": "Ayol, 58 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 58 · Bola ko'rish qobiliyati: yo'q. Tabobat va o'simliklar bo'yicha bilimli."
+    },
+    {
+      "id": "erkak_62",
+      "gender": "Erkak",
+      "age": 62,
+      "can_have_children": false,
+      "title": "Erkak, 62 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 62 · Bola ko'rish qobiliyati: yo'q. Nafaqada, lekin tajribasi bebaho."
+    },
+    {
+      "id": "ayol_67",
+      "gender": "Ayol",
+      "age": 67,
+      "can_have_children": false,
+      "title": "Ayol, 67 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 67 · Bola ko'rish qobiliyati: yo'q. Qishloq hayoti va dehqonchilikni yaxshi biladi."
+    },
+    {
+      "id": "erkak_71",
+      "gender": "Erkak",
+      "age": 71,
+      "can_have_children": false,
+      "title": "Erkak, 71 yosh",
+      "description": "Jinsi: Erkak · Yoshi: 71 · Bola ko'rish qobiliyati: yo'q. Jismonan zaif, ammo bilimi boy."
+    },
+    {
+      "id": "ayol_75",
+      "gender": "Ayol",
+      "age": 75,
+      "can_have_children": false,
+      "title": "Ayol, 75 yosh",
+      "description": "Jinsi: Ayol · Yoshi: 75 · Bola ko'rish qobiliyati: yo'q. Nafas qisishi bo'lishi mumkin, tibbiy nazorat kerak."
+    }
+  ],
+  "health": [
+    {
+      "id": "butkul_soglom",
+      "title": "Butkul sog'lom",
+      "tag": "yaxshi",
+      "description": "Hech qanday surunkali kasalligi yo'q, immuniteti kuchli. Og'ir jismoniy yuklamalarga tayyor."
+    },
+    {
+      "id": "otkir_eshitish",
+      "title": "O'tkir eshitish qobiliyati",
+      "tag": "yaxshi",
+      "description": "Oddiy odamdan uch barobar nozik eshitadi. Bunker tashqarisidagi xavf-xatarni birinchi bo'lib sezadi."
+    },
+    {
+      "id": "otkir_korish",
+      "title": "O'tkir ko'rish qobiliyati",
+      "tag": "yaxshi",
+      "description": "Qorong'uda ham yaxshi ko'radi, kichik detallarni sezadi. Qo'riqlash va razvedkada ustunlik beradi."
+    },
+    {
+      "id": "gulchang_allergiyasi",
+      "title": "Gulchang allergiyasi",
+      "tag": "yengil",
+      "description": "Bahorda aksirish va ko'z qichishi kuzatiladi. Antigistamin dori bilan nazorat qilinadi."
+    },
+    {
+      "id": "migren",
+      "title": "Migren",
+      "tag": "yengil",
+      "description": "Oyiga 2-3 marta kuchli bosh og'rig'i tutadi. Stress va yorug'likni cheklash kerak."
+    },
+    {
+      "id": "uyqusizlik",
+      "title": "Surunkali uyqusizlik",
+      "tag": "yengil",
+      "description": "Kechalari uxlash qiyin, charchoq to'planib boradi. Dam olish rejimi qat'iy bo'lishi kerak."
+    },
+    {
+      "id": "semizlik",
+      "title": "Semizlik (2-daraja)",
+      "tag": "o'rtacha",
+      "description": "Ortiqcha vazn tufayli harakatlanish qiyin, yurakka yuk ortadi. Parhez va jismoniy mashq zarur."
+    },
+    {
+      "id": "gipertoniya",
+      "title": "Gipertoniya",
+      "tag": "o'rtacha",
+      "description": "Qon bosimi yuqori, doimiy dori va tuzni cheklash kerak. Stress ostida asorat xavfi bor."
+    },
+    {
+      "id": "astma",
+      "title": "Astma",
+      "tag": "o'rtacha",
+      "description": "Nafas qisishi va xirillash xurujlari bo'ladi. Inhalyator va toza havo zarur."
+    },
+    {
+      "id": "surunkali_bronxit",
+      "title": "Surunkali bronxit",
+      "tag": "o'rtacha",
+      "description": "Tez-tez yo'tal va nafas yo'llari infeksiyasi. Chang va tutundan himoya qilish kerak."
+    },
+    {
+      "id": "oshqozon_yarasi",
+      "title": "Oshqozon yarasi",
+      "tag": "o'rtacha",
+      "description": "Ovqat hazmi bilan muammo, og'riq tutadi. Kaloriyasi past va yumshoq taom kerak."
+    },
+    {
+      "id": "buyrak_toshlari",
+      "title": "Buyrak toshlari",
+      "tag": "o'rtacha",
+      "description": "Kuchli bel og'rig'i xurujlari bo'lishi mumkin. Ko'p suv ichish va jarrohlik yordami kerak."
+    },
+    {
+      "id": "anemiya",
+      "title": "Temir tanqisligi anemiyasi",
+      "tag": "o'rtacha",
+      "description": "Qon kamligi, tez charchash va holsizlik. Temirga boy oziq-ovqat va dori zarur."
+    },
+    {
+      "id": "artrit",
+      "title": "Artrit",
+      "tag": "o'rtacha",
+      "description": "Bo'g'imlar og'riydi va qotib qoladi. Sovuq, nam sharoitda ahvoli yomonlashadi."
+    },
+    {
+      "id": "depressiya",
+      "title": "Klinik depressiya",
+      "tag": "o'rtacha",
+      "description": "Doimiy tushkunlik va motivatsiyasizlik. Psixolog yordami va dori kerak bo'ladi."
+    },
+    {
+      "id": "klostrofobiya",
+      "title": "Klostrofobiya",
+      "tag": "o'rtacha",
+      "description": "Yopiq joylarda vahima va nafas qisishi kuzatiladi. Bunker sharoitida qo'shimcha qiyinchilik tug'diradi."
+    },
+    {
+      "id": "oyoq_choloqligi",
+      "title": "Oyoq cho'loqligi",
+      "tag": "o'rtacha",
+      "description": "Bolalikda o'tkazilgan kasallik iz qoldirgan. Uzoq yurish qiyin, tashqi vazifalarda mos emas."
+    },
+    {
+      "id": "1_toifa_diabet",
+      "title": "1-toifa diabet",
+      "tag": "og'ir",
+      "description": "Insulin doimiy in'ektsiyasi zarur. Zaxirasiz bir necha kun bile yashab bo'lmaydi."
+    },
+    {
+      "id": "yurak_xastaligi",
+      "title": "Yurak ishemik kasalligi",
+      "tag": "og'ir",
+      "description": "Yurak xuruji xavfi yuqori. Og'ir jismoniy yuklama va stress qat'iyan taqiqlanadi."
+    },
+    {
+      "id": "epilepsiya",
+      "title": "Epilepsiya",
+      "tag": "og'ir",
+      "description": "Vaqti-vaqti bilan tutqanoq xurujlari bo'ladi. Doimiy kuzatuv va dori talab qiladi."
+    },
+    {
+      "id": "sil",
+      "title": "Sil (tuberkulyoz)",
+      "tag": "og'ir",
+      "description": "Aktiv davolash kursi tugamagan. Boshqalarga yuqish xavfi bor, izolyatsiya zarur."
+    },
+    {
+      "id": "oiv",
+      "title": "OIV infeksiyasi",
+      "tag": "og'ir",
+      "description": "Immunitet zaif, doimiy antiviral terapiya kerak. Infeksiyalarga qarshi ehtiyot choralari shart."
+    },
+    {
+      "id": "saraton_remissiya",
+      "title": "Saraton (remissiyada)",
+      "tag": "og'ir",
+      "description": "Davolash kursi o'tkazilgan, doimiy tekshiruv va dori kerak. Qaytalanish xavfi saqlanadi."
+    },
+    {
+      "id": "2_toifa_diabet",
+      "title": "2-toifa diabet",
+      "tag": "o'rtacha",
+      "description": "Qand darajasi parhez va dori bilan boshqariladi. Shakar va un mahsulotlarini cheklash kerak."
+    }
+  ],
+  "hobbies": [
+    {
+      "id": "baliq_ovi",
+      "title": "Baliq ovi",
+      "description": "Qarmoq va to'r bilan baliq ovlaydi. Suv yaqinida qo'shimcha oziq-ovqat topa oladi."
+    },
+    {
+      "id": "jang_sanati",
+      "title": "Jang san'ati",
+      "description": "Karate bo'yicha qora kamarga ega. O'zini himoya qilish va jismoniy tayyorgarlik uchun foydali."
+    },
+    {
+      "id": "botanika",
+      "title": "Botanika",
+      "description": "Dorivor va zaharli o'simliklarni taniydi. Tabiatdan oziq-ovqat va dori topishda yordam beradi."
+    },
+    {
+      "id": "duradgorlik",
+      "title": "Duradgorlik",
+      "description": "Yog'ochdan uy-ro'zg'or buyumlari yasaydi. Ta'mirlash va yangi asboblar yaratishda usta."
+    },
+    {
+      "id": "velosiped",
+      "title": "Velosiped sayohati",
+      "description": "Uzoq masofalarga velosipedda yurishga o'rganib qolgan. Chidamlilik va yo'l topish qobiliyati kuchli."
+    },
+    {
+      "id": "shaxmat",
+      "title": "Shaxmat",
+      "description": "Strategik fikrlash va sabr-toqat rivojlangan. Mojarolarni tinch yo'l bilan hal qilishga moyil."
+    },
+    {
+      "id": "ovchilik",
+      "title": "Ovchilik",
+      "description": "Yovvoyi hayvonlarni kuzatish va ovlashni biladi. Oziq-ovqat topish va qurol bilan ishlashda tajribali."
+    },
+    {
+      "id": "pazandalik",
+      "title": "Pazandalik",
+      "description": "Kam mahsulotdan mazali taom tayyorlaydi. Ratsionni rejalashtirishda yordam beradi."
+    },
+    {
+      "id": "tikuvchilik",
+      "title": "Tikuvchilik",
+      "description": "Kiyim va matolarni tika oladi. Kiyim-kechakni ta'mirlash va izolyatsiya qilishda foydali."
+    },
+    {
+      "id": "yoga",
+      "title": "Yoga va meditatsiya",
+      "description": "Stressni boshqarish va nafas olish texnikalarini biladi. Guruh ruhiy holatini yaxshilaydi."
+    },
+    {
+      "id": "yugurish",
+      "title": "Marafon yugurishi",
+      "description": "Uzoq masofaga yugurishga tayyor. Tez harakat va evakuatsiyada muhim."
+    },
+    {
+      "id": "suzish",
+      "title": "Suzish",
+      "description": "Chuqur suvda ham omon qola oladi. Suv toshqini va baliq ovida foydali."
+    },
+    {
+      "id": "fotografiya",
+      "title": "Fotografiya",
+      "description": "Rasmlar orqali ma'lumot yig'adi va dalillarni qayd etadi. Kuzatuvchanlik rivojlangan."
+    },
+    {
+      "id": "gitara",
+      "title": "Gitara chalish",
+      "description": "Musiqa orqali guruh kayfiyatini ko'taradi. Stressni kamaytirishda yordam beradi."
+    },
+    {
+      "id": "rasm_chizish",
+      "title": "Rasm chizish",
+      "description": "Xarita va chizmalarni aniq tayyorlay oladi. Rejalashtirish va tasavvur qobiliyati kuchli."
+    },
+    {
+      "id": "kitobxonlik",
+      "title": "Kitob o'qish",
+      "description": "Turli sohalarda bilim to'plagan. Yangi vaziyatlarda tez fikr topa oladi."
+    },
+    {
+      "id": "radio_havaskorligi",
+      "title": "Radio havaskorligi",
+      "description": "Radio qurilmalarini yig'adi va aloqa o'rnatadi. Tashqi dunyo bilan bog'lanishda juda foydali."
+    },
+    {
+      "id": "mototexnika",
+      "title": "Mototexnika",
+      "description": "Mototsikl va dvigatellarni ta'mirlaydi. Buzilgan texnikani qayta ishga tushira oladi."
+    },
+    {
+      "id": "treking",
+      "title": "Tog' sayohati",
+      "description": "Qiyin yo'llarda yurish va boshpana qurish tajribasi bor. Razvedka uchun mos."
+    },
+    {
+      "id": "qoziqorin",
+      "title": "Qo'ziqorin terish",
+      "description": "Yeyishli va zaharli qo'ziqorinlarni farqlaydi. O'rmondan oziq-ovqat topishda yordam beradi."
+    },
+    {
+      "id": "asalarichilik",
+      "title": "Asalarichilik",
+      "description": "Asal, mum va propolis ishlab chiqarishni biladi. Antibakterial vositalar manbai."
+    },
+    {
+      "id": "kulolchilik",
+      "title": "Kulolchilik",
+      "description": "Loydan idish va keramika yasaydi. Suv va oziq-ovqatni uzoq saqlash uchun foydali."
+    }
+  ],
+  "luggage": [
+    {
+      "id": "dorilar_10",
+      "title": "Dorilar to'plami (10 quti)",
+      "description": "Og'riq qoldiruvchi, antibiotik, yallig'lanishga qarshi va yurak dorilari. Har bir quti yorliqlangan."
+    },
+    {
+      "id": "miltiq",
+      "title": "Ov miltig'i",
+      "description": "12 kalibrli miltiq va 40 ta patron. Oziq-ovqat topish va himoya uchun."
+    },
+    {
+      "id": "osimlik_uruglari",
+      "title": "O'simlik urug'lari",
+      "description": "Sabzavot, don va dorivor o'simlik urug'lari. Issiqxonada oziq-ovqat yetishtirish uchun."
+    },
+    {
+      "id": "suv_filtri",
+      "title": "Suv filtri",
+      "description": "Mexanik va uglerodli filtr. Suvni bakteriya va kimyoviy moddalardan tozalaydi."
+    },
+    {
+      "id": "batareyalar",
+      "title": "Batareyalar to'plami",
+      "description": "Har xil o'lchamdagi 60 ta batareya. Fonar, radio va tibbiy asboblar uchun."
+    },
+    {
+      "id": "quyosh_paneli",
+      "title": "Quyosh paneli",
+      "description": "180 vattli yig'iladigan panel va zaryad nazoratchisi. Elektrsiz sharoitda energiya manbai."
+    },
+    {
+      "id": "radio_qabul",
+      "title": "Radio qabul qiluvchi",
+      "description": "Qo'lda boshqariladigan, batareyada ishlaydigan radio. Tashqi signallarni qabul qiladi."
+    },
+    {
+      "id": "birinchi_yordam",
+      "title": "Birinchi yordam to'plami",
+      "description": "Bint, spirt, qaychi, igna va tikuv materiallari. Jarohatlarni birinchi bosqichda davolash uchun."
+    },
+    {
+      "id": "qol_chiroq",
+      "title": "Qo'l chiroq",
+      "description": "Suv o'tkazmaydigan, zaxira batareyali chiroq. Qorong'i sharoitda harakatlanish uchun."
+    },
+    {
+      "id": "pichoq",
+      "title": "Ko'p funksiyali pichoq",
+      "description": "12 funksiyali asbob: pichoq, ochqich, qaychi, arralar. Har qanday ishda qo'l keladi."
+    },
+    {
+      "id": "chodir",
+      "title": "Chodir",
+      "description": "4 kishilik, suv o'tkazmaydigan chodir. Tashqi boshpana va zaxira joy uchun."
+    },
+    {
+      "id": "uyqu_xaltasi",
+      "title": "Uyqu xaltasi",
+      "description": "Minus 15 darajaga chidamli. Sovuq sharoitda tana haroratini saqlaydi."
+    },
+    {
+      "id": "konservalar",
+      "title": "Konservalar (10 kunlik)",
+      "description": "Go'sht, baliq va sabzavot konservalari. Ochilishi oson, uzoq saqlanadi."
+    },
+    {
+      "id": "suv_idishi",
+      "title": "Suv idishi (20 litr)",
+      "description": "Oziq-ovqat plastikidan tayyorlangan germetik idish. Suv zaxirasini saqlash uchun."
+    },
+    {
+      "id": "arqon",
+      "title": "Arqon (50 metr)",
+      "description": "Kuchli neylon arqon. Boshpana qurish, bog'lash va qutqarish ishlarida kerak."
+    },
+    {
+      "id": "balta",
+      "title": "Balta",
+      "description": "Yog'och kesish va o'tin tayyorlash uchun. Qurilishda ham foydali."
+    },
+    {
+      "id": "issiq_kiyim",
+      "title": "Issiq kiyim to'plami",
+      "description": "Termo kiyim, qalin kurtka va qo'lqoplar. Sovuq iqlimda omon qolish uchun."
+    },
+    {
+      "id": "dezinfeksiya",
+      "title": "Dezinfeksiya vositalari",
+      "description": "Spirt, xlorli eritma va antiseptiklar. Infeksiyaning oldini olish uchun."
+    },
+    {
+      "id": "gps_qurilma",
+      "title": "GPS qurilma",
+      "description": "Batareyada ishlaydigan navigator. Yo'nalish va masofani aniqlashda yordam beradi."
+    },
+    {
+      "id": "nasos_kanistr",
+      "title": "Qo'l nasosi va kanistr",
+      "description": "Yoqilg'i va suvni bir joydan boshqasiga ko'chirish uchun. Elektrsiz ishlaydi."
+    },
+    {
+      "id": "qarmoq",
+      "title": "Baliq ovi to'plami",
+      "description": "Qarmoq, ilgaklar va yem. Suv manbai yaqinida oziq-ovqat topish uchun."
+    },
+    {
+      "id": "asboblar",
+      "title": "Asboblar to'plami",
+      "description": "Bolg'a, mixlar, burama, kalitlar va lenta. Ta'mirlash ishlari uchun universal to'plam."
+    },
+    {
+      "id": "kartoshka",
+      "title": "Urug'lik kartoshka (10 kg)",
+      "description": "Ekish uchun yaroqli kartoshka. Issiqxonada tez hosil beradi."
+    },
+    {
+      "id": "komir",
+      "title": "Ko'mir zaxirasi (1 tonna)",
+      "description": "Isitish va pishirish uchun yoqilg'i. Namlikdan himoyalangan holda saqlanadi."
+    },
+    {
+      "id": "gigiyena",
+      "title": "Shaxsiy gigiyena to'plami",
+      "description": "Sovun, tish pastasi, qog'oz va ayollar gigiyenasi vositalari. 6 oylik zaxira."
+    },
+    {
+      "id": "antibiotiklar",
+      "title": "Antibiotiklar kursi",
+      "description": "Keng ta'sir doirasidagi antibiotiklar, 5 kishilik to'liq kurs. Infeksiyalarni davolaydi."
+    },
+    {
+      "id": "kitoblar",
+      "title": "Kitoblar to'plami",
+      "description": "Tibbiyot, dehqonchilik va qurilish bo'yicha qo'llanmalar. Bunkerdagi bilim manbai."
+    }
+  ],
+  "facts": [
+    {
+      "id": "qurilish_tajribasi",
+      "title": "Bunker qurilishi",
+      "description": "Uch yil davomida yer osti inshootlari qurilishida ishlagan. Bunkerning zaif joylarini darhol ko'radi."
+    },
+    {
+      "id": "sport_otmishi",
+      "title": "Professional sportchi",
+      "description": "Yoshlikda professional sportchi bo'lgan. Jismonan chidamli va jamoaviy ishni biladi."
+    },
+    {
+      "id": "qamoqxona",
+      "title": "Qamoqxona tajribasi",
+      "description": "Ikki yil qamoqxonada o'tirgan. Konfliktli vaziyatlarda o'zini tuta biladi."
+    },
+    {
+      "id": "uch_til",
+      "title": "Uch tilda so'zlashadi",
+      "description": "O'zbek, rus va ingliz tillarini biladi. Boshqa guruhlar bilan muzokara olib bora oladi."
+    },
+    {
+      "id": "vegetarian",
+      "title": "Vegetarian",
+      "description": "Go'sht iste'mol qilmaydi. Oziq-ovqat ratsionini taqsimlashda e'tiborga olish kerak."
+    },
+    {
+      "id": "qishloq_tajribasi",
+      "title": "Qishloqda o'sgan",
+      "description": "Dehqonchilik va chorvachilikni bolalikdan biladi. Yer va hayvonlar bilan ishlash unga tanish."
+    },
+    {
+      "id": "qarz_botqoq",
+      "title": "Katta qarz",
+      "description": "Qimor o'yinlari tufayli katta qarzga botgan. Stressda ishonchsiz qarorlar qabul qilishi mumkin."
+    },
+    {
+      "id": "aviakatastrofa",
+      "title": "Aviatsiya halokatidan omon qolgan",
+      "description": "Uchirish halokatidan tirik qolgan. Vahima sharoitida ham sovuqqon bo'la oladi."
+    },
+    {
+      "id": "giyohvandlik_kurash",
+      "title": "Qaramlikni yenggan",
+      "description": "Giyohvandlikdan davolanib chiqqan. Irodasi kuchli, ammo stressda qaytalanish xavfi bor."
+    },
+    {
+      "id": "ajrashgan",
+      "title": "Ikki marta ajrashgan",
+      "description": "Uch farzandi bor. Oila va mas'uliyat nimaligini yaxshi biladi."
+    },
+    {
+      "id": "yolgizlik",
+      "title": "Yolg'izlik sinovi",
+      "description": "Bir marta bunkerda 6 oy yolg'iz yashagan. Izolyatsiyaga chidamli."
+    },
+    {
+      "id": "harbiy_xizmat",
+      "title": "Harbiy xizmat",
+      "description": "Harbiy xizmatni o'tagan, qurol va tartibni biladi. Favqulodda vaziyatlarda tez harakat qiladi."
+    },
+    {
+      "id": "ongilli_qutqaruvchi",
+      "title": "Ko'ngilli qutqaruvchi",
+      "description": "Yong'in va zilzila oqibatlarini bartaraf etishda qatnashgan. Xavfli vaziyatlarda tajribali."
+    },
+    {
+      "id": "mashhur_bloger",
+      "title": "Mashhur bloger",
+      "description": "Bir million obunachisi bor. Odamlarni ishontirish va tashkil qilish qobiliyati kuchli."
+    },
+    {
+      "id": "qonun_muammosi",
+      "title": "Qonun bilan muammo",
+      "description": "O'tmishda firibgarlik uchun sudlangan. Yashirin niyati bo'lishi mumkin."
+    },
+    {
+      "id": "gipnoz",
+      "title": "Gipnoz qobiliyati",
+      "description": "Gipnoz va ishontirish texnikalarini biladi. Muzokaralarda kuchli ta'sir o'tkazadi."
+    },
+    {
+      "id": "tungi_ish",
+      "title": "Tungi navbatchi",
+      "description": "Yillar davomida tunda ishlagan. Kechasi hushyor va tashabbuskor."
+    },
+    {
+      "id": "din_etiqodi",
+      "title": "Kuchli e'tiqod",
+      "description": "Diniy e'tiqodi kuchli. Guruhga ma'naviy tayanch bo'ladi, ammo qoidalarda qat'iy."
+    },
+    {
+      "id": "qimor_qaram",
+      "title": "Qimor o'yinlariga qaram",
+      "description": "Pul va zaxiralarni o'yinga tikishga moyil. Guruh boyligi uchun xavf tug'diradi."
+    },
+    {
+      "id": "yetim",
+      "title": "16 yoshida yetim qolgan",
+      "description": "Ota-onasidan erta ajralgan, mustaqil yashashni biladi. Qiyinchiliklarga chidamli."
+    },
+    {
+      "id": "xalqaro_chempion",
+      "title": "Xalqaro chempion",
+      "description": "Jang san'ati bo'yicha xalqaro musobaqa g'olibi. Jismoniy himoya va obro' manbai."
+    },
+    {
+      "id": "sirli_oyinchi",
+      "title": "Sirli o'tmish",
+      "description": "O'tmishi haqida hech kimga gapirmaydi. Hujjatlari yo'qolgan, ismini isbotlay olmaydi."
+    }
+  ],
+  "special_actions": [
+    {
+      "id": "kasb_almashtirish",
+      "title": "Kasbni almashtirish",
+      "effect": "swap_profession",
+      "description": "Boshqa o'yinchi bilan kasb kartalarini almashtirasiz. Tanlangan o'yinchi rozi bo'lishi shart emas."
+    },
+    {
+      "id": "ikki_ovoz",
+      "title": "Ikki ovoz",
+      "effect": "double_vote",
+      "description": "Keyingi ovoz berishda sizning ovozingiz ikkita deb hisoblanadi."
+    },
+    {
+      "id": "himoya",
+      "title": "Himoya qilish",
+      "effect": "protect_player",
+      "description": "Bitta o'yinchini keyingi haydashdan himoya qilasiz. Himoya bir marta ishlaydi."
+    },
+    {
+      "id": "sirni_ochish",
+      "title": "Sirni ochish",
+      "effect": "reveal_card",
+      "description": "Istalgan o'yinchining yashirin kartalaridan birini barchaga ochib berasiz."
+    },
+    {
+      "id": "ovozni_bekor_qilish",
+      "title": "Ovozni bekor qilish",
+      "effect": "cancel_vote",
+      "description": "Bir o'yinchining ovozini bekor qilasiz. Ovoz berish tugagach ishlatiladi."
+    },
+    {
+      "id": "kartani_almashtirish",
+      "title": "Kartani yangilash",
+      "effect": "redraw_card",
+      "description": "O'zingizning bitta kartangizni yangi tasodifiy karta bilan almashtirasiz."
+    },
+    {
+      "id": "soglom_korinish",
+      "title": "Sog'lom ko'rinish",
+      "effect": "fake_health",
+      "description": "Sog'liq kartangizni bir raund davomida 'Butkul sog'lom' deb ko'rsatasiz."
+    },
+    {
+      "id": "qorquv",
+      "title": "Qo'rquv uyg'otish",
+      "effect": "intimidate",
+      "description": "Bir o'yinchining ovoz berishini majburan o'zgartirasiz. U sizga qarshi ovoz bera olmaydi."
+    },
+    {
+      "id": "qoshimcha_joy",
+      "title": "Qo'shimcha joy",
+      "effect": "extra_slot",
+      "description": "Bunker sig'imini bir kishiga oshiradi. Bu karta bir marta ishlaydi."
+    },
+    {
+      "id": "immunitet",
+      "title": "Bir raundlik immunitet",
+      "effect": "immunity",
+      "description": "Keyingi ovoz berishda sizga qarshi hech qanday ovoz hisobga olinmaydi."
+    },
+    {
+      "id": "nazorat",
+      "title": "Nazorat",
+      "effect": "mind_control",
+      "description": "Bir o'yinchining ovozini o'zingiz xohlagan nomzodga yo'naltirasiz."
+    },
+    {
+      "id": "qaytarish",
+      "title": "Qaytarish",
+      "effect": "revive_player",
+      "description": "Oldingi raundda haydalgan bitta o'yinchini o'yinga qaytarasiz."
+    },
+    {
+      "id": "yashirin_ovoz",
+      "title": "Yashirin ovoz",
+      "effect": "secret_vote",
+      "description": "Ovozingizni yashirin tarzda berasiz, boshqalar uni ko'rmaydi."
+    },
+    {
+      "id": "tashqi_aloqa",
+      "title": "Tashqi aloqa",
+      "effect": "call_rescue",
+      "description": "Qutqaruv guruhiga signal yuborasiz. Bunker zaxiralari bitta qo'shimcha resurs bilan to'ldiriladi."
+    },
+    {
+      "id": "maxsus_karta_oynasi",
+      "title": "Karta oynasi",
+      "effect": "peek_character",
+      "description": "Bir o'yinchining to'liq personaj varaqasini yashirincha ko'rasiz."
+    },
+    {
+      "id": "kelishuv",
+      "title": "Kelishuv",
+      "effect": "force_truce",
+      "description": "Bir raund davomida hech kim haydalmasligi haqida kelishuv e'lon qilasiz."
+    }
+  ]
+}
