@@ -39,7 +39,9 @@ from core.economy import (
     EconomyError,
     InsufficientCoinsError,
     get_economy,
+    player_rating,
 )
+from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
 from engine.game_manager import (
@@ -116,6 +118,18 @@ class ActionRequest(BaseModel):
     full_name: str | None = None
     username: str | None = None
     booster: str | None = None
+
+
+class UserRequest(BaseModel):
+    """Faqat foydalanuvchini ko'rsatuvchi so'rov (initData ustuvor)."""
+
+    user_id: int | None = None
+
+
+class PromoCodeRequest(UserRequest):
+    """Promo kodni ishlatish so'rovi."""
+
+    code: str = ""
 
 
 # ----------------------------------------------------------------------
@@ -310,6 +324,12 @@ async def lifespan(app: FastAPI):
         if bot is not None:
             await bot.session.close()
         get_store().close()
+        # Global menejerni yopilgan omborga bog'lab qo'ymaymiz: keyingi ishga
+        # tushirish (yoki test) toza holatdan boshlanadi.
+        game_manager = get_default_manager()
+        game_manager.set_coin_balance_reader(None)
+        game_manager.set_change_handler(None)
+        game_manager.set_room_loader(None)
 
 
 # ----------------------------------------------------------------------
@@ -440,6 +460,151 @@ async def my_profile(
         "shop": shop_meta(),
         "boosters": boosters_payload(),
     }
+
+
+def account_display_name(account: Any) -> str:
+    """Reyting jadvalida ko'rsatiladigan ism."""
+    name = (account.full_name or "").strip()
+    if name:
+        return name
+    username = (account.username or "").strip()
+    if username:
+        return username
+    return f"ID {account.user_id}"
+
+
+def account_rank(accounts: list[Any], account: Any) -> int:
+    """Reyting qoidasi bo'yicha o'yinchining o'rnini hisoblaydi."""
+    target = (player_rating(account), account.coins)
+    better = sum(
+        1 for item in accounts if (player_rating(item), item.coins) > target
+    )
+    return better + 1
+
+
+def leaderboard_row(
+    account: Any, rank: int, viewer_id: int | None
+) -> dict[str, Any]:
+    return {
+        "rank": rank,
+        "user_id": account.user_id,
+        "name": account_display_name(account),
+        "username": account.username,
+        "rating": player_rating(account),
+        "coins": account.coins,
+        "wins": account.wins,
+        "games_played": account.games_played,
+        "is_me": viewer_id is not None and account.user_id == int(viewer_id),
+    }
+
+
+@app.get("/api/bonus")
+async def bonus_status(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Kunlik bonus holati: mavjudmi, miqdori va qolgan vaqt."""
+    resolved_id = resolve_user_id(user, user_id)
+    economy = get_economy()
+    return {
+        "bonus": asdict(economy.daily_bonus_status(resolved_id)),
+        "coins": economy.get_user(resolved_id).coins,
+    }
+
+
+@app.post("/api/bonus")
+async def bonus_claim(
+    payload: UserRequest | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Kunlik bonusni oladi (har 24 soatda bir marta)."""
+    resolved_id = resolve_user_id(user, payload.user_id if payload else None)
+    economy = get_economy()
+    claim = economy.claim_daily_bonus(resolved_id)
+    return {
+        "ok": True,
+        "amount": claim.amount,
+        "streak": claim.streak,
+        "coins": claim.account.coins,
+        "bonus": asdict(economy.daily_bonus_status(resolved_id)),
+    }
+
+
+@app.get("/api/missions")
+async def my_missions(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchining missiyalari va taraqqiyoti."""
+    resolved_id = resolve_user_id(user, user_id)
+    economy = get_economy()
+    statuses = mission_statuses(economy, resolved_id)
+    return {
+        "missions": missions_payload(statuses),
+        "coins": economy.get_user(resolved_id).coins,
+    }
+
+
+@app.post("/api/missions/{mission_key}/claim")
+async def claim_my_mission(
+    mission_key: str,
+    payload: UserRequest | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Bajarilgan missiya mukofotini beradi."""
+    resolved_id = resolve_user_id(user, payload.user_id if payload else None)
+    economy = get_economy()
+    status, account = claim_mission(economy, resolved_id, mission_key)
+    return {
+        "ok": True,
+        "mission": missions_payload([status])[0],
+        "coins": account.coins,
+    }
+
+
+@app.post("/api/promo")
+async def redeem_promo_code(
+    payload: PromoCodeRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Promo kodni ishlatib, tanga oladi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    result = get_economy().redeem_promo_code(resolved_id, payload.code)
+    return {
+        "ok": True,
+        "code": result.code,
+        "amount": result.coins,
+        "coins": result.account.coins,
+    }
+
+
+@app.get("/api/top")
+async def top_players(
+    limit: int = 10,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Reyting jadvali va (imkon bo'lsa) o'z o'rni."""
+    limit = max(1, min(int(limit), 50))
+    economy = get_economy()
+    accounts = economy.top_users(limit=1000)
+    viewer_id = user.id if user is not None else user_id
+    top = [
+        leaderboard_row(account, index, viewer_id)
+        for index, account in enumerate(accounts[:limit], start=1)
+    ]
+
+    me: dict[str, Any] | None = None
+    if viewer_id is not None:
+        viewer = next(
+            (item for item in accounts if item.user_id == int(viewer_id)), None
+        )
+        if viewer is None:
+            viewer = economy.get_user(viewer_id)
+        me = leaderboard_row(viewer, account_rank(accounts, viewer), viewer_id)
+        me["in_top"] = me["rank"] <= limit
+
+    return {"top": top, "me": me, "total": len(accounts)}
 
 
 @app.get("/api/meta/cards")

@@ -125,6 +125,40 @@ create table if not exists public.game_results (
     finished_at      timestamptz not null default now()
 );
 
+-- ---------------------------------------------------------------------
+-- Kunlik bonus, promo kodlar va missiyalar
+-- ---------------------------------------------------------------------
+-- Kunlik bonus oxirgi olingan vaqt va ketma-ket kunlar soni `users`da turadi.
+alter table public.users
+    add column if not exists last_bonus_at timestamptz;
+alter table public.users
+    add column if not exists bonus_streak integer not null default 0;
+
+create table if not exists public.promo_codes (
+    code        text primary key,
+    coins       integer not null check (coins > 0),
+    max_uses    integer not null default 1 check (max_uses > 0),
+    used_count  integer not null default 0,
+    created_by  bigint,
+    created_at  timestamptz not null default now()
+);
+
+-- Har bir o'yinchi kodni faqat bir marta ishlatadi (primary key).
+create table if not exists public.promo_redemptions (
+    code        text not null,
+    user_id     bigint not null,
+    coins       integer not null default 0,
+    redeemed_at timestamptz not null default now(),
+    primary key (code, user_id)
+);
+
+create table if not exists public.player_missions (
+    user_id     bigint not null,
+    mission     text not null,
+    claimed_at  timestamptz not null default now(),
+    primary key (user_id, mission)
+);
+
 -- Server `SUPABASE_KEY` sifatida service_role kalitidan foydalanadi, u RLS'ni
 -- chetlab o'tadi. Agar anon kalit ishlatilsa, quyidagi siyosatlarni qo'shing:
 --

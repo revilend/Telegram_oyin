@@ -8,10 +8,12 @@ bo'lmasa (lokal test yoki preview) hammasi jarayon xotirasida ishlaydi.
 from __future__ import annotations
 
 import logging
+import math
 import os
+import re
 import threading
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -50,6 +52,20 @@ RATING_WIN_BONUS = 50
 # Har bir muvaffaqiyatli taklif uchun taklif qiluvchiga beriladigan tanga.
 REFERRAL_BONUS = 50
 
+# Kunlik bonus: asosiy mukofot, har bir ketma-ket kun uchun qo'shimcha va
+# seriyaning eng yuqori chegarasi.
+DAILY_BONUS_BASE = 50
+DAILY_BONUS_STREAK_STEP = 10
+DAILY_BONUS_MAX_STREAK = 5
+DAILY_BONUS_INTERVAL_SECONDS = 24 * 60 * 60
+# Ikki kunlik tanaffusdan keyin seriya qaytadan boshlanadi.
+DAILY_BONUS_STREAK_WINDOW_SECONDS = 48 * 60 * 60
+
+PROMO_CODES_TABLE = "promo_codes"
+PROMO_REDEMPTIONS_TABLE = "promo_redemptions"
+MISSIONS_TABLE = "player_missions"
+PROMO_CODE_PATTERN = re.compile(r"^[A-Z0-9]{4,24}$")
+
 
 class EconomyError(Exception):
     """Iqtisod amali bajarilmaydigan holat."""
@@ -71,6 +87,8 @@ class UserAccount:
     games_played: int = 0
     wins: int = 0
     referral_count: int = 0
+    last_bonus_at: str = ""
+    bonus_streak: int = 0
 
 
 @dataclass(frozen=True)
@@ -89,8 +107,116 @@ class PaymentRequest:
     created_at: str = ""
 
 
+@dataclass(frozen=True)
+class DailyBonusStatus:
+    """Kunlik bonus holati (Mini App va bot uchun)."""
+
+    available: bool
+    amount: int
+    streak: int
+    seconds_left: int
+
+
+@dataclass(frozen=True)
+class DailyBonusClaim:
+    """Muvaffaqiyatli kunlik bonus natijasi."""
+
+    amount: int
+    streak: int
+    account: UserAccount
+
+
+@dataclass(frozen=True)
+class PromoCode:
+    """Admin yaratgan promo kod."""
+
+    code: str
+    coins: int
+    max_uses: int = 1
+    used_count: int = 0
+    created_at: str = ""
+
+
+@dataclass(frozen=True)
+class PromoRedemption:
+    """Promo kod ishlatilgandagi natija."""
+
+    code: str
+    coins: int
+    account: UserAccount
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _now_moment() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _parse_moment(value: Any) -> datetime | None:
+    """Supabase'dan kelgan vaqtni vaqt mintaqasi bilan datetime'ga aylantiradi."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        moment = value
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        try:
+            moment = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc)
+
+
+def _format_wait(seconds: int) -> str:
+    """``90000`` -> ``25 soat 0 daqiqadan keyin`` ko'rinishida."""
+    minutes = max(1, int(math.ceil(int(seconds) / 60)))
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours} soat {minutes} daqiqadan keyin"
+    return f"{minutes} daqiqadan keyin"
+
+
+def normalize_promo_code(raw: Any) -> str:
+    """Promo kodni katta harflarga keltiradi va formatini tekshiradi."""
+    code = "".join(str(raw or "").split()).upper()
+    if not PROMO_CODE_PATTERN.match(code):
+        raise EconomyError(
+            "Promo kod 4–24 ta harf va raqamdan iborat bo'lishi kerak"
+        )
+    return code
+
+
+def _daily_bonus_plan(
+    account: UserAccount, now: datetime
+) -> tuple[bool, int, int, int]:
+    """Bonus mavjudligi, mukofot, seriya va qolgan soniyalarni hisoblaydi."""
+    last = _parse_moment(account.last_bonus_at)
+    if last is None:
+        available, streak, seconds_left = True, 1, 0
+    else:
+        elapsed = (now - last).total_seconds()
+        available = elapsed >= DAILY_BONUS_INTERVAL_SECONDS
+        if available:
+            streak = (
+                account.bonus_streak + 1
+                if elapsed <= DAILY_BONUS_STREAK_WINDOW_SECONDS
+                else 1
+            )
+            seconds_left = 0
+        else:
+            streak = max(1, account.bonus_streak)
+            seconds_left = int(math.ceil(DAILY_BONUS_INTERVAL_SECONDS - elapsed))
+    streak = min(max(1, streak), DAILY_BONUS_MAX_STREAK)
+    amount = DAILY_BONUS_BASE + (streak - 1) * DAILY_BONUS_STREAK_STEP
+    return available, amount, streak, max(0, seconds_left)
 
 
 def _row_to_account(row: dict[str, Any]) -> UserAccount:
@@ -106,6 +232,8 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         games_played=int(row.get("games_played") or 0),
         wins=int(row.get("wins") or 0),
         referral_count=int(row.get("referral_count") or 0),
+        last_bonus_at=str(row.get("last_bonus_at") or ""),
+        bonus_streak=int(row.get("bonus_streak") or 0),
     )
 
 
@@ -121,6 +249,16 @@ def _row_to_payment(row: dict[str, Any]) -> PaymentRequest:
         receipt_file_id=str(row.get("receipt_file_id") or ""),
         status=str(row.get("status") or PENDING),
         reviewed_by=int(reviewed_by) if reviewed_by is not None else None,
+        created_at=str(row.get("created_at") or ""),
+    )
+
+
+def _row_to_promo(row: dict[str, Any]) -> PromoCode:
+    return PromoCode(
+        code=str(row["code"]),
+        coins=int(row.get("coins") or 0),
+        max_uses=int(row.get("max_uses") or 1),
+        used_count=int(row.get("used_count") or 0),
         created_at=str(row.get("created_at") or ""),
     )
 
@@ -176,6 +314,9 @@ class EconomyStore:
         self._finished_rooms: set[str] = set()
         # taklif qilingan id -> taklif qilgan id
         self._referrals: dict[int, int] = {}
+        self._promo_codes: dict[str, dict[str, Any]] = {}
+        self._promo_redemptions: set[tuple[str, int]] = set()
+        self._mission_claims: dict[int, set[str]] = {}
 
     @property
     def enabled(self) -> bool:
@@ -401,15 +542,8 @@ class EconomyStore:
                 uid,
                 {"coins": new_coins, "total_purchased": new_purchased},
             )
-            return UserAccount(
-                user_id=account.user_id,
-                username=account.username,
-                full_name=account.full_name,
-                coins=new_coins,
-                total_purchased=new_purchased,
-                games_played=account.games_played,
-                wins=account.wins,
-                referral_count=account.referral_count,
+            return replace(
+                account, coins=new_coins, total_purchased=new_purchased
             )
 
     def spend_coins(self, user_id: int, amount: int) -> UserAccount:
@@ -430,16 +564,7 @@ class EconomyStore:
                 row["coins"] = new_coins
                 return _row_to_account(row)
             self._update_user_row(uid, {"coins": new_coins})
-            return UserAccount(
-                user_id=account.user_id,
-                username=account.username,
-                full_name=account.full_name,
-                coins=new_coins,
-                total_purchased=account.total_purchased,
-                games_played=account.games_played,
-                wins=account.wins,
-                referral_count=account.referral_count,
-            )
+            return replace(account, coins=new_coins)
 
     # ------------------------------------------------------------------
     # To'lov cheklari
@@ -592,6 +717,218 @@ class EconomyStore:
                 }
             ).execute()
             return True
+
+    # ------------------------------------------------------------------
+    # Kunlik bonus
+    # ------------------------------------------------------------------
+    def daily_bonus_status(
+        self, user_id: int, now: datetime | None = None
+    ) -> DailyBonusStatus:
+        """Kunlik bonus holati: mavjudmi, qancha va qancha vaqt qoldi."""
+        uid = int(user_id)
+        moment = now or _now_moment()
+        with self._lock:
+            account = self.ensure_user(uid)
+        available, amount, streak, seconds_left = _daily_bonus_plan(account, moment)
+        return DailyBonusStatus(
+            available=available,
+            amount=amount,
+            streak=streak,
+            seconds_left=seconds_left,
+        )
+
+    def claim_daily_bonus(
+        self, user_id: int, now: datetime | None = None
+    ) -> DailyBonusClaim:
+        """Kunlik bonusni beradi; 24 soat o'tmagan bo'lsa xato ko'taradi."""
+        uid = int(user_id)
+        moment = now or _now_moment()
+        with self._lock:
+            account = self.ensure_user(uid)
+            available, amount, streak, seconds_left = _daily_bonus_plan(
+                account, moment
+            )
+            if not available:
+                raise EconomyError(
+                    "Kunlik bonus allaqachon olingan. "
+                    f"Keyingi bonus {_format_wait(seconds_left)}."
+                )
+            claimed_at = moment.isoformat()
+            if not self.enabled:
+                row = self._users[uid]
+                row["last_bonus_at"] = claimed_at
+                row["bonus_streak"] = streak
+            else:
+                self._update_user_row(
+                    uid, {"last_bonus_at": claimed_at, "bonus_streak": streak}
+                )
+            updated = self.add_coins(uid, amount)
+        return DailyBonusClaim(amount=amount, streak=streak, account=updated)
+
+    # ------------------------------------------------------------------
+    # Promo kodlar
+    # ------------------------------------------------------------------
+    def create_promo_code(
+        self,
+        code: str,
+        coins: int,
+        max_uses: int = 1,
+        created_by: int | None = None,
+    ) -> PromoCode:
+        """Yangi promo kod yaratadi (faqat admin panel ishlatadi)."""
+        normalized = normalize_promo_code(code)
+        amount = int(coins)
+        uses = int(max_uses)
+        if amount <= 0:
+            raise EconomyError("Promo kod mukofoti musbat bo'lishi kerak")
+        if uses < 1:
+            raise EconomyError("Promo kod kamida bir marta ishlatilishi kerak")
+        row: dict[str, Any] = {
+            "code": normalized,
+            "coins": amount,
+            "max_uses": uses,
+            "used_count": 0,
+            "created_by": int(created_by) if created_by else None,
+            "created_at": _now(),
+        }
+        with self._lock:
+            if not self.enabled:
+                if normalized in self._promo_codes:
+                    raise EconomyError("Bu promo kod allaqachon mavjud")
+                self._promo_codes[normalized] = row
+            else:
+                if self._select_one(PROMO_CODES_TABLE, code=normalized) is not None:
+                    raise EconomyError("Bu promo kod allaqachon mavjud")
+                self.client.table(PROMO_CODES_TABLE).insert(row).execute()
+        return _row_to_promo(row)
+
+    def get_promo_code(self, code: str) -> PromoCode | None:
+        """Kod bo'yicha promo kodni qaytaradi."""
+        normalized = normalize_promo_code(code)
+        with self._lock:
+            if not self.enabled:
+                row = self._promo_codes.get(normalized)
+            else:
+                row = self._select_one(PROMO_CODES_TABLE, code=normalized)
+        return _row_to_promo(row) if row else None
+
+    def list_promo_codes(self, limit: int = 10) -> list[PromoCode]:
+        """Oxirgi yaratilgan promo kodlar (admin panel uchun)."""
+        with self._lock:
+            if not self.enabled:
+                rows = list(self._promo_codes.values())
+            else:
+                rows = (
+                    self.client.table(PROMO_CODES_TABLE)
+                    .select("*")
+                    .execute()
+                    .data
+                    or []
+                )
+        codes = [_row_to_promo(row) for row in rows]
+        codes.sort(key=lambda promo: promo.created_at, reverse=True)
+        return codes[: max(1, int(limit))]
+
+    def has_redeemed_promo(self, user_id: int, code: str) -> bool:
+        """Foydalanuvchi bu kodni allaqachon ishlatganmi."""
+        normalized = normalize_promo_code(code)
+        uid = int(user_id)
+        with self._lock:
+            if not self.enabled:
+                return (normalized, uid) in self._promo_redemptions
+            row = self._select_one(
+                PROMO_REDEMPTIONS_TABLE, code=normalized, user_id=uid
+            )
+            return row is not None
+
+    def redeem_promo_code(self, user_id: int, code: str) -> PromoRedemption:
+        """Promo kodni ishlatib, tangalarni qo'shadi."""
+        normalized = normalize_promo_code(code)
+        uid = int(user_id)
+        with self._lock:
+            promo = self.get_promo_code(normalized)
+            if promo is None:
+                raise EconomyError("Bunday promo kod topilmadi")
+            if promo.used_count >= promo.max_uses:
+                raise EconomyError("Promo kod ishlatish limiti tugagan")
+            if self.has_redeemed_promo(uid, normalized):
+                raise EconomyError("Bu promo kodni allaqachon ishlatgansiz")
+            if not self.enabled:
+                self._promo_redemptions.add((normalized, uid))
+                self._promo_codes[normalized]["used_count"] = promo.used_count + 1
+            else:
+                try:
+                    self.client.table(PROMO_REDEMPTIONS_TABLE).insert(
+                        {
+                            "code": normalized,
+                            "user_id": uid,
+                            "coins": promo.coins,
+                            "redeemed_at": _now(),
+                        }
+                    ).execute()
+                except Exception as exc:
+                    logger.info(
+                        "Promo kod allaqachon ishlatilgan: %s / %s",
+                        normalized,
+                        uid,
+                    )
+                    raise EconomyError(
+                        "Bu promo kodni allaqachon ishlatgansiz"
+                    ) from exc
+                self.client.table(PROMO_CODES_TABLE).update(
+                    {"used_count": promo.used_count + 1}
+                ).eq("code", normalized).execute()
+            updated = self.add_coins(uid, promo.coins)
+        return PromoRedemption(code=normalized, coins=promo.coins, account=updated)
+
+    # ------------------------------------------------------------------
+    # Missiya mukofotlari
+    # ------------------------------------------------------------------
+    def claimed_missions(self, user_id: int) -> set[str]:
+        """Foydalanuvchi mukofotini olgan missiyalar kalitlari."""
+        uid = int(user_id)
+        with self._lock:
+            if not self.enabled:
+                return set(self._mission_claims.get(uid, set()))
+            rows = (
+                self.client.table(MISSIONS_TABLE)
+                .select("mission")
+                .eq("user_id", uid)
+                .execute()
+                .data
+                or []
+            )
+        return {str(row["mission"]) for row in rows if row.get("mission")}
+
+    def claim_mission_reward(
+        self, user_id: int, mission: str, reward: int
+    ) -> UserAccount:
+        """Missiya mukofotini bir marta beradi."""
+        key = str(mission or "").strip()
+        amount = int(reward)
+        uid = int(user_id)
+        if not key:
+            raise EconomyError("Missiya kaliti bo'sh")
+        if amount <= 0:
+            raise EconomyError("Missiya mukofoti musbat bo'lishi kerak")
+        with self._lock:
+            if key in self.claimed_missions(uid):
+                raise EconomyError("Bu missiya mukofoti allaqachon olingan")
+            if not self.enabled:
+                self._mission_claims.setdefault(uid, set()).add(key)
+            else:
+                try:
+                    self.client.table(MISSIONS_TABLE).insert(
+                        {"user_id": uid, "mission": key, "claimed_at": _now()}
+                    ).execute()
+                except Exception as exc:
+                    logger.info(
+                        "Missiya mukofoti allaqachon olingan: %s / %s", key, uid
+                    )
+                    raise EconomyError(
+                        "Bu missiya mukofoti allaqachon olingan"
+                    ) from exc
+            return self.add_coins(uid, amount)
 
     # ------------------------------------------------------------------
     # Statistika

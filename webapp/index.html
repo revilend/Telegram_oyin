@@ -289,6 +289,44 @@
 
     .footer { margin-top: 26px; text-align: center; font-size: 11px; color: #5f6884; letter-spacing: 0.5px; }
 
+    /* ---------- Kunlik bonus, missiyalar, reyting ---------- */
+    .panel.bonus-card {
+      margin-top: 0;
+      background:
+        radial-gradient(260px 120px at 100% 0%, rgba(251, 191, 36, 0.18), transparent 70%),
+        var(--panel);
+      border-color: rgba(251, 191, 36, 0.28);
+    }
+    .bonus-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .bonus-head h2 { margin-bottom: 4px; }
+    .mission-list { display: flex; flex-direction: column; gap: 8px; }
+    .mission {
+      display: flex; align-items: center; gap: 10px; padding: 11px 12px;
+      border-radius: 15px; background: var(--panel); border: 1px solid var(--border);
+    }
+    .mission.ready { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.08); }
+    .mission .m-emoji { font-size: 20px; width: 28px; text-align: center; }
+    .mission .m-body { flex: 1; min-width: 0; }
+    .m-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; }
+    .m-title .m-reward { font-size: 11px; color: var(--warning); white-space: nowrap; }
+    .m-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .m-bar { margin-top: 6px; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+    .m-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .m-progress { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .mission .btn.small { flex: 0 0 auto; }
+    .top-list { display: flex; flex-direction: column; gap: 6px; }
+    .top-row {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-radius: 14px; background: var(--panel); border: 1px solid var(--border);
+    }
+    .top-row.me { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.14); }
+    .top-rank { width: 22px; text-align: center; font-size: 12px; font-weight: 800; color: var(--muted); }
+    .top-row .t-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .top-row .t-rating { font-size: 11px; color: var(--warning); white-space: nowrap; }
+    .promo-row { display: flex; gap: 8px; margin-top: 14px; }
+    .promo-row input { letter-spacing: 0; text-transform: uppercase; padding: 12px 14px; font-size: 14px; }
+    .promo-row .btn { flex: 0 0 auto; }
+
     /* ---------- Room ---------- */
     .topbar {
       position: sticky;
@@ -1027,7 +1065,10 @@
         shopOpen: false,
         shopLoading: false,
         shop: null,
-        shopPackage: null
+        shopPackage: null,
+        activity: null,
+        activityLoading: false,
+        actionBusy: false
       };
 
       var toastTimer = null;
@@ -1278,6 +1319,9 @@
             body += '<p class="shop-note">Paketni tanlang — karta raqami va summa shu yerda ko‘rinadi.</p>';
           }
         }
+        body += '<div class="promo-row"><input id="promo-code" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Promo kod" aria-label="Promo kod" />' +
+          '<button class="btn" data-act="promo">Ishlatish</button></div>' +
+          '<p class="shop-note">Promo kodingiz bo‘lsa, shu yerda kiriting — tangalar darhol qo‘shiladi.</p>';
         body += '</section></div>';
         return body;
       }
@@ -1311,6 +1355,180 @@
           else if (view.room) renderRoom(true);
         } catch (error) {
           /* Mehmon rejimida yoki tarmoq xatosida eski qiymat qoladi. */
+        }
+      }
+
+      // ----------------------------------------------------------------
+      // Kunlik bonus, missiyalar va reyting
+      // ----------------------------------------------------------------
+      function activityState() {
+        return view.activity || { bonus: null, missions: [], top: [], me: null };
+      }
+
+      function waitText(seconds) {
+        var value = Math.max(0, Math.round(Number(seconds) || 0));
+        var hours = Math.floor(value / 3600);
+        var minutes = Math.ceil((value % 3600) / 60);
+        if (hours) return hours + " soat " + minutes + " daqiqadan keyin";
+        return Math.max(1, minutes) + " daqiqadan keyin";
+      }
+
+      function bonusHtml() {
+        var bonus = activityState().bonus;
+        if (!bonus) return "";
+        var streak = bonus.streak > 1 ? " · " + bonus.streak + " kunlik seriya" : "";
+        var action = bonus.available
+          ? '<button class="btn primary block" data-act="claim-bonus">🎁 ' + esc(money(bonus.amount)) + ' tanga olish</button>'
+          : '<div class="notice tiny" style="margin-top:0">⏳ Keyingi bonus ' + esc(waitText(bonus.seconds_left)) + '</div>';
+        return '<section class="panel bonus-card fade">' +
+          '<div class="bonus-head"><div><h2>🎁 Kunlik bonus</h2>' +
+            '<p class="muted tiny">Har 24 soatda bir marta bepul tanga' + esc(streak) + '.</p></div>' +
+            '<span class="badge ' + (bonus.available ? "live" : "soon") + '">' +
+              (bonus.available ? "+" + esc(money(bonus.amount)) : "24 SOAT") + '</span></div>' +
+          action +
+        '</section>';
+      }
+
+      function missionsHtml() {
+        var missions = activityState().missions || [];
+        if (!missions.length) return "";
+        var done = missions.filter(function (item) { return item.claimed; }).length;
+        var ready = missions.filter(function (item) { return item.claimable; }).length;
+        return '<section class="fade"><div class="section-title"><h2>🎯 Missiyalar</h2>' +
+          '<span>' + (ready ? ready + " ta mukofot tayyor" : done + "/" + missions.length + " bajarildi") + '</span></div>' +
+          '<div class="mission-list">' + missions.map(function (mission) {
+            var action;
+            if (mission.claimed) {
+              action = '<span class="badge live">✓ OLINDI</span>';
+            } else if (mission.claimable) {
+              action = '<button class="btn small" data-act="claim-mission" data-mission="' +
+                esc(mission.key) + '">+' + esc(money(mission.reward)) + ' 🪙</button>';
+            } else {
+              action = '<span class="m-progress">' + esc(mission.progress) + '/' + esc(mission.target) + '</span>';
+            }
+            return '<div class="mission' + (mission.claimable ? " ready" : "") + '">' +
+              '<div class="m-emoji">' + esc(mission.emoji) + '</div>' +
+              '<div class="m-body"><div class="m-title">' + esc(mission.title) +
+                '<span class="m-reward">+' + esc(money(mission.reward)) + ' 🪙</span></div>' +
+                '<div class="m-desc">' + esc(mission.description) + '</div>' +
+                '<div class="m-bar"><i style="width:' + Math.max(4, Number(mission.percent) || 0) + '%"></i></div></div>' +
+              action +
+            '</div>';
+          }).join("") + '</div></section>';
+      }
+
+      function leaderboardHtml() {
+        var activity = activityState();
+        var top = activity.top || [];
+        if (!top.length) return "";
+        var rows = top.map(function (player) {
+          var place = player.rank === 1 ? "🥇" : player.rank === 2 ? "🥈" : player.rank === 3 ? "🥉" : String(player.rank);
+          return '<div class="top-row' + (player.is_me ? " me" : "") + '">' +
+            '<span class="top-rank">' + place + '</span>' +
+            avatarHtml(player.name, player.user_id, "sm") +
+            '<span class="t-name">' + esc(player.name) + '</span>' +
+            '<span class="t-rating">' + esc(money(player.rating)) + ' · ' + esc(player.wins) + ' 🏆</span></div>';
+        }).join("");
+        var me = activity.me;
+        if (me && Number(me.rank) > top.length) {
+          rows += '<div class="top-row me"><span class="top-rank">' + esc(me.rank) + '</span>' +
+            avatarHtml(me.name, me.user_id, "sm") +
+            '<span class="t-name">' + esc(me.name) + ' (siz)</span>' +
+            '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' 🏆</span></div>';
+        }
+        return '<section class="fade"><div class="section-title"><h2>🏆 Reyting</h2>' +
+          '<span>top ' + top.length + '</span></div><div class="top-list">' + rows + '</div></section>';
+      }
+
+      async function loadActivity(forceRender) {
+        if (view.activityLoading) return;
+        view.activityLoading = true;
+        try {
+          var data = await Promise.all([
+            request("/api/bonus?user_id=" + encodeURIComponent(profile.id)),
+            request("/api/missions?user_id=" + encodeURIComponent(profile.id)),
+            request("/api/top?limit=10&user_id=" + encodeURIComponent(profile.id))
+          ]);
+          view.activity = {
+            bonus: data[0] ? data[0].bonus : null,
+            missions: data[1] && data[1].missions ? data[1].missions : [],
+            top: data[2] && data[2].top ? data[2].top : [],
+            me: data[2] ? data[2].me : null
+          };
+          if (data[0] && data[0].coins != null) profile.balance = Number(data[0].coins) || 0;
+          else if (data[1] && data[1].coins != null) profile.balance = Number(data[1].coins) || 0;
+          if (!view.code && (forceRender || !view.shopOpen)) renderHub();
+        } catch (error) {
+          /* Tarmoq xatosida eski ma'lumot qoladi. */
+        } finally {
+          view.activityLoading = false;
+        }
+      }
+
+      async function claimBonus() {
+        if (view.actionBusy) return;
+        view.actionBusy = true;
+        try {
+          var data = await request("/api/bonus", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id })
+          });
+          if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
+          haptic("success");
+          toast("🎁 +" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
+          await loadActivity(true);
+        } catch (error) {
+          toast(error.message || "Bonusni olib bo‘lmadi", "error");
+        } finally {
+          view.actionBusy = false;
+        }
+      }
+
+      async function claimMission(key) {
+        if (view.actionBusy || !key) return;
+        view.actionBusy = true;
+        try {
+          var data = await request("/api/missions/" + encodeURIComponent(key) + "/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id })
+          });
+          if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
+          haptic("success");
+          toast("✅ Missiya mukofoti olindi!");
+          await loadActivity(true);
+        } catch (error) {
+          toast(error.message || "Mukofotni olib bo‘lmadi", "error");
+        } finally {
+          view.actionBusy = false;
+        }
+      }
+
+      async function redeemPromo() {
+        if (view.actionBusy) return;
+        var input = document.getElementById("promo-code");
+        var code = input ? String(input.value || "").trim().toUpperCase() : "";
+        if (!code) {
+          toast("Promo kodni kiriting", "error");
+          return;
+        }
+        view.actionBusy = true;
+        try {
+          var data = await request("/api/promo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id, code: code })
+          });
+          if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
+          if (input) input.value = "";
+          haptic("success");
+          toast("🎟 +" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
+          await loadActivity(true);
+        } catch (error) {
+          toast(error.message || "Kod qabul qilinmadi", "error");
+        } finally {
+          view.actionBusy = false;
         }
       }
 
@@ -1441,8 +1659,11 @@
               '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker yuboring.</p>' +
             '</section>' +
             profileCardHtml() +
+            bonusHtml() +
             '<div class="section-title"><h2>O\'yinlar</h2><span>' + GAMES.length + ' ta</span></div>' +
             GAMES.map(gameCardHtml).join("") +
+            missionsHtml() +
+            leaderboardHtml() +
             '<section class="panel" id="join-panel">' +
               '<h2>Xonaga kod orqali qo\'shilish</h2>' +
               '<form id="join-form" class="join-form">' +
@@ -2086,6 +2307,12 @@
           renderHub();
         } else if (act === "shop-pay") {
           openShopPayment();
+        } else if (act === "claim-bonus") {
+          claimBonus();
+        } else if (act === "claim-mission") {
+          claimMission(button.getAttribute("data-mission"));
+        } else if (act === "promo") {
+          redeemPromo();
         } else if (act === "shield-accept") {
           sendAction({ action: "booster", booster: "shield" }, "Qalqon faollashtirildi!");
         } else if (act === "shield-decline") {
@@ -2155,6 +2382,7 @@
         renderHub();
       }
       loadAccount();
+      if (!view.code) loadActivity();
     })();
   </script>
 </body>

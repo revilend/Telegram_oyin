@@ -108,7 +108,7 @@ class AdminPanelTest(unittest.TestCase):
         self.settings_patch.start()
         self.addCleanup(self.settings_patch.stop)
 
-    def test_panel_keyboard_has_four_inline_buttons(self) -> None:
+    def test_panel_keyboard_has_all_actions(self) -> None:
         keyboard = admin.panel_keyboard()
         rows = [[button.text for button in row] for row in keyboard.inline_keyboard]
         self.assertEqual(
@@ -117,6 +117,7 @@ class AdminPanelTest(unittest.TestCase):
                 ["💳 Karta raqamini sozlash"],
                 ["📥 Kutilayotgan to'lovlar (Cheklar)"],
                 ["➕ Foydalanuvchiga tanga berish"],
+                ["🎟 Promo kod yaratish"],
                 ["📢 Hammaga xabar (Broadcast)"],
             ],
         )
@@ -125,7 +126,13 @@ class AdminPanelTest(unittest.TestCase):
         ]
         self.assertEqual(
             callbacks,
-            ["admin_card", "admin_pending", "admin_give", "admin_broadcast"],
+            [
+                "admin_card",
+                "admin_pending",
+                "admin_give",
+                "admin_promo",
+                "admin_broadcast",
+            ],
         )
 
     def test_panel_shows_stats_and_buttons(self) -> None:
@@ -239,6 +246,36 @@ class AdminPanelTest(unittest.TestCase):
         self.assertEqual(
             [chat_id for chat_id, _, _ in message.bot.messages], [88011, 88012]
         )
+
+    def test_promo_code_creation_flow(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        callback = FakeCallback()
+        state = FakeState()
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.ask_promo(callback, state))
+            self.assertIs(state.state, admin.AdminStates.waiting_promo)
+            self.assertIn("Promo kod yaratish", callback.bot.messages[-1][1])
+
+            message = FakeMessage(text="YANGIYIL 500 20")
+            asyncio.run(admin.save_promo(message, state))
+        self.assertIn("Promo kod yaratildi", message.answers[-1])
+        self.assertIn("YANGIYIL", message.answers[-1])
+        self.assertIsNone(state.state)
+        promo = store.get_promo_code("YANGIYIL")
+        self.assertIsNotNone(promo)
+        self.assertEqual(promo.coins, 500)
+        self.assertEqual(promo.max_uses, 20)
+
+    def test_promo_code_invalid_input_keeps_state(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        state = FakeState()
+        callback = FakeCallback()
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.ask_promo(callback, state))
+            message = FakeMessage(text="YANGIYIL")
+            asyncio.run(admin.save_promo(message, state))
+        self.assertIn("Format", message.answers[-1])
+        self.assertIsNotNone(state.state)
 
     def test_back_button_returns_to_panel(self) -> None:
         callback = FakeCallback()

@@ -21,6 +21,8 @@ PROFILE_BUTTON = "👤 Mening profilim"
 LEADERBOARD_BUTTON = "🏆 Reyting va Top"
 RULES_BUTTON = "ℹ️ Qoidalar / Yordam"
 INVITE_BUTTON = "👥 Do'stlarni taklif qilish"
+BONUS_BUTTON = "🎁 Kunlik bonus"
+PROMO_BUTTON = "🎟 Promo kod"
 ADMIN_BUTTON = "👑 Admin panel"
 
 # Handlerlar shu to'plam orqali menyu tugmalarini taniydi.
@@ -33,6 +35,8 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
         LEADERBOARD_BUTTON,
         RULES_BUTTON,
         INVITE_BUTTON,
+        BONUS_BUTTON,
+        PROMO_BUTTON,
         ADMIN_BUTTON,
     }
 )
@@ -73,9 +77,13 @@ def build_main_menu(
             KeyboardButton(text=RULES_BUTTON),
         ],
         [KeyboardButton(text=INVITE_BUTTON)],
+        [
+            KeyboardButton(text=BONUS_BUTTON),
+            KeyboardButton(text=PROMO_BUTTON),
+        ],
     ]
     if is_admin:
-        rows[-1].append(KeyboardButton(text=ADMIN_BUTTON))
+        rows[3].append(KeyboardButton(text=ADMIN_BUTTON))
 
     return ReplyKeyboardMarkup(
         keyboard=rows,

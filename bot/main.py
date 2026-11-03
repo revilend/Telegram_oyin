@@ -21,6 +21,7 @@ from bot.handlers import (
     leaderboard,
     menu,
     profile,
+    rewards,
     shop,
 )
 
@@ -45,6 +46,7 @@ def build_dispatcher() -> Dispatcher:
     # /start shop_... deep linki umumiy /start handleridan oldin ushlanishi kerak.
     dispatcher.include_router(shop.router)
     dispatcher.include_router(boosters.router)
+    dispatcher.include_router(rewards.router)
     dispatcher.include_router(admin.router)
     dispatcher.include_router(bunker_group.router)
     dispatcher.include_router(profile.router)

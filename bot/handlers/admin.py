@@ -43,6 +43,7 @@ router = Router(name="admin")
 CARD_CALLBACK = "admin_card"
 PENDING_CALLBACK = "admin_pending"
 GIVE_CALLBACK = "admin_give"
+PROMO_CALLBACK = "admin_promo"
 BROADCAST_CALLBACK = "admin_broadcast"
 BACK_CALLBACK = "admin_back"
 
@@ -56,6 +57,11 @@ GIVE_PROMPT = (
     "O'yinchi ID raqami va tanga miqdorini yuboring "
     "(Masalan: <code>123456789 500</code>):"
 )
+PROMO_PROMPT = (
+    "🎟 <b>Promo kod yaratish</b>\n\n"
+    "Format: <code>KOD TANGA [ISHLATISHLAR]</code>\n"
+    "Masalan: <code>YANGIYIL 500 20</code> — 500 tanga, 20 marta ishlatiladi."
+)
 BROADCAST_PROMPT = (
     "📢 <b>Hammaga xabar</b>\n\n"
     "Yuboriladigan xabar matnini yozing:"
@@ -67,6 +73,7 @@ class AdminStates(StatesGroup):
 
     waiting_card = State()
     waiting_give = State()
+    waiting_promo = State()
     waiting_broadcast = State()
 
 
@@ -106,6 +113,12 @@ def panel_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="➕ Foydalanuvchiga tanga berish",
                     callback_data=GIVE_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🎟 Promo kod yaratish",
+                    callback_data=PROMO_CALLBACK,
                 )
             ],
             [
@@ -351,6 +364,74 @@ async def _credit_coins(user_id: int, amount: int) -> str:
     return (
         f"✅ <code>{user_id}</code>ga <b>+{format_price(amount)}</b> tanga qo'shildi.\n"
         f"Yangi balans: <b>{format_price(account.coins)}</b> tanga."
+    )
+
+
+# ----------------------------------------------------------------------
+# 🎟 Promo kod yaratish
+# ----------------------------------------------------------------------
+@router.callback_query(F.data == PROMO_CALLBACK)
+async def ask_promo(callback: CallbackQuery, state: FSMContext) -> None:
+    """Promo kod parametrlarini so'raydi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_promo)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id, PROMO_PROMPT, reply_markup=back_keyboard()
+    )
+
+
+@router.message(AdminStates.waiting_promo)
+async def save_promo(message: Message, state: FSMContext) -> None:
+    """Panel orqali promo kod yaratadi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    tokens = (message.text or "").split()
+    if len(tokens) not in (2, 3):
+        await message.answer(
+            "Format: <code>KOD 500 10</code> — kod, tanga miqdori va "
+            "(ixtiyoriy) ishlatishlar soni.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    try:
+        coins = int(tokens[1].replace(" ", ""))
+        max_uses = int(tokens[2]) if len(tokens) == 3 else 1
+    except ValueError:
+        await message.answer(
+            "Tanga miqdori va ishlatishlar soni butun son bo'lishi kerak.",
+            reply_markup=back_keyboard(),
+        )
+        return
+
+    try:
+        promo = get_economy().create_promo_code(
+            tokens[0], coins, max_uses, created_by=message.from_user.id
+        )
+    except EconomyError as exc:
+        await message.answer(f"⚠️ {escape(str(exc))}", reply_markup=back_keyboard())
+        return
+    except Exception:
+        logger.exception("Promo kod yaratib bo'lmadi")
+        await message.answer(
+            "⚠️ Promo kod yaratilmadi. Qayta urinib ko'ring.",
+            reply_markup=back_keyboard(),
+        )
+        return
+
+    await state.clear()
+    await message.answer(
+        "✅ <b>Promo kod yaratildi!</b>\n\n"
+        f"🎟 <code>{escape(promo.code)}</code>\n"
+        f"🪙 {format_price(promo.coins)} tanga\n"
+        f"🔁 {promo.max_uses} marta ishlatiladi\n\n"
+        "O'yinchilar kodni botdagi «🎟 Promo kod» tugmasi yoki Mini App'dagi "
+        "do'kon orqali kiritadi.",
+        reply_markup=panel_keyboard(),
     )
 
 
