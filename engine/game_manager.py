@@ -17,10 +17,12 @@ Odatiy foydalanish::
 from __future__ import annotations
 
 import copy
+import logging
 import random
 import threading
 import uuid
 from collections import Counter
+from collections.abc import Callable
 
 from engine.generator import CharacterGenerator
 from models.game import CardType, GameRoom, Player, PlayerCard, RoomStatus
@@ -30,6 +32,12 @@ GAME_CODE_LENGTH = 6
 GAME_CODE_ATTEMPTS = 1000
 DEFAULT_MAX_PLAYERS = 12
 MIN_PLAYERS_TO_START = 2
+
+logger = logging.getLogger(__name__)
+
+RoomChangeHandler = Callable[[GameRoom, dict[int, int]], None]
+RoomSnapshot = GameRoom | tuple[GameRoom, dict[int, int]]
+RoomLoader = Callable[[str], RoomSnapshot | None]
 
 
 class GameError(Exception):
@@ -70,6 +78,8 @@ class GameManager:
         self._rooms: dict[str, GameRoom] = {}
         self._votes: dict[str, dict[int, int]] = {}
         self._lock = threading.RLock()
+        self._on_change: RoomChangeHandler | None = None
+        self._room_loader: RoomLoader | None = None
 
     # ------------------------------------------------------------------
     # Xona yaratish va qo'shilish
@@ -115,6 +125,7 @@ class GameManager:
             )
             self._rooms[room.code] = room
             self._votes[room.code] = {}
+            self._notify(room)
             return room
 
     def join_room(
@@ -145,6 +156,7 @@ class GameManager:
                 room.add_player(player)
             except ValueError as exc:
                 raise InvalidGameStateError(str(exc)) from exc
+            self._notify(room)
             return player
 
     # ------------------------------------------------------------------
@@ -170,6 +182,7 @@ class GameManager:
             room.current_round = 1
             room.status = RoomStatus.PLAYING
             self._votes[room.code] = {}
+            self._notify(room)
             return room
 
     # ------------------------------------------------------------------
@@ -198,6 +211,7 @@ class GameManager:
                     f"'{normalized.value}' kartasi bu o'yinchida mavjud emas"
                 )
             card.is_revealed = True
+            self._notify(room)
             return card
 
     # ------------------------------------------------------------------
@@ -232,6 +246,7 @@ class GameManager:
             votes = self._votes.setdefault(room.code, {})
             votes[voter_id] = target_id
             self._sync_vote_counts(room)
+            self._notify(room)
             return target
 
     def tally_votes(self, code: str) -> Player | None:
@@ -270,18 +285,56 @@ class GameManager:
                 room.status = RoomStatus.PLAYING
                 room.current_round += 1
 
+            self._notify(room)
             return eliminated
 
     # ------------------------------------------------------------------
     # Yordamchi metodlar
     # ------------------------------------------------------------------
     def get_room(self, code: str) -> GameRoom:
-        """Kod bo'yicha xonani qaytaradi."""
+        """Kod bo'yicha xonani qaytaradi.
+
+        Xona xotirada bo'lmasa va loader o'rnatilgan bo'lsa (masalan Supabase),
+        holat yuklanadi va menejerga ro'yxatga olinadi.
+        """
         normalized = (code or "").strip().upper()
         room = self._rooms.get(normalized)
+        if room is None and self._room_loader is not None:
+            loaded = self._room_loader(normalized)
+            if loaded is not None:
+                if isinstance(loaded, tuple):
+                    room, votes = loaded
+                else:
+                    room, votes = loaded, {}
+                self._rooms[normalized] = room
+                self._votes[normalized] = {
+                    int(voter): int(target) for voter, target in votes.items()
+                }
+                self._sync_vote_counts(room)
         if room is None:
             raise RoomNotFoundError(f"'{normalized or code}' kodli xona topilmadi")
         return room
+
+    # ------------------------------------------------------------------
+    # Saqlash / yuklash integratsiyasi
+    # ------------------------------------------------------------------
+    def set_change_handler(self, handler: RoomChangeHandler | None) -> None:
+        """Har bir o'zgarishdan keyin chaqiriladigan saqlash funksiyasini o'rnatadi."""
+        self._on_change = handler
+
+    def set_room_loader(self, loader: RoomLoader | None) -> None:
+        """Xona xotirada topilmasa chaqiriladigan yuklash funksiyasini o'rnatadi."""
+        self._room_loader = loader
+
+    def _notify(self, room: GameRoom) -> None:
+        """Holat o'zgarganini saqlash handleriga bildiradi."""
+        handler = self._on_change
+        if handler is None:
+            return
+        try:
+            handler(room, dict(self._votes.get(room.code, {})))
+        except Exception:  # saqlash xatosi o'yinni to'xtatmasligi kerak
+            logger.exception("Xona holatini saqlashda xatolik: %s", room.code)
 
     def _generate_code(self) -> str:
         for _ in range(GAME_CODE_ATTEMPTS):

@@ -1,29 +1,36 @@
-"""Revilend Games Mini App uchun FastAPI serveri.
+"""Revilend Games Mini App va Telegram bot uchun yagona FastAPI serveri.
 
-Server «Bunker» xonalarini mavjud :class:`GameManager` orqali boshqaradi va
-Mini App'ga ochiq xona holati, shaxsiy kartalar, harakatlar hamda WebSocket
-orqali real-vaqt yangilanishlarni beradi.
+Server «Bunker» xonalarini :class:`GameManager` orqali boshqaradi, holatni
+Supabase'da saqlaydi (sozlangan bo'lsa), Mini App'ga ochiq xona holati,
+shaxsiy kartalar, harakatlar va WebSocket yangilanishlarini beradi.
 
-Ishga tushirish::
+`lifespan` ichida aiogram bot ham fonda ishga tushadi, shuning uchun Render'da
+bitta Web Service yetarli::
 
     uvicorn api.server:app --host 0.0.0.0 --port 8000
-
-Bot bilan bir xil xotirani ishlatish uchun ``python run.py`` dan foydalaning —
-aks holda bot ochgan xonalar API jarayonida ko'rinmaydi.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from api.auth import TelegramUser, resolve_user_id, telegram_user
+from bot.main import build_dispatcher, set_commands
+from core.db import get_store
 from engine.game_manager import (
     GameError,
     GameManager,
@@ -37,6 +44,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEBAPP_DIR = PROJECT_ROOT / "webapp"
 
 GAME_TYPE = "bunker"
+logger = logging.getLogger(__name__)
 
 GAMES: list[dict[str, Any]] = [
     {
@@ -73,9 +81,13 @@ GAMES: list[dict[str, Any]] = [
 # Sxemalar
 # ----------------------------------------------------------------------
 class ActionRequest(BaseModel):
-    """Mini App'dan keladigan umumiy o'yin harakati."""
+    """Mini App'dan keladigan umumiy o'yin harakati.
 
-    user_id: int
+    `user_id` ixtiyoriy: initData header mavjud bo'lsa, identifikatsiya
+    undan olinadi va bu maydon e'tiborga olinmaydi.
+    """
+
+    user_id: int | None = None
     action: Literal["join", "start", "reveal", "vote", "tally"]
     card_type: str | None = None
     target_id: int | None = None
@@ -209,9 +221,62 @@ def card_type_options() -> list[dict[str, str]]:
 
 
 # ----------------------------------------------------------------------
+# Lifespan: Supabase, bot polling va tozalash
+# ----------------------------------------------------------------------
+def setup_persistence() -> None:
+    """Supabase sozlangan bo'lsa, menejerga saqlash/yuklashni ulaydi."""
+    store = get_store()
+    if not store.enabled:
+        return
+    game_manager = get_default_manager()
+    game_manager.set_change_handler(store.persist)
+    game_manager.set_room_loader(store.load_room)
+    logger.info("Supabase saqlash va xona yuklash yoqilgan")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Server bilan birga aiogram botni ishga tushiradi va to'xtatadi."""
+    setup_persistence()
+
+    bot: Bot | None = None
+    polling: asyncio.Task[None] | None = None
+    token = (os.getenv("BOT_TOKEN") or "").strip()
+
+    if token:
+        try:
+            bot = Bot(
+                token=token,
+                default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+            )
+            dispatcher = build_dispatcher()
+            await set_commands(bot)
+            polling = asyncio.create_task(dispatcher.start_polling(bot))
+            logger.info("Aiogram polling fonda ishga tushdi")
+        except Exception:  # bot xatosi Mini App'ni to'xtatmasligi kerak
+            logger.exception("Botni ishga tushirib bo'lmadi")
+            if bot is not None:
+                await bot.session.close()
+            bot = None
+            polling = None
+    else:
+        logger.warning("BOT_TOKEN yo'q — bot polling o'chirilgan")
+
+    try:
+        yield
+    finally:
+        if polling is not None:
+            polling.cancel()
+            await asyncio.gather(polling, return_exceptions=True)
+        if bot is not None:
+            await bot.session.close()
+        get_store().close()
+
+
+# ----------------------------------------------------------------------
 # Ilova
 # ----------------------------------------------------------------------
-app = FastAPI(title="Revilend Games API", version="1.0.0")
+app = FastAPI(title="Revilend Games API", version="1.1.0", lifespan=lifespan)
 
 
 @app.exception_handler(RoomNotFoundError)
@@ -235,7 +300,11 @@ def manager() -> GameManager:
 
 @app.get("/api/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "game_type": GAME_TYPE}
+    return {
+        "status": "ok",
+        "game_type": GAME_TYPE,
+        "supabase": "on" if get_store().enabled else "off",
+    }
 
 
 @app.get("/api/games")
@@ -251,37 +320,58 @@ async def meta_cards() -> dict[str, Any]:
 
 
 @app.get("/api/room/{code}")
-async def get_room(code: str, user_id: int = 0) -> dict[str, Any]:
+async def get_room(
+    code: str,
+    user_id: int = 0,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
     """Xonaning ochiq holati: falokat, raund, ochilgan kartalar."""
     room = manager().get_room(code)
-    return {"state": public_state(room, viewer_id=user_id)}
+    viewer_id = user.id if user is not None else user_id
+    return {"state": public_state(room, viewer_id=viewer_id)}
 
 
 @app.get("/api/room/{code}/me")
-async def get_my_cards(code: str, user_id: int) -> dict[str, Any]:
+async def get_my_cards(
+    code: str,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
     """O'yinchining shaxsiy yashirin kartalari."""
+    resolved_id = resolve_user_id(user, user_id)
     room = manager().get_room(code)
-    return {"me": private_state(room, user_id)}
+    return {"me": private_state(room, resolved_id)}
 
 
 @app.post("/api/room/{code}/action")
-async def room_action(code: str, payload: ActionRequest) -> dict[str, Any]:
+async def room_action(
+    code: str,
+    payload: ActionRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
     """Umumiy o'yin harakatlari: qo'shilish, boshlash, ochish, ovoz, sanash."""
+    actor_id = resolve_user_id(user, payload.user_id)
+    full_name = (
+        (user.full_name if user is not None else "")
+        or payload.full_name
+        or ""
+    ).strip()
+    username = (
+        (user.username if user is not None else "")
+        or payload.username
+        or ""
+    ).strip()
+
     game_manager = manager()
     result: dict[str, Any] | None = None
 
     if payload.action == "join":
-        if not payload.full_name:
+        if not full_name:
             raise HTTPException(status_code=400, detail="full_name majburiy")
-        game_manager.join_room(
-            code,
-            payload.user_id,
-            payload.full_name,
-            payload.username or "",
-        )
+        game_manager.join_room(code, actor_id, full_name, username)
     elif payload.action == "start":
         room = game_manager.get_room(code)
-        if room.host_id != payload.user_id:
+        if room.host_id != actor_id:
             raise HTTPException(
                 status_code=403,
                 detail="O'yinni faqat xona egasi boshlashi mumkin",
@@ -290,14 +380,14 @@ async def room_action(code: str, payload: ActionRequest) -> dict[str, Any]:
     elif payload.action == "reveal":
         if not payload.card_type:
             raise HTTPException(status_code=400, detail="card_type majburiy")
-        game_manager.reveal_card(code, payload.user_id, payload.card_type)
+        game_manager.reveal_card(code, actor_id, payload.card_type)
     elif payload.action == "vote":
         if payload.target_id is None:
             raise HTTPException(status_code=400, detail="target_id majburiy")
-        game_manager.cast_vote(code, payload.user_id, payload.target_id)
+        game_manager.cast_vote(code, actor_id, payload.target_id)
     elif payload.action == "tally":
         room = game_manager.get_room(code)
-        if room.host_id != payload.user_id:
+        if room.host_id != actor_id:
             raise HTTPException(
                 status_code=403,
                 detail="Ovozlarni faqat xona egasi sanaydi",
@@ -316,12 +406,12 @@ async def room_action(code: str, payload: ActionRequest) -> dict[str, Any]:
         }
 
     room = game_manager.get_room(code)
-    state = public_state(room, viewer_id=payload.user_id)
+    state = public_state(room, viewer_id=actor_id)
     await hub.broadcast(code, {"type": "state", "state": state})
     return {
         "ok": True,
         "state": state,
-        "me": private_state(room, payload.user_id),
+        "me": private_state(room, actor_id),
         "result": result,
     }
 

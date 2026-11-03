@@ -1,15 +1,24 @@
 """FastAPI Mini App API'si uchun testlar."""
 
+import asyncio
+import os
+import threading
 import unittest
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from api import server as server_module
 from api.server import app
 from engine.game_manager import get_default_manager
 
 
 class ApiTestCase(unittest.TestCase):
     def setUp(self) -> None:
+        self.env = patch.dict(os.environ, {"ALLOW_GUEST_AUTH": "true"})
+        self.env.start()
+        self.addCleanup(self.env.stop)
         self.client = TestClient(app)
         self.manager = get_default_manager()
         self.room = self.manager.create_room(
@@ -192,6 +201,48 @@ class RoomApiTest(ApiTestCase):
         self.assertEqual(started.json()["state"]["status"], "PLAYING")
         self.assertEqual(started.json()["state"]["current_round"], 1)
         self.assertIn("profession", started.json()["me"]["cards"])
+
+
+class LifespanTest(unittest.TestCase):
+    def test_server_starts_without_bot_token(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"BOT_TOKEN": "", "ALLOW_GUEST_AUTH": "true"},
+        ):
+            with TestClient(app) as client:
+                response = client.get("/api/health")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["status"], "ok")
+
+    def test_bot_polling_runs_in_background_and_is_cancelled(self) -> None:
+        started = threading.Event()
+        cancelled = threading.Event()
+
+        async def fake_polling(bot) -> None:
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+        fake_bot = MagicMock()
+        fake_bot.session.close = AsyncMock()
+        fake_dispatcher = SimpleNamespace(start_polling=fake_polling)
+
+        with patch.dict(
+            os.environ,
+            {"BOT_TOKEN": "123456:TEST", "ALLOW_GUEST_AUTH": "true"},
+        ):
+            with patch.object(server_module, "Bot", return_value=fake_bot), patch.object(
+                server_module, "build_dispatcher", return_value=fake_dispatcher
+            ), patch.object(server_module, "set_commands", new=AsyncMock()):
+                with TestClient(app) as client:
+                    self.assertTrue(started.wait(2), "Polling fonda boshlanmadi")
+                    self.assertEqual(client.get("/api/health").status_code, 200)
+
+        self.assertTrue(cancelled.wait(2), "Shutdown'da polling bekor qilinmadi")
+        fake_bot.session.close.assert_awaited_once()
 
 
 class WebSocketTest(ApiTestCase):
