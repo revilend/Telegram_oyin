@@ -11,7 +11,9 @@ from fastapi.testclient import TestClient
 
 from api import server as server_module
 from api.server import app
+from bot.handlers import mafia_group as mafia_bot
 from engine.game_manager import get_default_manager
+from games.mafia.images import role_image_url
 
 
 class ApiTestCase(unittest.TestCase):
@@ -55,7 +57,7 @@ class GamesApiTest(unittest.TestCase):
         games = response.json()["games"]
         self.assertEqual([game["slug"] for game in games], ["bunker", "mafia", "spyfall"])
         self.assertEqual(games[0]["status"], "active")
-        self.assertEqual(games[1]["status"], "coming_soon")
+        self.assertEqual(games[1]["status"], "active")
 
     def test_health_and_meta(self) -> None:
         self.assertEqual(self.client.get("/api/health").json()["status"], "ok")
@@ -69,6 +71,63 @@ class GamesApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Revilend Games", response.text)
         self.assertIn("/api/room/", response.text)
+        self.assertIn("tarot-card", response.text)
+        self.assertIn("/assets/images/mafia/cover.png", response.text)
+
+    def test_mafia_assets_are_served(self) -> None:
+        response = self.client.get("/assets/images/mafia/sheriff.png")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.headers["content-type"].startswith("image/"))
+
+
+class MafiaRoleApiTest(unittest.TestCase):
+    """Mini App uchun Mafiya roli endpointi."""
+
+    def setUp(self) -> None:
+        self.env = patch.dict(os.environ, {"ALLOW_GUEST_AUTH": "true"})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.client = TestClient(app)
+        self.manager = mafia_bot.MafiaLobbyManager(seed=12)
+        patcher = patch.object(
+            mafia_bot, "get_default_manager", return_value=self.manager
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.game = self.manager.create_game(-1001, 3001, "Ali", "ali")
+        for user_id in (3002, 3003, 3004):
+            self.manager.join(self.game.code, user_id, f"P{user_id}")
+        self.manager.start_game(self.game.code, 3001)
+
+    def tearDown(self) -> None:
+        self.client.close()
+
+    def test_player_role_payload(self) -> None:
+        response = self.client.get(
+            f"/api/mafia/{self.game.code}/me?user_id=3001"
+        )
+        self.assertEqual(response.status_code, 200)
+        me = response.json()["me"]
+        role = self.game.room.players[3001].role
+        self.assertEqual(me["code"], self.game.code)
+        self.assertEqual(me["role"], role.value)
+        self.assertEqual(me["photo"], role_image_url(role))
+        self.assertIn(me["phase"], {"NIGHT", "DAY_REPORT", "VOTING"})
+        self.assertEqual(me["players_count"], 4)
+        self.assertTrue(me["is_host"])
+
+    def test_non_player_and_unknown_room_are_rejected(self) -> None:
+        self.assertEqual(
+            self.client.get(
+                f"/api/mafia/{self.game.code}/me?user_id=9999"
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get("/api/mafia/MAF000/me?user_id=3001").status_code,
+            404,
+        )
 
 
 class RoomApiTest(ApiTestCase):

@@ -30,6 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from api.auth import TelegramUser, resolve_user_id, telegram_user
+from bot.handlers import mafia_group as mafia_bot
 from bot.handlers.boosters import send_shield_offer
 from bot.main import build_dispatcher, set_commands
 from core.billing import buy_booster, decline_shield
@@ -51,10 +52,13 @@ from engine.game_manager import (
     RoomNotFoundError,
     get_default_manager,
 )
+from games.mafia.images import COVER_IMAGE, role_image_url
+from games.mafia.roles import get_role_profile
 from models.game import GameRoom, Player, RoomStatus
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEBAPP_DIR = PROJECT_ROOT / "webapp"
+ASSETS_DIR = WEBAPP_DIR / "assets"
 
 GAME_TYPE = "bunker"
 logger = logging.getLogger(__name__)
@@ -76,10 +80,10 @@ GAMES: list[dict[str, Any]] = [
         "slug": "mafia",
         "name": "Mafiya",
         "emoji": "🕵️",
-        "status": "coming_soon",
-        "players": "6–16",
+        "status": "active",
+        "players": "4–20",
         "description": "Kechki shaharda mafiya va tinch aholi o'rtasidagi sirli "
-        "kurash. Tez orada.",
+        "kurash. Guruhda /mafia bilan boshlang.",
     },
     {
         "slug": "spyfall",
@@ -613,6 +617,65 @@ async def meta_cards() -> dict[str, Any]:
     return {"card_types": card_type_options()}
 
 
+@app.get("/api/mafia/{code}/me")
+async def get_mafia_role(
+    code: str,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Guruh Mafiya o'yinidagi o'yinchining roli va karta ma'lumoti."""
+    resolved_id = resolve_user_id(user, user_id)
+    try:
+        game = mafia_bot.get_default_manager().get_game(code)
+    except mafia_bot.MafiaGameError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    player = game.room.players.get(resolved_id)
+    if player is None:
+        raise HTTPException(
+            status_code=404, detail="Siz bu Mafiya xonasida emassiz"
+        )
+
+    profile = (
+        get_role_profile(player.role) if player.role is not None else None
+    )
+    return {
+        "me": {
+            "code": game.code,
+            "user_id": player.user_id,
+            "full_name": player.name,
+            "is_alive": player.is_alive,
+            "is_host": player.user_id == game.host_id,
+            "role": profile.role.value if profile else None,
+            "role_name": (
+                profile.name_uz if profile else "Rol hali tarqatilmagan"
+            ),
+            "description": (
+                profile.description
+                if profile
+                else "O'yin boshlangach, rolingiz shu yerda ochiladi."
+            ),
+            "faction": profile.faction.value if profile else None,
+            "has_night_action": (
+                profile.has_night_action if profile else False
+            ),
+            "photo": (
+                role_image_url(profile.role)
+                if profile
+                else f"/assets/images/mafia/{COVER_IMAGE}"
+            ),
+            "phase": game.room.phase.value,
+            "round": game.room.round,
+            "players_count": len(game.room.players),
+            "winner": (
+                game.room.winner.value
+                if game.room.winner is not None
+                else None
+            ),
+        }
+    }
+
+
 @app.get("/api/room/{code}")
 async def get_room(
     code: str,
@@ -793,6 +856,10 @@ async def room_socket(websocket: WebSocket, code: str) -> None:
         await hub.disconnect(normalized, websocket)
 
 
-# Statik Mini App: API va WebSocket yo'llaridan keyin ulanadi.
+# Statik Mini App: avval rasm/fontlar, keyin index.html.
+if ASSETS_DIR.is_dir():
+    app.mount(
+        "/assets", StaticFiles(directory=ASSETS_DIR), name="assets"
+    )
 if WEBAPP_DIR.is_dir():
     app.mount("/", StaticFiles(directory=WEBAPP_DIR, html=True), name="webapp")

@@ -26,6 +26,12 @@ from games.mafia.engine import (
     resolve_night,
 )
 from games.mafia.generator import MIN_PLAYERS
+from games.mafia.images import (
+    image_path,
+    role_image_path,
+    role_image_url,
+    victory_image_path,
+)
 from games.mafia.roles import MafiaRole
 
 BOT_USERNAME = "revilend_gamesbot"
@@ -36,6 +42,7 @@ class FakeBot:
     def __init__(self, fail_for: set[int] | None = None) -> None:
         self.fail_for = set(fail_for or ())
         self.messages: list[tuple[int, str, object]] = []
+        self.photos: list[tuple[int, str, str, object]] = []
 
     async def send_message(
         self, chat_id: int, text: str, reply_markup=None, **kwargs
@@ -43,6 +50,16 @@ class FakeBot:
         if int(chat_id) in self.fail_for:
             raise RuntimeError("bot blocked")
         self.messages.append((int(chat_id), text, reply_markup))
+        return SimpleNamespace(message_id=len(self.messages))
+
+    async def send_photo(
+        self, chat_id: int, photo, caption: str = "", reply_markup=None, **kwargs
+    ):
+        if int(chat_id) in self.fail_for:
+            raise RuntimeError("bot blocked")
+        path = str(getattr(photo, "path", photo))
+        self.photos.append((int(chat_id), path, caption, reply_markup))
+        self.messages.append((int(chat_id), caption, reply_markup))
         return SimpleNamespace(message_id=len(self.messages))
 
     def texts_for(self, chat_id: int) -> list[str]:
@@ -64,12 +81,30 @@ class FakeMessage:
         )
         self.text = text
         self.bot = bot or FakeBot()
+        self.photo = None
+        self.photos: list[tuple[str, str, object]] = []
         self.answers: list[tuple[str, object]] = []
         self.edits: list[tuple[str, object]] = []
         self.replies: list[str] = []
 
     async def answer(self, text: str, reply_markup=None, **kwargs):
         self.answers.append((text, reply_markup))
+        return SimpleNamespace(message_id=321)
+
+    async def answer_photo(
+        self, photo, caption: str = "", reply_markup=None, **kwargs
+    ):
+        self.photo = photo
+        self.photos.append(
+            (str(getattr(photo, "path", photo)), caption, reply_markup)
+        )
+        self.answers.append((caption, reply_markup))
+        return SimpleNamespace(message_id=322)
+
+    async def edit_caption(
+        self, caption: str, reply_markup=None, **kwargs
+    ):
+        self.edits.append((caption, reply_markup))
         return SimpleNamespace(message_id=321)
 
     async def edit_text(self, text: str, reply_markup=None, **kwargs):
@@ -203,6 +238,8 @@ class GroupCommandTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("jami 1 kishi", text)
         self.assertIn("Ali Valiyev", text)
 
+        self.assertEqual(len(message.photos), 1)
+        self.assertTrue(message.photos[0][0].endswith("cover.png"))
         self.assertEqual(len(keyboard.inline_keyboard), 3)
         join_button = keyboard.inline_keyboard[0][0]
         self.assertEqual(join_button.text, "🚪 Mafiyaga kirish")
@@ -232,6 +269,7 @@ class GroupCommandTest(unittest.IsolatedAsyncioTestCase):
     async def test_join_updates_announcement(self) -> None:
         game = self.manager.create_game(CHAT_ID, 501, "Ali Valiyev", "ali")
         message = FakeMessage()
+        message.photo = object()
         callback = FakeCallback(502, f"join_mafia_{game.code}", message)
 
         await mafia_group.join_mafia_game(callback)
@@ -274,6 +312,7 @@ class StartGameHandlerTest(unittest.IsolatedAsyncioTestCase):
     async def test_host_starts_and_players_get_roles_and_night_message(self) -> None:
         game = self._room_with_players(4)
         message = FakeMessage()
+        message.photo = object()
         callback = FakeCallback(501, f"start_mafia_{game.code}", message)
 
         await mafia_group.start_mafia_game(callback)
@@ -299,6 +338,12 @@ class StartGameHandlerTest(unittest.IsolatedAsyncioTestCase):
             for item in message.bot.messages
             if "SHAHARGA TUN CHO'KDI" in item[1]
         )
+        night_photo = next(
+            item
+            for item in message.bot.photos
+            if "SHAHARGA TUN CHO'KDI" in item[2]
+        )
+        self.assertTrue(night_photo[1].endswith("night.png"))
         keyboard = night_message[2]
         self.assertEqual(
             keyboard.inline_keyboard[0][0].url,
@@ -371,6 +416,7 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
             bot, game, game.room.get_player(1)
         )
         self.assertEqual(bot.messages[0][1], execution)
+        self.assertTrue(bot.photos[0][1].endswith("eliminated.jpg"))
 
     async def test_day_text_for_peaceful_night_and_death(self) -> None:
         peaceful = make_game(
@@ -421,6 +467,8 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(texts), 2)
         self.assertIn("TONG OTDI", texts[0])
         self.assertIn("MAFIYA g'alaba qozondi", texts[1])
+        self.assertTrue(bot.photos[0][1].endswith("day.png"))
+        self.assertTrue(bot.photos[1][1].endswith("mafia_victory.png"))
 
         vote_button = bot.messages[0][2].inline_keyboard[0][0]
         self.assertEqual(vote_button.text, "🗳 Ovoz berish")
@@ -553,6 +601,30 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
         text, keyboard = callback.message.edits[0]
         self.assertIn("Qaysi o'yinni tanlaysiz", text)
         self.assertEqual(len(keyboard.inline_keyboard[0]), 2)
+
+
+class MafiaImageTest(unittest.TestCase):
+    """Rasm fayllari va ularning URL mosligi."""
+
+    def test_every_role_has_existing_image(self) -> None:
+        for role in MafiaRole:
+            path = role_image_path(role)
+            self.assertTrue(path.is_file(), f"{role.value}: {path}")
+            self.assertEqual(
+                role_image_url(role), f"/assets/images/mafia/{path.name}"
+            )
+
+    def test_scene_and_victory_images_exist(self) -> None:
+        for name in ("cover.png", "night.png", "day.png", "eliminated.jpg"):
+            self.assertTrue(image_path(name).is_file(), name)
+        for winner in Winner:
+            self.assertTrue(victory_image_path(winner).is_file(), winner)
+
+    def test_special_role_mappings(self) -> None:
+        self.assertEqual(role_image_path(MafiaRole.MAFIA).name, "mobster.png")
+        self.assertEqual(
+            role_image_path(MafiaRole.AMNESIAC).name, "citizen.png"
+        )
 
 
 class RouterRegistrationTest(unittest.TestCase):

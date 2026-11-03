@@ -977,6 +977,66 @@
     @keyframes timerPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
     @keyframes votePop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
 
+    /* ---------- Mafiya: 3D tarot kartasi ---------- */
+    .mafia-shell { display: flex; flex-direction: column; gap: 14px; }
+    .mafia-hero { text-align: center; padding: 10px 10px 0; }
+    .mafia-kicker { font-size: 10px; letter-spacing: 2.2px; text-transform: uppercase; color: var(--muted); }
+    .mafia-hero h1 { font-size: 24px; margin: 7px 0; }
+    .mafia-hero p { color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .tarot-scene {
+      width: min(70vw, 280px); aspect-ratio: 2 / 3; margin: 6px auto 0;
+      perspective: 1200px; filter: drop-shadow(0 26px 34px rgba(0, 0, 0, 0.45));
+    }
+    .tarot-card {
+      position: relative; width: 100%; height: 100%;
+      transform-style: preserve-3d; -webkit-transform-style: preserve-3d;
+      transition: transform 0.85s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .tarot-card.flipped { transform: rotateY(180deg); }
+    .tarot-face {
+      position: absolute; inset: 0; border-radius: 22px; overflow: hidden;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.11), 0 24px 60px rgba(0, 0, 0, 0.5);
+      background: var(--bg-soft);
+    }
+    .tarot-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .tarot-back {
+      display: grid; place-items: center;
+      background: radial-gradient(circle at 50% 28%, rgba(139, 92, 246, 0.5), rgba(7, 11, 22, 0.97) 66%);
+    }
+    .tarot-back img { position: absolute; inset: 0; opacity: 0.34; filter: blur(1px) saturate(0.7); }
+    .tarot-back::before {
+      content: ""; position: absolute; inset: 11px; border-radius: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+    .tarot-back span {
+      position: relative; z-index: 1; font-size: 48px; font-weight: 800;
+      color: #f2f4fb; text-shadow: 0 0 22px rgba(139, 92, 246, 0.95);
+    }
+    .tarot-front { transform: rotateY(180deg); }
+    .tarot-front::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, transparent 58%, rgba(3, 6, 14, 0.82));
+    }
+    .mafia-reveal {
+      padding: 15px; border-radius: 18px; text-align: center;
+      background: radial-gradient(360px 150px at 50% 0%, rgba(139, 92, 246, 0.2), transparent 72%), var(--panel);
+      border: 1px solid var(--border);
+    }
+    .mafia-reveal[hidden] { display: none; }
+    .mafia-role { font-size: 22px; font-weight: 800; letter-spacing: 0.2px; }
+    .mafia-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 9px 0; }
+    .mafia-tags span {
+      padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+      background: rgba(139, 92, 246, 0.16); border: 1px solid rgba(139, 92, 246, 0.34);
+    }
+    .mafia-status { display: flex; flex-direction: column; gap: 8px; }
+    .mafia-status-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+    .mafia-status-row span { color: var(--muted); }
+    .mafia-status-row b { font-weight: 700; }
+    .mafia-status .tiny { margin-top: 2px; }
+
     @media (max-width: 390px) {
       .status-pill { display: none; }
       .room-code { font-size: 15px; }
@@ -1031,8 +1091,8 @@
           description: "Falokatdan keyin omon qolish uchun kartalaringizni oching, bahslashing va bunkerga kim tushishini hal qiling."
         },
         {
-          slug: "mafia", name: "Mafiya", emoji: "🕵️", status: "coming_soon", players: "6–16",
-          description: "Kechki shaharda mafiya va tinch aholi o'rtasidagi sirli kurash. Tez orada."
+          slug: "mafia", name: "Mafiya", emoji: "🕵️", status: "active", players: "4–20",
+          description: "Kechki shaharda mafiya va tinch aholi o'rtasidagi kurash. Guruhda /mafia bilan boshlang."
         },
         {
           slug: "spyfall", name: "Josus", emoji: "🕶️", status: "coming_soon", players: "4–10",
@@ -1044,10 +1104,20 @@
       var toastEl = document.getElementById("toast");
       var params = new URLSearchParams(window.location.search);
       var initialCode = normalizeCode(params.get("room") || "");
+      var initialMafiaCode = mafiaStartCode(
+        (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
+        params.get("mafia") || params.get("startapp") || params.get("tgWebAppStartParam") || ""
+      );
 
       var profile = loadProfile();
       var view = {
+        mode: initialMafiaCode ? "mafia" : "bunker",
         code: initialCode,
+        mafia: null,
+        mafiaLoading: false,
+        mafiaError: null,
+        mafiaOpen: false,
+        mafiaTimer: null,
         room: null,
         me: null,
         error: null,
@@ -1636,12 +1706,165 @@
       }
 
       // ----------------------------------------------------------------
+      // Mafiya: 3D tarot kartasi
+      // ----------------------------------------------------------------
+      var MAFIA_PHASES = {
+        LOBBY: "Kutilmoqda",
+        NIGHT: "Tun",
+        DAY_REPORT: "Tong",
+        VOTING: "Ovoz berish",
+        FINISHED: "Tugadi"
+      };
+      var MAFIA_FACTIONS = {
+        town: "Shahar aholisi",
+        mafia: "Mafiya",
+        neutral: "Yolg'iz"
+      };
+
+      function mafiaStartCode(value) {
+        var match = /^(?:mafia_)?(MAF\d{3})$/i.exec(String(value || "").trim());
+        return match ? match[1].toUpperCase() : "";
+      }
+
+      function fetchMafiaMe(code) {
+        return request("/api/mafia/" + encodeURIComponent(code) + "?user_id=" + encodeURIComponent(profile.id));
+      }
+
+      function enterMafia(code) {
+        var normalized = mafiaStartCode(code) || normalizeCode(code);
+        if (!/^MAF\d{3}$/.test(normalized)) {
+          toast("Mafiya xona kodi MAF123 ko'rinishida bo'ladi", "error");
+          return;
+        }
+        view.mode = "mafia";
+        view.code = normalized;
+        view.mafia = null;
+        view.mafiaError = null;
+        view.mafiaOpen = false;
+        if (view.mafiaTimer) {
+          clearTimeout(view.mafiaTimer);
+          view.mafiaTimer = null;
+        }
+        stopLive();
+        stopTimer();
+        setBackButton(true);
+        loadMafiaRole();
+      }
+
+      async function loadMafiaRole() {
+        var code = view.code;
+        if (view.mafiaTimer) {
+          clearTimeout(view.mafiaTimer);
+          view.mafiaTimer = null;
+        }
+        if (!view.mafia) {
+          view.mafiaLoading = true;
+          renderMafia();
+        }
+        try {
+          var data = await fetchMafiaMe(code);
+          if (view.mode !== "mafia" || view.code !== code) return;
+          view.mafia = data.me;
+          view.mafiaError = null;
+          if (!data.me.role) {
+            // Rol hali tarqatilmagan: o'yin boshlanishini kutib, qayta so'raymiz.
+            view.mafiaTimer = setTimeout(function () {
+              if (view.mode === "mafia" && view.code === code) loadMafiaRole();
+            }, 5000);
+          }
+        } catch (error) {
+          if (view.mode !== "mafia" || view.code !== code) return;
+          view.mafiaError = error;
+        } finally {
+          if (view.mode === "mafia" && view.code === code) {
+            view.mafiaLoading = false;
+            renderMafia();
+          }
+        }
+      }
+
+      function renderMafia() {
+        var top = '<div class="topbar">' +
+          '<button class="icon-btn" data-act="home" aria-label="Orqaga">←</button>' +
+          '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span>' +
+          '<span class="status-pill">🕵️ Mafiya</span></div></div>';
+
+        if (view.mafiaLoading) {
+          app.innerHTML = top + '<div class="skeleton"></div><div class="skeleton"></div>';
+          return;
+        }
+
+        if (view.mafiaError) {
+          app.innerHTML = top +
+            '<div class="state-screen fade"><div class="emoji">🎭</div>' +
+            '<h2>Karta topilmadi</h2>' +
+            '<p>' + esc(view.mafiaError.message || "Xona yoki o'yinchi topilmadi.") + '</p>' +
+            '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button></div>';
+          return;
+        }
+
+        var me = view.mafia;
+        if (!me) { app.innerHTML = top; return; }
+
+        var hasRole = Boolean(me.role);
+        var opened = hasRole && view.mafiaOpen;
+        var phase = MAFIA_PHASES[me.phase] || me.phase || "";
+        var faction = MAFIA_FACTIONS[me.faction] || "Noma'lum";
+        var photo = me.photo || "/assets/images/mafia/cover.png";
+
+        app.innerHTML = top +
+          '<main class="fade mafia-shell">' +
+            '<section class="mafia-hero">' +
+              '<p class="mafia-kicker">Revilend Mafia</p>' +
+              '<h1>' + (hasRole ? "Sizning kartangiz" : "Karta tarqatilmoqda") + '</h1>' +
+              '<p>' + (hasRole
+                ? "Kartani ochib, o'z rolingizni bilib oling. Bu ma'lumot faqat sizga ko'rinadi."
+                : "Xona egasi o'yinni boshlagach, rolingiz shu yerda paydo bo'ladi.") + '</p>' +
+            '</section>' +
+            '<div class="tarot-scene">' +
+              '<div class="tarot-card' + (opened ? " flipped" : "") + '">' +
+                '<div class="tarot-face tarot-back"><img src="/assets/images/mafia/cover.png" alt="" /><span>' + (hasRole ? "?" : "…") + '</span></div>' +
+                '<div class="tarot-face tarot-front"><img src="' + esc(photo) + '" alt="' + esc(me.role_name || "") + '" /></div>' +
+              '</div>' +
+            '</div>' +
+            (hasRole && !opened
+              ? '<button class="btn primary block" data-act="flip-mafia">🃏 Kartani ochish</button>'
+              : '') +
+            (hasRole
+              ? '<section class="mafia-reveal fade" data-reveal' + (opened ? '' : ' hidden') + '>' +
+                  '<p class="mafia-role">' + esc(me.role_name) + '</p>' +
+                  '<div class="mafia-tags"><span>' + esc(faction) + '</span><span>' +
+                    (me.has_night_action ? "🌙 Tungi harakat" : "☀️ Kunduzi faol") + '</span></div>' +
+                  '<p class="muted tiny">' + esc(me.description) + '</p>' +
+                '</section>'
+              : '') +
+            '<section class="panel mafia-status">' +
+              '<div class="mafia-status-row"><span>Xona</span><b>' + esc(me.code) + '</b></div>' +
+              '<div class="mafia-status-row"><span>Bosqich</span><b>' + esc(phase) +
+                (me.round ? " · " + esc(me.round) + '-raund' : '') + '</b></div>' +
+              '<div class="mafia-status-row"><span>O\'yinchilar</span><b>' + esc(me.players_count) + ' kishi</b></div>' +
+              '<p class="muted tiny">' + (me.is_alive ? "Siz o'yindasiz." : "Siz kuzatuvchisiz.") +
+                ' Tungi harakatlar keyingi bosqichda Mini App\'da faollashadi.</p>' +
+            '</section>' +
+            '<div class="footer">Revilend Games · Mafiya</div>' +
+          '</main>';
+      }
+
+      // ----------------------------------------------------------------
       // Hub (bosh sahifa)
       // ----------------------------------------------------------------
       function renderHub() {
         stopLive();
         stopTimer();
+        view.mode = "bunker";
         view.code = "";
+        view.mafia = null;
+        view.mafiaError = null;
+        view.mafiaOpen = false;
+        if (view.mafiaTimer) {
+          clearTimeout(view.mafiaTimer);
+          view.mafiaTimer = null;
+        }
         setBackButton(false);
         app.innerHTML =
           '<header class="brand fade">' +
@@ -1656,7 +1879,7 @@
             '<section class="hero">' +
               '<p class="eyebrow">STOL O\'YINLARI</p>' +
               '<h1>Kechqurun nima o\'ynaymiz?</h1>' +
-              '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker yuboring.</p>' +
+              '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker yoki /mafia yuboring.</p>' +
             '</section>' +
             profileCardHtml() +
             bonusHtml() +
@@ -1667,18 +1890,19 @@
             '<section class="panel" id="join-panel">' +
               '<h2>Xonaga kod orqali qo\'shilish</h2>' +
               '<form id="join-form" class="join-form">' +
-                '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482" aria-label="Xona kodi" />' +
+                '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123" aria-label="Xona kodi" />' +
                 '<button type="submit" class="btn primary">Kirish</button>' +
               '</form>' +
-              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker» xabaridan oling. O\'yin boshlanmagan bo\'lishi kerak.</p>' +
+              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker» yoki «Mafiya» xabaridan oling. Mafiya kodini kiritsangiz, rolingiz kartasi ochiladi.</p>' +
             '</section>' +
-            '<div class="footer">Revilend Games · Bunker</div>' +
+            '<div class="footer">Revilend Games · Bunker · Mafiya</div>' +
           '</main>' +
           shopModalHtml();
       }
 
       function gameCardHtml(game) {
         var active = game.status === "active";
+        var isMafia = game.slug === "mafia";
         return '<article class="game-card ' + (active ? "active" : "") + '">' +
           '<div class="game-icon">' + game.emoji + '</div>' +
           '<div class="game-body">' +
@@ -1688,7 +1912,8 @@
             '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
           '</div>' +
           (active
-            ? '<button class="play-btn" data-act="open-bunker">Boshlash</button>'
+            ? '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : "open-bunker") + '">' +
+                (isMafia ? "Kod bilan kirish" : "Boshlash") + '</button>'
             : '<button class="play-btn" disabled>Tez kunda</button>') +
         '</article>';
       }
@@ -2276,6 +2501,27 @@
             input.focus();
             input.scrollIntoView({ behavior: "smooth", block: "center" });
           }
+        } else if (act === "open-mafia") {
+          var mafiaInput = document.getElementById("room-code");
+          var mafiaCode = mafiaInput ? mafiaStartCode(mafiaInput.value) : "";
+          if (mafiaCode) {
+            enterMafia(mafiaCode);
+            return;
+          }
+          if (mafiaInput) {
+            mafiaInput.focus();
+            mafiaInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          toast("Guruhdagi Mafiya havolasini oching yoki MAF kodini kiriting");
+        } else if (act === "flip-mafia") {
+          var tarot = app.querySelector(".tarot-card");
+          if (tarot) tarot.classList.add("flipped");
+          var reveal = app.querySelector("[data-reveal]");
+          if (reveal) reveal.hidden = false;
+          button.disabled = true;
+          button.textContent = "🃏 Karta ochildi";
+          view.mafiaOpen = true;
+          haptic("success");
         } else if (act === "reveal") {
           sendAction({ action: "reveal", card_type: button.getAttribute("data-card") }, "Karta ochildi");
         } else if (act === "select") {
@@ -2339,6 +2585,10 @@
             toast("Xona kodi 6 belgidan iborat bo'lishi kerak", "error");
             return;
           }
+          if (/^MAF\d{3}$/.test(code)) {
+            enterMafia(code);
+            return;
+          }
           window.location.href = window.location.pathname + "?room=" + encodeURIComponent(code);
         } else if (event.target.id === "room-join-form") {
           event.preventDefault();
@@ -2376,13 +2626,15 @@
         applyTelegramTheme();
       }
 
-      if (view.code) {
+      if (initialMafiaCode) {
+        enterMafia(initialMafiaCode);
+      } else if (view.code) {
         enterRoom(view.code);
       } else {
         renderHub();
       }
       loadAccount();
-      if (!view.code) loadActivity();
+      if (view.mode === "bunker" && !view.code) loadActivity();
     })();
   </script>
 </body>

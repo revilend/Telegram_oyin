@@ -23,6 +23,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import (
     CallbackQuery,
+    FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
@@ -38,6 +39,14 @@ from games.mafia.engine import (
     resolve_night,
 )
 from games.mafia.generator import MIN_PLAYERS
+from games.mafia.images import (
+    COVER_IMAGE,
+    DAY_IMAGE,
+    ELIMINATED_IMAGE,
+    NIGHT_IMAGE,
+    image_path,
+    victory_image_path,
+)
 from games.mafia.roles import Faction, MafiaRole, get_role_profile
 
 logger = logging.getLogger(__name__)
@@ -355,16 +364,22 @@ def role_text(game: MafiaGame, player: MafiaPlayer) -> str:
 # Guruhga bildirishnomalar
 # ----------------------------------------------------------------------
 async def announce_night(bot: Bot, game: MafiaGame) -> None:
-    """«Shaharga tun cho'kdi» xabarini guruhga yuboradi."""
-    await bot.send_message(
-        game.chat_id, night_text(game), reply_markup=night_keyboard(game)
+    """«Shaharga tun cho'kdi» xabarini tun rasmi bilan yuboradi."""
+    await bot.send_photo(
+        game.chat_id,
+        FSInputFile(image_path(NIGHT_IMAGE)),
+        caption=night_text(game),
+        reply_markup=night_keyboard(game),
     )
 
 
 async def announce_day(bot: Bot, game: MafiaGame) -> None:
     """Tonggi hisobotni yuboradi; o'yin tugagan bo'lsa g'olibni ham e'lon qiladi."""
-    await bot.send_message(
-        game.chat_id, day_text(game), reply_markup=day_keyboard(game)
+    await bot.send_photo(
+        game.chat_id,
+        FSInputFile(image_path(DAY_IMAGE)),
+        caption=day_text(game),
+        reply_markup=day_keyboard(game),
     )
     if game.room.winner is not None:
         await announce_finish(bot, game)
@@ -373,15 +388,23 @@ async def announce_day(bot: Bot, game: MafiaGame) -> None:
 async def announce_execution(
     bot: Bot, game: MafiaGame, player: MafiaPlayer
 ) -> None:
-    """Kunduzgi qatl haqidagi xabarni yuboradi."""
-    await bot.send_message(game.chat_id, execution_text(game, player))
+    """Kunduzgi qatl haqidagi xabarni qatl rasmi bilan yuboradi."""
+    await bot.send_photo(
+        game.chat_id,
+        FSInputFile(image_path(ELIMINATED_IMAGE)),
+        caption=execution_text(game, player),
+    )
 
 
 async def announce_finish(bot: Bot, game: MafiaGame) -> None:
-    """G'olib jamoa haqidagi xabarni yuboradi."""
+    """G'olib jamoa haqidagi xabarni mos g'alaba rasmi bilan yuboradi."""
     if game.room.winner is None:
         return
-    await bot.send_message(game.chat_id, finish_text(game.room.winner))
+    await bot.send_photo(
+        game.chat_id,
+        FSInputFile(victory_image_path(game.room.winner)),
+        caption=finish_text(game.room.winner),
+    )
 
 
 async def send_role_cards(bot: Bot, game: MafiaGame) -> list[int]:
@@ -421,12 +444,25 @@ async def _edit_lobby(
 ) -> None:
     """Xona e'lonini tahrirlaydi; imkoni bo'lmasa yangi xabar yuboradi."""
     message = callback.message
-    if message is not None and hasattr(message, "edit_text"):
-        try:
-            await message.edit_text(text, reply_markup=keyboard)
-            return
-        except TelegramBadRequest:
-            pass
+    if message is not None:
+        # E'lon rasm bilan yuborilgan bo'lsa, matn emas, izoh (caption)
+        # tahrirlanadi; aks holda Telegram xato qaytaradi.
+        if getattr(message, "photo", None) is not None and hasattr(
+            message, "edit_caption"
+        ):
+            try:
+                await message.edit_caption(
+                    caption=text, reply_markup=keyboard
+                )
+                return
+            except TelegramBadRequest:
+                pass
+        if hasattr(message, "edit_text"):
+            try:
+                await message.edit_text(text, reply_markup=keyboard)
+                return
+            except TelegramBadRequest:
+                pass
     await callback.bot.send_message(
         _callback_chat_id(callback), text, reply_markup=keyboard
     )
@@ -453,8 +489,10 @@ async def create_mafia_game(message: Message) -> None:
             host_name=user.full_name,
             host_username=user.username or "",
         )
-        sent = await message.answer(
-            lobby_text(game), reply_markup=lobby_keyboard(game)
+        sent = await message.answer_photo(
+            FSInputFile(image_path(COVER_IMAGE)),
+            caption=lobby_text(game),
+            reply_markup=lobby_keyboard(game),
         )
         game.lobby_message_id = getattr(sent, "message_id", None)
     except Exception as exc:
