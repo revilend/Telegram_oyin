@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from html import escape
 
 from aiogram import F, Router
@@ -19,9 +20,10 @@ from bot.config import get_config
 from engine.game_manager import GameError, GameRoom, get_default_manager
 from models.game import RoomStatus
 
+logger = logging.getLogger(__name__)
+
 router = Router(name="bunker_group")
 
-GROUP_CHAT_TYPES = {"group", "supergroup"}
 JOIN_PREFIX = "join_"
 START_PREFIX = "start_"
 
@@ -127,32 +129,37 @@ async def _refresh_room_message(callback: CallbackQuery, room: GameRoom) -> None
 # ----------------------------------------------------------------------
 # Handlerlar
 # ----------------------------------------------------------------------
-@router.message(Command("bunker", "newgame"))
+@router.message(F.chat.type.in_({"group", "supergroup"}), Command("bunker", "newgame"))
 async def create_game(message: Message) -> None:
-    """/bunker yoki /newgame — guruhda yangi xona ochadi."""
-    if message.chat.type not in GROUP_CHAT_TYPES:
-        await message.answer(
-            "Bunker o'yinini faqat guruhda ochish mumkin.\n"
-            "Guruhga o'tib /bunker buyrug'ini yuboring."
-        )
-        return
-
-    user = message.from_user
-    if user is None:
-        return
-
-    manager = get_default_manager()
+    """/bunker yoki /newgame — guruhda (shu jumladan superguruhda) xona ochadi."""
     try:
-        room = manager.create_room(
+        user = message.from_user
+        if user is None:
+            raise ValueError("Buyruq yuborgan foydalanuvchi aniqlanmadi")
+
+        logger.info(
+            "Guruhda yangi Bunker xonasi: chat=%s user=%s",
+            message.chat.id,
+            user.id,
+        )
+        room = get_default_manager().create_room(
             host_id=user.id,
             host_name=user.full_name,
             host_username=user.username or "",
         )
-    except GameError as exc:
-        await message.answer(f"⚠️ {escape(str(exc))}")
-        return
+        await message.answer(_room_text(room), reply_markup=_room_keyboard(room))
+    except Exception as exc:  # bitta xato butun buyruqni jim yutmasligi kerak
+        logger.exception("Guruhda /bunker buyrug'ini bajarishda xatolik: %s", exc)
+        await message.reply(f"⚠️ Xatolik yuz berdi: {escape(str(exc))}")
 
-    await message.answer(_room_text(room), reply_markup=_room_keyboard(room))
+
+@router.message(F.chat.type == "private", Command("bunker", "newgame"))
+async def create_game_private(message: Message) -> None:
+    """Shaxsiy chatda /bunker — guruhga yo'naltirish."""
+    await message.answer(
+        "Bunker o'yinini faqat guruhda ochish mumkin.\n"
+        "Guruhga o'tib /bunker buyrug'ini yuboring."
+    )
 
 
 @router.callback_query(F.data.startswith(JOIN_PREFIX))
