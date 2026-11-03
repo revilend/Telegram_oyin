@@ -299,6 +299,201 @@ class SheriffTest(unittest.TestCase):
         self.assertEqual(report.sheriff_results[1], INVESTIGATION_MAFIA)
 
 
+class SpecialAbilitiesTest(unittest.TestCase):
+    def test_witch_kills_once_per_game(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.WITCH,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.CITIZEN,
+            }
+        )
+        room.submit_night_action(1, 4, kind=NightActionType.WITCH_KILL)
+
+        report = resolve_night(room)
+
+        self.assertEqual(report.deaths, (4,))
+        self.assertIn(
+            NightActionType.WITCH_KILL, room.get_player(1).used_actions
+        )
+
+        room.begin_night()
+        with self.assertRaises(MafiaError):
+            room.submit_night_action(1, 5, kind=NightActionType.WITCH_KILL)
+
+    def test_blocked_witch_keeps_potion(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.WITCH,
+                2: MafiaRole.BLOCKER,
+                3: MafiaRole.MAFIA,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.SHERIFF,
+            }
+        )
+        room.submit_night_action(1, 3, kind=NightActionType.WITCH_KILL)
+        room.submit_night_action(2, 1)
+
+        report = resolve_night(room)
+
+        self.assertEqual(report.deaths, ())
+        self.assertEqual(report.blocked, (1,))
+        self.assertNotIn(
+            NightActionType.WITCH_KILL, room.get_player(1).used_actions
+        )
+        room.begin_night()
+        room.submit_night_action(1, 3, kind=NightActionType.WITCH_KILL)
+
+    def test_witch_revives_dead_player(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.WITCH,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.CITIZEN,
+            }
+        )
+        dead = room.get_player(4)
+        dead.is_alive = False
+        room.eliminated.append(4)
+        room.submit_night_action(1, 4, kind=NightActionType.WITCH_HEAL)
+
+        report = resolve_night(room)
+
+        self.assertEqual(report.revived, (4,))
+        self.assertTrue(room.get_player(4).is_alive)
+        self.assertNotIn(4, room.eliminated)
+        self.assertIn(
+            NightActionType.WITCH_HEAL, room.get_player(1).used_actions
+        )
+
+        room.begin_night()
+        room.get_player(5).is_alive = False
+        with self.assertRaises(MafiaError):
+            room.submit_night_action(1, 5, kind=NightActionType.WITCH_HEAL)
+
+    def test_witch_heal_requires_dead_target(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.WITCH,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+            }
+        )
+        with self.assertRaises(MafiaError):
+            room.submit_night_action(1, 4, kind=NightActionType.WITCH_HEAL)
+
+    def test_blackmailer_silences_vote(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.BLACKMAILER,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.CITIZEN,
+            }
+        )
+        room.submit_night_action(1, 4)
+
+        report = resolve_night(room)
+
+        self.assertEqual(report.silenced, (4,))
+        self.assertEqual(room.silenced, {4})
+        room.begin_voting()
+        with self.assertRaises(MafiaError):
+            room.cast_vote(4, 2)
+        room.cast_vote(3, 2)
+
+    def test_blocked_blackmailer_cannot_silence(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.BLACKMAILER,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.BLOCKER,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.SHERIFF,
+            }
+        )
+        room.submit_night_action(1, 4)
+        room.submit_night_action(3, 1)
+
+        report = resolve_night(room)
+
+        self.assertEqual(report.silenced, ())
+        self.assertEqual(room.silenced, set())
+        room.begin_voting()
+        room.cast_vote(4, 2)
+
+    def test_amnesiac_copies_dead_role(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.AMNESIAC,
+                2: MafiaRole.MANIAC,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.CITIZEN,
+            }
+        )
+        maniac = room.get_player(2)
+        maniac.is_alive = False
+        room.eliminated.append(2)
+        room.submit_night_action(1, 2)
+
+        report = resolve_night(room)
+
+        self.assertEqual(room.get_player(1).role, MafiaRole.MANIAC)
+        self.assertEqual(report.copied, {1: MafiaRole.MANIAC})
+        self.assertIn(
+            NightActionType.COPY, room.get_player(1).used_actions
+        )
+        self.assertIsNone(room.winner)
+
+    def test_amnesiac_copy_can_trigger_mafia_win(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.AMNESIAC,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.CITIZEN,
+            }
+        )
+        mafia = room.get_player(2)
+        mafia.is_alive = False
+        room.eliminated.append(2)
+        room.submit_night_action(1, 2)
+
+        resolve_night(room)
+
+        self.assertEqual(room.get_player(1).role, MafiaRole.MAFIA)
+        self.assertIs(room.winner, Winner.MAFIA)
+        self.assertIs(room.phase, GamePhase.FINISHED)
+
+    def test_amnesiac_cannot_copy_alive_player_or_reuse(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.AMNESIAC,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.CITIZEN,
+                4: MafiaRole.SHERIFF,
+            }
+        )
+        with self.assertRaises(MafiaError):
+            room.submit_night_action(1, 2)
+
+        room.get_player(2).is_alive = False
+        room.eliminated.append(2)
+        room.submit_night_action(1, 2)
+        resolve_night(room)
+        self.assertEqual(room.get_player(1).role, MafiaRole.MAFIA)
+
+        room.begin_night()
+        with self.assertRaises(MafiaError):
+            room.submit_night_action(1, 3, kind=NightActionType.COPY)
+
+
 class ActionValidationTest(unittest.TestCase):
     def test_actions_require_night_phase(self) -> None:
         room = build_room(
@@ -342,12 +537,19 @@ class ActionValidationTest(unittest.TestCase):
         with self.assertRaises(MafiaError):
             room.submit_night_action(1, 1)
 
-    def test_unsupported_night_role_is_rejected(self) -> None:
+    def test_witch_must_choose_action_kind(self) -> None:
         room = build_room(
-            {1: MafiaRole.WITCH, 2: MafiaRole.MAFIA, 3: MafiaRole.CITIZEN}
+            {
+                1: MafiaRole.WITCH,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.CITIZEN,
+                4: MafiaRole.SHERIFF,
+            }
         )
         with self.assertRaises(MafiaError):
             room.submit_night_action(1, 2)
+        with self.assertRaises(MafiaError):
+            room.submit_night_action(1, 2, kind=NightActionType.HEAL)
 
 
 class RoomLifecycleTest(unittest.TestCase):

@@ -13,9 +13,9 @@ Tungi harakatlar :meth:`MafiaRoom.submit_night_action` orqali yig'iladi va
 4. tekshiruv (Sherif; Advokat himoyasi natijani «Tinch aholi» qiladi),
 5. tonggi hisobot (o'lganlar ro'yxati yoki «hech kim halok bo'lmadi»).
 
-Keyingi bosqichlarda qo'shiladigan qobiliyatlar hozircha dvigatelda
-qo'llanmaydi: Jodugar, Shantajchi va Amneziya uchun harakat yuborish
-:class:`MafiaError` bilan rad etiladi.
+Jodugar bir martalik o'ldirish yoki tiriltirishni tanlaydi, Shantajchi
+nishonning keyingi kundagi ovozini bloklaydi, Amneziya esa o'lgan
+o'yinchining rolini o'zlashtiradi.
 """
 
 from __future__ import annotations
@@ -66,6 +66,10 @@ class NightActionType(Enum):
     SNIPE = "snipe"
     INVESTIGATE = "investigate"
     FRAME = "frame"
+    WITCH_KILL = "witch_kill"
+    WITCH_HEAL = "witch_heal"
+    SILENCE = "silence"
+    COPY = "copy"
 
 
 # Rol o'z ixtiyori bilan yuboradigan harakat turi.
@@ -78,7 +82,14 @@ NIGHT_ACTION_BY_ROLE: dict[MafiaRole, NightActionType] = {
     MafiaRole.DON: NightActionType.KILL,
     MafiaRole.MAFIA: NightActionType.KILL,
     MafiaRole.LAWYER: NightActionType.FRAME,
+    MafiaRole.BLACKMAILER: NightActionType.SILENCE,
     MafiaRole.MANIAC: NightActionType.KILL,
+    MafiaRole.AMNESIAC: NightActionType.COPY,
+}
+
+# Bir nechta variantdan tanlaydigan rollar.
+NIGHT_OPTIONS_BY_ROLE: dict[MafiaRole, tuple[NightActionType, ...]] = {
+    MafiaRole.WITCH: (NightActionType.WITCH_KILL, NightActionType.WITCH_HEAL),
 }
 
 WIN_REASONS: dict[Winner, str] = {
@@ -97,6 +108,7 @@ class MafiaPlayer:
     name: str = ""
     role: MafiaRole | None = None
     is_alive: bool = True
+    used_actions: set[NightActionType] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.name = (self.name or "").strip()
@@ -135,6 +147,9 @@ class NightReport:
     protected: tuple[int, ...] = ()
     healed: tuple[int, ...] = ()
     sheriff_results: dict[int, str] = field(default_factory=dict)
+    silenced: tuple[int, ...] = ()
+    revived: tuple[int, ...] = ()
+    copied: dict[int, MafiaRole] = field(default_factory=dict)
 
     @property
     def peaceful(self) -> bool:
@@ -168,6 +183,7 @@ class MafiaRoom:
         self.night_actions: dict[int, NightAction] = {}
         self.votes: dict[int, int] = {}
         self.eliminated: list[int] = []
+        self.silenced: set[int] = set()
         self.last_report: NightReport | None = None
         self.winner: Winner | None = None
         self.finish_reason = ""
@@ -217,6 +233,9 @@ class MafiaRoom:
         self.night_actions.clear()
         self.votes.clear()
         self.eliminated.clear()
+        self.silenced.clear()
+        for player in self.players.values():
+            player.used_actions.clear()
         self.last_report = None
         self.winner = None
         self.finish_reason = ""
@@ -235,6 +254,7 @@ class MafiaRoom:
         self.round += 1
         self.night_actions.clear()
         self.votes.clear()
+        self.silenced.clear()
         self.phase = GamePhase.NIGHT
 
     def begin_voting(self) -> None:
@@ -264,8 +284,19 @@ class MafiaRoom:
         return player
 
     # --------------------------------------------------------------- tungi fazalar
-    def submit_night_action(self, actor_id: int, target_id: int) -> NightAction:
-        """Faol rol uchun tungi harakatni yozib qo'yadi."""
+    def submit_night_action(
+        self,
+        actor_id: int,
+        target_id: int,
+        *,
+        kind: NightActionType | str | None = None,
+    ) -> NightAction:
+        """Faol rol uchun tungi harakatni yozib qo'yadi.
+
+        Jodugar kabi bir nechta variantli rollar ``kind`` ni aniq ko'rsatishi
+        kerak. Jodugarning tiriltirishi va Amneziyaning nusxalashi faqat
+        o'lgan nishonni qabul qiladi.
+        """
         if self.phase is not GamePhase.NIGHT:
             raise MafiaError("Tungi harakat faqat NIGHT bosqichida yuboriladi")
         actor = self.get_player(actor_id)
@@ -274,15 +305,47 @@ class MafiaRoom:
         if actor.role is None:
             raise MafiaError("Rol hali berilmagan")
 
-        kind = NIGHT_ACTION_BY_ROLE.get(actor.role)
-        if kind is None:
-            profile = get_role_profile(actor.role)
+        profile = get_role_profile(actor.role)
+        options = NIGHT_OPTIONS_BY_ROLE.get(actor.role)
+        if options is None:
+            single = NIGHT_ACTION_BY_ROLE.get(actor.role)
+            options = (single,) if single is not None else ()
+        if not options:
             raise MafiaError(
                 f"{profile.name_uz} bu bosqichda tungi harakatga ega emas"
             )
 
+        if isinstance(kind, str):
+            try:
+                kind = NightActionType(kind.strip().lower())
+            except ValueError as exc:
+                raise MafiaError(f"Noma'lum harakat turi: {kind!r}") from exc
+        if kind is None:
+            if len(options) > 1:
+                raise MafiaError(
+                    f"{profile.name_uz} harakat turini tanlashi kerak: "
+                    + ", ".join(option.value for option in options)
+                )
+            kind = options[0]
+        if kind not in options:
+            raise MafiaError(
+                f"{profile.name_uz} uchun {kind.value} harakati ruxsat etilmagan"
+            )
+        if kind in actor.used_actions:
+            raise MafiaError(
+                f"{profile.name_uz} bu qobiliyatni allaqachon ishlatgan"
+            )
+
         target = self.get_player(target_id)
-        if not target.is_alive:
+        needs_dead = kind in (
+            NightActionType.WITCH_HEAL,
+            NightActionType.COPY,
+        )
+        if needs_dead and target.is_alive:
+            raise MafiaError(
+                f"{kind.value} uchun o'lgan o'yinchi tanlanishi kerak"
+            )
+        if not needs_dead and not target.is_alive:
             raise MafiaError(
                 f"{self.display_name(target)} allaqachon halok bo'lgan"
             )
@@ -315,6 +378,8 @@ class MafiaRoom:
         voter = self.get_player(voter_id)
         if not voter.is_alive:
             raise MafiaError("Halok bo'lgan o'yinchi ovoz bera olmaydi")
+        if voter_id in self.silenced:
+            raise MafiaError("Shantaj qilingan o'yinchi ovoz bera olmaydi")
         if voter_id == target_id:
             raise MafiaError("O'ziga ovoz berish mumkin emas")
         target = self.get_player(target_id)
@@ -448,6 +513,8 @@ def resolve_night(room: MafiaRoom) -> NightReport:
             attacks.append((action.actor_id, action.target_id, False))
         elif action.kind is NightActionType.SNIPE:
             attacks.append((action.actor_id, action.target_id, True))
+        elif action.kind is NightActionType.WITCH_KILL:
+            attacks.append((action.actor_id, action.target_id, False))
 
     deaths: set[int] = set()
     retaliations: list[tuple[int, int]] = []
@@ -479,6 +546,46 @@ def resolve_night(room: MafiaRoom) -> NightReport:
             player.is_alive = False
             room.eliminated.append(user_id)
 
+    # Amneziya o'lgan o'yinchining rolini o'zlashtiradi.
+    copied: dict[int, MafiaRole] = {}
+    for action in effective.values():
+        if action.kind is not NightActionType.COPY:
+            continue
+        actor = room.players[action.actor_id]
+        target = room.players[action.target_id]
+        if target.role is not None:
+            actor.role = target.role
+            copied[action.actor_id] = target.role
+        actor.used_actions.add(NightActionType.COPY)
+
+    # Jodugarning bir martalik tiriltirishi.
+    revived: list[int] = []
+    for action in effective.values():
+        if action.kind is not NightActionType.WITCH_HEAL:
+            continue
+        target = room.players[action.target_id]
+        if not target.is_alive:
+            target.is_alive = True
+            if target.user_id in room.eliminated:
+                room.eliminated.remove(target.user_id)
+            revived.append(target.user_id)
+        room.players[action.actor_id].used_actions.add(
+            NightActionType.WITCH_HEAL
+        )
+
+    for action in effective.values():
+        if action.kind is NightActionType.WITCH_KILL:
+            room.players[action.actor_id].used_actions.add(
+                NightActionType.WITCH_KILL
+            )
+
+    silenced = sorted(
+        action.target_id
+        for action in effective.values()
+        if action.kind is NightActionType.SILENCE
+    )
+    room.silenced = set(silenced)
+
     # 4-qadam: Sherif tekshiruvi.
     sheriff_results = {
         action.actor_id: _sheriff_result(room, action.target_id, frames)
@@ -494,6 +601,9 @@ def resolve_night(room: MafiaRoom) -> NightReport:
         protected=tuple(sorted(protections)),
         healed=tuple(sorted(heals)),
         sheriff_results=sheriff_results,
+        silenced=tuple(silenced),
+        revived=tuple(sorted(revived)),
+        copied=copied,
     )
     room.last_report = report
     room.phase = GamePhase.DAY_REPORT
