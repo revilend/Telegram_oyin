@@ -215,6 +215,15 @@ class MafiaRoom:
         """O'yinchi uchun ko'rinadigan ism."""
         return player.name or f"ID {player.user_id}"
 
+    def add_player(self, player: MafiaPlayer) -> MafiaPlayer:
+        """Lobby bosqichida yangi o'yinchi qo'shadi."""
+        if self.phase is not GamePhase.LOBBY:
+            raise MafiaError("O'yin boshlanganidan keyin qo'shilish mumkin emas")
+        if player.user_id in self.players:
+            raise MafiaError(f"O'yinchi {player.user_id} allaqachon xonada")
+        self.players[player.user_id] = player
+        return player
+
     def start(self, *, rng: random.Random | None = None) -> None:
         """Lobby'da rollarni tarqatib, birinchi tunni boshlaydi."""
         if self.phase is not GamePhase.LOBBY:

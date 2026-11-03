@@ -18,7 +18,9 @@ from bot.handlers import (
     boosters,
     bunker_group,
     common,
+    games_catalog,
     leaderboard,
+    mafia_group,
     menu,
     profile,
     rewards,
@@ -31,6 +33,8 @@ BOT_COMMANDS = [
     BotCommand(command="start", description="Revilend Games haqida"),
     BotCommand(command="bunker", description="Yangi Bunker o'yini (guruhda)"),
     BotCommand(command="newgame", description="Yangi Bunker o'yini (guruhda)"),
+    BotCommand(command="mafia", description="Yangi Mafiya o'yini (guruhda)"),
+    BotCommand(command="games", description="O'yinlar katalogi"),
     BotCommand(command="shop", description="Tangalar xarid qilish"),
     BotCommand(command="profile", description="Mening profilim"),
     BotCommand(command="top", description="Reyting va Top"),
@@ -48,7 +52,11 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(boosters.router)
     dispatcher.include_router(rewards.router)
     dispatcher.include_router(admin.router)
+    # Mafiya callbacklari ``join_mafia_``/``start_mafia_`` bilan boshlanadi,
+    # shuning uchun Bunker'dan oldin ulanadi.
+    dispatcher.include_router(mafia_group.router)
     dispatcher.include_router(bunker_group.router)
+    dispatcher.include_router(games_catalog.router)
     dispatcher.include_router(profile.router)
     dispatcher.include_router(leaderboard.router)
     # Doimiy pastki menyu tugmalari /start va boshqa buyruqlardan keyin keladi.
