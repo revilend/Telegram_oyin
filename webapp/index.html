@@ -1,0 +1,1268 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070b16" />
+  <title>Revilend Games</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #070b16;
+      --bg-soft: #0d1324;
+      --panel: rgba(255, 255, 255, 0.045);
+      --panel-strong: rgba(255, 255, 255, 0.075);
+      --border: rgba(255, 255, 255, 0.09);
+      --text: #f2f4fb;
+      --muted: #98a1bb;
+      --accent: #8b5cf6;
+      --accent-2: #22d3ee;
+      --danger: #f87171;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --radius: 20px;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
+    }
+
+    body {
+      background:
+        radial-gradient(900px 420px at 12% -10%, rgba(139, 92, 246, 0.28), transparent 65%),
+        radial-gradient(700px 380px at 100% 0%, rgba(34, 211, 238, 0.16), transparent 60%),
+        var(--bg);
+    }
+
+    #app {
+      max-width: 620px;
+      margin: 0 auto;
+      padding: calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+      min-height: 100vh;
+    }
+
+    h1, h2, h3, h4, p { margin: 0; }
+    button { font-family: inherit; }
+    .muted { color: var(--muted); }
+    .tiny { font-size: 12px; line-height: 1.5; }
+
+    /* ---------- Brand / header ---------- */
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 26px;
+    }
+
+    .brand-left { display: flex; align-items: center; gap: 10px; }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0a0f1f;
+      box-shadow: 0 8px 22px rgba(139, 92, 246, 0.35);
+    }
+
+    .brand-name { font-weight: 700; font-size: 15px; letter-spacing: 0.2px; }
+    .brand-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px 6px 6px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      max-width: 46%;
+    }
+
+    .profile-name {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+    }
+
+    .avatar.sm { width: 40px; height: 40px; min-width: 40px; font-size: 13px; }
+
+    /* ---------- Hub ---------- */
+    .hero { margin-bottom: 22px; }
+
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--accent-2);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .hero h1 {
+      font-size: 30px;
+      line-height: 1.15;
+      letter-spacing: -0.6px;
+      margin-bottom: 10px;
+    }
+
+    .hero p { color: var(--muted); font-size: 14px; line-height: 1.55; }
+
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 24px 2px 12px;
+    }
+
+    .section-title h2 { font-size: 16px; letter-spacing: -0.2px; }
+    .section-title span { font-size: 12px; color: var(--muted); }
+
+    .game-card {
+      position: relative;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      padding: 16px;
+      border-radius: var(--radius);
+      background: linear-gradient(150deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .game-card.active { border-color: rgba(139, 92, 246, 0.45); box-shadow: 0 14px 34px rgba(88, 51, 189, 0.18); }
+    .game-card.active::after {
+      content: "";
+      position: absolute;
+      inset: auto -40px -70px auto;
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.35), transparent 70%);
+      pointer-events: none;
+    }
+
+    .game-icon {
+      width: 54px;
+      height: 54px;
+      min-width: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      font-size: 26px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+    }
+
+    .game-body { flex: 1; min-width: 0; }
+    .game-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .game-name { font-weight: 700; font-size: 16px; }
+
+    .game-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .game-meta { font-size: 11px; color: var(--muted); margin-top: 6px; letter-spacing: 0.3px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.7px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge.live { background: rgba(52, 211, 153, 0.14); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.3); }
+    .badge.soon { background: rgba(255, 255, 255, 0.06); color: var(--muted); border: 1px solid var(--border); }
+    .badge.host { background: rgba(251, 191, 36, 0.14); color: var(--warning); border: 1px solid rgba(251, 191, 36, 0.3); }
+    .badge.me { background: rgba(34, 211, 238, 0.13); color: var(--accent-2); border: 1px solid rgba(34, 211, 238, 0.3); }
+
+    .play-btn {
+      flex: 0 0 auto;
+      border: 0;
+      cursor: pointer;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0a0f1f;
+      background: linear-gradient(135deg, #a78bfa, #22d3ee);
+    }
+
+    .play-btn[disabled] { cursor: default; color: var(--muted); background: rgba(255, 255, 255, 0.06); }
+
+    .panel {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+
+    .panel h2 { font-size: 15px; margin-bottom: 12px; }
+
+    .join-form { display: flex; gap: 10px; }
+
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.28);
+      color: var(--text);
+      font-size: 16px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      outline: none;
+    }
+
+    input[type="text"]:focus { border-color: rgba(139, 92, 246, 0.7); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
+    input::placeholder { letter-spacing: 2px; color: #5c6580; }
+
+    .btn {
+      border: 0;
+      cursor: pointer;
+      border-radius: 14px;
+      padding: 13px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn[disabled] { opacity: 0.45; cursor: default; }
+
+    .btn.primary {
+      color: #0a0f1f;
+      background: linear-gradient(135deg, #a78bfa, #22d3ee);
+      border: 0;
+    }
+
+    .btn.danger { color: #1a0505; background: linear-gradient(135deg, #fca5a5, #f87171); border: 0; }
+    .btn.block { width: 100%; }
+    .btn.small { padding: 9px 12px; font-size: 12px; border-radius: 11px; }
+
+    .footer { margin-top: 26px; text-align: center; font-size: 11px; color: #5f6884; letter-spacing: 0.5px; }
+
+    /* ---------- Room ---------- */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0 14px;
+      background: linear-gradient(180deg, var(--bg) 55%, rgba(7, 11, 22, 0.85) 100%);
+      backdrop-filter: blur(12px);
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 13px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .room-id { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .room-code { font-weight: 800; letter-spacing: 2px; font-size: 16px; }
+
+    .status-pill {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .status-pill.PLAYING { color: var(--success); border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.1); }
+    .status-pill.VOTING { color: var(--warning); border-color: rgba(251, 191, 36, 0.35); background: rgba(251, 191, 36, 0.1); }
+    .status-pill.FINISHED { color: var(--accent-2); border-color: rgba(34, 211, 238, 0.35); background: rgba(34, 211, 238, 0.1); }
+
+    .round-chip { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+    .catastrophe {
+      position: relative;
+      border-radius: 24px;
+      padding: 20px;
+      overflow: hidden;
+      background:
+        radial-gradient(500px 220px at 100% 0%, rgba(248, 113, 113, 0.22), transparent 60%),
+        linear-gradient(155deg, rgba(139, 92, 246, 0.22), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .cat-eye {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #fca5a5;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .catastrophe h1 { font-size: 23px; letter-spacing: -0.4px; line-height: 1.2; margin-bottom: 8px; }
+    .catastrophe > p { font-size: 13px; line-height: 1.6; color: #cdd3e6; white-space: pre-line; }
+
+    .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+
+    .cat-block {
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .cat-block h4 { font-size: 11px; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; }
+    .cat-block ul { margin: 0; padding-left: 16px; }
+    .cat-block li { font-size: 12px; line-height: 1.5; color: #dde2f2; margin-bottom: 3px; }
+
+    .stat-row { display: flex; gap: 8px; margin-top: 14px; }
+    .stat {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border-radius: 13px;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .stat b { display: block; font-size: 18px; }
+    .stat span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; }
+
+    .block-head { display: flex; align-items: baseline; justify-content: space-between; margin: 20px 2px 10px; }
+    .block-head h2 { font-size: 16px; }
+    .block-head span { font-size: 11px; color: var(--muted); }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+    .card {
+      position: relative;
+      border-radius: 16px;
+      padding: 13px;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 138px;
+    }
+
+    .card.revealed { border-color: rgba(139, 92, 246, 0.45); background: linear-gradient(160deg, rgba(139, 92, 246, 0.18), rgba(34, 211, 238, 0.06)); }
+    .card-top { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+    .card-top .emoji { font-size: 15px; }
+    .card h3 { font-size: 14px; line-height: 1.3; margin: 9px 0 5px; }
+    .card p { font-size: 11.5px; line-height: 1.45; color: #c3cbe1; white-space: pre-line; }
+    .card-lock { flex: 1; display: grid; place-items: center; text-align: center; color: var(--muted); font-size: 22px; gap: 2px; }
+    .card-lock small { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+    .card .btn { margin-top: 10px; }
+
+    .players { display: flex; flex-direction: column; gap: 8px; }
+
+    .player {
+      display: flex;
+      gap: 12px;
+      padding: 13px;
+      border-radius: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+
+    .player.dead { opacity: 0.55; }
+    .player.dead .avatar { filter: grayscale(1); }
+    .p-body { flex: 1; min-width: 0; }
+    .p-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; font-weight: 700; }
+    .p-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .chip {
+      font-size: 10.5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(139, 92, 246, 0.14);
+      border: 1px solid rgba(139, 92, 246, 0.28);
+      color: #ddd6fe;
+    }
+
+    .vote-panel { margin-top: 18px; padding: 16px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--border); }
+    .vote-panel h2 { font-size: 15px; margin-bottom: 5px; }
+    .vote-panel > p { font-size: 12px; margin-bottom: 12px; }
+
+    .vote-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+
+    .vote-target {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .vote-target .name { flex: 1; font-weight: 600; }
+    .vote-target .count { font-size: 11px; color: var(--muted); }
+    .vote-target.sel { border-color: rgba(248, 113, 113, 0.7); background: rgba(248, 113, 113, 0.12); box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.08); }
+    .vote-target[disabled] { opacity: 0.4; cursor: default; }
+
+    .notice {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 15px;
+      font-size: 13px;
+      line-height: 1.5;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+    }
+
+    .finished {
+      margin-top: 18px;
+      padding: 20px;
+      border-radius: var(--radius);
+      background: linear-gradient(150deg, rgba(52, 211, 153, 0.16), rgba(34, 211, 238, 0.08));
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      text-align: center;
+    }
+
+    .finished .big { font-size: 34px; margin-bottom: 6px; }
+    .finished h2 { font-size: 19px; margin-bottom: 6px; }
+    .finished p { font-size: 13px; color: #c7f5e4; line-height: 1.5; }
+
+    .join-room { margin-top: 18px; padding: 18px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--border); }
+    .join-room h2 { font-size: 16px; margin-bottom: 6px; }
+    .join-room p { font-size: 12px; margin-bottom: 12px; }
+    .join-room input { width: 100%; letter-spacing: 0; text-transform: none; margin-bottom: 10px; }
+
+    .state-screen { text-align: center; padding: 70px 20px; }
+    .state-screen .emoji { font-size: 46px; margin-bottom: 14px; }
+    .state-screen h2 { font-size: 20px; margin-bottom: 8px; }
+    .state-screen p { font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+
+    .skeleton {
+      height: 120px;
+      border-radius: var(--radius);
+      background: linear-gradient(100deg, rgba(255, 255, 255, 0.04) 20%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.04) 80%);
+      background-size: 220% 100%;
+      animation: shimmer 1.4s infinite linear;
+      margin-bottom: 12px;
+    }
+
+    @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+    @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .fade { animation: fadein 0.25s ease both; }
+
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(20px);
+      background: #1b2338;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+      border-radius: 14px;
+      font-size: 13px;
+      max-width: calc(100vw - 40px);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 100;
+      text-align: center;
+    }
+
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { border-color: rgba(248, 113, 113, 0.5); color: #fecaca; }
+
+    @media (min-width: 720px) {
+      #app { max-width: 760px; padding-top: 28px; }
+      .hero h1 { font-size: 36px; }
+      .cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .cat-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var tg = window.Telegram ? window.Telegram.WebApp : null;
+      var CARD_ORDER = ["profession", "biology", "health", "hobby", "luggage", "fact", "special"];
+      var CARD_META = {
+        profession: { label: "Kasb", emoji: "🧑‍🔧" },
+        biology: { label: "Biologiya", emoji: "🧬" },
+        health: { label: "Salomatlik", emoji: "❤️" },
+        hobby: { label: "Xobbi", emoji: "🎯" },
+        luggage: { label: "Yuk", emoji: "🎒" },
+        fact: { label: "Fakt", emoji: "📜" },
+        special: { label: "Maxsus", emoji: "⭐" }
+      };
+      var STATUS_LABELS = {
+        LOBBY: "Kutilmoqda",
+        PLAYING: "O'yin davom etmoqda",
+        VOTING: "Ovoz berish",
+        FINISHED: "Tugadi"
+      };
+      var GAMES = [
+        {
+          slug: "bunker", name: "Bunker", emoji: "☢️", status: "active", players: "2–12",
+          description: "Falokatdan keyin omon qolish uchun kartalaringizni oching, bahslashing va bunkerga kim tushishini hal qiling."
+        },
+        {
+          slug: "mafia", name: "Mafiya", emoji: "🕵️", status: "coming_soon", players: "6–16",
+          description: "Kechki shaharda mafiya va tinch aholi o'rtasidagi sirli kurash. Tez orada."
+        },
+        {
+          slug: "spyfall", name: "Josus", emoji: "🕶️", status: "coming_soon", players: "4–10",
+          description: "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob orqali uni toping. Tez orada."
+        }
+      ];
+
+      var app = document.getElementById("app");
+      var toastEl = document.getElementById("toast");
+      var params = new URLSearchParams(window.location.search);
+      var initialCode = normalizeCode(params.get("room") || "");
+
+      var profile = loadProfile();
+      var view = {
+        code: initialCode,
+        room: null,
+        me: null,
+        error: null,
+        loading: true,
+        busy: false,
+        selected: null,
+        ws: null,
+        wsTimer: null,
+        pollTimer: null,
+        lastRoomSig: "",
+        lastMeSig: ""
+      };
+
+      var toastTimer = null;
+
+      // ----------------------------------------------------------------
+      // Yordamchilar
+      // ----------------------------------------------------------------
+      function esc(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+        });
+      }
+
+      function normalizeCode(value) {
+        return String(value || "").trim().toUpperCase();
+      }
+
+      function initials(name) {
+        var parts = String(name || "?").trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return "?";
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+
+      function hueFor(id) {
+        var n = Math.abs(Number(id) || 0);
+        return n % 360;
+      }
+
+      function avatarHtml(name, id, cls) {
+        var hue = hueFor(id);
+        return '<div class="avatar ' + (cls || "") + '" style="background: linear-gradient(135deg, hsl(' +
+          hue + ', 70%, 55%), hsl(' + ((hue + 55) % 360) + ', 75%, 48%))">' +
+          esc(initials(name)) + "</div>";
+      }
+
+      function cardMeta(type) {
+        return CARD_META[type] || { label: String(type || ""), emoji: "🃏" };
+      }
+
+      function listify(value) {
+        if (Array.isArray(value)) return value.filter(function (item) { return item != null && item !== ""; });
+        if (value == null || value === "") return [];
+        return [value];
+      }
+
+      function statusClass(status) {
+        return status === "PLAYING" || status === "VOTING" || status === "FINISHED" ? status : "";
+      }
+
+      function toast(message, kind) {
+        toastEl.textContent = message;
+        toastEl.className = "show" + (kind === "error" ? " error" : "");
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.className = ""; }, 3200);
+      }
+
+      function loadProfile() {
+        var user = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
+        if (user && user.id) {
+          var fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+          return {
+            id: user.id,
+            name: fullName || user.username || "O'yinchi",
+            username: user.username || "",
+            guest: false
+          };
+        }
+        var id = Number(window.sessionStorage.getItem("rg_guest_id"));
+        if (!id) {
+          id = -Math.floor(Math.random() * 900000000) - 1;
+          window.sessionStorage.setItem("rg_guest_id", String(id));
+        }
+        return {
+          id: id,
+          name: window.sessionStorage.getItem("rg_guest_name") || "",
+          username: "",
+          guest: true
+        };
+      }
+
+      async function request(path, options) {
+        var response = await fetch(path, options);
+        var data = null;
+        try { data = await response.json(); } catch (err) { data = null; }
+        if (!response.ok) {
+          var detail = data && data.detail ? data.detail : "Server xatosi (" + response.status + ")";
+          if (Array.isArray(detail)) {
+            detail = detail.map(function (item) { return item.msg || ""; }).filter(Boolean).join(", ");
+          }
+          var error = new Error(detail);
+          error.status = response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function fetchRoom(code) {
+        return request("/api/room/" + encodeURIComponent(code) + "?user_id=" + encodeURIComponent(profile.id));
+      }
+
+      function fetchMe(code) {
+        return request("/api/room/" + encodeURIComponent(code) + "/me?user_id=" + encodeURIComponent(profile.id));
+      }
+
+      function postAction(code, payload) {
+        return request("/api/room/" + encodeURIComponent(code) + "/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(Object.assign({ user_id: profile.id }, payload))
+        });
+      }
+
+      // ----------------------------------------------------------------
+      // Hub (bosh sahifa)
+      // ----------------------------------------------------------------
+      function renderHub() {
+        stopLive();
+        view.code = "";
+        setBackButton(false);
+        var name = profile.name || "Mehmon";
+        app.innerHTML =
+          '<header class="brand fade">' +
+            '<div class="brand-left">' +
+              '<div class="logo">RG</div>' +
+              '<div><div class="brand-name">Revilend Games</div>' +
+              '<div class="brand-sub">Telegram Mini App</div></div>' +
+            '</div>' +
+            '<div class="profile">' + avatarHtml(name, profile.id) +
+              '<div class="profile-name">' + esc(name) + '</div>' +
+            '</div>' +
+          '</header>' +
+          '<main class="fade">' +
+            '<section class="hero">' +
+              '<p class="eyebrow">STOL O\'YINLARI</p>' +
+              '<h1>Kechqurun nima o\'ynaymiz?</h1>' +
+              '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker yuboring.</p>' +
+            '</section>' +
+            '<div class="section-title"><h2>O\'yinlar</h2><span>' + GAMES.length + ' ta</span></div>' +
+            GAMES.map(gameCardHtml).join("") +
+            '<section class="panel" id="join-panel">' +
+              '<h2>Xonaga kod orqali qo\'shilish</h2>' +
+              '<form id="join-form" class="join-form">' +
+                '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482" aria-label="Xona kodi" />' +
+                '<button type="submit" class="btn primary">Kirish</button>' +
+              '</form>' +
+              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker» xabaridan oling. O\'yin boshlanmagan bo\'lishi kerak.</p>' +
+            '</section>' +
+            '<div class="footer">Revilend Games · Bunker</div>' +
+          '</main>';
+      }
+
+      function gameCardHtml(game) {
+        var active = game.status === "active";
+        return '<article class="game-card ' + (active ? "active" : "") + '">' +
+          '<div class="game-icon">' + game.emoji + '</div>' +
+          '<div class="game-body">' +
+            '<div class="game-top"><span class="game-name">' + esc(game.name) + '</span>' +
+              '<span class="badge ' + (active ? "live" : "soon") + '">' + (active ? "FAOL" : "TEZ KUNDA") + '</span></div>' +
+            '<p class="game-desc">' + esc(game.description) + '</p>' +
+            '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
+          '</div>' +
+          (active
+            ? '<button class="play-btn" data-act="open-bunker">Boshlash</button>'
+            : '<button class="play-btn" disabled>Tez kunda</button>') +
+        '</article>';
+      }
+
+      // ----------------------------------------------------------------
+      // Xona
+      // ----------------------------------------------------------------
+      function enterRoom(code) {
+        view.code = normalizeCode(code);
+        view.loading = true;
+        view.error = null;
+        view.room = null;
+        view.me = null;
+        setBackButton(true);
+        renderLoading();
+        loadRoomData(false);
+        connectSocket();
+        startPolling();
+      }
+
+      function goHome() {
+        stopLive();
+        window.location.href = window.location.pathname;
+      }
+
+      function setBackButton(visible) {
+        if (!tg || !tg.BackButton) return;
+        try {
+          if (visible) tg.BackButton.show(); else tg.BackButton.hide();
+        } catch (err) { /* eski Telegram versiyalari */ }
+      }
+
+      function renderLoading() {
+        app.innerHTML =
+          '<div class="topbar"><button class="icon-btn" data-act="home">←</button>' +
+            '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span></div></div>' +
+          '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+      }
+
+      function renderRoomError(error) {
+        app.innerHTML =
+          '<div class="state-screen fade">' +
+            '<div class="emoji">🚪</div>' +
+            '<h2>Xona topilmadi</h2>' +
+            '<p>' + esc(error && error.message ? error.message : "Xona mavjud emas yoki kodi xato.") + '</p>' +
+            '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button>' +
+          '</div>';
+      }
+
+      async function loadRoomData(silent) {
+        try {
+          var roomData = await fetchRoom(view.code);
+          var meData = null;
+          try {
+            meData = await fetchMe(view.code);
+          } catch (meError) {
+            if (meError.status !== 404) throw meError;
+          }
+          view.loading = false;
+          view.error = null;
+          var room = roomData.state;
+          var me = meData ? meData.me : null;
+          var roomSig = JSON.stringify(room);
+          var meSig = JSON.stringify(me);
+          var changed = roomSig !== view.lastRoomSig || meSig !== view.lastMeSig;
+          view.room = room;
+          view.me = me;
+          view.lastRoomSig = roomSig;
+          view.lastMeSig = meSig;
+          if (changed || !silent) renderRoom(true);
+        } catch (error) {
+          view.loading = false;
+          if (silent && view.room) {
+            return;
+          }
+          view.error = error;
+          renderRoomError(error);
+        }
+      }
+
+      function renderRoom(keepScroll) {
+        if (!view.room) return;
+        var room = view.room;
+        var scrollY = keepScroll ? window.scrollY : 0;
+        var me = view.me;
+        var status = room.status;
+        var players = room.players || [];
+        var alive = players.filter(function (player) { return player.is_alive; });
+        var myVoteTarget = view.selected;
+
+        var html = '<div class="topbar">' +
+          '<button class="icon-btn" data-act="home" aria-label="Orqaga">←</button>' +
+          '<div class="room-id"><span class="room-code">' + esc(room.code) + '</span>' +
+            '<span class="status-pill ' + statusClass(status) + '">' + esc(STATUS_LABELS[status] || status) + '</span></div>' +
+          '<div class="round-chip">' + (room.current_round ? "Raund " + room.current_round : "Lobby") + '</div>' +
+        '</div>';
+
+        html += catastropheHtml(room);
+
+        if (status === "FINISHED") {
+          html += finishedHtml(room);
+        }
+
+        if (!me && status === "LOBBY") {
+          html += joinRoomHtml(room);
+        } else if (!me) {
+          html += '<div class="notice">⏳ O\'yin allaqachon boshlangan. Siz kuzatuvchisiz — keyingi o\'yinni kuting.</div>';
+        }
+
+        if (me) {
+          html += myCardsHtml(me, status);
+        }
+
+        html += playersHtml(room, me);
+        html += controlsHtml(room, me, alive);
+
+        html += '<div class="footer">Revilend Games · Xona ' + esc(room.code) + '</div>';
+
+        app.innerHTML = '<main class="fade">' + html + '</main>';
+        if (keepScroll) window.scrollTo(0, scrollY);
+      }
+
+      function catastropheHtml(room) {
+        var cat = room.catastrophe || {};
+        var supplies = listify(cat.bunker_supplies);
+        var requirements = listify(cat.survival_requirements);
+        return '<section class="catastrophe">' +
+          '<div class="cat-eye">☢️ Falokat</div>' +
+          '<h1>' + esc(cat.name || "Noma'lum falokat") + '</h1>' +
+          '<p>' + esc(cat.description || "") + '</p>' +
+          '<div class="cat-grid">' +
+            '<div class="cat-block"><h4>📦 Bunker zaxirasi</h4>' + listHtml(supplies) + '</div>' +
+            '<div class="cat-block"><h4>✅ Omon qolish</h4>' + listHtml(requirements) + '</div>' +
+          '</div>' +
+          '<div class="stat-row">' +
+            '<div class="stat"><b>' + (room.alive_count != null ? room.alive_count : 0) + '</b><span>tirik</span></div>' +
+            '<div class="stat"><b>' + esc(room.bunker_capacity) + '</b><span>sig\'im</span></div>' +
+            '<div class="stat"><b>' + (room.players ? room.players.length : 0) + '/' + esc(room.max_players) + '</b><span>o\'yinchi</span></div>' +
+          '</div>' +
+        '</section>';
+      }
+
+      function listHtml(items) {
+        if (!items.length) return '<p class="muted tiny">Ma\'lumot yo\'q</p>';
+        return '<ul>' + items.map(function (item) {
+          return '<li>' + esc(item) + '</li>';
+        }).join("") + '</ul>';
+      }
+
+      function finishedHtml(room) {
+        var survivors = (room.players || []).filter(function (player) { return player.is_alive; });
+        var names = survivors.map(function (player) { return esc(player.full_name); }).join(", ");
+        return '<section class="finished">' +
+          '<div class="big">🏆</div>' +
+          '<h2>O\'yin tugadi!</h2>' +
+          '<p>Bunkerda omon qolganlar:<br><b>' + (names || "—") + '</b></p>' +
+        '</section>';
+      }
+
+      function joinRoomHtml(room) {
+        var needName = !profile.name;
+        return '<section class="join-room">' +
+          '<h2>Xonaga qo\'shilish</h2>' +
+          '<p class="muted">Hozir ' + (room.players ? room.players.length : 0) + ' o\'yinchi bor. O\'yin boshlanmaguncha qo\'shilishingiz mumkin.</p>' +
+          '<form id="room-join-form">' +
+            (needName ? '<input id="guest-name" type="text" maxlength="40" placeholder="Ismingiz" aria-label="Ismingiz" />' : '') +
+            '<button type="submit" class="btn primary block">Xonaga qo\'shilish</button>' +
+          '</form>' +
+        '</section>';
+      }
+
+      function myCardsHtml(me, status) {
+        var cards = me.cards || {};
+        var keys = CARD_ORDER.filter(function (key) { return cards[key]; });
+        var revealed = keys.filter(function (key) { return cards[key].is_revealed; }).length;
+
+        if (!keys.length) {
+          return '<section><div class="block-head"><h2>Mening kartalarim</h2><span>0/0</span></div>' +
+            '<div class="notice">🃏 O\'yin boshlanganda shaxsiy kartalaringiz tarqatiladi.</div></section>';
+        }
+
+        return '<section><div class="block-head"><h2>Mening kartalarim</h2>' +
+          '<span>' + revealed + '/' + keys.length + ' ochilgan</span></div>' +
+          '<div class="cards-grid">' + keys.map(function (key) {
+            var card = cards[key];
+            var meta = cardMeta(key);
+            if (card.is_revealed) {
+              return '<article class="card revealed">' +
+                '<div class="card-top"><span class="emoji">' + meta.emoji + '</span>' + esc(meta.label) + '</div>' +
+                '<h3>' + esc(card.title) + '</h3>' +
+                '<p>' + esc(card.description) + '</p>' +
+              '</article>';
+            }
+            var canReveal = status === "PLAYING" || status === "VOTING";
+            return '<article class="card">' +
+              '<div class="card-top"><span class="emoji">' + meta.emoji + '</span>' + esc(meta.label) + '</div>' +
+              '<div class="card-lock">🔒<small>Yopiq</small></div>' +
+              (canReveal
+                ? '<button class="btn small" data-act="reveal" data-card="' + esc(key) + '">Ochish</button>'
+                : '<p class="muted tiny" style="text-align:center">O\'yin boshlanishini kuting</p>') +
+            '</article>';
+          }).join("") + '</div></section>';
+      }
+
+      function playersHtml(room, me) {
+        var players = (room.players || []).slice().sort(function (a, b) {
+          if (a.is_alive !== b.is_alive) return a.is_alive ? -1 : 1;
+          return b.votes_against - a.votes_against;
+        });
+
+        return '<section><div class="block-head"><h2>Bunker stoli</h2>' +
+          '<span>' + (room.players || []).length + ' o\'yinchi</span></div>' +
+          '<div class="players">' + players.map(function (player) {
+            var badges = "";
+            if (player.is_host) badges += '<span class="badge host">HOST</span>';
+            if (player.is_me) badges += '<span class="badge me">SIZ</span>';
+            var revealedCards = Object.keys(player.revealed_cards || {}).sort(function (a, b) {
+              return CARD_ORDER.indexOf(a) - CARD_ORDER.indexOf(b);
+            });
+            var chips = revealedCards.map(function (key) {
+              var card = player.revealed_cards[key];
+              var meta = cardMeta(key);
+              return '<span class="chip" title="' + esc(card.description) + '">' +
+                meta.emoji + " " + esc(card.title) + '</span>';
+            }).join("");
+            if (!chips && player.is_alive) {
+              chips = '<span class="muted tiny">🔒 Kartalar hali yopiq</span>';
+            }
+            var meta = [];
+            meta.push(player.is_alive ? "Tirik" : "Haydalgan");
+            if (player.votes_against) meta.push("🗳️ " + player.votes_against + " ovoz");
+            if (player.hidden_count && player.is_alive) meta.push("🔒 " + player.hidden_count + " yopiq");
+
+            return '<div class="player ' + (player.is_alive ? "" : "dead") + '">' +
+              avatarHtml(player.full_name, player.user_id, "sm") +
+              '<div class="p-body">' +
+                '<div class="p-name">' + esc(player.full_name) + badges + '</div>' +
+                '<div class="p-meta">' + meta.map(function (text) { return '<span>' + text + '</span>'; }).join("") + '</div>' +
+                '<div class="chips">' + chips + '</div>' +
+              '</div>' +
+            '</div>';
+          }).join("") + '</div></section>';
+      }
+
+      function controlsHtml(room, me, alive) {
+        var status = room.status;
+        var parts = "";
+
+        if (status === "FINISHED") {
+          return '<div class="notice">🎉 Bu o\'yin yakunlandi. Yangi o\'yin ochish uchun guruhda /bunker yuboring.</div>';
+        }
+
+        if (!me) {
+          return parts;
+        }
+
+        if (me.is_host && status === "LOBBY") {
+          var enough = (room.players || []).length >= 2;
+          parts += '<section class="panel">' +
+            '<h2>Xona egasi paneli</h2>' +
+            '<p class="muted tiny" style="margin-bottom:12px">' +
+              (enough ? 'Hamma yig\'ildimi? Kartalarni tarqatib, o\'yinni boshlang.' : 'Boshlash uchun kamida 2 o\'yinchi kerak.') +
+            '</p>' +
+            '<button class="btn primary block" data-act="start"' + (enough ? "" : " disabled") + '>▶️ O\'yinni boshlash</button>' +
+          '</section>';
+        }
+
+        if (status === "PLAYING" || status === "VOTING") {
+          if (!me.is_alive) {
+            parts += '<div class="notice">☠️ Siz haydalgansiz. O\'yinni kuzatishingiz mumkin.</div>';
+          } else {
+            var others = (alive || []).filter(function (player) { return player.user_id !== me.user_id; });
+            var totalVotes = (room.players || []).reduce(function (sum, player) {
+              return sum + (player.votes_against || 0);
+            }, 0);
+
+            parts += '<section class="vote-panel">' +
+              '<h2>🗳️ Ovoz berish</h2>' +
+              '<p class="muted">Bunkerga tushmasligi kerak deb hisoblagan o\'yinchini tanlang.</p>' +
+              '<div class="vote-list">' + others.map(function (player) {
+                var selected = view.selected === player.user_id;
+                return '<button class="vote-target ' + (selected ? "sel" : "") + '" data-act="select" data-target="' + player.user_id + '">' +
+                  avatarHtml(player.full_name, player.user_id) +
+                  '<span class="name">' + esc(player.full_name) + '</span>' +
+                  '<span class="count">' + (player.votes_against || 0) + ' ovoz</span>' +
+                '</button>';
+              }).join("") + '</div>' +
+              '<button class="btn danger block" data-act="vote"' + (view.selected == null ? " disabled" : "") + '>Ovoz berish</button>' +
+              (me.is_host
+                ? '<button class="btn block" style="margin-top:8px" data-act="tally"' +
+                    (totalVotes > 0 ? "" : " disabled") + '>Ovozlarni sanash · ' + totalVotes + '</button>'
+                : '<p class="muted tiny" style="margin-top:10px;text-align:center">Ovozlarni xona egasi sanaydi.</p>') +
+            '</section>';
+          }
+        }
+
+        if (status === "LOBBY") {
+          parts += '<div class="notice">⏳ O\'yin boshlanishini kuting. Do\'stlaringizni xona kodini ulashib taklif qiling: <b>' + esc(room.code) + '</b></div>';
+        }
+
+        return parts;
+      }
+
+      // ----------------------------------------------------------------
+      // Real-vaqt
+      // ----------------------------------------------------------------
+      function connectSocket() {
+        if (!view.code) return;
+        stopSocket();
+        var protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        var socket;
+        try {
+          socket = new WebSocket(protocol + "://" + window.location.host + "/ws/" + encodeURIComponent(view.code));
+        } catch (err) {
+          view.wsTimer = setTimeout(connectSocket, 4000);
+          return;
+        }
+        view.ws = socket;
+
+        socket.onmessage = function (event) {
+          var message;
+          try { message = JSON.parse(event.data); } catch (err) { return; }
+          if (message.type === "state" && message.state) {
+            applyRemoteRoom(message.state);
+          }
+        };
+        socket.onclose = function () {
+          if (view.ws === socket) view.ws = null;
+          if (view.code) {
+            view.wsTimer = setTimeout(connectSocket, 4000);
+          }
+        };
+        socket.onerror = function () {
+          try { socket.close(); } catch (err) { /* ignore */ }
+        };
+      }
+
+      function stopSocket() {
+        if (view.wsTimer) {
+          clearTimeout(view.wsTimer);
+          view.wsTimer = null;
+        }
+        if (view.ws) {
+          var socket = view.ws;
+          view.ws = null;
+          try { socket.close(); } catch (err) { /* ignore */ }
+        }
+      }
+
+      function startPolling() {
+        stopPolling();
+        view.pollTimer = setInterval(function () {
+          if (view.code && !view.busy) loadRoomData(true);
+        }, 5000);
+      }
+
+      function stopPolling() {
+        if (view.pollTimer) {
+          clearInterval(view.pollTimer);
+          view.pollTimer = null;
+        }
+      }
+
+      function stopLive() {
+        stopSocket();
+        stopPolling();
+      }
+
+      function applyRemoteRoom(room) {
+        if (!room || room.code !== view.code) return;
+        var sig = JSON.stringify(room);
+        if (sig === view.lastRoomSig) return;
+        view.room = room;
+        view.lastRoomSig = sig;
+        if (room.status !== "PLAYING" && room.status !== "VOTING") view.selected = null;
+        renderRoom(true);
+      }
+
+      // ----------------------------------------------------------------
+      // Harakatlar
+      // ----------------------------------------------------------------
+      async function sendAction(payload, successMessage) {
+        if (view.busy) return;
+        view.busy = true;
+        try {
+          var data = await postAction(view.code, payload);
+          view.room = data.state;
+          view.me = data.me;
+          view.lastRoomSig = JSON.stringify(data.state);
+          view.lastMeSig = JSON.stringify(data.me);
+          if (payload.action === "vote" || payload.action === "tally") view.selected = null;
+          renderRoom(true);
+          if (data.result && data.result.tie) {
+            toast("Ovozlar teng — hech kim haydalmadi");
+          } else if (data.result && data.result.eliminated) {
+            toast(data.result.eliminated.full_name + " haydaldi");
+          } else if (successMessage) {
+            toast(successMessage);
+          }
+        } catch (error) {
+          toast(error.message || "Xatolik yuz berdi", "error");
+          if (error.status === 404) loadRoomData(false);
+        } finally {
+          view.busy = false;
+        }
+      }
+
+      async function joinRoom() {
+        var name = (profile.name || "").trim();
+        if (!name) {
+          var input = document.getElementById("guest-name");
+          name = input ? input.value.trim() : "";
+        }
+        if (!name) {
+          toast("Ismingizni kiriting", "error");
+          return;
+        }
+        if (profile.guest) {
+          profile.name = name;
+          window.sessionStorage.setItem("rg_guest_name", name);
+        }
+        await sendAction({ action: "join", full_name: name, username: profile.username }, "Xonaga qo'shildingiz!");
+      }
+
+      function handleClick(event) {
+        var button = event.target.closest("[data-act]");
+        if (!button || !app.contains(button)) return;
+        var act = button.getAttribute("data-act");
+
+        if (act === "home") {
+          goHome();
+        } else if (act === "open-bunker") {
+          var input = document.getElementById("room-code");
+          if (input) {
+            input.focus();
+            input.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        } else if (act === "reveal") {
+          sendAction({ action: "reveal", card_type: button.getAttribute("data-card") }, "Karta ochildi");
+        } else if (act === "select") {
+          view.selected = Number(button.getAttribute("data-target"));
+          var targets = app.querySelectorAll(".vote-target");
+          for (var i = 0; i < targets.length; i += 1) {
+            targets[i].classList.toggle("sel", Number(targets[i].getAttribute("data-target")) === view.selected);
+          }
+          var voteButton = app.querySelector('[data-act="vote"]');
+          if (voteButton) voteButton.disabled = false;
+        } else if (act === "vote") {
+          if (view.selected == null) {
+            toast("Avval o'yinchini tanlang", "error");
+            return;
+          }
+          sendAction({ action: "vote", target_id: view.selected }, "Ovoz berildi");
+        } else if (act === "tally") {
+          sendAction({ action: "tally" }, "Ovozlar sanaldi");
+        } else if (act === "start") {
+          sendAction({ action: "start" }, "O'yin boshlandi!");
+        }
+      }
+
+      function handleSubmit(event) {
+        if (event.target.id === "join-form") {
+          event.preventDefault();
+          var input = document.getElementById("room-code");
+          var code = normalizeCode(input ? input.value : "");
+          if (!/^[A-Z0-9]{6}$/.test(code)) {
+            toast("Xona kodi 6 belgidan iborat bo'lishi kerak", "error");
+            return;
+          }
+          window.location.href = window.location.pathname + "?room=" + encodeURIComponent(code);
+        } else if (event.target.id === "room-join-form") {
+          event.preventDefault();
+          joinRoom();
+        }
+      }
+
+      // ----------------------------------------------------------------
+      // Ishga tushirish
+      // ----------------------------------------------------------------
+      app.addEventListener("click", handleClick);
+      app.addEventListener("submit", handleSubmit);
+
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+          if (tg.setHeaderColor) tg.setHeaderColor("#070b16");
+          if (tg.setBackgroundColor) tg.setBackgroundColor("#070b16");
+          if (tg.BackButton) tg.BackButton.onClick(goHome);
+        } catch (err) { /* eski versiya */ }
+      }
+
+      if (view.code) {
+        enterRoom(view.code);
+      } else {
+        renderHub();
+      }
+    })();
+  </script>
+</body>
+</html>
