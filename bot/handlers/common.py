@@ -30,7 +30,7 @@ WELCOME_TEXT = (
 
 @router.message(CommandStart())
 async def start_command(message: Message) -> None:
-    """/start — shaxsiy chatda xush kelibsiz xabari va Mini App tugmasi."""
+    """/start — shaxsiy chatda xush kelibsiz xabari, Mini App va guruh tugmalari."""
     user = message.from_user
     if message.chat.type != "private":
         await message.answer(
@@ -39,14 +39,21 @@ async def start_command(message: Message) -> None:
         return
 
     name = escape(user.full_name if user else "do'stim")
+    config = get_config()
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🎮 O'yinlar",
-                    web_app=WebAppInfo(url=get_config().mini_app_url),
+                    text="🎮 O'yinlar portalini ochish",
+                    web_app=WebAppInfo(url=config.mini_app_url),
                 )
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👥 Guruhga qo'shish",
+                    url=f"https://t.me/{config.bot_username}?startgroup=true",
+                )
+            ],
         ]
     )
     await message.answer(WELCOME_TEXT.format(name=name), reply_markup=keyboard)
