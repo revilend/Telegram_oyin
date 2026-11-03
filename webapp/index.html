@@ -17,6 +17,7 @@
       --muted: #98a1bb;
       --accent: #8b5cf6;
       --accent-2: #22d3ee;
+      --on-accent: #0a0f1f;
       --danger: #f87171;
       --success: #34d399;
       --warning: #fbbf24;
@@ -76,7 +77,7 @@
       font-size: 14px;
       letter-spacing: 0.5px;
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #0a0f1f;
+      color: var(--on-accent);
       box-shadow: 0 8px 22px rgba(139, 92, 246, 0.35);
     }
 
@@ -225,7 +226,7 @@
       border-radius: 12px;
       font-size: 12px;
       font-weight: 700;
-      color: #0a0f1f;
+      color: var(--on-accent);
       background: linear-gradient(135deg, #a78bfa, #22d3ee);
     }
 
@@ -277,7 +278,7 @@
     .btn[disabled] { opacity: 0.45; cursor: default; }
 
     .btn.primary {
-      color: #0a0f1f;
+      color: var(--on-accent);
       background: linear-gradient(135deg, #a78bfa, #22d3ee);
       border: 0;
     }
@@ -410,6 +411,8 @@
     .card-lock { flex: 1; display: grid; place-items: center; text-align: center; color: var(--muted); font-size: 22px; gap: 2px; }
     .card-lock small { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
     .card .btn { margin-top: 10px; }
+    .card .revealed-stamp { margin-top: auto; }
+    .flip-front .revealed-stamp { margin-top: auto; }
 
     .players { display: flex; flex-direction: column; gap: 8px; }
 
@@ -534,6 +537,344 @@
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     #toast.error { border-color: rgba(248, 113, 113, 0.5); color: #fecaca; }
 
+    /* ---------- Profil kartasi (Hub) ---------- */
+    .profile-card {
+      position: relative;
+      overflow: hidden;
+      margin: 0 0 22px;
+      padding: 18px;
+      border-radius: 24px;
+      background:
+        radial-gradient(320px 160px at 100% 0%, rgba(34, 211, 238, 0.16), transparent 65%),
+        linear-gradient(150deg, rgba(139, 92, 246, 0.22), rgba(255, 255, 255, 0.035));
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      box-shadow: var(--shadow);
+    }
+
+    .profile-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -50px -80px auto;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.35), transparent 70%);
+      pointer-events: none;
+    }
+
+    .profile-head { position: relative; z-index: 1; display: flex; align-items: center; gap: 13px; }
+    .profile-name-lg { font-size: 18px; font-weight: 800; line-height: 1.2; letter-spacing: -0.2px; }
+    .profile-handle { margin-top: 3px; font-size: 12px; color: var(--muted); }
+
+    .avatar.lg {
+      width: 58px;
+      height: 58px;
+      min-width: 58px;
+      font-size: 19px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      overflow: hidden;
+    }
+
+    .avatar img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+
+    .profile-stats {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .pstat {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .pstat span { font-size: 9px; letter-spacing: 0.7px; text-transform: uppercase; color: var(--muted); }
+    .pstat b { font-size: 12px; white-space: nowrap; }
+
+    .xp-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .xp-bar { flex: 1; height: 6px; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.1); }
+    .xp-bar i { display: block; width: 8%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .xp-text { font-size: 9px; letter-spacing: 0.4px; color: var(--muted); white-space: nowrap; }
+    .btn.invite { position: relative; z-index: 1; width: 100%; margin-top: 13px; background: rgba(255, 255, 255, 0.07); }
+
+    /* ---------- 3D karta ochilishi ---------- */
+    .flip-card { position: relative; min-height: 158px; perspective: 1000px; }
+
+    .flip-inner {
+      position: absolute;
+      inset: 0;
+      min-height: 158px;
+      transform-style: preserve-3d;
+      animation: cardFlip 0.8s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+    }
+
+    .flip-face {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 13px;
+      border-radius: 16px;
+      overflow: hidden;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .flip-back {
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-align: center;
+      background:
+        radial-gradient(120px 80px at 50% 10%, rgba(139, 92, 246, 0.32), transparent 70%),
+        repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 8px, transparent 8px 16px),
+        linear-gradient(160deg, #141a2e, #090d18);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .flip-back .lock-big { font-size: 30px; filter: drop-shadow(0 0 16px rgba(139, 92, 246, 0.65)); }
+    .flip-back .flip-hint { font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #a5b4fc; }
+
+    .flip-front {
+      transform: rotateY(180deg);
+      background:
+        radial-gradient(140px 90px at 100% 0%, rgba(34, 211, 238, 0.18), transparent 70%),
+        linear-gradient(160deg, rgba(139, 92, 246, 0.3), rgba(15, 21, 38, 0.96));
+      border: 1px solid rgba(139, 92, 246, 0.6);
+      box-shadow: 0 0 34px rgba(139, 92, 246, 0.22);
+    }
+
+    .flip-front h3 { margin: 9px 0 5px; font-size: 14px; line-height: 1.3; }
+    .flip-front p { flex: 1; overflow: auto; font-size: 11.5px; line-height: 1.45; color: #d5dcf2; white-space: pre-line; }
+    .revealed-stamp {
+      align-self: flex-start;
+      margin-top: 8px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      color: #6ee7b7;
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      background: rgba(52, 211, 153, 0.1);
+    }
+
+    /* ---------- Raund taymeri ---------- */
+    .timer-box { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
+    .timer-label { font-size: 7px; font-weight: 800; letter-spacing: 1.3px; color: var(--muted); }
+    .timer { position: relative; display: grid; place-items: center; width: 46px; height: 46px; }
+    .timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    .timer circle { fill: none; stroke-width: 3.5; }
+    .timer .track { stroke: rgba(255, 255, 255, 0.1); }
+    .timer .progress {
+      stroke: var(--danger);
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 5px rgba(248, 113, 113, 0.8));
+      transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+    }
+    .timer.voting .progress { stroke: #fb7185; filter: drop-shadow(0 0 8px rgba(251, 113, 133, 0.95)); }
+    .timer.low { animation: timerPulse 1s ease-in-out infinite; }
+    .timer.low .progress { stroke: #ef4444; }
+    .timer-text { position: relative; font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.2px; }
+
+    /* ---------- O'yinchilar holati ---------- */
+    .avatar-wrap { position: relative; width: 40px; height: 40px; min-width: 40px; }
+    .avatar-wrap .avatar { width: 100%; height: 100%; }
+
+    .vote-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      z-index: 2;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 2px solid var(--bg);
+      background: linear-gradient(135deg, #fb7185, #dc2626);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 800;
+      box-shadow: 0 0 10px rgba(248, 113, 113, 0.65);
+    }
+
+    .vote-badge.hot { animation: votePop 0.45s ease; }
+
+    .player.dead { opacity: 0.48; filter: grayscale(0.9); }
+
+    .avatar-wrap.eliminated::after {
+      content: "✕";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 2px solid rgba(239, 68, 68, 0.85);
+      background: rgba(8, 11, 20, 0.62);
+      color: #f87171;
+      font-size: 22px;
+      font-weight: 900;
+      text-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+    }
+
+    /* ---------- Bunker epilogi ---------- */
+    .epilogue {
+      margin-top: 18px;
+      overflow: hidden;
+      border-radius: 24px;
+      text-align: center;
+      background: linear-gradient(170deg, #0f172a, #1d1626);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      box-shadow: var(--shadow);
+    }
+
+    .door-scene {
+      position: relative;
+      height: 142px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 48%, rgba(248, 113, 113, 0.28), transparent 58%),
+        linear-gradient(180deg, #080c15, #151a2a);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .door {
+      position: absolute;
+      left: 50%;
+      top: 16px;
+      width: 150px;
+      height: 132px;
+      transform: translateX(-50%);
+      border-radius: 14px 14px 0 0;
+      border: 2px solid #334155;
+      background:
+        linear-gradient(90deg, #222c40 0 47%, #070a12 47% 53%, #222c40 53% 100%);
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 0, 0, 0.5);
+      animation: doorShut 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    .door::before,
+    .door::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 46%;
+      background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 18px);
+    }
+
+    .door::before { left: 0; }
+    .door::after { right: 0; }
+
+    .door-wheel {
+      position: absolute;
+      left: 50%;
+      top: 52%;
+      width: 48px;
+      height: 48px;
+      transform: translate(-50%, -50%);
+      border: 3px solid #94a3b8;
+      border-radius: 50%;
+      box-shadow: 0 0 0 5px rgba(148, 163, 184, 0.12), inset 0 0 18px rgba(0, 0, 0, 0.85);
+    }
+
+    .door-wheel::before,
+    .door-wheel::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 36px;
+      height: 3px;
+      background: #94a3b8;
+      transform: translate(-50%, -50%);
+    }
+
+    .door-wheel::after { transform: translate(-50%, -50%) rotate(90deg); }
+
+    .door-light {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      width: 9px;
+      height: 9px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 20px 6px rgba(239, 68, 68, 0.55);
+      animation: warningPulse 1.8s ease-in-out infinite;
+    }
+
+    .epilogue-body { padding: 18px 18px 20px; }
+    .epilogue-kicker { margin-bottom: 6px; font-size: 9px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #fca5a5; }
+    .epilogue h2 { margin-bottom: 10px; font-size: 21px; letter-spacing: -0.3px; }
+    .epilogue-text { margin-bottom: 14px; font-size: 13px; line-height: 1.65; color: #d7dced; }
+    .survivors { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 14px; }
+    .survivor { display: flex; align-items: center; gap: 7px; padding: 6px 10px 6px 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); font-size: 11px; font-weight: 700; }
+    .survivor .avatar { width: 26px; height: 26px; min-width: 26px; font-size: 9px; }
+    .epilogue-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; font-size: 9px; letter-spacing: 0.7px; text-transform: uppercase; color: #94a3b8; }
+
+    /* ---------- Telegram yorug' tema ---------- */
+    body.theme-light { background:
+      radial-gradient(900px 420px at 12% -10%, rgba(139, 92, 246, 0.12), transparent 65%),
+      radial-gradient(700px 380px at 100% 0%, rgba(8, 145, 178, 0.1), transparent 60%),
+      var(--bg); }
+    body.theme-light .game-card { background: linear-gradient(150deg, rgba(15, 23, 42, 0.055), rgba(15, 23, 42, 0.02)); }
+    body.theme-light .game-card.active { border-color: rgba(124, 58, 237, 0.4); }
+    body.theme-light .game-icon,
+    body.theme-light .icon-btn,
+    body.theme-light .badge.soon { background: rgba(15, 23, 42, 0.055); }
+    body.theme-light .panel,
+    body.theme-light .player,
+    body.theme-light .vote-panel,
+    body.theme-light .join-room,
+    body.theme-light .notice { background: rgba(15, 23, 42, 0.04); border-color: rgba(15, 23, 42, 0.11); }
+    body.theme-light .topbar { background: linear-gradient(180deg, var(--bg) 55%, rgba(244, 245, 251, 0.86) 100%); }
+    body.theme-light .catastrophe { background:
+      radial-gradient(500px 220px at 100% 0%, rgba(248, 113, 113, 0.16), transparent 60%),
+      linear-gradient(155deg, rgba(139, 92, 246, 0.14), rgba(15, 23, 42, 0.03)); border-color: rgba(15, 23, 42, 0.12); }
+    body.theme-light .catastrophe > p { color: #334155; }
+    body.theme-light .cat-block,
+    body.theme-light .stat,
+    body.theme-light .pstat { background: rgba(15, 23, 42, 0.045); border-color: rgba(15, 23, 42, 0.08); }
+    body.theme-light .cat-block li { color: #334155; }
+    body.theme-light .card { background: linear-gradient(160deg, rgba(15, 23, 42, 0.055), rgba(15, 23, 42, 0.02)); }
+    body.theme-light .card p { color: #475569; }
+    body.theme-light input[type="text"] { background: rgba(15, 23, 42, 0.05); }
+    body.theme-light input::placeholder { color: #94a3b8; }
+    body.theme-light .vote-target { background: rgba(15, 23, 42, 0.03); }
+    body.theme-light .chip { color: #5b21b6; }
+    body.theme-light #toast { background: #ffffff; color: #111827; }
+    body.theme-light .profile-card { background:
+      radial-gradient(320px 160px at 100% 0%, rgba(8, 145, 178, 0.12), transparent 65%),
+      linear-gradient(150deg, rgba(139, 92, 246, 0.15), rgba(15, 23, 42, 0.03)); }
+    body.theme-light .btn.invite { background: rgba(15, 23, 42, 0.05); }
+    body.theme-light .footer { color: #94a3b8; }
+
+    @keyframes cardFlip { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
+    @keyframes doorShut { from { transform: translateX(-50%) scaleY(0.86) translateY(-8px); opacity: 0.4; } to { transform: translateX(-50%) scaleY(1) translateY(0); opacity: 1; } }
+    @keyframes warningPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    @keyframes timerPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    @keyframes votePop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
+
+    @media (max-width: 390px) {
+      .status-pill { display: none; }
+      .room-code { font-size: 15px; }
+      .profile-name-lg { font-size: 16px; }
+      .pstat { padding: 9px 10px; }
+      .pstat b { font-size: 11px; }
+    }
+
     @media (min-width: 720px) {
       #app { max-width: 760px; padding-top: 28px; }
       .hero h1 { font-size: 36px; }
@@ -563,10 +904,13 @@
       };
       var STATUS_LABELS = {
         LOBBY: "Kutilmoqda",
-        PLAYING: "O'yin davom etmoqda",
+        PLAYING: "Davom etmoqda",
         VOTING: "Ovoz berish",
         FINISHED: "Tugadi"
       };
+      var TIMER_DURATIONS = { PLAYING: 120, VOTING: 60 };
+      var PLAYER_BALANCE = 100;
+      var PLAYER_LEVEL = 1;
       var GAMES = [
         {
           slug: "bunker", name: "Bunker", emoji: "☢️", status: "active", players: "2–12",
@@ -600,10 +944,14 @@
         wsTimer: null,
         pollTimer: null,
         lastRoomSig: "",
-        lastMeSig: ""
+        lastMeSig: "",
+        notified: {},
+        flipKey: null,
+        flipTimer: null
       };
 
       var toastTimer = null;
+      var timer = { key: "", deadline: 0, duration: 0, status: "", interval: null };
 
       // ----------------------------------------------------------------
       // Yordamchilar
@@ -658,6 +1006,178 @@
         toastTimer = setTimeout(function () { toastEl.className = ""; }, 3200);
       }
 
+      function haptic(kind) {
+        try {
+          var feedback = tg && tg.HapticFeedback;
+          if (!feedback) return;
+          if (kind === "error" || kind === "success" || kind === "warning") {
+            feedback.notificationOccurred(kind);
+          } else {
+            feedback.impactOccurred(kind || "medium");
+          }
+        } catch (err) { /* eski Telegram versiyasi */ }
+      }
+
+      function applyTelegramTheme() {
+        if (!tg) return;
+        var params = tg.themeParams || {};
+        var light = tg.colorScheme === "light";
+        var root = document.documentElement;
+        var bg = params.bg_color || (light ? "#f4f5fb" : "#070b16");
+        var text = params.text_color || (light ? "#111827" : "#f2f4fb");
+        var muted = params.hint_color || (light ? "#5b6478" : "#98a1bb");
+        var accent = params.button_color || (light ? "#7c3aed" : "#8b5cf6");
+        var onAccent = params.button_text_color || (light ? "#ffffff" : "#0a0f1f");
+
+        document.body.classList.toggle("theme-light", light);
+        root.style.setProperty("--bg", bg);
+        root.style.setProperty("--bg-soft", params.secondary_bg_color || (light ? "#ffffff" : "#0d1324"));
+        root.style.setProperty("--text", text);
+        root.style.setProperty("--muted", muted);
+        root.style.setProperty("--accent", accent);
+        root.style.setProperty("--on-accent", onAccent);
+        root.style.setProperty("--accent-2", light ? "#0891b2" : "#22d3ee");
+        root.style.setProperty("--panel", light ? "rgba(15,23,42,.045)" : "rgba(255,255,255,.045)");
+        root.style.setProperty("--panel-strong", light ? "rgba(15,23,42,.075)" : "rgba(255,255,255,.075)");
+        root.style.setProperty("--border", light ? "rgba(15,23,42,.11)" : "rgba(255,255,255,.09)");
+
+        try {
+          if (tg.setHeaderColor) tg.setHeaderColor(bg);
+          if (tg.setBackgroundColor) tg.setBackgroundColor(bg);
+        } catch (err) { /* eski versiya */ }
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", bg);
+      }
+
+      function formatSeconds(total) {
+        var value = Math.max(0, Math.round(total));
+        var minutes = Math.floor(value / 60);
+        var seconds = value % 60;
+        return minutes + ":" + (seconds < 10 ? "0" + seconds : String(seconds));
+      }
+
+      function stopTimer() {
+        if (timer.interval) clearInterval(timer.interval);
+        timer = { key: "", deadline: 0, duration: 0, status: "", interval: null };
+      }
+
+      function paintTimer() {
+        var element = document.querySelector("[data-timer]");
+        if (!element || !timer.key) return;
+        var remaining = Math.max(0, (timer.deadline - Date.now()) / 1000);
+        var ratio = timer.duration ? Math.max(0, Math.min(1, remaining / timer.duration)) : 0;
+        var circumference = 119.38;
+        var ring = element.querySelector("[data-timer-ring]");
+        var text = element.querySelector("[data-timer-text]");
+        if (ring) ring.style.strokeDashoffset = String(circumference * (1 - ratio));
+        if (text) text.textContent = formatSeconds(remaining);
+        element.classList.toggle("low", remaining <= 15);
+        element.classList.toggle("voting", timer.status === "VOTING");
+      }
+
+      function ensureTimer(room) {
+        if (!room || (room.status !== "PLAYING" && room.status !== "VOTING")) {
+          stopTimer();
+          return;
+        }
+        var key = room.code + ":" + room.current_round + ":" + room.status;
+        if (timer.key !== key) {
+          stopTimer();
+          var duration = TIMER_DURATIONS[room.status] || 120;
+          var storageKey = "rg_timer_" + key;
+          var deadline = Number(window.sessionStorage.getItem(storageKey));
+          if (!deadline || deadline <= 0) {
+            deadline = Date.now() + duration * 1000;
+            window.sessionStorage.setItem(storageKey, String(deadline));
+          }
+          timer.key = key;
+          timer.deadline = deadline;
+          timer.duration = duration;
+          timer.status = room.status;
+          timer.interval = setInterval(paintTimer, 1000);
+        }
+        paintTimer();
+      }
+
+      function timerHtml(room) {
+        if (room.status !== "PLAYING" && room.status !== "VOTING") return "";
+        return '<div class="timer-box">' +
+          '<span class="timer-label">' + (room.status === "VOTING" ? "OVOZ" : "RAUND") + '</span>' +
+          '<div class="timer" data-timer data-status="' + esc(room.status) + '">' +
+            '<svg viewBox="0 0 46 46" aria-hidden="true">' +
+              '<circle class="track" cx="23" cy="23" r="19"></circle>' +
+              '<circle class="progress" data-timer-ring cx="23" cy="23" r="19" stroke-dasharray="119.38" stroke-dashoffset="119.38"></circle>' +
+            '</svg>' +
+            '<span class="timer-text" data-timer-text>--:--</span>' +
+          '</div>' +
+        '</div>';
+      }
+
+      function profileAvatarHtml(sizeClass) {
+        var cls = sizeClass || "";
+        if (profile.photo) {
+          return '<div class="avatar ' + cls + '"><img src="' + esc(profile.photo) +
+            '" alt="" referrerpolicy="no-referrer" /></div>';
+        }
+        return avatarHtml(profile.name || "Mehmon", profile.id, cls);
+      }
+
+      function profileCardHtml() {
+        var name = profile.name || "Mehmon";
+        var handle = profile.username ? "@" + profile.username : (profile.guest ? "Mehmon o'yinchi" : "Telegram o'yinchi");
+        return '<section class="profile-card fade">' +
+          '<div class="profile-head">' + profileAvatarHtml("lg") +
+            '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
+            '<div class="profile-handle">' + esc(handle) + '</div></div>' +
+          '</div>' +
+          '<div class="profile-stats">' +
+            '<div class="pstat"><span>🪙 Balans</span><b>' + esc(profile.balance) + ' tanga</b></div>' +
+            '<div class="pstat"><span>⭐ Daraja</span><b>Level ' + esc(profile.level) + '</b></div>' +
+          '</div>' +
+          '<div class="xp-row"><div class="xp-bar"><i></i></div><span class="xp-text">0 / 100 XP</span></div>' +
+          '<button class="btn invite" data-act="invite">📤 Do\'stlarni taklif qilish</button>' +
+        '</section>';
+      }
+
+      function inviteUrl() {
+        var url = window.location.origin + window.location.pathname;
+        if (view.code) url += "?room=" + encodeURIComponent(view.code);
+        var text = "Revilend Games — Telegram ichida Bunker va boshqa stol o'yinlari. Qo'shiling!";
+        return "https://t.me/share/url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(text);
+      }
+
+      function shareInvite() {
+        var url = inviteUrl();
+        haptic("medium");
+        if (tg && tg.openTelegramLink) {
+          tg.openTelegramLink(url);
+        } else {
+          window.open(url, "_blank", "noopener");
+        }
+      }
+
+      function announceTransitions(previous, next) {
+        if (!previous || !next) return 0;
+        var announced = 0;
+        var wasAlive = {};
+        (previous.players || []).forEach(function (player) {
+          if (player.is_alive) wasAlive[player.user_id] = true;
+        });
+        (next.players || []).forEach(function (player) {
+          if (player.is_alive || !wasAlive[player.user_id]) return;
+          var key = next.code + ":" + player.user_id + ":" + next.current_round;
+          if (view.notified[key]) return;
+          view.notified[key] = true;
+          announced += 1;
+          haptic("error");
+          toast(player.full_name + " bunkerdan haydaldi", "error");
+        });
+        if (previous.status !== "FINISHED" && next.status === "FINISHED") {
+          haptic("success");
+        }
+        return announced;
+      }
+
       function loadProfile() {
         var user = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
         if (user && user.id) {
@@ -666,6 +1186,9 @@
             id: user.id,
             name: fullName || user.username || "O'yinchi",
             username: user.username || "",
+            photo: user.photo_url || "",
+            balance: PLAYER_BALANCE,
+            level: PLAYER_LEVEL,
             guest: false
           };
         }
@@ -678,6 +1201,9 @@
           id: id,
           name: window.sessionStorage.getItem("rg_guest_name") || "",
           username: "",
+          photo: "",
+          balance: PLAYER_BALANCE,
+          level: PLAYER_LEVEL,
           guest: true
         };
       }
@@ -723,9 +1249,9 @@
       // ----------------------------------------------------------------
       function renderHub() {
         stopLive();
+        stopTimer();
         view.code = "";
         setBackButton(false);
-        var name = profile.name || "Mehmon";
         app.innerHTML =
           '<header class="brand fade">' +
             '<div class="brand-left">' +
@@ -733,9 +1259,7 @@
               '<div><div class="brand-name">Revilend Games</div>' +
               '<div class="brand-sub">Telegram Mini App</div></div>' +
             '</div>' +
-            '<div class="profile">' + avatarHtml(name, profile.id) +
-              '<div class="profile-name">' + esc(name) + '</div>' +
-            '</div>' +
+            '<span class="badge live">ONLINE</span>' +
           '</header>' +
           '<main class="fade">' +
             '<section class="hero">' +
@@ -743,6 +1267,7 @@
               '<h1>Kechqurun nima o\'ynaymiz?</h1>' +
               '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker yuboring.</p>' +
             '</section>' +
+            profileCardHtml() +
             '<div class="section-title"><h2>O\'yinlar</h2><span>' + GAMES.length + ' ta</span></div>' +
             GAMES.map(gameCardHtml).join("") +
             '<section class="panel" id="join-panel">' +
@@ -782,6 +1307,13 @@
         view.error = null;
         view.room = null;
         view.me = null;
+        view.notified = {};
+        view.flipKey = null;
+        if (view.flipTimer) {
+          clearTimeout(view.flipTimer);
+          view.flipTimer = null;
+        }
+        stopTimer();
         setBackButton(true);
         renderLoading();
         loadRoomData(false);
@@ -791,6 +1323,11 @@
 
       function goHome() {
         stopLive();
+        stopTimer();
+        if (view.flipTimer) {
+          clearTimeout(view.flipTimer);
+          view.flipTimer = null;
+        }
         window.location.href = window.location.pathname;
       }
 
@@ -834,6 +1371,7 @@
           var roomSig = JSON.stringify(room);
           var meSig = JSON.stringify(me);
           var changed = roomSig !== view.lastRoomSig || meSig !== view.lastMeSig;
+          if (changed) announceTransitions(view.room, room);
           view.room = room;
           view.me = me;
           view.lastRoomSig = roomSig;
@@ -864,6 +1402,7 @@
           '<div class="room-id"><span class="room-code">' + esc(room.code) + '</span>' +
             '<span class="status-pill ' + statusClass(status) + '">' + esc(STATUS_LABELS[status] || status) + '</span></div>' +
           '<div class="round-chip">' + (room.current_round ? "Raund " + room.current_round : "Lobby") + '</div>' +
+          timerHtml(room) +
         '</div>';
 
         html += catastropheHtml(room);
@@ -889,6 +1428,7 @@
 
         app.innerHTML = '<main class="fade">' + html + '</main>';
         if (keepScroll) window.scrollTo(0, scrollY);
+        ensureTimer(room);
       }
 
       function catastropheHtml(room) {
@@ -918,14 +1458,52 @@
         }).join("") + '</ul>';
       }
 
+      function epilogueText(room, survivors) {
+        var catastrophe = (room.catastrophe && room.catastrophe.name) || "falokat";
+        var count = survivors.length;
+        var capacity = room.bunker_capacity || 0;
+        var first;
+        if (!count) {
+          first = "Bunker eshigi hech kim omon qolmasdan yopildi va " + catastrophe +
+            " tashqarida hamma narsani yutib yubordi.";
+        } else if (count >= capacity) {
+          first = "Bunker eshigi og'ir metall ovoz bilan yopildi; " + catastrophe +
+            " tashqarida qoldi. Ichkarida " + count + " kishi omon qoldi va ajratilgan joy to'liq yetdi.";
+        } else {
+          first = "Bunker eshigi og'ir metall ovoz bilan yopildi va " + catastrophe +
+            " tashqarida qoldi. Ichkarida " + count + " kishi omon qoldi, ammo bo'sh joylar endi hech qachon to'lmaydi.";
+        }
+        var second = count
+          ? "Ular zaxiralarni bo'lishib, yangi jamiyat uchun birinchi qadamni qo'ydi; insoniyatning taqdiri endi shu hovuch odamning qo'lida."
+          : "Insoniyatning so'nggi umidi ham so'ndi; bu falokat tarixda eng og'ir saboq bo'lib qoldi.";
+        return first + " " + second;
+      }
+
       function finishedHtml(room) {
         var survivors = (room.players || []).filter(function (player) { return player.is_alive; });
-        var names = survivors.map(function (player) { return esc(player.full_name); }).join(", ");
-        return '<section class="finished">' +
-          '<div class="big">🏆</div>' +
-          '<h2>O\'yin tugadi!</h2>' +
-          '<p>Bunkerda omon qolganlar:<br><b>' + (names || "—") + '</b></p>' +
-        '</section>';
+        var survivorChips = survivors.map(function (player) {
+          return '<div class="survivor">' + avatarHtml(player.full_name, player.user_id) +
+            esc(player.full_name) + '</div>';
+        }).join("");
+        return '<section class="epilogue fade">' +
+          '<div class="door-scene">' +
+            '<div class="door"><div class="door-wheel"></div></div>' +
+            '<div class="door-light"></div>' +
+          '</div>' +
+          '<div class="epilogue-body">' +
+            '<p class="epilogue-kicker">Bunker eshigi yopildi</p>' +
+            '<h2>Omon qolgan qahramonlar</h2>' +
+            (survivorChips
+              ? '<div class="survivors">' + survivorChips + '</div>'
+              : '<p class="muted" style="margin-bottom:14px">Hech kim omon qolmadi.</p>') +
+            '<p class="epilogue-text">' + esc(epilogueText(room, survivors)) + '</p>' +
+            '<div class="epilogue-stats">' +
+              '<span>☢️ ' + esc((room.catastrophe && room.catastrophe.name) || "Falokat") + '</span>' +
+              '<span>👥 ' + survivors.length + ' / ' + esc(room.bunker_capacity) + ' omon qoldi</span>' +
+            '</div>' +
+          '</div>' +
+        '</section>' +
+        '<div class="notice">🎉 Bu o\'yin yakunlandi. Yangi o\'yin ochish uchun guruhda /bunker yuboring.</div>';
       }
 
       function joinRoomHtml(room) {
@@ -938,6 +1516,23 @@
             '<button type="submit" class="btn primary block">Xonaga qo\'shilish</button>' +
           '</form>' +
         '</section>';
+      }
+
+      function flipCardHtml(key, card, meta) {
+        return '<div class="flip-card">' +
+          '<div class="flip-inner">' +
+            '<div class="flip-face flip-back">' +
+              '<span class="lock-big">🔒</span>' +
+              '<span class="flip-hint">' + esc(meta.label) + ' ochilmoqda</span>' +
+            '</div>' +
+            '<div class="flip-face flip-front">' +
+              '<div class="card-top"><span class="emoji">' + meta.emoji + '</span>' + esc(meta.label) + '</div>' +
+              '<h3>' + esc(card.title) + '</h3>' +
+              '<p>' + esc(card.description) + '</p>' +
+              '<span class="revealed-stamp">OCHILDI</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
       }
 
       function myCardsHtml(me, status) {
@@ -956,10 +1551,14 @@
             var card = cards[key];
             var meta = cardMeta(key);
             if (card.is_revealed) {
+              if (view.flipKey === key) {
+                return flipCardHtml(key, card, meta);
+              }
               return '<article class="card revealed">' +
                 '<div class="card-top"><span class="emoji">' + meta.emoji + '</span>' + esc(meta.label) + '</div>' +
                 '<h3>' + esc(card.title) + '</h3>' +
                 '<p>' + esc(card.description) + '</p>' +
+                '<span class="revealed-stamp">OCHILDI</span>' +
               '</article>';
             }
             var canReveal = status === "PLAYING" || status === "VOTING";
@@ -971,6 +1570,15 @@
                 : '<p class="muted tiny" style="text-align:center">O\'yin boshlanishini kuting</p>') +
             '</article>';
           }).join("") + '</div></section>';
+      }
+
+      function playerAvatarHtml(player) {
+        var badge = player.votes_against > 0
+          ? '<span class="vote-badge' + (player.votes_against >= 2 ? " hot" : "") + '">' +
+            player.votes_against + '</span>'
+          : "";
+        return '<div class="avatar-wrap ' + (player.is_alive ? "" : "eliminated") + '">' +
+          avatarHtml(player.full_name, player.user_id, "sm") + badge + '</div>';
       }
 
       function playersHtml(room, me) {
@@ -1003,7 +1611,7 @@
             if (player.hidden_count && player.is_alive) meta.push("🔒 " + player.hidden_count + " yopiq");
 
             return '<div class="player ' + (player.is_alive ? "" : "dead") + '">' +
-              avatarHtml(player.full_name, player.user_id, "sm") +
+              playerAvatarHtml(player) +
               '<div class="p-body">' +
                 '<div class="p-name">' + esc(player.full_name) + badges + '</div>' +
                 '<div class="p-meta">' + meta.map(function (text) { return '<span>' + text + '</span>'; }).join("") + '</div>' +
@@ -1018,7 +1626,7 @@
         var parts = "";
 
         if (status === "FINISHED") {
-          return '<div class="notice">🎉 Bu o\'yin yakunlandi. Yangi o\'yin ochish uchun guruhda /bunker yuboring.</div>';
+          return "";
         }
 
         if (!me) {
@@ -1141,6 +1749,7 @@
         if (!room || room.code !== view.code) return;
         var sig = JSON.stringify(room);
         if (sig === view.lastRoomSig) return;
+        announceTransitions(view.room, room);
         view.room = room;
         view.lastRoomSig = sig;
         if (room.status !== "PLAYING" && room.status !== "VOTING") view.selected = null;
@@ -1153,22 +1762,43 @@
       async function sendAction(payload, successMessage) {
         if (view.busy) return;
         view.busy = true;
+        var flipKey = payload.action === "reveal" ? payload.card_type : null;
+        if (flipKey) {
+          if (view.flipTimer) {
+            clearTimeout(view.flipTimer);
+            view.flipTimer = null;
+          }
+          view.flipKey = flipKey;
+        }
         try {
           var data = await postAction(view.code, payload);
+          var announced = announceTransitions(view.room, data.state);
           view.room = data.state;
           view.me = data.me;
           view.lastRoomSig = JSON.stringify(data.state);
           view.lastMeSig = JSON.stringify(data.me);
           if (payload.action === "vote" || payload.action === "tally") view.selected = null;
           renderRoom(true);
+
+          if (flipKey) {
+            haptic("heavy");
+            view.flipTimer = setTimeout(function () {
+              if (view.flipKey !== flipKey) return;
+              view.flipKey = null;
+              view.flipTimer = null;
+              renderRoom(true);
+            }, 900);
+          }
+
           if (data.result && data.result.tie) {
             toast("Ovozlar teng — hech kim haydalmadi");
-          } else if (data.result && data.result.eliminated) {
-            toast(data.result.eliminated.full_name + " haydaldi");
+          } else if (data.result && data.result.eliminated && !announced) {
+            toast(data.result.eliminated.full_name + " haydaldi", "error");
           } else if (successMessage) {
             toast(successMessage);
           }
         } catch (error) {
+          if (flipKey && view.flipKey === flipKey) view.flipKey = null;
           toast(error.message || "Xatolik yuz berdi", "error");
           if (error.status === 404) loadRoomData(false);
         } finally {
@@ -1200,6 +1830,8 @@
 
         if (act === "home") {
           goHome();
+        } else if (act === "invite") {
+          shareInvite();
         } else if (act === "open-bunker") {
           var input = document.getElementById("room-code");
           if (input) {
@@ -1250,15 +1882,29 @@
       // ----------------------------------------------------------------
       app.addEventListener("click", handleClick);
       app.addEventListener("submit", handleSubmit);
+      app.addEventListener("click", function (event) {
+        var button = event.target.closest("button");
+        if (button && !button.disabled) haptic("medium");
+      }, true);
 
       if (tg) {
         try {
           tg.ready();
           tg.expand();
-          if (tg.setHeaderColor) tg.setHeaderColor("#070b16");
-          if (tg.setBackgroundColor) tg.setBackgroundColor("#070b16");
-          if (tg.BackButton) tg.BackButton.onClick(goHome);
+          if (tg.BackButton) {
+            tg.BackButton.onClick(function () {
+              haptic("medium");
+              goHome();
+            });
+          }
+          if (tg.onEvent) {
+            tg.onEvent("themeChanged", applyTelegramTheme);
+            tg.onEvent("viewportChanged", function () {
+              if (tg.isExpanded === false) tg.expand();
+            });
+          }
         } catch (err) { /* eski versiya */ }
+        applyTelegramTheme();
       }
 
       if (view.code) {
