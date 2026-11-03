@@ -20,8 +20,16 @@ logger = logging.getLogger(__name__)
 router = Router(name="admin")
 
 
-def _is_admin(user_id: int) -> bool:
-    return bool(get_config().admin_id) and user_id == get_config().admin_id
+def is_admin(user_id: int) -> bool:
+    """ADMIN_ID bilan mos kelsa yoki `users.role` ``admin`` bo'lsa ruxsat beradi."""
+    config = get_config()
+    if config.admin_id and int(user_id) == config.admin_id:
+        return True
+    try:
+        return get_economy().is_admin_user(int(user_id))
+    except Exception:
+        logger.exception("`users` jadvalida rolni tekshirib bo'lmadi: %s", user_id)
+        return False
 
 
 async def _reply_denied(message: Message) -> None:
@@ -31,7 +39,7 @@ async def _reply_denied(message: Message) -> None:
 @router.message(Command("admin"))
 async def admin_panel(message: Message) -> None:
     """/admin — foydalanuvchilar, tangalar va xonalar statistikasi."""
-    if not _is_admin(message.from_user.id):
+    if not is_admin(message.from_user.id):
         await _reply_denied(message)
         return
     try:
@@ -62,7 +70,7 @@ async def admin_panel(message: Message) -> None:
 @router.message(Command("give"))
 async def give_coins(message: Message, command: CommandObject) -> None:
     """/give <user_id> <miqdor> — qo'lda tanga berish."""
-    if not _is_admin(message.from_user.id):
+    if not is_admin(message.from_user.id):
         await _reply_denied(message)
         return
     args = (command.args or "").split()
@@ -91,7 +99,7 @@ async def give_coins(message: Message, command: CommandObject) -> None:
 @router.message(Command("user"))
 async def user_info(message: Message, command: CommandObject) -> None:
     """/user <user_id> — balans, o'yinlar va g'alabalar."""
-    if not _is_admin(message.from_user.id):
+    if not is_admin(message.from_user.id):
         await _reply_denied(message)
         return
     raw = (command.args or "").strip().split()[0] if (command.args or "").strip() else ""
@@ -121,7 +129,7 @@ async def user_info(message: Message, command: CommandObject) -> None:
 @router.message(Command("broadcast"))
 async def broadcast(message: Message, command: CommandObject) -> None:
     """/broadcast <matn> — barcha ro'yxatdan o'tgan o'yinchilarga xabar."""
-    if not _is_admin(message.from_user.id):
+    if not is_admin(message.from_user.id):
         await _reply_denied(message)
         return
     text = (command.args or "").strip()

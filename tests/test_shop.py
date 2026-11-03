@@ -128,6 +128,22 @@ class AdminHandlerTest(unittest.TestCase):
         asyncio.run(admin.admin_panel(message))
         self.assertIn("faqat administrator", message.answers[-1])
 
+    def test_role_admin_from_users_table_is_allowed(self) -> None:
+        message = FakeMessage(user_id=777)
+        store = SimpleNamespace(
+            is_admin_user=lambda uid: int(uid) == 777,
+            stats=lambda **kwargs: {
+                "users": 0,
+                "coins_purchased": 0,
+                "coins_in_balance": 0,
+                "active_rooms": 0,
+                "total_rooms": 0,
+            },
+        )
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.admin_panel(message))
+        self.assertIn("Admin panel", message.answers[-1])
+
     def test_broadcast_sends_to_registered_users(self) -> None:
         store = EconomyStore(url="", key="", client=None)
         store.ensure_user(88002, "u", "User")

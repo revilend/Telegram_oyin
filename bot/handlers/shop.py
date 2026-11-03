@@ -19,6 +19,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from bot.handlers.admin import is_admin
 from core.economy import (
     COIN_PACKAGES,
     EconomyError,
@@ -267,8 +268,7 @@ async def receipt_expected(message: Message) -> None:
 
 
 async def _review(callback: CallbackQuery, approve: bool) -> None:
-    config = get_config()
-    if not config.admin_id or callback.from_user.id != config.admin_id:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
         return
 

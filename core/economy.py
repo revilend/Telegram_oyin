@@ -24,6 +24,8 @@ load_dotenv(PROJECT_ROOT / ".env")
 logger = logging.getLogger(__name__)
 
 USERS_TABLE = "users"
+# Supabase'dagi `users` jadvalida asosiy ustun `telegram_id` deb nomlangan.
+USERS_ID_COLUMN = "telegram_id"
 PAYMENTS_TABLE = "payment_requests"
 BOOSTERS_TABLE = "player_boosters"
 RESULTS_TABLE = "game_results"
@@ -82,8 +84,11 @@ def _now() -> str:
 
 
 def _row_to_account(row: dict[str, Any]) -> UserAccount:
+    raw_id = row.get(USERS_ID_COLUMN)
+    if raw_id is None:
+        raw_id = row["user_id"]
     return UserAccount(
-        user_id=int(row["user_id"]),
+        user_id=int(raw_id),
         username=str(row.get("username") or ""),
         full_name=str(row.get("full_name") or ""),
         coins=int(row.get("coins") or 0),
@@ -164,7 +169,9 @@ class EconomyStore:
 
     def _update_user_row(self, user_id: int, changes: dict[str, Any]) -> None:
         changes = {**changes, "updated_at": _now()}
-        self.client.table(USERS_TABLE).update(changes).eq("user_id", user_id).execute()
+        self.client.table(USERS_TABLE).update(changes).eq(
+            USERS_ID_COLUMN, int(user_id)
+        ).execute()
 
     # ------------------------------------------------------------------
     # Foydalanuvchilar
@@ -187,13 +194,14 @@ class EconomyStore:
                 row = self._users.get(uid)
                 if row is None:
                     row = {
-                        "user_id": uid,
+                        USERS_ID_COLUMN: uid,
                         "username": username,
                         "full_name": full_name,
                         "coins": 0,
                         "total_purchased": 0,
                         "games_played": 0,
                         "wins": 0,
+                        "role": "user",
                         "created_at": _now(),
                     }
                     self._users[uid] = row
@@ -204,16 +212,17 @@ class EconomyStore:
                         row["full_name"] = full_name
                 return _row_to_account(row)
 
-            row = self._select_one(USERS_TABLE, user_id=uid)
+            row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
             if row is None:
                 row = {
-                    "user_id": uid,
+                    USERS_ID_COLUMN: uid,
                     "username": username,
                     "full_name": full_name,
                     "coins": 0,
                     "total_purchased": 0,
                     "games_played": 0,
                     "wins": 0,
+                    "role": "user",
                     "created_at": _now(),
                     "updated_at": _now(),
                 }
@@ -221,7 +230,7 @@ class EconomyStore:
                     self.client.table(USERS_TABLE).insert(row).execute()
                 except Exception:
                     # Parallel yaratilgan bo'lsa, mavjud yozuvni qayta o'qiymiz.
-                    row = self._select_one(USERS_TABLE, user_id=uid)
+                    row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
                     if row is None:
                         raise
             else:
@@ -238,6 +247,20 @@ class EconomyStore:
     def get_user(self, user_id: int) -> UserAccount:
         """Hisobni qaytaradi; yo'q bo'lsa nol balans bilan yaratadi."""
         return self.ensure_user(user_id)
+
+    def get_role(self, user_id: int) -> str:
+        """Foydalanuvchi rolini qaytaradi (``admin`` yoki ``user``)."""
+        uid = int(user_id)
+        with self._lock:
+            if not self.enabled:
+                row = self._users.get(uid)
+            else:
+                row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+        return str((row or {}).get("role") or "user").strip().lower()
+
+    def is_admin_user(self, user_id: int) -> bool:
+        """`users` jadvalida shu telegram id uchun rol ``admin`` mi?"""
+        return self.get_role(user_id) == "admin"
 
     def add_coins(
         self,
@@ -441,7 +464,7 @@ class EconomyStore:
                 rows = list(self._users.values())
             else:
                 rows = self.client.table(USERS_TABLE).select(
-                    "user_id, coins, total_purchased"
+                    f"{USERS_ID_COLUMN}, coins, total_purchased"
                 ).execute().data or []
             return {
                 "users": len(rows),
@@ -458,8 +481,14 @@ class EconomyStore:
         with self._lock:
             if not self.enabled:
                 return sorted(self._users)
-            rows = self.client.table(USERS_TABLE).select("user_id").execute().data or []
-            return sorted({int(row["user_id"]) for row in rows})
+            rows = (
+                self.client.table(USERS_TABLE)
+                .select(USERS_ID_COLUMN)
+                .execute()
+                .data
+                or []
+            )
+            return sorted({int(row[USERS_ID_COLUMN]) for row in rows})
 
     # ------------------------------------------------------------------
     # O'yin natijalari

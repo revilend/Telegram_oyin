@@ -52,17 +52,25 @@ create index if not exists room_players_room_code_idx
 -- ---------------------------------------------------------------------
 -- Iqtisod: hamyonlar, to'lov cheklari va boosterlar
 -- ---------------------------------------------------------------------
+-- Diqqat: `users` jadvalida asosiy ustun `telegram_id` deb nomlanadi
+-- (`user_id` emas). `payment_requests`, `player_boosters` va `room_players`
+-- jadvallarida esa ustun `user_id` bo'lib qoladi.
 create table if not exists public.users (
-    user_id          bigint primary key,
+    telegram_id      bigint primary key,
     username         text not null default '',
     full_name        text not null default '',
     coins            integer not null default 0 check (coins >= 0),
     total_purchased  integer not null default 0,
     games_played     integer not null default 0,
     wins             integer not null default 0,
+    role             text not null default 'user',
     created_at       timestamptz not null default now(),
     updated_at       timestamptz not null default now()
 );
+
+-- Eski jadvallar uchun migratsiya: rol ustuni keyin qo'shilgan bo'lsa ham ishlaydi.
+alter table public.users
+    add column if not exists role text not null default 'user';
 
 create table if not exists public.payment_requests (
     id               text primary key,
