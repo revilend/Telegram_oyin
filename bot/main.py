@@ -13,7 +13,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from bot.config import get_config
-from bot.handlers import admin, boosters, bunker_group, common, shop
+from bot.handlers import admin, boosters, bunker_group, common, menu, shop
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,8 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(boosters.router)
     dispatcher.include_router(admin.router)
     dispatcher.include_router(bunker_group.router)
+    # Doimiy pastki menyu tugmalari /start va boshqa buyruqlardan keyin keladi.
+    dispatcher.include_router(menu.router)
     dispatcher.include_router(common.router)
     return dispatcher
 

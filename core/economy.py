@@ -262,6 +262,18 @@ class EconomyStore:
         """`users` jadvalida shu telegram id uchun rol ``admin`` mi?"""
         return self.get_role(user_id) == "admin"
 
+    def top_users(self, limit: int = 10) -> list[UserAccount]:
+        """Eng ko'p g'alaba qozongan o'yinchilarni qaytaradi."""
+        limit = max(1, int(limit))
+        with self._lock:
+            if not self.enabled:
+                rows = list(self._users.values())
+            else:
+                rows = self.client.table(USERS_TABLE).select("*").execute().data or []
+        accounts = [_row_to_account(row) for row in rows]
+        accounts.sort(key=lambda acc: (acc.wins, acc.coins), reverse=True)
+        return accounts[:limit]
+
     def add_coins(
         self,
         user_id: int,

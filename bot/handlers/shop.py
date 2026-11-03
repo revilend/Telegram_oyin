@@ -160,11 +160,17 @@ async def _begin_payment(event: Message | CallbackQuery, state: FSMContext, coin
         await event.answer(text)
 
 
+async def send_shop(message: Message, state: FSMContext | None = None) -> None:
+    """Do'kon xabarini yuboradi (``/shop`` va pastki menyu uchun umumiy)."""
+    if state is not None:
+        await state.clear()
+    await message.answer(shop_text(), reply_markup=packages_keyboard())
+
+
 @router.message(F.chat.type == "private", Command("shop"))
 async def shop_command(message: Message, state: FSMContext) -> None:
     """/shop — shaxsiy chatda tanga paketlari."""
-    await state.clear()
-    await message.answer(shop_text(), reply_markup=packages_keyboard())
+    await send_shop(message, state)
 
 
 @router.message(Command("shop"))

@@ -1,0 +1,199 @@
+"""Doimiy pastki menyu klaviaturasi va tugma handlerlari testlari."""
+
+import asyncio
+import os
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from aiogram.types import ReplyKeyboardMarkup
+
+from bot.config import get_config
+from bot.handlers import common, menu
+from bot.keyboards import main_menu
+from core.economy import EconomyStore
+
+
+class FakeBot:
+    def __init__(self) -> None:
+        self.messages: list[tuple[int, str]] = []
+
+    async def send_message(self, chat_id: int, text: str, **kwargs) -> None:
+        self.messages.append((chat_id, text))
+
+
+class FakeMessage:
+    def __init__(
+        self,
+        user_id: int = 424242,
+        text: str = "",
+        chat_type: str = "private",
+    ) -> None:
+        self.from_user = SimpleNamespace(
+            id=user_id, username="ali", full_name="Ali Valiyev"
+        )
+        self.chat = SimpleNamespace(id=user_id, type=chat_type)
+        self.text = text
+        self.bot = FakeBot()
+        self.answers: list[str] = []
+        self.markups: list[object] = []
+
+    async def answer(self, text: str, **kwargs) -> None:
+        self.answers.append(text)
+        self.markups.append(kwargs.get("reply_markup"))
+
+    async def reply(self, text: str, **kwargs) -> None:
+        await self.answer(text, **kwargs)
+
+
+class FakeState:
+    def __init__(self) -> None:
+        self.cleared = False
+
+    async def clear(self) -> None:
+        self.cleared = True
+
+
+class MenuTestCase(unittest.TestCase):
+    """Har bir test uchun `.env` o'rniga xavfsiz muhit beradi."""
+
+    def setUp(self) -> None:
+        self.env = patch.dict(
+            os.environ,
+            {
+                "BOT_TOKEN": "123456:TEST",
+                "ADMIN_ID": "424242",
+                "CARD_NUMBER": "9860 0000 0000 0000",
+                "CARD_HOLDER": "Falonchi Pistonchiyev",
+                "SUPABASE_URL": "",
+                "SUPABASE_KEY": "",
+            },
+        )
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        get_config.cache_clear()
+        self.addCleanup(get_config.cache_clear)
+
+
+class MainMenuKeyboardTest(MenuTestCase):
+    def test_menu_is_persistent_two_columns(self) -> None:
+        markup = main_menu.build_main_menu()
+        rows = [[button.text for button in row] for row in markup.keyboard]
+        self.assertEqual(rows[0], ["🎮 O'yinlar (Mini App)", "🪙 Tangalar do'koni"])
+        self.assertEqual(rows[1], ["🛡️ Yangi Bunker", "👤 Mening profilim"])
+        self.assertEqual(rows[2], ["🏆 Reyting va Top", "ℹ️ Qoidalar / Yordam"])
+        self.assertEqual(rows[3], ["👥 Do'stlarni taklif qilish"])
+        self.assertTrue(markup.resize_keyboard)
+        self.assertTrue(markup.is_persistent)
+        for row in markup.keyboard[:3]:
+            self.assertEqual(len(row), 2)
+
+    def test_games_button_opens_mini_app(self) -> None:
+        markup = main_menu.build_main_menu()
+        games = markup.keyboard[0][0]
+        self.assertIsNotNone(games.web_app)
+        self.assertEqual(games.web_app.url, get_config().mini_app_url)
+
+    def test_admin_button_is_only_for_admins(self) -> None:
+        for_admin = main_menu.build_main_menu(is_admin=True)
+        texts = [button.text for button in for_admin.keyboard[3]]
+        self.assertEqual(texts, ["👥 Do'stlarni taklif qilish", "👑 Admin panel"])
+
+        for_player = main_menu.build_main_menu(is_admin=False)
+        self.assertNotIn(
+            "👑 Admin panel",
+            [button.text for row in for_player.keyboard for button in row],
+        )
+
+
+class MenuHandlerTest(MenuTestCase):
+    def test_start_shows_persistent_menu(self) -> None:
+        message = FakeMessage()
+        asyncio.run(common.start_command(message))
+        markup = message.markups[-1]
+        self.assertIsInstance(markup, ReplyKeyboardMarkup)
+        self.assertTrue(markup.is_persistent)
+        self.assertIn("Salom", message.answers[-1])
+
+    def test_start_menu_includes_admin_button_for_admin(self) -> None:
+        message = FakeMessage()
+        asyncio.run(common.start_command(message))
+        texts = [button.text for row in message.markups[-1].keyboard for button in row]
+        self.assertIn("👑 Admin panel", texts)
+
+    def test_shop_button_opens_shop(self) -> None:
+        message = FakeMessage(text=main_menu.SHOP_BUTTON)
+        state = FakeState()
+        asyncio.run(menu.menu_shop(message, state))
+        self.assertTrue(state.cleared)
+        callbacks = [
+            row[0].callback_data for row in message.markups[-1].inline_keyboard
+        ]
+        self.assertEqual(
+            callbacks,
+            ["shop_pack_500", "shop_pack_1500", "shop_pack_4000", "shop_cancel"],
+        )
+
+    def test_profile_button_shows_wallet_and_title(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        store.add_coins(90001, 500)
+        store.record_finished_game("BNK900", [90001], [90001])
+        message = FakeMessage(user_id=90001)
+        with patch.object(menu, "get_economy", return_value=store):
+            asyncio.run(menu.menu_profile(message))
+        answer = message.answers[-1]
+        self.assertIn("Mening profilim", answer)
+        self.assertIn("500", answer)
+        self.assertIn("Ilk g'alaba", answer)
+        self.assertIn("90001", answer)
+
+    def test_leaderboard_orders_by_wins(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        store.record_finished_game("BNK901", [90002, 90003], [90002])
+        store.record_finished_game("BNK902", [90002, 90003], [90002, 90003])
+        message = FakeMessage(user_id=90003)
+        with patch.object(menu, "get_economy", return_value=store):
+            asyncio.run(menu.menu_leaderboard(message))
+        answer = message.answers[-1]
+        self.assertIn("Reyting va Top", answer)
+        self.assertLess(answer.index("90002"), answer.index("90003"))
+        self.assertIn("Sizning natijangiz", answer)
+
+    def test_new_game_button_shows_group_guide(self) -> None:
+        message = FakeMessage(text=main_menu.NEW_GAME_BUTTON)
+        asyncio.run(menu.menu_new_game(message))
+        answer = message.answers[-1]
+        self.assertIn("/bunker", answer)
+        self.assertIn("guruh", answer.lower())
+        button = message.markups[-1].inline_keyboard[0][0]
+        self.assertIn("startgroup=true", button.url)
+
+    def test_rules_and_invite_buttons(self) -> None:
+        message = FakeMessage(text=main_menu.RULES_BUTTON)
+        asyncio.run(menu.menu_rules(message))
+        self.assertIn("Qoidalar", message.answers[-1])
+
+        message = FakeMessage(text=main_menu.INVITE_BUTTON)
+        asyncio.run(menu.menu_invite(message))
+        self.assertIn("t.me/", message.answers[-1])
+        urls = [
+            button.url
+            for row in message.markups[-1].inline_keyboard
+            for button in row
+        ]
+        self.assertTrue(any("share/url" in url for url in urls))
+        self.assertTrue(any("startgroup=true" in url for url in urls))
+
+    def test_admin_button_opens_panel_for_admin(self) -> None:
+        message = FakeMessage()
+        asyncio.run(menu.menu_admin(message))
+        self.assertIn("Admin panel", message.answers[-1])
+
+    def test_admin_button_is_rejected_for_players(self) -> None:
+        message = FakeMessage(user_id=999)
+        asyncio.run(menu.menu_admin(message))
+        self.assertIn("faqat administrator", message.answers[-1])
+
+
+if __name__ == "__main__":
+    unittest.main()
