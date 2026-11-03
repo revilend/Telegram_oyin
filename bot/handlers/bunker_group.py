@@ -13,7 +13,6 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
-    WebAppInfo,
 )
 
 from bot.config import get_config
@@ -64,12 +63,18 @@ def _room_text(room: GameRoom, *, started: bool = False) -> str:
 
 
 def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMarkup:
-    """Mini App va guruh harakatlari uchun inline tugmalar."""
+    """Mini App va guruh harakatlari uchun inline tugmalar.
+
+    Guruhlarda Telegram ``web_app`` tugmasini qabul qilmaydi
+    (BUTTON_TYPE_INVALID), shuning uchun botning ``startapp`` havolasi
+    ishlatiladi.
+    """
+    config = get_config()
     rows = [
         [
             InlineKeyboardButton(
-                text="🚪 Bunkerga kirish (Mini App)",
-                web_app=WebAppInfo(url=get_config().mini_app_link(room.code)),
+                text="🚪 Bunkerga kirish",
+                url=f"https://t.me/{config.bot_username}?startapp={room.code}",
             )
         ]
     ]

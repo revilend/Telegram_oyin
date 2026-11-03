@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 os.environ.setdefault("BOT_TOKEN", "123456:TEST")
 os.environ.setdefault("MINI_APP_URL", "https://revilend.games")
+os.environ.setdefault("BOT_USERNAME", "revilend_gamesbot")
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -90,6 +91,13 @@ class CreateGameHandlerTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(code_match)
         self.assertIn("Yangi Bunker o'yini", text)
         self.assertEqual(len(keyboard.inline_keyboard), 3)
+        first_button = keyboard.inline_keyboard[0][0]
+        self.assertEqual(first_button.text, "🚪 Bunkerga kirish")
+        self.assertIsNone(first_button.web_app)
+        self.assertEqual(
+            first_button.url,
+            f"https://t.me/{BOT_USERNAME}?startapp={code_match.group(0)}",
+        )
         self.assertEqual(
             keyboard.inline_keyboard[1][0].callback_data,
             f"join_{code_match.group(0)}",

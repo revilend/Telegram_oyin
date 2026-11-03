@@ -36,6 +36,14 @@ def _env(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
+def _missing_column_error(exc: Exception, column: str) -> bool:
+    """PostgREST xatosida ustun yo'qligini aniqlaydi."""
+    message = str(exc).lower()
+    return column in message and (
+        "column" in message or "schema cache" in message
+    )
+
+
 class SupabaseStore:
     """Xona holatini Supabase jadvallariga yozadi va ulardan o'qiydi.
 
@@ -101,24 +109,35 @@ class SupabaseStore:
         votes = votes or {}
         updated_at = datetime.now(timezone.utc).isoformat()
         client = self.client
+        # Pydantic modelda qiymat int bo'lsa ham, PostgREST'ga aniq int yuboramiz.
+        bunker_capacity = int(room.bunker_capacity)
 
-        client.table(ROOMS_TABLE).upsert(
-            {
-                "code": room.code,
-                "room_id": room.room_id,
-                "game_type": "bunker",
-                "status": room.status.value,
-                "host_id": room.host_id,
-                "max_players": room.max_players,
-                "bunker_capacity": room.bunker_capacity,
-                "current_round": room.current_round,
-                "catastrophe": room.catastrophe,
-                "eliminated_players": room.eliminated_players,
-                "votes": {str(voter): int(target) for voter, target in votes.items()},
-                "updated_at": updated_at,
-            },
-            on_conflict="code",
-        ).execute()
+        room_row = {
+            "code": room.code,
+            "room_id": room.room_id,
+            "game_type": "bunker",
+            "status": room.status.value,
+            "host_id": room.host_id,
+            "max_players": room.max_players,
+            "bunker_capacity": bunker_capacity,
+            "current_round": room.current_round,
+            "catastrophe": room.catastrophe,
+            "eliminated_players": room.eliminated_players,
+            "votes": {str(voter): int(target) for voter, target in votes.items()},
+            "updated_at": updated_at,
+        }
+        try:
+            client.table(ROOMS_TABLE).upsert(
+                room_row,
+                on_conflict="code",
+            ).execute()
+        except Exception as exc:
+            if _missing_column_error(exc, "bunker_capacity"):
+                logger.error(
+                    "Supabase 'rooms' jadvalida bunker_capacity ustuni topilmadi. "
+                    "core/schema.sql dagi ALTER TABLE buyrug'ini ishga tushiring."
+                )
+            raise
 
         player_rows = [
             {

@@ -16,6 +16,10 @@ create table if not exists public.rooms (
     updated_at          timestamptz not null default now()
 );
 
+-- Eski jadvallar uchun migratsiya: ustun keyin qo'shilgan bo'lsa ham ishlaydi.
+alter table public.rooms
+    add column if not exists bunker_capacity integer not null default 5;
+
 create table if not exists public.room_players (
     room_code       text not null references public.rooms(code) on delete cascade,
     user_id         bigint not null,

@@ -148,17 +148,22 @@ class SupabaseMappingTest(unittest.TestCase):
         manager.reveal_card(room.code, 31, "luggage")
         manager.cast_vote(room.code, 31, 32)
 
-        store = SupabaseStore(client=_FakeClient())
+        fake_client = _FakeClient()
+        store = SupabaseStore(client=fake_client)
         try:
             store.save_room(room, votes={31: 32})
             loaded = store.load_room(room.code)
         finally:
             store.close()
 
+        self.assertEqual(fake_client.tables["rooms"][0]["bunker_capacity"], 2)
+        self.assertIsInstance(fake_client.tables["rooms"][0]["bunker_capacity"], int)
+
         self.assertIsNotNone(loaded)
         loaded_room, votes = loaded
         self.assertEqual(loaded_room.code, room.code)
         self.assertEqual(loaded_room.status.value, "VOTING")
+        self.assertEqual(loaded_room.bunker_capacity, 2)
         self.assertEqual(len(loaded_room.players), 2)
         self.assertTrue(loaded_room.players[31].cards["luggage"].is_revealed)
         self.assertEqual(loaded_room.players[32].votes_against, 1)
