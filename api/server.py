@@ -490,6 +490,7 @@ def _record_finished_room(room: GameRoom) -> None:
         )
     except Exception:
         logger.exception("Tugagan o'yin natijasini saqlab bo'lmadi: %s", room.code)
+        return
     if not recorded:
         return
     record_game_history("bunker", room.code, room.players.keys(), winner_ids)
