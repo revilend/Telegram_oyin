@@ -905,7 +905,7 @@ async def top_players(
     limit = max(1, min(int(limit), 50))
     economy = get_economy()
     weekly = period == "weekly"
-    accounts = weekly_top(limit=100) if weekly else economy.top_users(limit=1000)
+    accounts = weekly_top(limit=1000) if weekly else economy.top_users(limit=1000)
     viewer_id = user.id if user is not None else user_id
     top = [
         leaderboard_row(account, index, viewer_id, weekly=weekly)
