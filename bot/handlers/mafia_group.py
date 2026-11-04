@@ -32,6 +32,8 @@ from aiogram.types import (
 
 from bot.config import get_config
 from core.economy import MAFIA_WIN_REWARD, get_economy
+from core.game_history import record_game_history
+from core.leaderboard import record_weekly_win
 from games.mafia.boosters import KEVLAR
 from games.mafia.engine import (
     GamePhase,
@@ -93,6 +95,7 @@ class MafiaGame:
     lobby_message_id: int | None = None
     phase_deadline: float | None = None
     phase_duration: int = 60
+    last_activity_at: float = field(default_factory=time.time)
 
     def start_phase_timer(self, seconds: int = 60) -> None:
         """Joriy bosqich uchun 60 soniyalik taymerni boshlaydi."""
@@ -170,6 +173,7 @@ class MafiaLobbyManager:
             except MafiaError as exc:
                 raise MafiaGameError(str(exc)) from exc
             game.usernames[int(user_id)] = username or ""
+            game.last_activity_at = time.time()
             return player
 
     def start_game(self, code: str, host_id: int) -> MafiaGame:
@@ -185,7 +189,33 @@ class MafiaLobbyManager:
             except MafiaError as exc:
                 raise MafiaGameError(str(exc)) from exc
             game.start_phase_timer()
+            game.last_activity_at = time.time()
             return game
+
+    def touch(self, code: str) -> None:
+        """Xonadagi so'nggi harakat vaqtini yangilaydi."""
+        self.get_game(code).last_activity_at = time.time()
+
+    def expire_inactive(
+        self, *, now: float | None = None, lobby_seconds: int = 900,
+        active_seconds: int = 1800
+    ) -> list[str]:
+        """Tashlab ketilgan lobby va faol partiyalarni yopib, xotiradan oladi."""
+        current = time.time() if now is None else float(now)
+        removed: list[str] = []
+        with self._lock:
+            for code, game in list(self._games.items()):
+                age = current - game.last_activity_at
+                if game.room.phase is GamePhase.LOBBY and age >= lobby_seconds:
+                    game.clear_phase_timer()
+                elif game.room.phase is not GamePhase.FINISHED and age >= active_seconds:
+                    game.room.phase = GamePhase.FINISHED
+                    game.clear_phase_timer()
+                else:
+                    continue
+                self._games.pop(code, None)
+                removed.append(code)
+        return removed
 
     def _generate_code(self) -> str:
         for _ in range(1000):
@@ -476,11 +506,23 @@ async def announce_finish(bot: Bot, game: MafiaGame) -> None:
     game.clear_phase_timer()
     caption = finish_text(game.room.winner)
     try:
+        winner_ids = winning_player_ids(game.room)
         rewarded = get_economy().record_mafia_game(
             game.code,
             game.room.players.keys(),
-            winning_player_ids(game.room),
+            winner_ids,
         )
+        if rewarded:
+            record_game_history(
+                "mafia", game.code, game.room.players.keys(), winner_ids
+            )
+        for winner_id in (winner_ids if rewarded else []):
+            try:
+                record_weekly_win(winner_id)
+            except Exception:
+                logger.exception(
+                    "Mafiya haftalik ballini yozib bo'lmadi: %s", winner_id
+                )
         if rewarded:
             caption += (
                 f"\n\n🪙 G'oliblar: +{MAFIA_WIN_REWARD} tanga"
@@ -695,6 +737,7 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
             )
             return
         resolve_night(game.room)
+        manager.touch(code)
         if game.room.phase is not GamePhase.FINISHED:
             game.start_phase_timer()
     except (MafiaGameError, MafiaError) as exc:
@@ -748,6 +791,7 @@ async def mafia_chat_moderator(message: Message) -> None:
     if game is None or game.room.phase not in MODERATED_PHASES:
         return
 
+    get_default_manager().touch(game.code)
     user_id = message.from_user.id
     player = game.room.players.get(user_id)
 

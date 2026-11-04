@@ -1350,6 +1350,73 @@
 
       var app = document.getElementById("app");
       var toastEl = document.getElementById("toast");
+
+      // Ko'rinadigan Mini App matnlarini yangi o'zbek lotin yozuviga o'tkazish.
+      function normalizeUzbekText(value) {
+        return String(value || "")
+          .replace(/o['ʻʼ’‘]/gi, function (part) { return part[0] === "O" ? "Ö" : "ö"; })
+          .replace(/g['ʻʼ’‘]/gi, function (part) { return part[0] === "G" ? "Ğ" : "ğ"; })
+          .replace(/sh/gi, function (part) { return part[0] === "S" ? "Ş" : "ş"; })
+          .replace(/ch/gi, function (part) { return part[0] === "C" ? "Ç" : "ç"; });
+      }
+
+      function normalizeTextNodes(root) {
+        if (!root) return;
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        var node;
+        while ((node = walker.nextNode())) {
+          var normalized = normalizeUzbekText(node.nodeValue);
+          if (normalized !== node.nodeValue) node.nodeValue = normalized;
+        }
+      }
+
+      function normalizeTextAttributes(root) {
+        if (!root || root.nodeType !== 1) return;
+        var attributes = ["placeholder", "aria-label", "title"];
+        attributes.forEach(function (name) {
+          if (!root.hasAttribute(name)) return;
+          var current = root.getAttribute(name);
+          var normalized = normalizeUzbekText(current);
+          if (normalized !== current) root.setAttribute(name, normalized);
+        });
+        root.querySelectorAll("*").forEach(function (element) {
+          attributes.forEach(function (name) {
+            if (!element.hasAttribute(name)) return;
+            var current = element.getAttribute(name);
+            var normalized = normalizeUzbekText(current);
+            if (normalized !== current) element.setAttribute(name, normalized);
+          });
+        });
+      }
+
+      if (window.MutationObserver && app) {
+        var alphabetObserver = new MutationObserver(function (records) {
+          records.forEach(function (record) {
+            if (record.type === "characterData") {
+              var normalized = normalizeUzbekText(record.target.nodeValue);
+              if (normalized !== record.target.nodeValue) record.target.nodeValue = normalized;
+            } else if (record.type === "attributes") {
+              var current = record.target.getAttribute(record.attributeName);
+              var converted = normalizeUzbekText(current);
+              if (converted !== current) record.target.setAttribute(record.attributeName, converted);
+            }
+            record.addedNodes && record.addedNodes.forEach(function (node) {
+              if (node.nodeType === 3) {
+                node.nodeValue = normalizeUzbekText(node.nodeValue);
+              } else if (node.nodeType === 1) {
+                normalizeTextNodes(node);
+                normalizeTextAttributes(node);
+              }
+            });
+          });
+        });
+        alphabetObserver.observe(app, {
+          childList: true, subtree: true, characterData: true,
+          attributes: true, attributeFilter: ["placeholder", "aria-label", "title"]
+        });
+        normalizeTextNodes(app);
+        normalizeTextAttributes(app);
+      }
       var params = new URLSearchParams(window.location.search);
       var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
         params.get("startapp") || params.get("tgWebAppStartParam") || "";
@@ -1416,7 +1483,10 @@
         shop: null,
         shopPackage: null,
         activity: null,
+        activityPeriod: "all",
         activityLoading: false,
+        matchmaking: {},
+        matchmakingTimer: null,
         actionBusy: false,
         loginError: ""
       };
@@ -1441,7 +1511,8 @@
       function rankHtml(rank) {
         var value = Number(rank) || 0;
         if (value >= 1 && value <= 3) {
-          return '<span class="rank-badge rank-' + value + '">' + value + '</span>';
+          var medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
+          return '<span class="rank-badge rank-' + value + '">' + medals[value] + '</span>';
         }
         return '<span class="top-rank">' + value + '</span>';
       }
@@ -1496,7 +1567,7 @@
       }
 
       function toast(message, kind) {
-        toastEl.textContent = message;
+        toastEl.textContent = normalizeUzbekText(message);
         toastEl.className = "show" + (kind === "error" ? " error" : "");
         if (toastTimer) clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { toastEl.className = ""; }, 3200);
@@ -1765,6 +1836,14 @@ function profileCardHtml() {
           '</div>' +
           '<div class="profile-split">' + icon("shield") + ' Bunker: <b>' + esc(profile.bunker_wins || 0) +
             '</b> g\'alaba | ' + icon("hat") + ' Mafiya: <b>' + esc(profile.mafia_wins || 0) + '</b> g\'alaba</div>' +
+          (Array.isArray(profile.recent_games) && profile.recent_games.length
+            ? '<div class="profile-split"><b>🕹 So\'nggi o\'yinlar</b><br>' +
+                profile.recent_games.map(function (item) {
+                  var won = (item.winner_ids || []).map(Number).indexOf(Number(profile.id)) >= 0;
+                  var label = item.game_type === "spyfall" ? "Josus" : (item.game_type === "mafia" ? "Mafiya" : "Bunker");
+                  return (won ? "🏆 Yutdi" : "▫️ Yutqazdi") + " · " + label;
+                }).join("<br>") + '</div>'
+            : '') +
           '<div class="xp-row"><div class="xp-bar"><i></i></div><span class="xp-text">0 / 100 XP</span></div>' +
           '<button class="btn invite" data-act="invite">' + icon("share") + ' Do\'stlarni taklif qilish</button>' +
         '</section>';
@@ -1864,6 +1943,7 @@ function profileCardHtml() {
           var data = await request(path);
           if (!data || !data.user) return;
           updateProfileFromAccount(data.user);
+          profile.recent_games = Array.isArray(data.recent_games) ? data.recent_games.slice(0, 5) : [];
           if (view.shopOpen) view.shop = data.shop || view.shop;
           if (!view.code) renderHub();
           else if (view.room) renderRoom(true);
@@ -1950,8 +2030,9 @@ function profileCardHtml() {
 
       function leaderboardHtml() {
         var activity = activityState();
-        var top = activity.top || [];
-        if (!top.length) return "";
+        var weekly = view.activityPeriod === "weekly";
+        var top = (weekly ? activity.weeklyTop : activity.top) || [];
+        var me = weekly ? activity.weeklyMe : activity.me;
         var rows = top.map(function (player) {
           return '<div class="top-row' + (player.is_me ? " me" : "") + '">' +
             rankHtml(player.rank) +
@@ -1959,7 +2040,6 @@ function profileCardHtml() {
             '<span class="t-name">' + esc(player.name) + '</span>' +
             '<span class="t-rating">' + esc(money(player.rating)) + ' · ' + esc(player.wins) + ' ' + icon("trophy") + '</span></div>';
         }).join("");
-        var me = activity.me;
         if (me && Number(me.rank) > top.length) {
           rows += '<div class="top-row me">' + rankHtml(me.rank) +
             avatarHtml(me.name, me.user_id, "sm") +
@@ -1967,7 +2047,13 @@ function profileCardHtml() {
             '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' ' + icon("trophy") + '</span></div>';
         }
         return '<section class="fade"><div class="section-title"><h2>' + icon("trophy") + ' Reyting</h2>' +
-          '<span>top ' + top.length + '</span></div><div class="top-list">' + rows + '</div></section>';
+          '<span>top ' + top.length + '</span></div>' +
+          '<div class="matchmaking-row">' +
+            '<button class="btn small ' + (!weekly ? 'primary' : '') + '" data-act="leaderboard-period" data-period="all">🌟 Barcha davrlar</button>' +
+            '<button class="btn small ' + (weekly ? 'primary' : '') + '" data-act="leaderboard-period" data-period="weekly">⚡ Bu haftalik Liga</button>' +
+          '</div>' +
+          (rows ? '<div class="top-list">' + rows + '</div>' : '<p class="muted tiny">Bu davrda reyting hali shakllanmagan.</p>') +
+          '</section>';
       }
 
       async function loadActivity(forceRender) {
@@ -1977,13 +2063,16 @@ function profileCardHtml() {
           var data = await Promise.all([
             request("/api/bonus?user_id=" + encodeURIComponent(profile.id)),
             request("/api/missions?user_id=" + encodeURIComponent(profile.id)),
-            request("/api/top?limit=10&user_id=" + encodeURIComponent(profile.id))
+            request("/api/top?limit=10&user_id=" + encodeURIComponent(profile.id)),
+            request("/api/top?period=weekly&limit=10&user_id=" + encodeURIComponent(profile.id)).catch(function () { return null; })
           ]);
           view.activity = {
             bonus: data[0] ? data[0].bonus : null,
             missions: data[1] && data[1].missions ? data[1].missions : [],
             top: data[2] && data[2].top ? data[2].top : [],
-            me: data[2] ? data[2].me : null
+            me: data[2] ? data[2].me : null,
+            weeklyTop: data[3] && data[3].top ? data[3].top : [],
+            weeklyMe: data[3] ? data[3].me : null
           };
           if (data[0] && data[0].coins != null) profile.balance = Number(data[0].coins) || 0;
           else if (data[1] && data[1].coins != null) profile.balance = Number(data[1].coins) || 0;
@@ -2365,6 +2454,7 @@ function profileCardHtml() {
       }
 
       function enterMafia(code) {
+        stopMatchmakingPolling();
         var normalized = mafiaStartCode(code) || normalizeCode(code);
         if (!/^MAF\d{3}$/.test(normalized)) {
           toast("Mafiya xona kodi MAF123 ko'rinishida bo'ladi", "error");
@@ -2758,6 +2848,7 @@ function profileCardHtml() {
       }
 
       function enterSpy(code) {
+        stopMatchmakingPolling();
         var normalized = spyStartCode(code) || normalizeCode(code);
         if (!/^SPY\d{3}$/.test(normalized)) {
           toast("Josus xona kodi SPY123 ko'rinishida bo'ladi", "error");
@@ -3261,6 +3352,16 @@ function profileCardHtml() {
               '<span class="badge ' + (active ? "live" : "soon") + '">' + (active ? "FAOL" : "TEZ KUNDA") + '</span></div>' +
             '<p class="game-desc">' + esc(game.description) + '</p>' +
             '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
+            (active
+              ? '<div class="matchmaking-row">' +
+                  (view.matchmaking[game.slug]
+                    ? '<button class="btn small" data-act="leave-match" data-game="' + esc(game.slug) + '">Navbatdan chiqish</button>'
+                    : '<button class="btn small" data-act="join-match" data-game="' + esc(game.slug) + '">🌐 Odam qidirish</button>') +
+                  (view.matchmaking[game.slug]
+                    ? '<span class="muted tiny">' + esc(view.matchmaking[game.slug].count || 0) + '/' + esc(view.matchmaking[game.slug].required || 0) + ' kishi qidirilmoqda</span>'
+                    : '') +
+                '</div>'
+              : '') +
           '</div>' +
           (active
             ? '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : "open-bunker")) + '">' +
@@ -3273,6 +3374,7 @@ function profileCardHtml() {
       // Xona
       // ----------------------------------------------------------------
       function enterRoom(code) {
+        stopMatchmakingPolling();
         view.code = normalizeCode(code);
         view.loading = true;
         view.error = null;
@@ -3837,12 +3939,96 @@ function profileCardHtml() {
         await sendAction({ action: "join", full_name: name, username: profile.username }, "Xonaga qo'shildingiz!");
       }
 
+      async function refreshMatchmakingStatus(gameType) {
+        try {
+          var result = await request("/api/matchmaking/status?game_type=" + encodeURIComponent(gameType));
+          if (view.matchmaking[gameType]) {
+            view.matchmaking[gameType].count = result.count;
+            view.matchmaking[gameType].required = result.required;
+            renderHub();
+          }
+        } catch (error) {
+          console.warn("Matchmaking holatini olib bo'lmadi:", error);
+        }
+      }
+
+      function startMatchmakingPolling() {
+        if (view.matchmakingTimer) return;
+        view.matchmakingTimer = setInterval(function () {
+          Object.keys(view.matchmaking).forEach(refreshMatchmakingStatus);
+        }, 5000);
+      }
+
+      async function leaveMatchmaking(gameType, button) {
+        if (button) button.disabled = true;
+        try {
+          await request("/api/matchmaking/leave", { method: "POST" });
+          view.matchmaking = {};
+          renderHub();
+          if (!Object.keys(view.matchmaking).length && view.matchmakingTimer) {
+            clearInterval(view.matchmakingTimer);
+            view.matchmakingTimer = null;
+          }
+          toast("Navbatdan chiqdingiz");
+        } catch (error) {
+          toast(error.message || "Navbatdan chiqib bo'lmadi", "error");
+        } finally {
+          if (button) button.disabled = false;
+        }
+      }
+
+      function stopMatchmakingPolling() {
+        if (view.matchmakingTimer) {
+          clearInterval(view.matchmakingTimer);
+          view.matchmakingTimer = null;
+        }
+      }
+
+      async function joinMatchmaking(gameType, button) {
+        if (button) button.disabled = true;
+        try {
+          var result = await request("/api/matchmaking/join", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game_type: gameType })
+          });
+          if (result.status === "matched") {
+            view.matchmaking = {};
+            stopMatchmakingPolling();
+            toast("Xona tayyor! " + result.room_code);
+            if (gameType === "mafia") enterMafia(result.room_code);
+            else if (gameType === "spyfall") enterSpy(result.room_code);
+            else enterRoom(result.room_code);
+            return;
+          }
+          view.matchmaking = {};
+          view.matchmaking[gameType] = {
+            count: result.count,
+            required: result.required
+          };
+          renderHub();
+          startMatchmakingPolling();
+          toast(result.count + "/" + result.required + " kishi qidirilmoqda");
+        } catch (error) {
+          toast(error.message || "Navbatga qo'shilmadi", "error");
+        } finally {
+          if (button) button.disabled = false;
+        }
+      }
+
       function handleClick(event) {
         var button = event.target.closest("[data-act]");
         if (!button || !app.contains(button)) return;
         var act = button.getAttribute("data-act");
 
-        if (act === "home") {
+        if (act === "leave-match") {
+          leaveMatchmaking(button.getAttribute("data-game"), button);
+        } else if (act === "leaderboard-period") {
+          view.activityPeriod = button.getAttribute("data-period") === "weekly" ? "weekly" : "all";
+          renderHub();
+        } else if (act === "join-match") {
+          joinMatchmaking(button.getAttribute("data-game"), button);
+        } else if (act === "home") {
           goHome();
         } else if (act === "logout") {
           logout();

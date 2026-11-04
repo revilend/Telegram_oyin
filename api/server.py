@@ -16,7 +16,7 @@ import asyncio
 import logging
 import os
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -30,12 +30,17 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from engine.matchmaking import Matchmaking, MatchmakingError
+from engine.cleaner import cleaner_loop
+from games.spyfall.manager import get_default_manager as get_spyfall_manager
+
 from api.auth import TelegramUser, resolve_user_id, telegram_user
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
 from games.spyfall.engine import SpyfallError
 from games.spyfall.manager import SpyfallNotFoundError
 from bot.handlers import mafia_group as mafia_bot
+from bot.middlewares.uzbek_alphabet import UzbekAlphabetRequestMiddleware
 from bot.handlers.boosters import send_shield_offer
 from bot.main import build_dispatcher, set_commands
 from core.billing import buy_booster, decline_shield
@@ -48,6 +53,8 @@ from core.economy import (
     player_rating,
 )
 from core.login_codes import verify_login_code
+from core.game_history import record_game_history, recent_user_games
+from core.leaderboard import record_weekly_win, weekly_stats, weekly_top
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -141,6 +148,12 @@ class ActionRequest(BaseModel):
     full_name: str | None = None
     username: str | None = None
     booster: str | None = None
+
+
+class MatchmakingJoinRequest(BaseModel):
+    game_type: Literal["bunker", "mafia", "spyfall"]
+    name: str = ""
+    username: str = ""
 
 
 class UserRequest(BaseModel):
@@ -346,6 +359,7 @@ async def lifespan(app: FastAPI):
     global _runtime_bot
     bot: Bot | None = None
     polling: asyncio.Task[None] | None = None
+    cleaner_task = asyncio.create_task(cleaner_loop())
     token = (os.getenv("BOT_TOKEN") or "").strip()
 
     if token:
@@ -354,6 +368,7 @@ async def lifespan(app: FastAPI):
                 token=token,
                 default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
+            bot.session.middleware(UzbekAlphabetRequestMiddleware())
             _runtime_bot = bot
             set_spyfall_bot(bot)
             dispatcher = build_dispatcher()
@@ -377,6 +392,8 @@ async def lifespan(app: FastAPI):
         if polling is not None:
             polling.cancel()
             await asyncio.gather(polling, return_exceptions=True)
+        cleaner_task.cancel()
+        await asyncio.gather(cleaner_task, return_exceptions=True)
         _runtime_bot = None
         set_spyfall_bot(None)
         if bot is not None:
@@ -395,6 +412,21 @@ async def lifespan(app: FastAPI):
 # ----------------------------------------------------------------------
 app = FastAPI(title="Revilend Games API", version="1.2.0", lifespan=lifespan)
 app.include_router(spyfall_router)
+
+
+@app.exception_handler(Exception)
+async def unhandled_api_error_handler(request: Any, exc: Exception) -> JSONResponse:
+    """Kutilmagan API xatolarini to'liq stack-trace bilan qayd etadi."""
+    logger.error(
+        "Unhandled API exception: %s %s",
+        getattr(request, "method", ""),
+        getattr(request, "url", ""),
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Ichki server xatoligi. Xatolik qayd etildi."},
+    )
 
 
 @app.exception_handler(RoomNotFoundError)
@@ -449,14 +481,24 @@ def _record_finished_room(room: GameRoom) -> None:
     """FINISHED xonani statistika uchun bir marta qayd etadi."""
     if room.status is not RoomStatus.FINISHED:
         return
+    winner_ids = [player.user_id for player in room.alive_players]
     try:
-        get_economy().record_finished_game(
+        recorded = get_economy().record_finished_game(
             room.code,
             room.players.keys(),
-            [player.user_id for player in room.alive_players],
+            winner_ids,
         )
     except Exception:
         logger.exception("Tugagan o'yin natijasini saqlab bo'lmadi: %s", room.code)
+        return
+    if not recorded:
+        return
+    record_game_history("bunker", room.code, room.players.keys(), winner_ids)
+    for winner_id in winner_ids:
+        try:
+            record_weekly_win(winner_id)
+        except Exception:
+            logger.exception("Bunker haftalik ballini yozib bo'lmadi: %s", winner_id)
 
 
 async def _notify_shield_offer(room: GameRoom) -> None:
@@ -483,6 +525,135 @@ async def health() -> dict[str, str]:
         "game_type": GAME_TYPE,
         "supabase": "on" if get_store().enabled else "off",
     }
+
+
+_matchmaking: Matchmaking | None = None
+
+
+def _create_match_room(game_type: str, players: list[dict[str, Any]]) -> str:
+    """Navbatdagi o'yinchilar uchun mavjud dvigatellardan xona ochadi."""
+    if not players:
+        raise MatchmakingError("Xona uchun o'yinchilar topilmadi")
+    host = players[0]
+    host_id = int(host["user_id"])
+    host_name = str(host.get("name") or f"ID {host_id}")
+    host_username = str(host.get("username") or "")
+
+    if game_type == "bunker":
+        game_room = get_default_manager().create_room(
+            host_id, host_name, host_username
+        )
+        for player in players[1:]:
+            get_default_manager().join_room(
+                game_room.code,
+                int(player["user_id"]),
+                str(player.get("name") or f"ID {player['user_id']}"),
+                str(player.get("username") or ""),
+            )
+        return game_room.code
+
+    if game_type == "mafia":
+        game = mafia_bot.get_default_manager().create_game(
+            chat_id=host_id,
+            host_id=host_id,
+            host_name=host_name,
+            host_username=host_username,
+        )
+        for player in players[1:]:
+            mafia_bot.get_default_manager().join(
+                game.code,
+                int(player["user_id"]),
+                str(player.get("name") or f"ID {player['user_id']}"),
+                str(player.get("username") or ""),
+            )
+        return game.code
+
+    spy_manager = get_spyfall_manager()
+    spy_room = spy_manager.create_room(host_id, host_name, chat_id=0)
+    for player in players[1:]:
+        spy_manager.join(
+            spy_room.code,
+            int(player["user_id"]),
+            str(player.get("name") or f"ID {player['user_id']}"),
+        )
+    return spy_room.code
+
+
+async def _notify_match_user(user_id: int, message: str) -> None:
+    """Tayyor xona havolasini bot orqali shaxsiy xabarda yuboradi."""
+    if _runtime_bot is None:
+        return
+    code = message.rsplit(":", 1)[-1].strip().upper()
+    if code.startswith("MAF"):
+        start_param = f"mafia_{code}"
+    elif code.startswith("SPY"):
+        start_param = f"spy_{code}"
+    else:
+        start_param = code
+    bot_username = (os.getenv("BOT_USERNAME") or "revilend_gamesbot").strip().lstrip("@")
+    url = f"https://t.me/{bot_username}?startapp={start_param}"
+    await _runtime_bot.send_message(
+        user_id, f"{message}\n<a href=\"{url}\">Xonaga kirish</a>"
+    )
+
+
+def _get_matchmaking() -> Matchmaking:
+    global _matchmaking
+    if _matchmaking is None:
+        _matchmaking = Matchmaking(
+            room_factory=_create_match_room,
+            notifier=_notify_match_user,
+        )
+    return _matchmaking
+
+
+@app.post("/api/matchmaking/join")
+async def matchmaking_join(
+    payload: MatchmakingJoinRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchini global o'yin navbatiga qo'shadi."""
+    user_id = resolve_user_id(user, None)
+    name = (user.full_name if user else "") or payload.name
+    username = (user.username if user else "") or payload.username
+    try:
+        result = await _get_matchmaking().join_queue(
+            user_id,
+            payload.game_type,
+            name=name,
+            username=username,
+        )
+    except MatchmakingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if result["status"] == "matched":
+        code = str(result["room_code"])
+        prefix = {"bunker": "", "mafia": "mafia_", "spyfall": "spy_"}[
+            payload.game_type
+        ]
+        bot_username = (os.getenv("BOT_USERNAME") or "revilend_gamesbot").strip().lstrip("@")
+        result["startapp_url"] = f"https://t.me/{bot_username}?startapp={prefix}{code}"
+    return result
+
+
+@app.post("/api/matchmaking/leave")
+async def matchmaking_leave(
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchini barcha global navbatlardan chiqaradi."""
+    user_id = resolve_user_id(user, None)
+    removed = await _get_matchmaking().leave_queue(user_id)
+    return {"ok": True, "removed": removed}
+
+
+@app.get("/api/matchmaking/status")
+async def matchmaking_status(
+    game_type: Literal["bunker", "mafia", "spyfall"],
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Mini App hisoblagichi uchun navbatdagi odamlar soni."""
+    resolve_user_id(user, None)
+    return await _get_matchmaking().status(game_type)
 
 
 @app.get("/api/games")
@@ -556,8 +727,19 @@ async def my_profile(
     account = get_economy().ensure_user(
         resolved_id, resolved_username, resolved_name
     )
+    try:
+        weekly = weekly_stats(resolved_id)
+    except Exception:
+        logger.exception("Profil haftalik statistikasini olishda xatolik")
+        weekly = {"weekly_wins": 0, "weekly_score": 0}
+    account = replace(
+        account,
+        weekly_wins=weekly["weekly_wins"],
+        weekly_score=weekly["weekly_score"],
+    )
     return {
         "user": asdict(account),
+        "recent_games": recent_user_games(resolved_id, 5),
         "shop": shop_meta(),
         "boosters": boosters_payload(),
     }
@@ -611,26 +793,28 @@ def account_display_name(account: Any) -> str:
     return f"ID {account.user_id}"
 
 
-def account_rank(accounts: list[Any], account: Any) -> int:
+def account_rank(accounts: list[Any], account: Any, *, weekly: bool = False) -> int:
     """Reyting qoidasi bo'yicha o'yinchining o'rnini hisoblaydi."""
-    target = (player_rating(account), account.coins)
-    better = sum(
-        1 for item in accounts if (player_rating(item), item.coins) > target
+    score = (
+        (lambda item: (item.weekly_score, item.weekly_wins))
+        if weekly
+        else (lambda item: (player_rating(item), item.coins))
     )
-    return better + 1
+    target = score(account)
+    return sum(1 for item in accounts if score(item) > target) + 1
 
 
 def leaderboard_row(
-    account: Any, rank: int, viewer_id: int | None
+    account: Any, rank: int, viewer_id: int | None, *, weekly: bool = False
 ) -> dict[str, Any]:
     return {
         "rank": rank,
         "user_id": account.user_id,
         "name": account_display_name(account),
         "username": account.username,
-        "rating": player_rating(account),
+        "rating": account.weekly_score if weekly else player_rating(account),
         "coins": account.coins,
-        "wins": account.wins,
+        "wins": account.weekly_wins if weekly else account.wins,
         "games_played": account.games_played,
         "is_me": viewer_id is not None and account.user_id == int(viewer_id),
     }
@@ -723,16 +907,18 @@ async def redeem_promo_code(
 @app.get("/api/top")
 async def top_players(
     limit: int = 10,
+    period: Literal["all", "weekly"] = "all",
     user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Reyting jadvali va (imkon bo'lsa) o'z o'rni."""
     limit = max(1, min(int(limit), 50))
     economy = get_economy()
-    accounts = economy.top_users(limit=1000)
+    weekly = period == "weekly"
+    accounts = weekly_top(limit=1000) if weekly else economy.top_users(limit=1000)
     viewer_id = user.id if user is not None else user_id
     top = [
-        leaderboard_row(account, index, viewer_id)
+        leaderboard_row(account, index, viewer_id, weekly=weekly)
         for index, account in enumerate(accounts[:limit], start=1)
     ]
 
@@ -743,10 +929,20 @@ async def top_players(
         )
         if viewer is None:
             viewer = economy.get_user(viewer_id)
-        me = leaderboard_row(viewer, account_rank(accounts, viewer), viewer_id)
+        if weekly:
+            stats = weekly_stats(viewer_id)
+            viewer = replace(
+                viewer,
+                weekly_wins=stats["weekly_wins"],
+                weekly_score=stats["weekly_score"],
+            )
+        me = leaderboard_row(
+            viewer, account_rank(accounts, viewer, weekly=weekly),
+            viewer_id, weekly=weekly
+        )
         me["in_top"] = me["rank"] <= limit
 
-    return {"top": top, "me": me, "total": len(accounts)}
+    return {"top": top, "me": me, "total": len(accounts), "period": period}
 
 
 @app.get("/api/meta/cards")
@@ -1013,6 +1209,7 @@ async def submit_mafia_night_action(
         game.room.submit_night_action(
             resolved_id, payload.target_id, kind=payload.kind
         )
+        mafia_bot.get_default_manager().touch(code)
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True}
@@ -1033,6 +1230,7 @@ async def begin_mafia_voting(
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     game.start_phase_timer()
+    mafia_bot.get_default_manager().touch(code)
     return {"ok": True}
 
 
@@ -1047,6 +1245,7 @@ async def cast_mafia_vote(
     game = _mafia_game_for(code)
     try:
         game.room.cast_vote(resolved_id, payload.target_id)
+        mafia_bot.get_default_manager().touch(code)
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True}
@@ -1079,6 +1278,7 @@ async def tally_mafia_votes(
             eliminated_id,
             kamikaze_target_id=payload.kamikaze_target_id,
         )
+        mafia_bot.get_default_manager().touch(code)
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

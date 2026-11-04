@@ -20,6 +20,7 @@ import copy
 import logging
 import random
 import threading
+import time
 import uuid
 from collections import Counter
 from collections.abc import Callable
@@ -77,6 +78,7 @@ class GameManager:
         self._generator = generator or CharacterGenerator()
         self._rng = random.Random(seed)
         self._rooms: dict[str, GameRoom] = {}
+        self._last_activity: dict[str, float] = {}
         self._votes: dict[str, dict[int, int]] = {}
         self._lock = threading.RLock()
         self._on_change: RoomChangeHandler | None = None
@@ -438,6 +440,38 @@ class GameManager:
             room.status = RoomStatus.PLAYING
             room.current_round += 1
 
+    def expire_inactive(
+        self,
+        *,
+        now: float | None = None,
+        lobby_seconds: int = 900,
+        active_seconds: int = 1800,
+    ) -> list[str]:
+        """15 daqiqalik lobby va 30 daqiqalik faol xonalarni yopadi."""
+        current = time.time() if now is None else float(now)
+        expired: list[str] = []
+        with self._lock:
+            for code, room in list(self._rooms.items()):
+                last = self._last_activity.get(code, current)
+                age = current - last
+                if room.status is RoomStatus.LOBBY and age >= lobby_seconds:
+                    room.status = RoomStatus.EXPIRED
+                elif room.status in (
+                    RoomStatus.PLAYING,
+                    RoomStatus.VOTING,
+                    RoomStatus.SHIELD_OFFER,
+                ) and age >= active_seconds:
+                    room.status = RoomStatus.FINISHED
+                else:
+                    continue
+                # Avval yakuniy holat bazaga yoziladi, keyin xotiradan olinadi.
+                self._notify(room)
+                self._rooms.pop(code, None)
+                self._votes.pop(code, None)
+                self._last_activity.pop(code, None)
+                expired.append(code)
+        return expired
+
     @property
     def active_room_count(self) -> int:
         """Hozir o'ynalayotgan xonalar soni."""
@@ -484,8 +518,8 @@ class GameManager:
                 for voter_id in self._votes[normalized]:
                     room.vote_weights.setdefault(voter_id, 1)
                 self._sync_vote_counts(room)
-        if room is None:
-            raise RoomNotFoundError(f"'{normalized or code}' kodli xona topilmadi")
+        if room is None or room.status is RoomStatus.EXPIRED:
+            raise RoomNotFoundError(f"'{normalized or code}' kodli xona topilmadi yoki muddati tugagan")
         return room
 
     # ------------------------------------------------------------------
@@ -501,6 +535,7 @@ class GameManager:
 
     def _notify(self, room: GameRoom) -> None:
         """Holat o'zgarganini saqlash handleriga bildiradi."""
+        self._last_activity[room.code] = time.time()
         handler = self._on_change
         if handler is None:
             return

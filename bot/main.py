@@ -10,9 +10,10 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, ErrorEvent
 
 from bot.config import get_config
+from bot.middlewares.uzbek_alphabet import UzbekAlphabetRequestMiddleware
 from bot.handlers import (
     admin,
     boosters,
@@ -48,9 +49,21 @@ BOT_COMMANDS = [
 ]
 
 
+async def _log_unhandled_update(event: ErrorEvent) -> bool:
+    """Aiogram'da ushlanmagan xatolarni to'liq traceback bilan qayd etadi."""
+    exc = event.exception
+    logger.error(
+        "Unhandled Aiogram update: %s",
+        exc,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return True
+
+
 def build_dispatcher() -> Dispatcher:
     """Routerlarni ulab, tayyor Dispatcher qaytaradi."""
     dispatcher = Dispatcher(storage=MemoryStorage())
+    dispatcher.errors.register(_log_unhandled_update)
     # /cancel har qanday FSM holatida ishlashi uchun birinchi ulanadi.
     dispatcher.include_router(common.cancel_router)
     # /start shop_... deep linki umumiy /start handleridan oldin ushlanishi kerak.
@@ -95,6 +108,7 @@ async def main() -> None:
         token=config.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
+    bot.session.middleware(UzbekAlphabetRequestMiddleware())
     dispatcher = build_dispatcher()
 
     try:
