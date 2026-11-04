@@ -1367,26 +1367,37 @@
         '</div>';
       }
 
+      function getTgInitData() {
+        var webApp = window.Telegram && window.Telegram.WebApp;
+        if (webApp && webApp.initData) return webApp.initData;
+        var sources = [window.location.search, window.location.hash.substring(1)];
+        for (var i = 0; i < sources.length; i++) {
+          if (!sources[i]) continue;
+          var params = new URLSearchParams(sources[i]);
+          var embedded = params.get("tgWebAppData");
+          if (embedded) return embedded;
+          if (params.has("hash") && params.has("user")) return sources[i];
+        }
+        return "";
+      }
+
       function getTgUser() {
-  try {
-    var tg = window.Telegram && window.Telegram.WebApp;
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-      return tg.initDataUnsafe.user;
-    }
-    var raw = (tg && tg.initData) || "";
-    if (!raw) {
-      var hash = window.location.hash.substring(1);
-      var params = new URLSearchParams(hash || window.location.search);
-      raw = params.get("tgWebAppData") || "";
-    }
-    if (raw) {
-      var sp = new URLSearchParams(raw);
-      var uStr = sp.get("user");
-      if (uStr) return JSON.parse(uStr);
-    }
-  } catch (e) {}
-  return null;
-}
+        try {
+          var webApp = window.Telegram && window.Telegram.WebApp;
+          var unsafeUser = webApp && webApp.initDataUnsafe && webApp.initDataUnsafe.user;
+          if (unsafeUser && unsafeUser.id) return unsafeUser;
+
+          var raw = getTgInitData();
+          if (!raw) return null;
+          var userJson = new URLSearchParams(raw).get("user");
+          if (!userJson) return null;
+          var parsed = JSON.parse(userJson);
+          return parsed && parsed.id ? parsed : null;
+        } catch (error) {
+          console.warn("Telegram foydalanuvchi ma'lumotini o'qib bo'lmadi", error);
+          return null;
+        }
+      }
 
 
 function profileAvatarHtml(sizeClass) {
@@ -1788,7 +1799,8 @@ function profileCardHtml() {
       async function request(path, options) {
         var requestOptions = Object.assign({}, options || {});
         var headers = Object.assign({}, (options && options.headers) || {});
-        if (tg && tg.initData) headers["X-Telegram-Init-Data"] = tg.initData;
+        var initData = getTgInitData();
+        if (initData) headers["X-Telegram-Init-Data"] = initData;
         requestOptions.headers = headers;
         var response = await fetch(path, requestOptions);
         var data = null;
