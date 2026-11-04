@@ -55,6 +55,7 @@ def _public(room: dict[str, Any], viewer: int) -> dict[str, Any]:
         "players": [{"user_id": p["user_id"], "name": p["name"],
                      "is_host": p["user_id"] == room["host_id"],
                      "is_me": p["user_id"] == viewer,
+                     "has_voted": p["user_id"] == viewer and viewer in room["votes"],
                      "votes": sum(1 for v in room["votes"].values() if v == p["user_id"])}
                     for p in room["players"].values()],
         "votes_count": len(room["votes"]),
