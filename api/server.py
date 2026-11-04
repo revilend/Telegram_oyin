@@ -466,13 +466,13 @@ async def get_shop() -> dict[str, Any]:
 @app.get("/api/me")
 async def my_profile(
     user_id: int | None = None,
-    username: str = "",
-    full_name: str = "",
+    user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """O'yinchining tanga balansi va statistikasi."""
-    if not user_id:
-        return {"user": None, "shop": shop_meta(), "boosters": boosters_payload()}
-    account = get_economy().ensure_user(int(user_id), username, full_name)
+    """Faqat Telegram initData orqali tasdiqlangan profilni qaytaradi."""
+    resolved_id = resolve_user_id(user, user_id)
+    username = user.username if user is not None else ""
+    full_name = user.full_name if user is not None else ""
+    account = get_economy().ensure_user(resolved_id, username, full_name)
     return {
         "user": asdict(account),
         "shop": shop_meta(),
