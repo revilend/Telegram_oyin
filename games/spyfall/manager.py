@@ -48,6 +48,7 @@ class SpyfallManager:
 
     def __init__(self, *, seed: int | None = None) -> None:
         self._rooms: dict[str, SpyfallRoom] = {}
+        self._last_activity: dict[str, float] = {}
         self._lock = threading.RLock()
         self._rng = random.Random(seed)
 
@@ -228,6 +229,7 @@ class SpyfallManager:
 
     # ------------------------------------------------------------------ saqlash
     def _persist(self, room: SpyfallRoom) -> None:
+        self._last_activity[room.code] = time.time()
         store = get_store()
         if not store.enabled:
             return
@@ -265,11 +267,46 @@ class SpyfallManager:
             logger.exception("Josus %s xonasini Supabase'dan tiklab bo'lmadi", code)
             return None
 
+    def expire_inactive(
+        self, *, now: float | None = None, lobby_seconds: int = 900,
+        active_seconds: int = 1800
+    ) -> list[str]:
+        """15 daqiqalik lobby'larni, 30 daqiqalik faol o'yinlarni yopadi."""
+        current = time.time() if now is None else float(now)
+        removed: list[str] = []
+        with self._lock:
+            for code, room in list(self._rooms.items()):
+                age = current - self._last_activity.get(code, current)
+                if room.phase is Phase.LOBBY and age >= lobby_seconds:
+                    self._rooms.pop(code, None)
+                    self._last_activity.pop(code, None)
+                    store = get_store()
+                    if store.enabled:
+                        try:
+                            store.client.table(SPYFALL_TABLE).delete().eq(
+                                "code", code
+                            ).execute()
+                        except Exception:
+                            logger.exception(
+                                "Muddati o'tgan Josus xonasini bazadan o'chirib bo'lmadi: %s",
+                                code,
+                            )
+                    removed.append(code)
+                elif room.phase is not Phase.FINISHED and age >= active_seconds:
+                    room.phase = Phase.FINISHED
+                    room.finish_reason = "Faolsizlik sababli o'yin yakunlandi."
+                    self._persist(room)
+                    self._rooms.pop(code, None)
+                    self._last_activity.pop(code, None)
+                    removed.append(code)
+        return removed
+
     # ------------------------------------------------------------------ testlar
     def clear(self) -> None:
         """Barcha xonalarni xotiradan tozalaydi (testlar uchun)."""
         with self._lock:
             self._rooms.clear()
+            self._last_activity.clear()
 
 
 _default_manager: SpyfallManager | None = None
