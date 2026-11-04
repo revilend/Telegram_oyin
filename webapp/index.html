@@ -1501,15 +1501,19 @@ function profileCardHtml() {
       async function loadAccount() {
   try {
     var tg = window.Telegram && window.Telegram.WebApp;
-var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-    
+    var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+    if (u && u.id) {
+      localStorage.setItem("rg_u", JSON.stringify(u));
+    } else {
+      try { u = JSON.parse(localStorage.getItem("rg_u")); } catch (e) {}
+    }
     var uid = (u && u.id) || profile.id;
-    
-    // O'yinchining ismini dinamik yangilash:
-    if (u) {
-      profile.name = u.first_name + (u.last_name ? ' ' + u.last_name : '');
-      profile.username = u.username || '';
+
+    if (u && u.id) {
+      profile.name = u.first_name + (u.last_name ? " " + u.last_name : "");
+      profile.username = u.username || "";
       profile.id = u.id;
+      if (!view.code) renderHub();
     }
 
     var data = await request("/api/me?user_id=" + encodeURIComponent(uid));
@@ -1527,6 +1531,7 @@ var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
     /* Tarmoq xatosida */
   }
       }
+      
       
       
 
