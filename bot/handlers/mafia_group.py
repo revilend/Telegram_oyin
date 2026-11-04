@@ -479,22 +479,22 @@ async def announce_finish(bot: Bot, game: MafiaGame) -> None:
     caption = finish_text(game.room.winner)
     try:
         winner_ids = winning_player_ids(game.room)
-        get_economy().record_mafia_game(
+        rewarded = get_economy().record_mafia_game(
             game.code,
             game.room.players.keys(),
             winner_ids,
         )
-        record_game_history(
-            "mafia", game.code, game.room.players.keys(), winner_ids
-        )
-        for winner_id in winner_ids:
+        if rewarded:
+            record_game_history(
+                "mafia", game.code, game.room.players.keys(), winner_ids
+            )
+        for winner_id in (winner_ids if rewarded else []):
             try:
                 record_weekly_win(winner_id)
             except Exception:
                 logger.exception(
                     "Mafiya haftalik ballini yozib bo'lmadi: %s", winner_id
                 )
-        rewarded = bool(winner_ids)
         if rewarded:
             caption += (
                 f"\n\n🪙 G'oliblar: +{MAFIA_WIN_REWARD} tanga"
