@@ -95,6 +95,7 @@ class MafiaGame:
     lobby_message_id: int | None = None
     phase_deadline: float | None = None
     phase_duration: int = 60
+    last_activity_at: float = field(default_factory=time.time)
 
     def start_phase_timer(self, seconds: int = 60) -> None:
         """Joriy bosqich uchun 60 soniyalik taymerni boshlaydi."""
@@ -172,6 +173,7 @@ class MafiaLobbyManager:
             except MafiaError as exc:
                 raise MafiaGameError(str(exc)) from exc
             game.usernames[int(user_id)] = username or ""
+            game.last_activity_at = time.time()
             return player
 
     def start_game(self, code: str, host_id: int) -> MafiaGame:
@@ -187,7 +189,33 @@ class MafiaLobbyManager:
             except MafiaError as exc:
                 raise MafiaGameError(str(exc)) from exc
             game.start_phase_timer()
+            game.last_activity_at = time.time()
             return game
+
+    def touch(self, code: str) -> None:
+        """Xonadagi so'nggi harakat vaqtini yangilaydi."""
+        self.get_game(code).last_activity_at = time.time()
+
+    def expire_inactive(
+        self, *, now: float | None = None, lobby_seconds: int = 900,
+        active_seconds: int = 1800
+    ) -> list[str]:
+        """Tashlab ketilgan lobby va faol partiyalarni yopib, xotiradan oladi."""
+        current = time.time() if now is None else float(now)
+        removed: list[str] = []
+        with self._lock:
+            for code, game in list(self._games.items()):
+                age = current - game.last_activity_at
+                if game.room.phase is GamePhase.LOBBY and age >= lobby_seconds:
+                    game.clear_phase_timer()
+                elif game.room.phase is not GamePhase.FINISHED and age >= active_seconds:
+                    game.room.phase = GamePhase.FINISHED
+                    game.clear_phase_timer()
+                else:
+                    continue
+                self._games.pop(code, None)
+                removed.append(code)
+        return removed
 
     def _generate_code(self) -> str:
         for _ in range(1000):
