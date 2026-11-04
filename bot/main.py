@@ -13,6 +13,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, ErrorEvent
 
 from bot.config import get_config
+from bot.middlewares.uzbek_alphabet import UzbekAlphabetRequestMiddleware
 from bot.handlers import (
     admin,
     boosters,
@@ -107,6 +108,7 @@ async def main() -> None:
         token=config.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
+    bot.session.middleware(UzbekAlphabetRequestMiddleware())
     dispatcher = build_dispatcher()
 
     try:
