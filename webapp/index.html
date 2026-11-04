@@ -1422,7 +1422,7 @@ function profileAvatarHtml(sizeClass) {
 
 function profileCardHtml() {
   var u = getTgUser();
-  var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon";
+  var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Telegram orqali oching";
   var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram o'yinchi");
   return '<section class="profile-card fade">' +
     '<div class="profile-head">' + profileAvatarHtml("lg") +
@@ -1522,15 +1522,21 @@ function profileCardHtml() {
       async function loadAccount() {
   try {
     var u = getTgUser();
-    var uid = (u && u.id) || profile.id;
-
-    if (u && u.id) {
-      profile.name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "O'yinchi";
-      profile.username = u.username || "";
-      profile.id = u.id;
-      profile.photo = u.photo_url || "";
+    if (!u || !u.id) {
+      profile.name = "Telegram orqali oching";
+      profile.username = "";
+      profile.guest = true;
       if (!view.code) renderHub();
+      return;
     }
+
+    var uid = u.id;
+    profile.name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "O'yinchi";
+    profile.username = u.username || "";
+    profile.id = u.id;
+    profile.photo = u.photo_url || "";
+    profile.guest = false;
+    if (!view.code) renderHub();
 
     var data = await request("/api/me?user_id=" + encodeURIComponent(uid));
     if (!data || !data.user) return;
@@ -1783,7 +1789,7 @@ function profileCardHtml() {
         }
         return {
           id: id,
-          name: window.sessionStorage.getItem("rg_guest_name") || "",
+          name: "Telegram orqali oching",
           username: "",
           photo: "",
           balance: 0,
