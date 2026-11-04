@@ -1368,22 +1368,27 @@
       }
 
       function profileAvatarHtml(sizeClass) {
-        var cls = sizeClass || "";
-        if (profile.photo) {
-          return '<div class="avatar ' + cls + '"><img src="' + esc(profile.photo) +
-            '" alt="" referrerpolicy="no-referrer" /></div>';
-        }
-        return avatarHtml(profile.name || "Mehmon", profile.id, cls);
-      }
+  var cls = sizeClass || "";
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  var name = (u && u.first_name) || profile.name || "Mehmon";
+  var pid = (u && u.id) || profile.id;
+  if (profile.photo) {
+    return '<div class="avatar ' + cls + '"><img src="' + esc(profile.photo) + '" alt="" referrerpolicy="no-referrer" /></div>';
+  }
+  return avatarHtml(name, pid, cls);
+}
 
-      function profileCardHtml() {
-        var name = profile.name || "Mehmon";
-        var handle = profile.username ? "@" + profile.username : (profile.guest ? "Mehmon o'yinchi" : "Telegram o'yinchi");
-        return '<section class="profile-card fade">' +
-          '<div class="profile-head">' + profileAvatarHtml("lg") +
-            '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
-            '<div class="profile-handle">' + esc(handle) + '</div></div>' +
-          '</div>' +
+function profileCardHtml() {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon";
+  var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram o'yinchi");
+  return '<section class="profile-card fade">' +
+    '<div class="profile-head">' + profileAvatarHtml("lg") +
+    '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
+    '<div class="profile-handle">' + esc(handle) + '</div></div>' +
+    '</div>' +
           '<div class="wallet-row">' +
             '<div class="wallet-balance"><span>🪙</span><b>' + esc(profile.balance) + '</b> tanga</div>' +
             '<button class="coin-btn" data-act="shop">＋ Do‘kon</button>' +
@@ -1474,22 +1479,25 @@
       }
 
       async function loadAccount() {
-        try {
-          var data = await request("/api/me?user_id=" + encodeURIComponent(profile.id));
-          if (!data || !data.user) return;
-          profile.balance = Number(data.user.coins) || 0;
-          profile.games_played = Number(data.user.games_played) || 0;
-          profile.wins = Number(data.user.wins) || 0;
-          profile.bunker_wins = Number(data.user.bunker_wins) || 0;
-          profile.mafia_wins = Number(data.user.mafia_wins) || 0;
-          profile.level = 1 + Math.floor(profile.games_played / 5);
-          if (!view.shopOpen) view.shop = data.shop || view.shop;
-          if (!view.code) renderHub();
-          else if (view.room) renderRoom(true);
-        } catch (error) {
-          /* Mehmon rejimida yoki tarmoq xatosida eski qiymat qoladi. */
-        }
+  try {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var uid = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) || profile.id;
+    var data = await request("/api/me?user_id=" + encodeURIComponent(uid));
+    if (!data || !data.user) return;
+    profile.balance = Number(data.user.coins) || 0;
+    profile.games_played = Number(data.user.games_played) || 0;
+    profile.wins = Number(data.user.wins) || 0;
+    profile.bunker_wins = Number(data.user.bunker_wins) || 0;
+    profile.mafia_wins = Number(data.user.mafia_wins) || 0;
+    profile.level = 1 + Math.floor(profile.games_played / 5);
+    if (view.shopOpen) view.shop = data.shop || view.shop;
+    if (!view.code) renderHub();
+    else if (view.room) renderRoom(true);
+  } catch (error) {
+    /* Mehmon rejimida yoki tarmoq xatosida eski qiymat qoladi. */
+  }
       }
+      
 
       // ----------------------------------------------------------------
       // Kunlik bonus, missiyalar va reyting
