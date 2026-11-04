@@ -99,7 +99,7 @@ GAMES: list[dict[str, Any]] = [
         "status": "active",
         "players": "3–10",
         "description": "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob "
-        "orqali uni toping. Tez orada.",
+        "orqali uni toping.",
     },
 ]
 
