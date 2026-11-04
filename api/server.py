@@ -16,7 +16,7 @@ import asyncio
 import logging
 import os
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -54,7 +54,7 @@ from core.economy import (
 )
 from core.login_codes import verify_login_code
 from core.game_history import record_game_history, recent_user_games
-from core.leaderboard import record_weekly_win, weekly_top
+from core.leaderboard import record_weekly_win, weekly_stats, weekly_top
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -916,6 +916,13 @@ async def top_players(
         )
         if viewer is None:
             viewer = economy.get_user(viewer_id)
+        if weekly:
+            stats = weekly_stats(viewer_id)
+            viewer = replace(
+                viewer,
+                weekly_wins=stats["weekly_wins"],
+                weekly_score=stats["weekly_score"],
+            )
         me = leaderboard_row(
             viewer, account_rank(accounts, viewer, weekly=weekly),
             viewer_id, weekly=weekly
