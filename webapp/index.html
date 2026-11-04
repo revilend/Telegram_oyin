@@ -1202,6 +1202,43 @@
     }
     .profile-split b { color: var(--text); }
 
+    /* ---------- Vektor ikonkalar (iOS uslubi) ---------- */
+    .ui-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ui-ico {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1em; height: 1em; flex: 0 0 auto; vertical-align: -0.12em;
+      color: currentColor;
+    }
+    .ui-ico svg {
+      width: 100%; height: 100%; display: block;
+      fill: none; stroke: currentColor; stroke-width: 1.8;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .section-title h2 .ui-ico { margin-right: 6px; color: var(--accent-2); }
+    .game-icon .ui-ico { width: 30px; height: 30px; color: #c4b5fd; }
+    .m-emoji .ui-ico { width: 20px; height: 20px; color: var(--accent-2); }
+    .wallet-balance .ui-ico { width: 20px; height: 20px; color: var(--warning); }
+    .pstat span .ui-ico { width: 12px; height: 12px; margin-right: 3px; }
+    .profile-split .ui-ico { width: 13px; height: 13px; margin: 0 3px 0 2px; }
+    .bonus-head h2 .ui-ico, .bonus-card h2 .ui-ico { margin-right: 6px; color: var(--warning); }
+    .m-title .m-reward .ui-ico { width: 12px; height: 12px; margin-left: 2px; }
+    .btn .ui-ico { width: 16px; height: 16px; margin-right: 6px; }
+    .notice .ui-ico { width: 17px; height: 17px; margin-right: 6px; color: var(--accent-2); }
+    .auth-logo .ui-ico { width: 42px; height: 42px; color: var(--warning); }
+    .icon-btn .ui-ico { width: 18px; height: 18px; }
+    .shop-close .ui-ico { width: 18px; height: 18px; }
+    .lock-big .ui-ico { width: 26px; height: 26px; }
+    .chip .ui-ico { width: 12px; height: 12px; vertical-align: -2px; margin-right: 2px; }
+    .rank-badge {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: inline-grid; place-items: center;
+      font-size: 11px; font-weight: 800; color: #0a0f1f;
+      background: rgba(148, 163, 184, 0.35);
+    }
+    .rank-badge.rank-1 { background: #fbbf24; }
+    .rank-badge.rank-2 { background: #cbd5e1; }
+    .rank-badge.rank-3 { background: #d97706; color: #fff; }
+
     @media (max-width: 390px) {
       .status-pill { display: none; }
       .room-code { font-size: 15px; }
@@ -1219,6 +1256,51 @@
   </style>
 </head>
 <body>
+  <svg class="ui-sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="M4 17.5 5.5 8l4 3.2L12 5l2.5 6.2 4-3.2L20 17.5z"/><path d="M4.5 20h15"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9 9h6M9 15h6"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5v2a3 3 0 0 0 3 3M16 6h3v2a3 3 0 0 1-3 3M12 13v4M8 20h8M9 17h6"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5a5 5 0 0 1 5 4.5"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1.7 3.8.4 5.4 2.5 7 1.5 1.2 2.5 2.5 2.5 4.4a5 5 0 0 1-10 0c0-1.8.8-3 2-4 1.4 1 2 1.8 2 3 1.1-1.3.9-3.2-.5-5.2C9.8 7 9.7 5 12 3z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-gamepad" viewBox="0 0 24 24"><rect x="3" y="7.5" width="18" height="11" rx="4"/><path d="M8 10.5v4M6 12.5h4M16 11h.01M18 13.5h.01"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01"/></symbol>
+    <symbol id="i-hat" viewBox="0 0 24 24"><path d="M3 14h18l-2-5H5z"/><path d="M6 14v5h12v-5M9 9V7h6v2"/></symbol>
+    <symbol id="i-glasses" viewBox="0 0 24 24"><circle cx="7" cy="12" r="2.6"/><circle cx="17" cy="12" r="2.6"/><path d="M9.6 12h4.8M4 10.5 2.5 9M20 10.5 21.5 9"/></symbol>
+    <symbol id="i-radiation" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.8"/><path d="M12 10.2V4a8 8 0 0 1 4.6 1.5l-3 5.2M13.5 13l3 5.2A8 8 0 0 1 12 20M10.5 13l-3 5.2A8 8 0 0 1 4 12h6"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M5 12v7h14v-7"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><path d="M4 10h16v10H4zM3 7h18v3H3zM12 7v13"/><path d="M12 7C10.5 3.5 8 4 8 5.5S10 7 12 7zM12 7c1.5-3.5 4-3 4-1.5S14 7 12 7z"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 8a2 2 0 0 0 2-2h12a2 2 0 0 0 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0-2 2H6a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-4z"/><path d="M14 7v2M14 11v2M14 15v2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6M20 16V6"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5zM4 5.5v16"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h9"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m3 11 18-8-8 18-2-8z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M20 12H4M10 6l-6 6 6 6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+    <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M7 3h10M7 21h10M8 3v3l4 4 4-4V3M8 21v-3l4-4 4 4v3"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M4 10h16M8 15h4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 14l.6 1.7L7.3 16l-1.7.6L5 18.3l-.6-1.7L2.7 16l1.7-.3z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-ballot" viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h5M8 16h3"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6.1 8.5A7 7 0 0 1 20 12M4 12a7 7 0 0 0 13.9 3.5"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+    <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="12" rx="3"/><path d="M8 7V5h8v2M3 12h18M10 12v2h4v-2"/></symbol>
+    <symbol id="i-dna" viewBox="0 0 24 24"><path d="M7 3c0 6 10 6 10 12M17 3c0 6-10 6-10 12M7 21c0-1 .2-1.8.6-2.6M17 21c0-1-.2-1.8-.6-2.6M8 6h8M8 18h8"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.6-7 9-7 9z"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.5h10.6L20 7H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol>
+  </svg>
   <div id="app"></div>
   <div id="toast"></div>
 
@@ -1230,13 +1312,13 @@
       var BOT_LOGIN_URL = "https://t.me/revilend_gamesbot?start=login";
       var CARD_ORDER = ["profession", "biology", "health", "hobby", "luggage", "fact", "special"];
       var CARD_META = {
-        profession: { label: "Kasb", emoji: "🧑‍🔧" },
-        biology: { label: "Biologiya", emoji: "🧬" },
-        health: { label: "Salomatlik", emoji: "❤️" },
-        hobby: { label: "Xobbi", emoji: "🎯" },
-        luggage: { label: "Yuk", emoji: "🎒" },
-        fact: { label: "Fakt", emoji: "📜" },
-        special: { label: "Maxsus", emoji: "⭐" }
+        profession: { label: "Kasb", icon: "briefcase" },
+        biology: { label: "Biologiya", icon: "dna" },
+        health: { label: "Salomatlik", icon: "heart" },
+        hobby: { label: "Xobbi", icon: "target" },
+        luggage: { label: "Yuk", icon: "bag" },
+        fact: { label: "Fakt", icon: "book" },
+        special: { label: "Maxsus", icon: "star" }
       };
       var STATUS_LABELS = {
         LOBBY: "Kutilmoqda",
@@ -1253,15 +1335,15 @@
       };
       var GAMES = [
         {
-          slug: "bunker", name: "Bunker", emoji: "☢️", status: "active", players: "2–12",
+          slug: "bunker", name: "Bunker", icon: "radiation", status: "active", players: "2–12",
           description: "Falokatdan keyin omon qolish uchun kartalaringizni oching, bahslashing va bunkerga kim tushishini hal qiling."
         },
         {
-          slug: "mafia", name: "Mafiya", emoji: "🕵️", status: "active", players: "4–20",
+          slug: "mafia", name: "Mafiya", icon: "hat", status: "active", players: "4–20",
           description: "Kechki shaharda mafiya va tinch aholi o'rtasidagi kurash. Guruhda /mafia bilan boshlang."
         },
         {
-          slug: "spyfall", name: "Josus", emoji: "🕶️", status: "active", players: "3–12",
+          slug: "spyfall", name: "Josus", icon: "glasses", status: "active", players: "3–12",
           description: "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob orqali uni toping."
         }
       ];
@@ -1269,17 +1351,17 @@
       var app = document.getElementById("app");
       var toastEl = document.getElementById("toast");
       var params = new URLSearchParams(window.location.search);
+      var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
+        params.get("startapp") || params.get("tgWebAppStartParam") || "";
       var initialCode = normalizeCode(params.get("room") || "");
-      var initialMafiaCode = mafiaStartCode(
-        (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
-        params.get("mafia") || params.get("startapp") || params.get("tgWebAppStartParam") || ""
-      );
-      var initialSpyCode = spyStartCode(
-        (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
-        params.get("spy") || params.get("room") || params.get("startapp") ||
-        params.get("tgWebAppStartParam") || ""
-      );
+      var initialMafiaCode = mafiaStartCode(startParam || params.get("mafia") || "");
+      var initialSpyCode = spyStartCode(startParam || params.get("spy") || params.get("room") || "");
       if (initialSpyCode) initialCode = "";
+      // Bunker guruh tugmasi ?startapp=BNK123 ko'rinishida keladi. Avval bu
+      // kod hisobga olinmasdi va Mini App portalda ochilib qolardi.
+      if (!initialCode && !initialMafiaCode && !initialSpyCode) {
+        initialCode = normalizeCode(startParam);
+      }
 
       // Kalitlar loadProfile()dan oldin aniqlanishi kerak: aks holda
       // localStorage'dagi profil o'qilmay, login sahifasi ochilib qoladi.
@@ -1352,6 +1434,26 @@
         });
       }
 
+      function icon(name, cls) {
+        return '<span class="ui-ico ' + (cls || "") + '"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-' + esc(name) + '"></use></svg></span>';
+      }
+
+      function rankHtml(rank) {
+        var value = Number(rank) || 0;
+        if (value >= 1 && value <= 3) {
+          return '<span class="rank-badge rank-' + value + '">' + value + '</span>';
+        }
+        return '<span class="top-rank">' + value + '</span>';
+      }
+
+      var MISSION_ICONS = {
+        first_game: "dice",
+        first_win: "trophy",
+        friend_1: "users",
+        bonus_3: "flame",
+        games_5: "shield"
+      };
+
       function normalizeCode(value) {
         return String(value || "").trim().toUpperCase();
       }
@@ -1376,7 +1478,7 @@
       }
 
       function cardMeta(type) {
-        return CARD_META[type] || { label: String(type || ""), emoji: "🃏" };
+        return CARD_META[type] || { label: String(type || ""), icon: "card" };
       }
 
       function money(value) {
@@ -1647,24 +1749,24 @@ function profileCardHtml() {
   var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon o'yinchi";
   var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram o'yinchi");
   return '<section class="profile-card fade">' +
-    '<button class="profile-logout" data-act="logout" aria-label="Chiqish">🚪 Chiqish</button>' +
+    '<button class="profile-logout" data-act="logout" aria-label="Chiqish">' + icon("logout") + ' Chiqish</button>' +
     '<div class="profile-head">' + profileAvatarHtml("lg") +
     '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
     '<div class="profile-handle">' + esc(handle) + '</div></div>' +
     '</div>' +
     
           '<div class="wallet-row">' +
-            '<div class="wallet-balance"><span>🪙</span><b>' + esc(profile.balance) + '</b> tanga</div>' +
-            '<button class="coin-btn" data-act="shop">＋ Do‘kon</button>' +
+            '<div class="wallet-balance"><span>' + icon("coin") + '</span><b>' + esc(profile.balance) + '</b> tanga</div>' +
+            '<button class="coin-btn" data-act="shop">' + icon("plus") + ' Do‘kon</button>' +
           '</div>' +
           '<div class="profile-stats">' +
-            '<div class="pstat"><span>⭐ Daraja</span><b>Level ' + esc(profile.level) + '</b></div>' +
-            '<div class="pstat"><span>🎮 O‘yinlar</span><b>' + esc(profile.games_played || 0) + '</b></div>' +
+            '<div class="pstat"><span>' + icon("star") + ' Daraja</span><b>Level ' + esc(profile.level) + '</b></div>' +
+            '<div class="pstat"><span>' + icon("gamepad") + ' O‘yinlar</span><b>' + esc(profile.games_played || 0) + '</b></div>' +
           '</div>' +
-          '<div class="profile-split">🛡️ Bunker: <b>' + esc(profile.bunker_wins || 0) +
-            '</b> g\'alaba | 🕵️ Mafiya: <b>' + esc(profile.mafia_wins || 0) + '</b> g\'alaba</div>' +
+          '<div class="profile-split">' + icon("shield") + ' Bunker: <b>' + esc(profile.bunker_wins || 0) +
+            '</b> g\'alaba | ' + icon("hat") + ' Mafiya: <b>' + esc(profile.mafia_wins || 0) + '</b> g\'alaba</div>' +
           '<div class="xp-row"><div class="xp-bar"><i></i></div><span class="xp-text">0 / 100 XP</span></div>' +
-          '<button class="btn invite" data-act="invite">📤 Do\'stlarni taklif qilish</button>' +
+          '<button class="btn invite" data-act="invite">' + icon("share") + ' Do\'stlarni taklif qilish</button>' +
         '</section>';
       }
 
@@ -1694,12 +1796,12 @@ function profileCardHtml() {
           if (Number(pack.coins) === Number(view.shopPackage)) selected = pack;
         });
         var body = '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Tangalar do‘koni">' +
-          '<div class="shop-head"><div><h2>🪙 Tangalar do‘koni</h2>' +
+          '<div class="shop-head"><div><h2>' + icon("coin") + ' Tangalar do‘koni</h2>' +
             '<p class="shop-lede">Balans: <b>' + esc(profile.balance) + ' tanga</b>. Paketni tanlab, botda chek yuboring.</p></div>' +
-            '<button class="shop-close" data-act="shop-close" aria-label="Yopish">✕</button></div>';
+            '<button class="shop-close" data-act="shop-close" aria-label="Yopish">' + icon("close") + '</button></div>';
 
         if (view.shopLoading) {
-          body += '<div class="notice">⏳ Paketlar yuklanmoqda…</div>';
+          body += '<div class="notice">' + icon("hourglass") + ' Paketlar yuklanmoqda…</div>';
         } else {
           body += '<div class="shop-packages">' + packages.map(function (pack) {
             var isSelected = selected && Number(selected.coins) === Number(pack.coins);
@@ -1709,7 +1811,7 @@ function profileCardHtml() {
           }).join("") + '</div>';
 
           if (selected) {
-            body += '<div class="shop-card"><b>💳 To‘lov uchun karta</b><br>' +
+            body += '<div class="shop-card"><b>' + icon("card") + ' To‘lov uchun karta</b><br>' +
               '<code>' + esc(shop.card_number || "Karta kiritilmagan") + '</code>' +
               '<br>' + esc(shop.card_holder || "Karta egasi kiritilmagan") +
               '<br>Summa: <b>' + esc(money(selected.price)) + ' so‘m</b>' +
@@ -1800,17 +1902,17 @@ function profileCardHtml() {
         var streak = Math.max(1, Number(bonus.streak) || 1);
         var next = Number(bonus.next_amount) || BONUS_TABLE[Math.min(streak, 7) - 1];
         var action = bonus.available
-          ? '<button class="btn primary block" data-act="claim-bonus">🎁 ' + esc(money(bonus.amount)) + ' tanga olish</button>' +
+          ? '<button class="btn primary block" data-act="claim-bonus">' + icon("gift") + ' ' + esc(money(bonus.amount)) + ' tanga olish</button>' +
             '<p class="muted tiny" style="margin-top:8px">Ertaga sizni +' + esc(money(next)) + ' tanga kutmoqda!</p>'
-          : '<div class="notice tiny" style="margin-top:0">⏳ Keyingi bonus ' + esc(waitText(bonus.seconds_left)) + ' · +' + esc(money(next)) + ' tanga</div>';
+          : '<div class="notice tiny" style="margin-top:0">' + icon("hourglass") + ' Keyingi bonus ' + esc(waitText(bonus.seconds_left)) + ' · +' + esc(money(next)) + ' tanga</div>';
         var days = BONUS_TABLE.map(function (amount, index) {
           var day = index + 1;
           return '<span class="bonus-day' + (day === streak ? " now" : "") + '">' +
             day + '-kun +' + esc(money(amount)) + '</span>';
         }).join("");
         return '<section class="panel bonus-card fade">' +
-          '<div class="bonus-head"><div><h2>🎁 Kunlik bonus</h2>' +
-            '<p class="muted tiny">🔥 Hozirgi seriya: ' + esc(streak) + '-kun · har 24 soatda bir marta.</p></div>' +
+          '<div class="bonus-head"><div><h2>' + icon("gift") + ' Kunlik bonus</h2>' +
+            '<p class="muted tiny">' + icon("flame") + ' Hozirgi seriya: ' + esc(streak) + '-kun · har 24 soatda bir marta.</p></div>' +
             '<span class="badge ' + (bonus.available ? "live" : "soon") + '">' +
               (bonus.available ? "+" + esc(money(bonus.amount)) : "24 SOAT") + '</span></div>' +
           '<div class="bonus-days">' + days + '</div>' +
@@ -1823,22 +1925,22 @@ function profileCardHtml() {
         if (!missions.length) return "";
         var done = missions.filter(function (item) { return item.claimed; }).length;
         var ready = missions.filter(function (item) { return item.claimable; }).length;
-        return '<section class="fade"><div class="section-title"><h2>🎯 Missiyalar</h2>' +
+        return '<section class="fade"><div class="section-title"><h2>' + icon("target") + ' Missiyalar</h2>' +
           '<span>' + (ready ? ready + " ta mukofot tayyor" : done + "/" + missions.length + " bajarildi") + '</span></div>' +
           '<div class="mission-list">' + missions.map(function (mission) {
             var action;
             if (mission.claimed) {
-              action = '<span class="badge live">✓ OLINDI</span>';
+              action = '<span class="badge live">' + icon("check") + ' OLINDI</span>';
             } else if (mission.claimable) {
               action = '<button class="btn small" data-act="claim-mission" data-mission="' +
-                esc(mission.key) + '">+' + esc(money(mission.reward)) + ' 🪙</button>';
+                esc(mission.key) + '">+' + esc(money(mission.reward)) + ' ' + icon("coin") + '</button>';
             } else {
               action = '<span class="m-progress">' + esc(mission.progress) + '/' + esc(mission.target) + '</span>';
             }
             return '<div class="mission' + (mission.claimable ? " ready" : "") + '">' +
-              '<div class="m-emoji">' + esc(mission.emoji) + '</div>' +
+              '<div class="m-emoji">' + icon(MISSION_ICONS[mission.key] || "target") + '</div>' +
               '<div class="m-body"><div class="m-title">' + esc(mission.title) +
-                '<span class="m-reward">+' + esc(money(mission.reward)) + ' 🪙</span></div>' +
+                '<span class="m-reward">+' + esc(money(mission.reward)) + ' ' + icon("coin") + '</span></div>' +
                 '<div class="m-desc">' + esc(mission.description) + '</div>' +
                 '<div class="m-bar"><i style="width:' + Math.max(4, Number(mission.percent) || 0) + '%"></i></div></div>' +
               action +
@@ -1851,21 +1953,20 @@ function profileCardHtml() {
         var top = activity.top || [];
         if (!top.length) return "";
         var rows = top.map(function (player) {
-          var place = player.rank === 1 ? "🥇" : player.rank === 2 ? "🥈" : player.rank === 3 ? "🥉" : String(player.rank);
           return '<div class="top-row' + (player.is_me ? " me" : "") + '">' +
-            '<span class="top-rank">' + place + '</span>' +
+            rankHtml(player.rank) +
             avatarHtml(player.name, player.user_id, "sm") +
             '<span class="t-name">' + esc(player.name) + '</span>' +
-            '<span class="t-rating">' + esc(money(player.rating)) + ' · ' + esc(player.wins) + ' 🏆</span></div>';
+            '<span class="t-rating">' + esc(money(player.rating)) + ' · ' + esc(player.wins) + ' ' + icon("trophy") + '</span></div>';
         }).join("");
         var me = activity.me;
         if (me && Number(me.rank) > top.length) {
-          rows += '<div class="top-row me"><span class="top-rank">' + esc(me.rank) + '</span>' +
+          rows += '<div class="top-row me">' + rankHtml(me.rank) +
             avatarHtml(me.name, me.user_id, "sm") +
             '<span class="t-name">' + esc(me.name) + ' (siz)</span>' +
-            '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' 🏆</span></div>';
+            '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' ' + icon("trophy") + '</span></div>';
         }
-        return '<section class="fade"><div class="section-title"><h2>🏆 Reyting</h2>' +
+        return '<section class="fade"><div class="section-title"><h2>' + icon("trophy") + ' Reyting</h2>' +
           '<span>top ' + top.length + '</span></div><div class="top-list">' + rows + '</div></section>';
       }
 
@@ -1905,7 +2006,7 @@ function profileCardHtml() {
           });
           if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
           haptic("success");
-          toast("🎁 +" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
+          toast("+" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
           await loadActivity(true);
         } catch (error) {
           toast(error.message || "Bonusni olib bo‘lmadi", "error");
@@ -1925,7 +2026,7 @@ function profileCardHtml() {
           });
           if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
           haptic("success");
-          toast("✅ Missiya mukofoti olindi!");
+          toast("Missiya mukofoti olindi!");
           await loadActivity(true);
         } catch (error) {
           toast(error.message || "Mukofotni olib bo‘lmadi", "error");
@@ -1952,7 +2053,7 @@ function profileCardHtml() {
           if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
           if (input) input.value = "";
           haptic("success");
-          toast("🎟 +" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
+          toast("+" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
           await loadActivity(true);
         } catch (error) {
           toast(error.message || "Kod qabul qilinmadi", "error");
@@ -2060,15 +2161,15 @@ function profileCardHtml() {
         if (message) view.loginError = String(message);
         app.innerHTML =
           '<section class="auth-screen fade">' +
-            '<div class="auth-logo" aria-hidden="true">👑</div>' +
+            '<div class="auth-logo" aria-hidden="true">' + icon("crown") + '</div>' +
             '<p class="eyebrow">REVILEND GAMES</p>' +
             '<h1>Revilend Games</h1>' +
             '<p class="auth-lede">O‘yinlarni boshlash va tangalaringizni boshqarish uchun profilingizga kiring.</p>' +
-            '<button class="btn primary block auth-main" data-act="login-telegram">🚀 Telegram Bot orqali kirish</button>' +
+            '<button class="btn primary block auth-main" data-act="login-telegram">' + icon("send") + ' Telegram Bot orqali kirish</button>' +
             '<div class="auth-divider"><span>yoki</span></div>' +
             '<form id="login-form" class="auth-form" autocomplete="off">' +
               '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Bot bergan 6 xonali kirish kodini (yoki Telegram ID’ingizni) kiriting" aria-label="Kirish kodi yoki Telegram ID" />' +
-              '<button type="submit" class="btn block" id="login-submit">🔐 Kirish</button>' +
+              '<button type="submit" class="btn block" id="login-submit">' + icon("lock") + ' Kirish</button>' +
             '</form>' +
             '<p class="auth-error" id="login-error" role="alert">' + esc(view.loginError || "") + '</p>' +
             '<p class="muted tiny auth-note">Kodni botda /start yoki /login buyrug‘i bilan oling. Kod 10 daqiqa amal qiladi va bir marta ishlatiladi.</p>' +
@@ -2132,7 +2233,7 @@ function profileCardHtml() {
         var submit = document.getElementById("login-submit");
         if (submit) {
           submit.disabled = true;
-          submit.textContent = "⏳ Tekshirilmoqda…";
+          submit.innerHTML = icon("hourglass") + " Tekshirilmoqda…";
         }
         setLoginError("");
         try {
@@ -2163,7 +2264,7 @@ function profileCardHtml() {
           var again = document.getElementById("login-submit");
           if (again) {
             again.disabled = false;
-            again.textContent = "🔐 Kirish";
+            again.innerHTML = icon("lock") + " Kirish";
           }
         }
       }
@@ -2369,7 +2470,7 @@ function profileCardHtml() {
       function mafiaTeamHtml(teammates) {
         if (!teammates || !teammates.length) return "";
         return '<section class="mafia-team">' +
-          '<h2>🔴 Mafiya aloqasi</h2>' +
+          '<h2>' + icon("users") + ' Mafiya aloqasi</h2>' +
           teammates.map(function (mate) {
             return '<div class="mafia-team-row' + (mate.is_alive ? "" : " dead") + '">' +
               '<span class="mafia-team-dot"></span>' +
@@ -2383,12 +2484,12 @@ function profileCardHtml() {
         var statusText;
         if (booster.active) statusText = "Faol";
         else if (booster.used) statusText = "Ishlatilgan";
-        else if (booster.available) statusText = esc(booster.price) + " 🪙";
+        else if (booster.available) statusText = esc(booster.price) + " " + icon("coin");
         else statusText = booster.reason || "Mavjud emas";
         var disabled = !booster.available || view.boosterBusy;
         return '<button class="mafia-booster" data-act="mafia-booster" data-booster="' +
           esc(booster.key) + '"' + (disabled ? " disabled" : "") + '>' +
-          '<span class="mb-icon">' + esc(booster.emoji) + '</span>' +
+          '<span class="mb-icon">' + icon("bolt") + '</span>' +
           '<span class="mb-body"><b>' + esc(booster.name) + '</b><small>' +
             esc(booster.description) + '</small></span>' +
           '<span class="mb-price">' + statusText + '</span></button>';
@@ -2429,7 +2530,7 @@ function profileCardHtml() {
         if (me.phase !== "NIGHT" || !me.is_alive) return "";
         var actions = state.night_actions || [];
         if (!actions.length) {
-          return '<section class="panel"><h2>🌙 Tun</h2><p class="muted tiny">Sizning rolingizda bu tunda maxsus harakat yo‘q.</p></section>';
+          return '<section class="panel"><h2>' + icon("moon") + ' Tun</h2><p class="muted tiny">Sizning rolingizda bu tunda maxsus harakat yo‘q.</p></section>';
         }
         var selectedKind = view.mafiaActionKind || actions[0].key;
         var selectedAction = actions.find(function (item) { return item.key === selectedKind; }) || actions[0];
@@ -2456,7 +2557,7 @@ function profileCardHtml() {
               }).join("") + '</select>'
           : '<p class="muted tiny">' + (needsDead ? 'Tanlash uchun halok bo‘lgan o‘yinchi yo‘q.' : 'Tanlash uchun tirik nishon yo‘q.') + '</p>';
         return '<section class="panel">' +
-          '<h2>🌙 Tungi harakat</h2>' +
+          '<h2>' + icon("moon") + ' Tungi harakat</h2>' +
           (state.has_submitted_night_action ? '<p class="muted tiny">Harakatingiz yuborilgan. Tun tugamaguncha qayta tanlashingiz mumkin.</p>' : '') +
           actionSelect + targetSelect +
           '<button class="btn primary block" data-act="mafia-night-submit"' + (!targets.length || view.mafiaActionBusy ? ' disabled' : '') + '>Harakatni yuborish</button>' +
@@ -2467,11 +2568,11 @@ function profileCardHtml() {
         var state = view.mafiaState || {};
         if (me.phase === "DAY_REPORT") {
           var report = state.private_result
-            ? '<div class="notice">🔎 Sherif tekshiruvi: ' + esc(state.private_result) + '</div>'
+            ? '<div class="notice">' + icon("eye") + ' Sherif tekshiruvi: ' + esc(state.private_result) + '</div>'
             : '';
-          return '<section class="panel"><h2>🌅 Tonggi muhokama</h2>' + report +
+          return '<section class="panel"><h2>' + icon("sun") + ' Tonggi muhokama</h2>' + report +
             (me.is_host
-              ? '<button class="btn primary block" data-act="mafia-begin-voting">🗳 Ovoz berishni boshlash</button>'
+              ? '<button class="btn primary block" data-act="mafia-begin-voting">' + icon("ballot") + ' Ovoz berishni boshlash</button>'
               : '<p class="muted tiny">Xona egasi ovoz berishni boshlashini kuting.</p>') +
             '</section>';
         }
@@ -2505,7 +2606,7 @@ function profileCardHtml() {
                 '>' + esc(player.name) + '</option>';
             }).join("") + '</select>'
           : '';
-        return '<section class="panel"><h2>🗳 Kunduzgi ovoz</h2>' + voteHtml +
+        return '<section class="panel"><h2>' + icon("ballot") + ' Kunduzgi ovoz</h2>' + voteHtml +
           (state.can_tally
             ? kamikazeSelect + '<button class="btn block" data-act="mafia-tally"' + (view.mafiaActionBusy ? ' disabled' : '') + '>Ovozlarni sanash</button>'
             : '<p class="muted tiny">Ovozlarni xona egasi sanaydi.</p>') +
@@ -2540,9 +2641,9 @@ function profileCardHtml() {
 
       function renderMafia() {
         var top = '<div class="topbar">' +
-          '<button class="icon-btn" data-act="home" aria-label="Orqaga">←</button>' +
+          '<button class="icon-btn" data-act="home" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
           '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span>' +
-          '<span class="status-pill">🕵️ Mafiya</span></div></div>';
+          '<span class="status-pill">' + icon("hat") + ' Mafiya</span></div></div>';
 
         if (view.mafiaLoading) {
           stopMafiaClock();
@@ -2553,7 +2654,7 @@ function profileCardHtml() {
         if (view.mafiaError) {
           stopMafiaClock();
           app.innerHTML = top +
-            '<div class="state-screen fade"><div class="emoji">🎭</div>' +
+            '<div class="state-screen fade"><div class="emoji">' + icon("hat") + '</div>' +
             '<h2>Karta topilmadi</h2>' +
             '<p>' + esc(view.mafiaError.message || "Xona yoki o'yinchi topilmadi.") + '</p>' +
             '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button></div>';
@@ -2583,8 +2684,8 @@ function profileCardHtml() {
               '</svg><span data-mafia-time>' + esc(formatSeconds(Number(me.phase_seconds_left) || 0)) + '</span></div>'
           : '';
         var shopHtml = (me.boosters && me.boosters.length)
-          ? '<section class="mafia-shop"><div class="mafia-shop-head"><h2>🛒 Mafiya boosterlari</h2><span>' +
-              esc(me.coins || 0) + ' 🪙</span></div>' +
+          ? '<section class="mafia-shop"><div class="mafia-shop-head"><h2>' + icon("cart") + ' Mafiya boosterlari</h2><span>' +
+              esc(me.coins || 0) + ' ' + icon("coin") + '</span></div>' +
               me.boosters.map(mafiaBoosterHtml).join("") + '</section>'
           : '';
 
@@ -2604,13 +2705,13 @@ function profileCardHtml() {
               '</div>' +
             '</div>' +
             (hasRole && !opened
-              ? '<button class="btn primary block" data-act="flip-mafia">🃏 Kartani ochish</button>'
+              ? '<button class="btn primary block" data-act="flip-mafia">' + icon("card") + ' Kartani ochish</button>'
               : '') +
             (hasRole
               ? '<section class="mafia-reveal fade" data-reveal' + (opened ? '' : ' hidden') + '>' +
                   '<p class="mafia-role">' + esc(me.role_name) + '</p>' +
                   '<div class="mafia-tags"><span>' + esc(faction) + '</span><span>' +
-                    (me.has_night_action ? "🌙 Tungi harakat" : "☀️ Kunduzi faol") + '</span></div>' +
+                    (me.has_night_action ? icon("moon") + " Tungi harakat" : icon("sun") + " Kunduzi faol") + '</span></div>' +
                   '<p class="muted tiny">' + esc(me.description) + '</p>' +
                 '</section>'
               : '') +
@@ -2846,7 +2947,7 @@ function profileCardHtml() {
         var opened = Boolean(view.spyOpen) || finished;
         var front;
         if (me.is_spy && !finished) {
-          front = '<span class="spy-emoji">\ud83d\udd75\ufe0f</span>' +
+          front = '<span class="spy-emoji">' + icon("glasses") + '</span>' +
             '<span class="spy-place">SIZ JOSUSSIZ!</span>' +
             '<span class="spy-role">Joyni topishga harakat qiling</span>' +
             '<span class="spy-note">' + esc(me.spy_warning || "Savollarga ehtiyotkorlik bilan javob bering.") + '</span>';
@@ -2862,7 +2963,7 @@ function profileCardHtml() {
         }
         var teammates = "";
         if (me.is_spy && me.teammates && me.teammates.length) {
-          teammates = '<div class="notice tiny">\ud83d\udd75\ufe0f Ikkinchi josus: ' +
+          teammates = '<div class="notice tiny">' + icon("glasses") + ' Ikkinchi josus: ' +
             me.teammates.map(function (mate) { return esc(mate.name); }).join(", ") + '</div>';
         }
         return '<div class="tarot-scene"><div class="tarot-card' + (opened ? " flipped" : "") + '">' +
@@ -2871,7 +2972,7 @@ function profileCardHtml() {
           '</div></div>' +
           (opened
             ? ''
-            : '<button class="btn primary block" data-act="spy-flip">\ud83c\udccf Kartani ochish</button>') +
+            : '<button class="btn primary block" data-act="spy-flip">' + icon("card") + ' Kartani ochish</button>') +
           teammates;
       }
 
@@ -2902,16 +3003,16 @@ function profileCardHtml() {
         if (canGuess) {
           var excluded = ((me && me.hint_exclusions) || []).length;
           hint = '<div class="spy-hint-row"><span class="muted tiny">' +
-              (excluded ? "\ud83d\udce1 Radar: " + excluded + " ta noto'g'ri joy o'chirildi" : "Lokatsiyani tanlab, taxmin qiling") +
+              (excluded ? icon("eye") + " Radar: " + excluded + " ta noto'g'ri joy o'chirildi" : "Lokatsiyani tanlab, taxmin qiling") +
             '</span></div>' +
             '<button class="btn primary block" data-act="spy-guess"' +
               (view.spyGuessKey == null || view.spyActionBusy ? " disabled" : "") +
-              '>\ud83c\udfaf Men joyni topdim!</button>';
+              '>' + icon("target") + ' Men joyni topdim!</button>';
         } else if (state.status !== "FINISHED") {
           hint = '<p class="muted tiny" style="margin-top:8px">Shubhadan chiqarilgan joyni belgilash uchun bosing.</p>';
         }
 
-        return '<section class="panel"><h2>\ud83d\uddfa\ufe0f Lokatsiyalar (' + locations.length + ')</h2>' +
+        return '<section class="panel"><h2>' + icon("map-pin") + ' Lokatsiyalar (' + locations.length + ')</h2>' +
           '<div class="spy-locations">' + rows + '</div>' + hint + '</section>';
       }
 
@@ -2952,15 +3053,15 @@ function profileCardHtml() {
         } else if (me && me.has_voted && voting) {
           controls = '<div class="notice tiny" style="margin-top:10px">Ovozingiz qabul qilindi. Boshqalarni kuting.</div>';
         }
-        return '<section class="panel"><h2>\ud83d\udc65 O\'yinchilar (' + players.length + '/' + (state.max_players || 12) + ')</h2>' +
+        return '<section class="panel"><h2>' + icon("users") + ' O\'yinchilar (' + players.length + '/' + (state.max_players || 12) + ')</h2>' +
           '<div class="players">' + rows + '</div>' + controls + '</section>';
       }
 
       function renderSpy() {
         var top = '<div class="topbar">' +
-          '<button class="icon-btn" data-act="home" aria-label="Orqaga">\u2190</button>' +
+          '<button class="icon-btn" data-act="home" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
           '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span>' +
-          '<span class="status-pill">\ud83d\udd0d Josus</span></div></div>';
+          '<span class="status-pill">' + icon("glasses") + ' Josus</span></div></div>';
 
         if (view.spyLoading) {
           stopSpyClock();
@@ -2971,11 +3072,11 @@ function profileCardHtml() {
         if (view.spyError) {
           stopSpyClock();
           app.innerHTML = top +
-            '<div class="state-screen fade"><div class="emoji">\ud83d\udd75\ufe0f</div>' +
+            '<div class="state-screen fade"><div class="emoji">' + icon("glasses") + '</div>' +
             '<h2>Xona ochilmadi</h2>' +
             '<p>' + esc(view.spyError.message || "Xona yoki o'yinchi topilmadi.") + '</p>' +
             '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button>' +
-            '<button class="btn" data-act="spy-create" style="margin-top:8px">\uff0b Yangi Josus xonasi</button></div>';
+            '<button class="btn" data-act="spy-create" style="margin-top:8px">' + icon("plus") + ' Yangi Josus xonasi</button></div>';
           return;
         }
 
@@ -2990,7 +3091,7 @@ function profileCardHtml() {
 
         var hero = '<section class="spy-hero">' +
           '<p class="mafia-kicker">Revilend Games \u00b7 Spyfall</p>' +
-          '<h1>' + (status === "LOBBY" ? "\ud83d\udd75\ufe0f Josus yig\u2018ilmoqda" : (status === "FINISHED" ? "O\u2018yin yakunlandi" : "\ud83d\udd75\ufe0f Josus kim?")) + '</h1>' +
+          '<h1>' + (status === "LOBBY" ? icon("glasses") + " Josus yig‘ilmoqda" : (status === "FINISHED" ? "O‘yin yakunlandi" : icon("glasses") + " Josus kim?")) + '</h1>' +
           '<p>' + (status === "LOBBY"
             ? "Xona kodini do\u2018stlaringizga yuboring. Kamida 3 kishi kerak."
             : "Joyni sir saqlang, savol-javob qiling va josusni toping.") + '</p></section>';
@@ -3025,31 +3126,31 @@ function profileCardHtml() {
           var used = ((me.hint_exclusions) || []).length > 0;
           var price = Number(me.hint_price) || 20;
           var affordable = Number(profile.balance) >= price;
-          booster = '<section class="mafia-shop"><div class="mafia-shop-head"><h2>\ud83c\udf9f\ufe0f Josus radari</h2><span>' +
-              esc(profile.balance) + ' \ud83e\ude99</span></div>' +
+          booster = '<section class="mafia-shop"><div class="mafia-shop-head"><h2>' + icon("eye") + ' Josus radari</h2><span>' +
+              esc(profile.balance) + ' ' + icon("coin") + '</span></div>' +
             '<button class="mafia-booster" data-act="spy-hint"' + (used || !affordable || view.spyActionBusy ? " disabled" : "") + '>' +
-              '<span class="mb-icon">\ud83d\udce1</span>' +
+              '<span class="mb-icon">' + icon("eye") + '</span>' +
               '<span class="mb-body"><b>Maslahat: 3 ta noto\u2018g\u2018ri joyni o\u2018chirish</b>' +
                 '<small>' + (used ? "Radar allaqachon ishlatilgan" : (affordable ? "20 tanga evaziga 3 ta noto\u2018g\u2018ri lokatsiya o\u2018chiriladi" : "Tangalar yetarli emas")) + '</small></span>' +
-              '<span class="mb-price">' + (used ? "Faol" : price + " \ud83e\ude99") + '</span></button></section>';
+              '<span class="mb-price">' + (used ? "Faol" : price + " " + icon("coin")) + '</span></button></section>';
         }
 
         var result = "";
         if (status === "FINISHED") {
           var spies = players.filter(function (player) { return player.is_spy; });
           result = '<section class="mafia-reveal">' +
-            '<h2>' + (state.winner === "spies" ? "\ud83d\udd75\ufe0f Josus g\u2018alaba qozondi!" : "\ud83c\udf89 Tinch aholi g\u2018alaba qozondi!") + '</h2>' +
+            '<h2>' + (state.winner === "spies" ? icon("glasses") + " Josus g‘alaba qozondi!" : icon("trophy") + " Tinch aholi g‘alaba qozondi!") + '</h2>' +
             '<p>' + esc(state.finish_reason || "") + '</p>' +
             (state.location
               ? '<div class="mafia-tags"><span>' + esc(state.location.emoji) + ' ' + esc(state.location.name) + '</span>' +
-                '<span>\ud83d\udd75\ufe0f ' + esc(spies.map(function (player) { return player.name; }).join(", " ) || "\u2014") + '</span></div>'
+                '<span>' + icon("glasses") + ' ' + esc(spies.map(function (player) { return player.name; }).join(", " ) || "—") + '</span></div>'
               : '') +
             '<p class="muted tiny">G\u2018oliblarga mos ravishda +25 / +35 tanga berildi.</p></section>';
         }
 
         var tally = "";
         if (isHost && (status === "PLAYING" || status === "VOTING") && state.votes_count > 0) {
-          tally = '<button class="btn block" data-act="spy-tally"' + (view.spyActionBusy ? " disabled" : "") + '>\ud83d\uddf3 Ovozlarni yakunlash</button>';
+          tally = '<button class="btn block" data-act="spy-tally"' + (view.spyActionBusy ? " disabled" : "") + '>' + icon("ballot") + ' Ovozlarni yakunlash</button>';
         }
 
         app.innerHTML = top +
@@ -3137,15 +3238,15 @@ function profileCardHtml() {
       function spyEntryHtml() {
         if (!view.spyEntry) return "";
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Josus xonasi">' +
-          '<div class="shop-head"><div><h2>\ud83d\udd75\ufe0f Josus</h2>' +
+          '<div class="shop-head"><div><h2>' + icon("glasses") + ' Josus</h2>' +
             '<p class="shop-lede">Guruhdan olingan <b>SPY123</b> kodini kiriting yoki yangi xona oching.</p></div>' +
-            '<button class="shop-close" data-act="spy-entry-close" aria-label="Yopish">\u2715</button></div>' +
+            '<button class="shop-close" data-act="spy-entry-close" aria-label="Yopish">' + icon("close") + '</button></div>' +
           '<form id="spy-entry-form" class="join-form">' +
             '<input id="spy-entry-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="SPY123" aria-label="Josus xona kodi" />' +
             '<button type="submit" class="btn primary">Kirish</button>' +
           '</form>' +
-          '<button class="btn block" data-act="spy-create" style="margin-top:10px">\uff0b Yangi Josus xonasi</button>' +
-          '<p class="shop-note">Xona kodi guruhdagi «\ud83d\udeaa Josusga kirish» xabarida ko\u2018rinadi. Har kimga maxfiy kartochka beriladi.</p>' +
+          '<button class="btn block" data-act="spy-create" style="margin-top:10px">' + icon("plus") + ' Yangi Josus xonasi</button>' +
+          '<p class="shop-note">Xona kodi guruhdagi «Josusga kirish» xabarida ko‘rinadi. Har kimga maxfiy kartochka beriladi.</p>' +
         '</section></div>';
       }
 
@@ -3154,7 +3255,7 @@ function profileCardHtml() {
         var isMafia = game.slug === "mafia";
         var isSpy = game.slug === "spyfall";
         return '<article class="game-card ' + (active ? "active" : "") + '">' +
-          '<div class="game-icon">' + game.emoji + '</div>' +
+          '<div class="game-icon">' + icon(game.icon || "gamepad") + '</div>' +
           '<div class="game-body">' +
             '<div class="game-top"><span class="game-name">' + esc(game.name) + '</span>' +
               '<span class="badge ' + (active ? "live" : "soon") + '">' + (active ? "FAOL" : "TEZ KUNDA") + '</span></div>' +
@@ -3210,7 +3311,7 @@ function profileCardHtml() {
 
       function renderLoading() {
         app.innerHTML =
-          '<div class="topbar"><button class="icon-btn" data-act="home">←</button>' +
+          '<div class="topbar"><button class="icon-btn" data-act="home">' + icon("arrow-left") + '</button>' +
             '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span></div></div>' +
           '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
       }
@@ -3218,7 +3319,7 @@ function profileCardHtml() {
       function renderRoomError(error) {
         app.innerHTML =
           '<div class="state-screen fade">' +
-            '<div class="emoji">🚪</div>' +
+            '<div class="emoji">' + icon("map-pin") + '</div>' +
             '<h2>Xona topilmadi</h2>' +
             '<p>' + esc(error && error.message ? error.message : "Xona mavjud emas yoki kodi xato.") + '</p>' +
             '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button>' +
@@ -3268,7 +3369,7 @@ function profileCardHtml() {
         var myVoteTarget = view.selected;
 
         var html = '<div class="topbar">' +
-          '<button class="icon-btn" data-act="home" aria-label="Orqaga">←</button>' +
+          '<button class="icon-btn" data-act="home" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
           '<div class="room-id"><span class="room-code">' + esc(room.code) + '</span>' +
             '<span class="status-pill ' + statusClass(status) + '">' + esc(STATUS_LABELS[status] || status) + '</span></div>' +
           '<div class="round-chip">' + (room.current_round ? "Raund " + room.current_round : "Lobby") + '</div>' +
@@ -3306,12 +3407,12 @@ function profileCardHtml() {
         var supplies = listify(cat.bunker_supplies);
         var requirements = listify(cat.survival_requirements);
         return '<section class="catastrophe">' +
-          '<div class="cat-eye">☢️ Falokat</div>' +
+          '<div class="cat-eye">' + icon("radiation") + ' Falokat</div>' +
           '<h1>' + esc(cat.name || "Noma'lum falokat") + '</h1>' +
           '<p>' + esc(cat.description || "") + '</p>' +
           '<div class="cat-grid">' +
-            '<div class="cat-block"><h4>📦 Bunker zaxirasi</h4>' + listHtml(supplies) + '</div>' +
-            '<div class="cat-block"><h4>✅ Omon qolish</h4>' + listHtml(requirements) + '</div>' +
+            '<div class="cat-block"><h4>' + icon("bag") + ' Bunker zaxirasi</h4>' + listHtml(supplies) + '</div>' +
+            '<div class="cat-block"><h4>' + icon("check") + ' Omon qolish</h4>' + listHtml(requirements) + '</div>' +
           '</div>' +
           '<div class="stat-row">' +
             '<div class="stat"><b>' + (room.alive_count != null ? room.alive_count : 0) + '</b><span>tirik</span></div>' +
@@ -3368,12 +3469,12 @@ function profileCardHtml() {
               : '<p class="muted" style="margin-bottom:14px">Hech kim omon qolmadi.</p>') +
             '<p class="epilogue-text">' + esc(epilogueText(room, survivors)) + '</p>' +
             '<div class="epilogue-stats">' +
-              '<span>☢️ ' + esc((room.catastrophe && room.catastrophe.name) || "Falokat") + '</span>' +
-              '<span>👥 ' + survivors.length + ' / ' + esc(room.bunker_capacity) + ' omon qoldi</span>' +
+              '<span>' + icon("radiation") + ' ' + esc((room.catastrophe && room.catastrophe.name) || "Falokat") + '</span>' +
+              '<span>' + icon("users") + ' ' + survivors.length + ' / ' + esc(room.bunker_capacity) + ' omon qoldi</span>' +
             '</div>' +
           '</div>' +
         '</section>' +
-        '<div class="notice">🎉 Bu o\'yin yakunlandi. Yangi o\'yin ochish uchun guruhda /bunker yuboring.</div>';
+        '<div class="notice">' + icon("sparkles") + ' Bu o\'yin yakunlandi. Yangi o\'yin ochish uchun guruhda /bunker yuboring.</div>';
       }
 
       function joinRoomHtml(room) {
@@ -3392,11 +3493,11 @@ function profileCardHtml() {
         return '<div class="flip-card">' +
           '<div class="flip-inner">' +
             '<div class="flip-face flip-back">' +
-              '<span class="lock-big">🔒</span>' +
+              '<span class="lock-big">' + icon("lock") + '</span>' +
               '<span class="flip-hint">' + esc(meta.label) + ' ochilmoqda</span>' +
             '</div>' +
             '<div class="flip-face flip-front">' +
-              '<div class="card-top"><span class="emoji">' + meta.emoji + '</span>' + esc(meta.label) + '</div>' +
+              '<div class="card-top"><span class="emoji">' + icon(meta.icon) + '</span>' + esc(meta.label) + '</div>' +
               '<h3>' + esc(card.title) + '</h3>' +
               '<p>' + esc(card.description) + '</p>' +
               '<span class="revealed-stamp">OCHILDI</span>' +
@@ -3412,7 +3513,7 @@ function profileCardHtml() {
 
         if (!keys.length) {
           return '<section><div class="block-head"><h2>Mening kartalarim</h2><span>0/0</span></div>' +
-            '<div class="notice">🃏 O\'yin boshlanganda shaxsiy kartalaringiz tarqatiladi.</div></section>';
+            '<div class="notice">' + icon("card") + ' O\'yin boshlanganda shaxsiy kartalaringiz tarqatiladi.</div></section>';
         }
 
         return '<section><div class="block-head"><h2>Mening kartalarim</h2>' +
@@ -3425,7 +3526,7 @@ function profileCardHtml() {
                 return flipCardHtml(key, card, meta);
               }
               return '<article class="card revealed">' +
-                '<div class="card-top"><span class="emoji">' + meta.emoji + '</span>' + esc(meta.label) + '</div>' +
+                '<div class="card-top"><span class="emoji">' + icon(meta.icon) + '</span>' + esc(meta.label) + '</div>' +
                 '<h3>' + esc(card.title) + '</h3>' +
                 '<p>' + esc(card.description) + '</p>' +
                 '<span class="revealed-stamp">OCHILDI</span>' +
@@ -3433,8 +3534,8 @@ function profileCardHtml() {
             }
             var canReveal = status === "PLAYING" || status === "VOTING";
             return '<article class="card">' +
-              '<div class="card-top"><span class="emoji">' + meta.emoji + '</span>' + esc(meta.label) + '</div>' +
-              '<div class="card-lock">🔒<small>Yopiq</small></div>' +
+              '<div class="card-top"><span class="emoji">' + icon(meta.icon) + '</span>' + esc(meta.label) + '</div>' +
+              '<div class="card-lock">' + icon("lock") + '<small>Yopiq</small></div>' +
               (canReveal
                 ? '<button class="btn small" data-act="reveal" data-card="' + esc(key) + '">Ochish</button>'
                 : '<p class="muted tiny" style="text-align:center">O\'yin boshlanishini kuting</p>') +
@@ -3470,15 +3571,15 @@ function profileCardHtml() {
               var card = player.revealed_cards[key];
               var meta = cardMeta(key);
               return '<span class="chip" title="' + esc(card.description) + '">' +
-                meta.emoji + " " + esc(card.title) + '</span>';
+                icon(meta.icon) + " " + esc(card.title) + '</span>';
             }).join("");
             if (!chips && player.is_alive) {
-              chips = '<span class="muted tiny">🔒 Kartalar hali yopiq</span>';
+              chips = '<span class="muted tiny">' + icon("lock") + ' Kartalar hali yopiq</span>';
             }
             var meta = [];
             meta.push(player.is_alive ? "Tirik" : "Haydalgan");
-            if (player.votes_against) meta.push("🗳️ " + player.votes_against + " ovoz");
-            if (player.hidden_count && player.is_alive) meta.push("🔒 " + player.hidden_count + " yopiq");
+            if (player.votes_against) meta.push(icon("ballot") + " " + player.votes_against + " ovoz");
+            if (player.hidden_count && player.is_alive) meta.push(icon("lock") + " " + player.hidden_count + " yopiq");
 
             return '<div class="player ' + (player.is_alive ? "" : "dead") + '">' +
               playerAvatarHtml(player) +
@@ -3497,18 +3598,18 @@ function profileCardHtml() {
           return cards[key] && !cards[key].is_revealed;
         }).map(function (key) {
           var meta = cardMeta(key);
-          return '<option value="' + esc(key) + '">' + meta.emoji + ' ' + esc(meta.label) + '</option>';
+          return '<option value="' + esc(key) + '">' + esc(meta.label) + '</option>';
         }).join("");
         var rerollDisabled = options ? "" : " disabled";
         return '<section class="booster-panel">' +
-          '<h2>⚡ Kuchlar</h2>' +
+          '<h2>' + icon("bolt") + ' Kuchlar</h2>' +
           '<p class="lede">Tangalar bilan joriy o‘yinda ustunlik oling.</p>' +
           '<div class="booster-list">' +
             '<button class="booster-btn" data-act="booster" data-booster="double_vote"' + (me.double_vote ? " disabled" : "") + '>' +
-              '<span>✖️ ' + (me.double_vote ? "2 karra ovoz faol" : "2 karra ovoz") + '</span><span class="cost">15 🪙</span></button>' +
+              '<span>' + icon("check") + ' ' + (me.double_vote ? "2 karra ovoz faol" : "2 karra ovoz") + '</span><span class="cost">15 ' + icon("coin") + '</span></button>' +
             '<div class="reroll-row">' +
               '<select id="reroll-card" aria-label="Almashtiriladigan karta"' + rerollDisabled + '>' + (options || '<option value="">Yopiq karta yo‘q</option>') + '</select>' +
-              '<button class="btn small" data-act="reroll"' + rerollDisabled + '>🔄 20 🪙</button>' +
+              '<button class="btn small" data-act="reroll"' + rerollDisabled + '>' + icon("refresh") + ' 20 ' + icon("coin") + '</button>' +
             '</div>' +
           '</div>' +
         '</section>';
@@ -3523,15 +3624,15 @@ function profileCardHtml() {
           if (offer && me && Number(offer.user_id) === Number(me.user_id)) {
             var canShield = Number(profile.balance) >= 50;
             parts += '<section class="shield-offer">' +
-              '<div class="shield-icon">🛡️</div>' +
+              '<div class="shield-icon">' + icon("shield") + '</div>' +
               '<h2>Sizni haydashmoqchi!</h2>' +
               '<p>Eng ko‘p ovoz sizga berildi. <b>50 tanga</b> evaziga Bunker Qalqonini faollashtirib, omon qolasizmi? Qalqon har bir xonada bir marta ishlaydi.</p>' +
-              '<button class="btn primary block" data-act="shield-accept"' + (canShield ? "" : " disabled") + '>🛡️ Bunker Qalqonini ishlatish (50 🪙)</button>' +
+              '<button class="btn primary block" data-act="shield-accept"' + (canShield ? "" : " disabled") + '>' + icon("shield") + ' Bunker Qalqonini ishlatish (50 ' + icon("coin") + ')</button>' +
               (canShield ? '' : '<p class="shop-note">Balansda 50 tanga yetarli emas. Do‘kondan tanga xarid qilishingiz mumkin.</p>') +
               '<button class="btn block" data-act="shield-decline">Rad etish</button>' +
             '</section>';
           } else {
-            parts += '<div class="notice">🛡️ O‘yinchi qalqon taklifini ko‘rib chiqmoqda. Qaror qabul qilingach raund davom etadi.</div>';
+            parts += '<div class="notice">' + icon("shield") + ' O‘yinchi qalqon taklifini ko‘rib chiqmoqda. Qaror qabul qilingach raund davom etadi.</div>';
           }
           return parts;
         }
@@ -3551,13 +3652,13 @@ function profileCardHtml() {
             '<p class="muted tiny" style="margin-bottom:12px">' +
               (enough ? 'Hamma yig\'ildimi? Kartalarni tarqatib, o\'yinni boshlang.' : 'Boshlash uchun kamida 2 o\'yinchi kerak.') +
             '</p>' +
-            '<button class="btn primary block" data-act="start"' + (enough ? "" : " disabled") + '>▶️ O\'yinni boshlash</button>' +
+            '<button class="btn primary block" data-act="start"' + (enough ? "" : " disabled") + '>' + icon("play") + ' O\'yinni boshlash</button>' +
           '</section>';
         }
 
         if (status === "PLAYING" || status === "VOTING") {
           if (!me.is_alive) {
-            parts += '<div class="notice">☠️ Siz haydalgansiz. O\'yinni kuzatishingiz mumkin.</div>';
+            parts += '<div class="notice">Siz haydalgansiz. O\'yinni kuzatishingiz mumkin.</div>';
           } else {
             var others = (alive || []).filter(function (player) { return player.user_id !== me.user_id; });
             var totalVotes = (room.players || []).reduce(function (sum, player) {
@@ -3565,7 +3666,7 @@ function profileCardHtml() {
             }, 0);
 
             parts += '<section class="vote-panel">' +
-              '<h2>🗳️ Ovoz berish</h2>' +
+              '<h2>' + icon("ballot") + ' Ovoz berish</h2>' +
               '<p class="muted">Bunkerga tushmasligi kerak deb hisoblagan o\'yinchini tanlang.</p>' +
               '<div class="vote-list">' + others.map(function (player) {
                 var selected = view.selected === player.user_id;
@@ -3770,7 +3871,7 @@ function profileCardHtml() {
           if (spyCard) spyCard.classList.add("flipped");
           view.spyOpen = true;
           button.disabled = true;
-          button.textContent = "🃏 Karta ochildi";
+          button.textContent = "Karta ochildi";
           haptic("success");
         } else if (act === "open-mafia") {
           var mafiaInput = document.getElementById("room-code");
@@ -3818,7 +3919,7 @@ function profileCardHtml() {
           var reveal = app.querySelector("[data-reveal]");
           if (reveal) reveal.hidden = false;
           button.disabled = true;
-          button.textContent = "🃏 Karta ochildi";
+          button.textContent = "Karta ochildi";
           view.mafiaOpen = true;
           haptic("success");
         } else if (act === "mafia-booster") {
