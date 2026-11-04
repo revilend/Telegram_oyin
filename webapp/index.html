@@ -1382,7 +1382,7 @@
     if (raw) {
       var sp = new URLSearchParams(raw);
       var uStr = sp.get("user");
-      if (uStr) return JSON.parse(decodeURIComponent(uStr));
+      if (uStr) return JSON.parse(uStr);
     }
   } catch (e) {}
   return null;
@@ -1391,18 +1391,7 @@
 
 function profileAvatarHtml(sizeClass) {
   var cls = sizeClass || "";
-
-  var tg = window.Telegram && window.Telegram.WebApp;
-  var u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
-
-  if (!u) {
-    try {
-      u = JSON.parse(localStorage.getItem("rg_u") || "null");
-    } catch (e) {
-      u = null;
-    }
-  }
-
+  var u = getTgUser();
   var p = (typeof profile !== "undefined" && profile) ? profile : {};
 
   var photo = (u && u.photo_url) || p.photo || "";
@@ -1521,19 +1510,14 @@ function profileCardHtml() {
 
       async function loadAccount() {
   try {
-    var tg = window.Telegram && window.Telegram.WebApp;
-    var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-    if (u && u.id) {
-      localStorage.setItem("rg_u", JSON.stringify(u));
-    } else {
-      try { u = JSON.parse(localStorage.getItem("rg_u")); } catch (e) {}
-    }
+    var u = getTgUser();
     var uid = (u && u.id) || profile.id;
 
     if (u && u.id) {
-      profile.name = u.first_name + (u.last_name ? " " + u.last_name : "");
+      profile.name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "O'yinchi";
       profile.username = u.username || "";
       profile.id = u.id;
+      profile.photo = u.photo_url || "";
       if (!view.code) renderHub();
     }
 
@@ -1764,7 +1748,7 @@ function profileCardHtml() {
       }
 
       function loadProfile() {
-        var user = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
+        var user = getTgUser();
         if (user && user.id) {
           var fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
           return {
