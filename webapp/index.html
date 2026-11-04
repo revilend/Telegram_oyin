@@ -2225,7 +2225,7 @@ function profileCardHtml() {
               '<div class="mafia-status-row"><span>Xona</span><b>' + esc(me.code) + '</b></div>' +
               '<div class="mafia-status-row"><span>O\'yinchilar</span><b>' + esc(me.players_count) + ' kishi</b></div>' +
               '<p class="muted tiny">' + (me.is_alive ? "Siz o'yindasiz." : "Siz kuzatuvchisiz.") +
-                ' Tungi harakatlar keyingi bosqichda Mini App\'da faollashadi.</p>' +
+                (me.phase === "NIGHT" ? " Tungi harakatlar shu oynadan yuboriladi." : "") + '</p>' +
             '</section>' +
             shopHtml +
             '<div class="footer">Revilend Games · Mafiya</div>' +
