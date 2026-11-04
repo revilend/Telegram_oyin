@@ -4021,10 +4021,14 @@ function profileCardHtml() {
         if (!button || !app.contains(button)) return;
         var act = button.getAttribute("data-act");
 
-        if (act === "leave-match") {\n          leaveMatchmaking(button.getAttribute("data-game"), button);\n        } else if (act === "leaderboard-period") {
+        if (act === "leave-match") {
+          leaveMatchmaking(button.getAttribute("data-game"), button);
+        } else if (act === "leaderboard-period") {
           view.activityPeriod = button.getAttribute("data-period") === "weekly" ? "weekly" : "all";
           renderHub();
-        } else if (act === "join-match") {\n          joinMatchmaking(button.getAttribute("data-game"), button);\n        } else if (act === "home") {
+        } else if (act === "join-match") {
+          joinMatchmaking(button.getAttribute("data-game"), button);
+        } else if (act === "home") {
           goHome();
         } else if (act === "logout") {
           logout();
