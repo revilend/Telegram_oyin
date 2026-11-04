@@ -3932,7 +3932,7 @@ function profileCardHtml() {
         if (button) button.disabled = true;
         try {
           await request("/api/matchmaking/leave", { method: "POST" });
-          delete view.matchmaking[gameType];
+          view.matchmaking = {};
           renderHub();
           if (!Object.keys(view.matchmaking).length && view.matchmakingTimer) {
             clearInterval(view.matchmakingTimer);
