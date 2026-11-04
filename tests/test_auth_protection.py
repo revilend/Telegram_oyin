@@ -7,6 +7,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from api.server import app
+from core.economy import START_COINS
 
 
 class ProtectedApiAuthTest(unittest.TestCase):
@@ -25,12 +26,9 @@ class ProtectedApiAuthTest(unittest.TestCase):
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
 
-    def test_read_endpoints_reject_forged_user_id(self) -> None:
+    def test_private_reads_reject_forged_user_id(self) -> None:
         urls = (
-            "/api/me?user_id=7001",
-            "/api/bonus?user_id=7001",
             "/api/missions?user_id=7001",
-            "/api/top?user_id=7001",
             "/api/room/BNK000/me?user_id=7001",
             "/api/mafia/MAF000/me?user_id=7001",
             "/api/spy/SPY000?user_id=7001",
@@ -39,6 +37,27 @@ class ProtectedApiAuthTest(unittest.TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 401, response.text)
+
+    def test_profile_reads_accept_user_id_without_init_data(self) -> None:
+        """Pastki klaviaturasidan ochilgan Mini App initData'siz ishlaydi."""
+        urls = (
+            "/api/me?user_id=7001",
+            "/api/bonus?user_id=7001",
+            "/api/top?limit=5&user_id=7001",
+        )
+        for url in urls:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200, response.text)
+
+        profile = self.client.get("/api/me?user_id=7001").json()["user"]
+        self.assertEqual(profile["user_id"], 7001)
+        # Yangi o'yinchi boshlang'ich tangalar bilan yaratiladi, ya'ni
+        # balans haqiqiy hisobdan olinadi (0 emas).
+        self.assertEqual(profile["coins"], START_COINS)
+        self.assertIn("games_played", profile)
+        self.assertIn("bunker_wins", profile)
+        self.assertIn("mafia_wins", profile)
 
     def test_write_endpoints_reject_forged_user_id(self) -> None:
         requests = (

@@ -12,6 +12,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from api.server import app
+from core.economy import START_COINS
 
 BOT_TOKEN = "123456:TESTTOKEN"
 
@@ -61,8 +62,20 @@ class ProfileAuthTest(unittest.TestCase):
         self.assertEqual(profile["username"], "ali_test")
         self.assertEqual(profile["full_name"], "Ali Valiyev")
 
-    def test_profile_rejects_missing_telegram_identity(self) -> None:
-        response = self.client.get("/api/me?user_id=81001")
+    def test_profile_uses_user_id_without_init_data(self) -> None:
+        """Botning pastki klaviaturasidan ochilganda initData bo'lmaydi."""
+        response = self.client.get(
+            "/api/me?user_id=81002&username=vali_test&full_name=Vali%20Valiyev"
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        profile = response.json()["user"]
+        self.assertEqual(profile["user_id"], 81002)
+        self.assertEqual(profile["username"], "vali_test")
+        self.assertEqual(profile["full_name"], "Vali Valiyev")
+        self.assertEqual(profile["coins"], START_COINS)
+
+    def test_profile_rejects_missing_identity(self) -> None:
+        response = self.client.get("/api/me")
         self.assertEqual(response.status_code, 401)
 
 

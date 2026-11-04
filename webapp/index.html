@@ -1393,22 +1393,86 @@
         return "";
       }
 
+      var TG_USER_STORAGE_KEY = "rg_tg_user";
+      var PROFILE_CACHE_KEY = "rg_profile_cache";
+      var TG_USER_FIELDS = ["id", "first_name", "last_name", "username", "photo_url"];
+
+      function pickTgUser(source) {
+        if (!source || !source.id) return null;
+        var user = {};
+        for (var i = 0; i < TG_USER_FIELDS.length; i++) {
+          var key = TG_USER_FIELDS[i];
+          if (source[key] !== undefined && source[key] !== null) user[key] = source[key];
+        }
+        user.id = Number(source.id);
+        return user.id ? user : null;
+      }
+
+      function readStoredTgUser() {
+        try {
+          var raw = window.localStorage.getItem(TG_USER_STORAGE_KEY);
+          return raw ? pickTgUser(JSON.parse(raw)) : null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function storeTgUser(source) {
+        var user = pickTgUser(source);
+        if (!user) return null;
+        try {
+          window.localStorage.setItem(TG_USER_STORAGE_KEY, JSON.stringify(user));
+        } catch (error) {
+          /* localStorage yopiq bo'lsa, foydalanuvchi faqat shu sessiyada qoladi. */
+        }
+        return user;
+      }
+
+      function readProfileCache() {
+        try {
+          var raw = window.localStorage.getItem(PROFILE_CACHE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function storeProfileCache(account) {
+        if (!account) return;
+        try {
+          window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
+            user_id: Number(account.user_id) || 0,
+            balance: Number(account.coins) || 0,
+            games_played: Number(account.games_played) || 0,
+            wins: Number(account.wins) || 0,
+            bunker_wins: Number(account.bunker_wins) || 0,
+            mafia_wins: Number(account.mafia_wins) || 0
+          }));
+        } catch (error) {
+          /* Kesh yozilmasa ham profil ishlaydi. */
+        }
+      }
+
       function getTgUser() {
         try {
           var webApp = window.Telegram && window.Telegram.WebApp;
           var unsafeUser = webApp && webApp.initDataUnsafe && webApp.initDataUnsafe.user;
-          if (unsafeUser && unsafeUser.id) return unsafeUser;
+          if (unsafeUser && unsafeUser.id) return storeTgUser(unsafeUser);
 
           var raw = getTgInitData();
-          if (!raw) return null;
-          var userJson = new URLSearchParams(raw).get("user");
-          if (!userJson) return null;
-          var parsed = JSON.parse(userJson);
-          return parsed && parsed.id ? parsed : null;
+          if (raw) {
+            var userJson = new URLSearchParams(raw).get("user");
+            if (userJson) {
+              var parsed = JSON.parse(userJson);
+              if (parsed && parsed.id) return storeTgUser(parsed);
+            }
+          }
         } catch (error) {
           console.warn("Telegram foydalanuvchi ma'lumotini o'qib bo'lmadi", error);
-          return null;
         }
+        // initData bo'sh kelganda (pastki klaviaturadan ochilganda) oxirgi
+        // ma'lum foydalanuvchini xotiradan o'qiymiz.
+        return readStoredTgUser();
       }
 
 
@@ -1550,7 +1614,11 @@ function profileCardHtml() {
     profile.guest = false;
     if (!view.code) renderHub();
 
-    var data = await request("/api/me?user_id=" + encodeURIComponent(uid));
+    // initData bo'lmasa ham user_id bilan haqiqiy balans va statistika olinadi.
+    var path = "/api/me?user_id=" + encodeURIComponent(uid) +
+      "&username=" + encodeURIComponent(u.username || "") +
+      "&full_name=" + encodeURIComponent(profile.name || "");
+    var data = await request(path);
     if (!data || !data.user) return;
     profile.balance = Number(data.user.coins) || 0;
     profile.games_played = Number(data.user.games_played) || 0;
@@ -1558,6 +1626,7 @@ function profileCardHtml() {
     profile.bunker_wins = Number(data.user.bunker_wins) || 0;
     profile.mafia_wins = Number(data.user.mafia_wins) || 0;
     profile.level = 1 + Math.floor(profile.games_played / 5);
+    storeProfileCache(data.user);
     if (view.shopOpen) view.shop = data.shop || view.shop;
     if (!view.code) renderHub();
     else if (view.room) renderRoom(true);
@@ -1778,6 +1847,11 @@ function profileCardHtml() {
 
       function loadProfile() {
         var user = getTgUser();
+        var cached = readProfileCache() || {};
+        // Kesh boshqa Telegram akkauntga tegishli bo'lsa ishlatilmaydi.
+        if (cached.user_id && Number(cached.user_id) !== Number(user && user.id)) {
+          cached = {};
+        }
         if (user && user.id) {
           var fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
           return {
@@ -1785,12 +1859,12 @@ function profileCardHtml() {
             name: fullName || user.username || "O'yinchi",
             username: user.username || "",
             photo: user.photo_url || "",
-            balance: 0,
-            games_played: 0,
-            wins: 0,
-            bunker_wins: 0,
-            mafia_wins: 0,
-            level: PLAYER_LEVEL,
+            balance: Number(cached.balance) || 0,
+            games_played: Number(cached.games_played) || 0,
+            wins: Number(cached.wins) || 0,
+            bunker_wins: Number(cached.bunker_wins) || 0,
+            mafia_wins: Number(cached.mafia_wins) || 0,
+            level: 1 + Math.floor((Number(cached.games_played) || 0) / 5),
             guest: false
           };
         }

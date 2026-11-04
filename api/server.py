@@ -489,16 +489,46 @@ async def get_shop() -> dict[str, Any]:
     return {"shop": shop_meta(), "boosters": boosters_payload()}
 
 
+def profile_identity(
+    user: TelegramUser | None,
+    user_id: int | None,
+    username: str = "",
+    full_name: str = "",
+) -> tuple[int, str, str]:
+    """Profil uchun foydalanuvchini aniqlaydi.
+
+    Imzolangan ``initData`` ustuvor; u bo'lmasa (masalan botning pastki
+    klaviaturasidan ochilganda) ``user_id`` query parametri ishlatiladi.
+    Ikkisi ham bo'lmasa 401 qaytaradi.
+    """
+    if user is not None:
+        return user.id, user.username, user.full_name
+    if user_id is not None:
+        return int(user_id), (username or "").strip(), (full_name or "").strip()
+    raise HTTPException(
+        status_code=401,
+        detail="Telegram initData yoki user_id talab qilinadi",
+    )
+
+
 @app.get("/api/me")
 async def my_profile(
     user_id: int | None = None,
+    username: str = "",
+    full_name: str = "",
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Faqat Telegram initData orqali tasdiqlangan profilni qaytaradi."""
-    resolved_id = resolve_user_id(user, user_id)
-    username = user.username if user is not None else ""
-    full_name = user.full_name if user is not None else ""
-    account = get_economy().ensure_user(resolved_id, username, full_name)
+    """Profil: tangalar va statistika.
+
+    ``initData`` bo'lmasa ham ``user_id`` bilan ishlaydi, shuning uchun
+    botning pastki klaviaturasidan kirilganda ham haqiqiy balans ko'rinadi.
+    """
+    resolved_id, resolved_username, resolved_name = profile_identity(
+        user, user_id, username, full_name
+    )
+    account = get_economy().ensure_user(
+        resolved_id, resolved_username, resolved_name
+    )
     return {
         "user": asdict(account),
         "shop": shop_meta(),
@@ -548,8 +578,12 @@ async def bonus_status(
     user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Kunlik bonus holati: mavjudmi, miqdori va qolgan vaqt."""
-    resolved_id = resolve_user_id(user, user_id)
+    """Kunlik bonus holati: mavjudmi, miqdori va qolgan vaqt.
+
+    O'qish endpointi bo'lgani uchun ``user_id`` initData'siz ham qabul
+    qilinadi (bonusni olish — POST — esa imzo talab qiladi).
+    """
+    resolved_id, _, _ = profile_identity(user, user_id)
     economy = get_economy()
     return {
         "bonus": asdict(economy.daily_bonus_status(resolved_id)),

@@ -708,6 +708,14 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
 # ==========================================
 # ARVOH REJIMI VA GURUH NAZORATI (MODERATION)
 # ==========================================
+# Faqat shu bosqichlarda guruh suhbati nazorat qilinadi: lobby'da hammani
+# yozishga ruxsat beriladi, o'yin tugagach esa nazorat to'xtaydi.
+MODERATED_PHASES = (
+    GamePhase.NIGHT,
+    GamePhase.DAY_REPORT,
+    GamePhase.VOTING,
+)
+
 _last_words_spoken: set[tuple[str, int]] = set()
 
 
@@ -729,7 +737,7 @@ async def mafia_chat_moderator(message: Message) -> None:
         return
 
     game = _active_game_for_chat(message.chat.id)
-    if game is None:
+    if game is None or game.room.phase not in MODERATED_PHASES:
         return
 
     user_id = message.from_user.id
