@@ -94,6 +94,9 @@ class UserAccount:
     referral_count: int = 0
     last_bonus_at: str = ""
     bonus_streak: int = 0
+    weekly_wins: int = 0
+    weekly_score: int = 0
+    weekly_period_start: str = ""
 
 
 @dataclass(frozen=True)
@@ -254,6 +257,9 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         referral_count=int(row.get("referral_count") or 0),
         last_bonus_at=str(row.get("last_bonus_at") or ""),
         bonus_streak=int(row.get("bonus_streak") or 0),
+        weekly_wins=int(row.get("weekly_wins") or 0),
+        weekly_score=int(row.get("weekly_score") or 0),
+        weekly_period_start=str(row.get("weekly_period_start") or ""),
     )
 
 
