@@ -2426,6 +2426,7 @@ function profileCardHtml() {
       }
 
       function enterMafia(code) {
+        stopMatchmakingPolling();
         var normalized = mafiaStartCode(code) || normalizeCode(code);
         if (!/^MAF\d{3}$/.test(normalized)) {
           toast("Mafiya xona kodi MAF123 ko'rinishida bo'ladi", "error");
@@ -2819,6 +2820,7 @@ function profileCardHtml() {
       }
 
       function enterSpy(code) {
+        stopMatchmakingPolling();
         var normalized = spyStartCode(code) || normalizeCode(code);
         if (!/^SPY\d{3}$/.test(normalized)) {
           toast("Josus xona kodi SPY123 ko'rinishida bo'ladi", "error");
@@ -3344,6 +3346,7 @@ function profileCardHtml() {
       // Xona
       // ----------------------------------------------------------------
       function enterRoom(code) {
+        stopMatchmakingPolling();
         view.code = normalizeCode(code);
         view.loading = true;
         view.error = null;
@@ -3946,6 +3949,13 @@ function profileCardHtml() {
         }
       }
 
+      function stopMatchmakingPolling() {
+        if (view.matchmakingTimer) {
+          clearInterval(view.matchmakingTimer);
+          view.matchmakingTimer = null;
+        }
+      }
+
       async function joinMatchmaking(gameType, button) {
         if (button) button.disabled = true;
         try {
@@ -3955,6 +3965,8 @@ function profileCardHtml() {
             body: JSON.stringify({ game_type: gameType })
           });
           if (result.status === "matched") {
+            view.matchmaking = {};
+            stopMatchmakingPolling();
             toast("Xona tayyor! " + result.room_code);
             if (gameType === "mafia") enterMafia(result.room_code);
             else if (gameType === "spyfall") enterSpy(result.room_code);
