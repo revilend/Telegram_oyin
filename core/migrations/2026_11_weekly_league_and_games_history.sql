@@ -20,7 +20,7 @@ security definer
 set search_path = public
 as $$
 declare
-    v_week_start date := date_trunc('week', timezone('UTC', now()))::date;
+    v_week_start date := date_trunc('week', timezone('Asia/Tashkent', now()))::date;
 begin
     update public.users
        set weekly_wins = case
