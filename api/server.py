@@ -727,6 +727,12 @@ async def my_profile(
     account = get_economy().ensure_user(
         resolved_id, resolved_username, resolved_name
     )
+    weekly = weekly_stats(resolved_id)
+    account = replace(
+        account,
+        weekly_wins=weekly["weekly_wins"],
+        weekly_score=weekly["weekly_score"],
+    )
     return {
         "user": asdict(account),
         "recent_games": recent_user_games(resolved_id, 5),
