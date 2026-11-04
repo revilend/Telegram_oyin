@@ -1417,6 +1417,8 @@
         shopPackage: null,
         activity: null,
         activityLoading: false,
+        matchmaking: {},
+        matchmakingTimer: null,
         actionBusy: false,
         loginError: ""
       };
@@ -3261,6 +3263,14 @@ function profileCardHtml() {
               '<span class="badge ' + (active ? "live" : "soon") + '">' + (active ? "FAOL" : "TEZ KUNDA") + '</span></div>' +
             '<p class="game-desc">' + esc(game.description) + '</p>' +
             '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
+            (active
+              ? '<div class="matchmaking-row">' +
+                  '<button class="btn small" data-act="join-match" data-game="' + esc(game.slug) + '">🌐 Odam qidirish</button>' +
+                  (view.matchmaking[game.slug]
+                    ? '<span class="muted tiny">' + esc(view.matchmaking[game.slug].count || 0) + '/' + esc(view.matchmaking[game.slug].required || 0) + ' kishi qidirilmoqda</span>'
+                    : '') +
+                '</div>'
+              : '') +
           '</div>' +
           (active
             ? '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : "open-bunker")) + '">' +
@@ -3837,12 +3847,61 @@ function profileCardHtml() {
         await sendAction({ action: "join", full_name: name, username: profile.username }, "Xonaga qo'shildingiz!");
       }
 
+      async function refreshMatchmakingStatus(gameType) {
+        try {
+          var result = await request("/api/matchmaking/status?game_type=" + encodeURIComponent(gameType));
+          if (view.matchmaking[gameType]) {
+            view.matchmaking[gameType].count = result.count;
+            view.matchmaking[gameType].required = result.required;
+            renderHub();
+          }
+        } catch (error) {
+          console.warn("Matchmaking holatini olib bo'lmadi:", error);
+        }
+      }
+
+      function startMatchmakingPolling() {
+        if (view.matchmakingTimer) return;
+        view.matchmakingTimer = setInterval(function () {
+          Object.keys(view.matchmaking).forEach(refreshMatchmakingStatus);
+        }, 5000);
+      }
+
+      async function joinMatchmaking(gameType, button) {
+        if (button) button.disabled = true;
+        try {
+          var result = await request("/api/matchmaking/join", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game_type: gameType })
+          });
+          if (result.status === "matched") {
+            toast("Xona tayyor! " + result.room_code);
+            if (gameType === "mafia") enterMafia(result.room_code);
+            else if (gameType === "spyfall") enterSpy(result.room_code);
+            else enterRoom(result.room_code);
+            return;
+          }
+          view.matchmaking[gameType] = {
+            count: result.count,
+            required: result.required
+          };
+          renderHub();
+          startMatchmakingPolling();
+          toast(result.count + "/" + result.required + " kishi qidirilmoqda");
+        } catch (error) {
+          toast(error.message || "Navbatga qo'shilmadi", "error");
+        } finally {
+          if (button) button.disabled = false;
+        }
+      }
+
       function handleClick(event) {
         var button = event.target.closest("[data-act]");
         if (!button || !app.contains(button)) return;
         var act = button.getAttribute("data-act");
 
-        if (act === "home") {
+        if (act === "join-match") {\n          joinMatchmaking(button.getAttribute("data-game"), button);\n        } else if (act === "home") {
           goHome();
         } else if (act === "logout") {
           logout();
