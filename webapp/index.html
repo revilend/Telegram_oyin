@@ -1370,24 +1370,52 @@
         }
       }
 
+      function normalizeTextAttributes(root) {
+        if (!root || root.nodeType !== 1) return;
+        var attributes = ["placeholder", "aria-label", "title"];
+        attributes.forEach(function (name) {
+          if (!root.hasAttribute(name)) return;
+          var current = root.getAttribute(name);
+          var normalized = normalizeUzbekText(current);
+          if (normalized !== current) root.setAttribute(name, normalized);
+        });
+        root.querySelectorAll("*").forEach(function (element) {
+          attributes.forEach(function (name) {
+            if (!element.hasAttribute(name)) return;
+            var current = element.getAttribute(name);
+            var normalized = normalizeUzbekText(current);
+            if (normalized !== current) element.setAttribute(name, normalized);
+          });
+        });
+      }
+
       if (window.MutationObserver && app) {
         var alphabetObserver = new MutationObserver(function (records) {
           records.forEach(function (record) {
             if (record.type === "characterData") {
               var normalized = normalizeUzbekText(record.target.nodeValue);
               if (normalized !== record.target.nodeValue) record.target.nodeValue = normalized;
+            } else if (record.type === "attributes") {
+              var current = record.target.getAttribute(record.attributeName);
+              var converted = normalizeUzbekText(current);
+              if (converted !== current) record.target.setAttribute(record.attributeName, converted);
             }
             record.addedNodes && record.addedNodes.forEach(function (node) {
               if (node.nodeType === 3) {
                 node.nodeValue = normalizeUzbekText(node.nodeValue);
               } else if (node.nodeType === 1) {
                 normalizeTextNodes(node);
+                normalizeTextAttributes(node);
               }
             });
           });
         });
-        alphabetObserver.observe(app, { childList: true, subtree: true, characterData: true });
+        alphabetObserver.observe(app, {
+          childList: true, subtree: true, characterData: true,
+          attributes: true, attributeFilter: ["placeholder", "aria-label", "title"]
+        });
         normalizeTextNodes(app);
+        normalizeTextAttributes(app);
       }
       var params = new URLSearchParams(window.location.search);
       var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
