@@ -12,7 +12,7 @@ class WeeklyLeaderboardTests(unittest.TestCase):
         self.assertEqual(week_start_tashkent(moment).isoformat(), "2026-11-02")
 
     def test_sunday_belongs_to_previous_monday(self) -> None:
-        moment = datetime(2026, 11, 8, 23, 59, tzinfo=timezone.utc)
+        moment = datetime(2026, 11, 8, 23, 59, tzinfo=ZoneInfo("Asia/Tashkent"))
         self.assertEqual(week_start_tashkent(moment).isoformat(), "2026-11-02")
 
 
