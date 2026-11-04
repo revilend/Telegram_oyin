@@ -580,7 +580,18 @@ async def _notify_match_user(user_id: int, message: str) -> None:
     """Tayyor xona havolasini bot orqali shaxsiy xabarda yuboradi."""
     if _runtime_bot is None:
         return
-    await _runtime_bot.send_message(user_id, message)
+    code = message.rsplit(":", 1)[-1].strip().upper()
+    if code.startswith("MAF"):
+        start_param = f"mafia_{code}"
+    elif code.startswith("SPY"):
+        start_param = f"spy_{code}"
+    else:
+        start_param = code
+    bot_username = (os.getenv("BOT_USERNAME") or "revilend_gamesbot").strip().lstrip("@")
+    url = f"https://t.me/{bot_username}?startapp={start_param}"
+    await _runtime_bot.send_message(
+        user_id, f"{message}\n<a href=\"{url}\">Xonaga kirish</a>"
+    )
 
 
 def _get_matchmaking() -> Matchmaking:
