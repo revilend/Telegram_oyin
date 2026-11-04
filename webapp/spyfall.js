@@ -48,7 +48,6 @@
   }
   function open() {
     code="";state=null;me=null;errorText="";
-    if(timer) clearInterval(timer);
     if(tg && tg.BackButton) {tg.BackButton.show(); tg.BackButton.onClick(home);}
     shell('<section class="mafia-hero"><p class="mafia-kicker">REVILEND · SPYFALL</p><h1>🕶️ Josus</h1><p>3–10 kishi bilan o‘ynang. Xona yarating yoki do‘stingiz yuborgan kodni kiriting.</p></section><button class="btn primary block" data-spy="create">＋ Yangi xona yaratish</button><form id="spy-join" class="join-form" style="margin-top:12px"><input id="spy-code" maxlength="6" placeholder="SPY123" autocomplete="off"><button class="btn">Kirish</button></form><div class="notice" style="margin-top:14px">Har kimga maxfiy rol beriladi. Guruhda savol-javob qiling, so‘ng josusni topish uchun ovoz bering.</div>');
   }
