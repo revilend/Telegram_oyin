@@ -14,6 +14,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from bot.keyboards.main_menu import PROFILE_BUTTON
+from core.game_history import recent_user_games
 from core.economy import (
     START_COINS,
     UserAccount,
@@ -95,6 +96,21 @@ async def show_profile(message: Message) -> None:
         return
 
     text = profile_text(account)
+    try:
+        history = recent_user_games(user.id, 5)
+        if history:
+            labels = {"bunker": "Bunker", "mafia": "Mafiya", "spyfall": "Josus"}
+            lines = ["\n\n🕹 <b>So'nggi o'yinlar</b>"]
+            for item in history:
+                winners = item.get("winner_ids") or []
+                won = user.id in [int(value) for value in winners]
+                game_name = labels.get(str(item.get("game_type") or ""), "O'yin")
+                result = "🏆 Yutdi" if won else "▫️ Yutqazdi"
+                played_at = escape(str(item.get("played_at") or "")[:16].replace("T", " "))
+                lines.append(f"{result} · {game_name} · {played_at}")
+            text += "\n".join(lines)
+    except Exception:
+        logger.exception("Profil o'yin tarixini ko'rsatishda xatolik: %s", user.id)
     if account.coins == START_COINS and account.games_played == 0:
         text += (
             f"\n\n🎁 Ro'yxatdan o'tganingiz uchun <b>{START_COINS}</b> bepul "
