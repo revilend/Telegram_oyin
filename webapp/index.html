@@ -2048,7 +2048,10 @@ function profileCardHtml() {
         var needsDead = selectedAction.key === "witch_heal" || selectedAction.key === "copy";
         var targets = (state.players || []).filter(function (player) {
           if (needsDead) return !player.is_alive;
-          return player.is_alive && !player.is_me;
+          if (selectedAction.key === "protect") {
+            return player.is_alive && !player.is_me;
+          }
+          return player.is_alive;
         });
         var actionSelect = actions.length > 1
           ? '<label class="muted tiny" for="mafia-night-kind">Harakat turi</label><select id="mafia-night-kind" class="mafia-select">' +
