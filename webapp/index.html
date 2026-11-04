@@ -1388,16 +1388,37 @@
   return null;
 }
 
+
 function profileAvatarHtml(sizeClass) {
   var cls = sizeClass || "";
-  var u = getTgUser();
-  var name = (u && u.first_name) || profile.name || "Mehmon";
-  var pid = (u && u.id) || profile.id;
-  if (profile.photo) {
-    return '<div class="avatar ' + cls + '"><img src="' + esc(profile.photo) + '" alt="" referrerpolicy="no-referrer" /></div>';
+
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
+
+  if (!u) {
+    try {
+      u = JSON.parse(localStorage.getItem("rg_u") || "null");
+    } catch (e) {
+      u = null;
+    }
   }
+
+  var p = (typeof profile !== "undefined" && profile) ? profile : {};
+
+  var photo = (u && u.photo_url) || p.photo || "";
+  var name = (u && u.first_name) || p.name || "Mehmon";
+  var pid = (u && u.id) || p.id || "";
+
+  if (photo) {
+    return '<div class="avatar ' + esc(cls) + '">' +
+      '<img src="' + esc(photo) + '" alt="' + esc(name) +
+      '" referrerpolicy="no-referrer" />' +
+      '</div>';
+  }
+
   return avatarHtml(name, pid, cls);
 }
+      
 
 function profileCardHtml() {
   var u = getTgUser();
