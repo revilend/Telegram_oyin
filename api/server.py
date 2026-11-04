@@ -47,6 +47,7 @@ from core.economy import (
     get_economy,
     player_rating,
 )
+from core.login_codes import verify_login_code
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -152,6 +153,14 @@ class PromoCodeRequest(UserRequest):
     """Promo kodni ishlatish so'rovi."""
 
     code: str = ""
+
+
+class LoginRequest(BaseModel):
+    """Mini App kirish so'rovi: bir martalik kod yoki Telegram ID."""
+
+    login: str | None = None
+    code: str | None = None
+    user_id: int | None = None
 
 
 class MafiaBoosterRequest(UserRequest):
@@ -553,6 +562,42 @@ async def my_profile(
         "boosters": boosters_payload(),
     }
     
+
+
+def _login_user_id(payload: LoginRequest) -> int | None:
+    """So'rovdan foydalanuvchi id'sini ajratadi (kod ustuvor)."""
+    if payload.code:
+        return verify_login_code(payload.code)
+    if payload.user_id is not None:
+        return int(payload.user_id)
+    raw = (payload.login or "").strip()
+    if not raw.isdigit():
+        return None
+    # 6 xonali qiymat avval kod sifatida sinaladi, keyin Telegram ID.
+    if len(raw) == 6:
+        resolved = verify_login_code(raw)
+        if resolved is not None:
+            return resolved
+    return int(raw)
+
+
+@app.post("/api/auth/login")
+async def login(payload: LoginRequest) -> dict[str, Any]:
+    """6 xonali kod yoki Telegram ID orqali Mini App profilini qaytaradi."""
+    resolved_id = _login_user_id(payload)
+    if resolved_id is None or resolved_id <= 0:
+        raise HTTPException(
+            status_code=401,
+            detail="Kirish kodi noto'g'ri yoki muddati tugagan",
+        )
+    economy = get_economy()
+    if not economy.has_user(resolved_id):
+        raise HTTPException(
+            status_code=404,
+            detail="Foydalanuvchi topilmadi. Avval botda /start bosing.",
+        )
+    account = economy.ensure_user(resolved_id)
+    return {"ok": True, "user": asdict(account)}
 
 
 def account_display_name(account: Any) -> str:

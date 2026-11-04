@@ -610,7 +610,54 @@
       pointer-events: none;
     }
 
-    .profile-head { position: relative; z-index: 1; display: flex; align-items: center; gap: 13px; }
+    .profile-head { position: relative; z-index: 1; display: flex; align-items: center; gap: 13px; padding-right: 74px; }
+    .profile-logout {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      padding: 6px 9px; border-radius: 10px;
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      background: rgba(248, 113, 113, 0.1);
+      color: #fecaca; font-size: 11px; font-weight: 700; cursor: pointer;
+    }
+    .profile-logout:active { transform: scale(0.97); }
+
+    /* ---------- Login (auth) ekrani ---------- */
+    .auth-screen {
+      min-height: calc(100vh - 90px);
+      display: flex; flex-direction: column; justify-content: center;
+      align-items: stretch; text-align: center;
+      padding: 24px 4px; position: relative;
+    }
+    .auth-logo {
+      width: 78px; height: 78px; margin: 0 auto 18px;
+      display: grid; place-items: center; font-size: 38px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(34, 211, 238, 0.2));
+      border: 1px solid rgba(139, 92, 246, 0.45);
+      box-shadow: 0 20px 50px rgba(139, 92, 246, 0.3);
+    }
+    .auth-screen h1 { font-size: 30px; letter-spacing: -0.7px; margin-bottom: 10px; }
+    .auth-lede { color: var(--muted); font-size: 14px; line-height: 1.6; max-width: 340px; margin: 0 auto 26px; }
+    .auth-main { font-size: 15px; }
+    .auth-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0; color: var(--muted);
+      font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ""; flex: 1; height: 1px; background: var(--border);
+    }
+    .auth-form { display: flex; flex-direction: column; gap: 10px; }
+    .auth-form input {
+      width: 100%; padding: 15px 14px; border-radius: 14px;
+      border: 1px solid var(--border); background: var(--panel);
+      color: var(--text); font-size: 14px; outline: none;
+    }
+    .auth-form input:focus { border-color: rgba(139, 92, 246, 0.65); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
+    .auth-form input::placeholder { color: var(--muted); font-size: 12px; }
+    .auth-error { min-height: 20px; margin-top: 10px; color: #fca5a5; font-size: 12px; line-height: 1.5; }
+    .auth-note { margin-top: 8px; }
+    body.theme-light .profile-logout { color: #b91c1c; }
+    body.theme-light .auth-form input { background: #fff; color: #0f172a; }
     .profile-name-lg { font-size: 18px; font-weight: 800; line-height: 1.2; letter-spacing: -0.2px; }
     .profile-handle { margin-top: 3px; font-size: 12px; color: var(--muted); }
 
@@ -1180,6 +1227,7 @@
       "use strict";
 
       var tg = window.Telegram ? window.Telegram.WebApp : null;
+      var BOT_LOGIN_URL = "https://t.me/revilend_gamesbot?start=login";
       var CARD_ORDER = ["profession", "biology", "health", "hobby", "luggage", "fact", "special"];
       var CARD_META = {
         profession: { label: "Kasb", emoji: "🧑‍🔧" },
@@ -1233,6 +1281,12 @@
       );
       if (initialSpyCode) initialCode = "";
 
+      // Kalitlar loadProfile()dan oldin aniqlanishi kerak: aks holda
+      // localStorage'dagi profil o'qilmay, login sahifasi ochilib qoladi.
+      var TG_USER_STORAGE_KEY = "rg_tg_user";
+      var PROFILE_CACHE_KEY = "rg_profile_cache";
+      var TG_USER_FIELDS = ["id", "first_name", "last_name", "username", "photo_url"];
+
       var profile = loadProfile();
       var view = {
         mode: initialSpyCode ? "spy" : (initialMafiaCode ? "mafia" : "bunker"),
@@ -1281,7 +1335,8 @@
         shopPackage: null,
         activity: null,
         activityLoading: false,
-        actionBusy: false
+        actionBusy: false,
+        loginError: ""
       };
 
       var toastTimer = null;
@@ -1466,10 +1521,6 @@
         return "";
       }
 
-      var TG_USER_STORAGE_KEY = "rg_tg_user";
-      var PROFILE_CACHE_KEY = "rg_profile_cache";
-      var TG_USER_FIELDS = ["id", "first_name", "last_name", "username", "photo_url"];
-
       function pickTgUser(source) {
         if (!source || !source.id) return null;
         var user = {};
@@ -1515,7 +1566,9 @@
         try {
           window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
             user_id: Number(account.user_id) || 0,
-            balance: Number(account.coins) || 0,
+            full_name: String(account.full_name || ""),
+            username: String(account.username || ""),
+            balance: Number(account.coins != null ? account.coins : account.balance) || 0,
             games_played: Number(account.games_played) || 0,
             wins: Number(account.wins) || 0,
             bunker_wins: Number(account.bunker_wins) || 0,
@@ -1594,6 +1647,7 @@ function profileCardHtml() {
   var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon o'yinchi";
   var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram o'yinchi");
   return '<section class="profile-card fade">' +
+    '<button class="profile-logout" data-act="logout" aria-label="Chiqish">🚪 Chiqish</button>' +
     '<div class="profile-head">' + profileAvatarHtml("lg") +
     '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
     '<div class="profile-handle">' + esc(handle) + '</div></div>' +
@@ -1689,47 +1743,39 @@ function profileCardHtml() {
       }
 
       async function loadAccount() {
-  try {
-    var u = getTgUser();
-    if (!u || !u.id) {
-      profile.name = "Mehmon o'yinchi";
-      profile.username = "";
-      profile.guest = true;
-      if (!view.code) renderHub();
-      return;
-    }
-
-    var uid = u.id;
-    profile.name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "O'yinchi";
-    profile.username = u.username || "";
-    profile.id = u.id;
-    profile.photo = u.photo_url || "";
-    profile.guest = false;
-    if (!view.code) renderHub();
-
-    // initData bo'lmasa ham user_id bilan haqiqiy balans va statistika olinadi.
-    var path = "/api/me?user_id=" + encodeURIComponent(uid) +
-      "&username=" + encodeURIComponent(u.username || "") +
-      "&full_name=" + encodeURIComponent(profile.name || "");
-    var data = await request(path);
-    if (!data || !data.user) return;
-    profile.balance = Number(data.user.coins) || 0;
-    profile.games_played = Number(data.user.games_played) || 0;
-    profile.wins = Number(data.user.wins) || 0;
-    profile.bunker_wins = Number(data.user.bunker_wins) || 0;
-    profile.mafia_wins = Number(data.user.mafia_wins) || 0;
-    profile.level = 1 + Math.floor(profile.games_played / 5);
-    storeProfileCache(data.user);
-    if (view.shopOpen) view.shop = data.shop || view.shop;
-    if (!view.code) renderHub();
-    else if (view.room) renderRoom(true);
-  } catch (error) {
-    /* Tarmoq xatosida */
-  }
+        try {
+          if (!profile || !profile.authenticated || !profile.id) {
+            renderLoginScreen();
+            return;
+          }
+          var u = getTgUser();
+          if (u && u.id) {
+            var tgName = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
+            if (tgName) profile.name = tgName;
+            if (u.username) profile.username = u.username;
+            profile.photo = u.photo_url || profile.photo || "";
+          }
+          profile.guest = false;
+          var path = "/api/me?user_id=" + encodeURIComponent(profile.id) +
+            "&username=" + encodeURIComponent(profile.username || "") +
+            "&full_name=" + encodeURIComponent(profile.name || "");
+          var data = await request(path);
+          if (!data || !data.user) return;
+          updateProfileFromAccount(data.user);
+          if (view.shopOpen) view.shop = data.shop || view.shop;
+          if (!view.code) renderHub();
+          else if (view.room) renderRoom(true);
+        } catch (error) {
+          if (error && (error.status === 401 || error.status === 404)) {
+            clearStoredAccount();
+            profile = loadProfile();
+            renderLoginScreen(error.message);
+            return;
+          }
+          /* Tarmoq xatosida keshdagi profil ko'rsatiladi. */
+          if (!view.code) renderHub();
+        }
       }
-      
-      
-      
 
       // ----------------------------------------------------------------
       // Kunlik bonus, missiyalar va reyting
@@ -1951,11 +1997,10 @@ function profileCardHtml() {
       function loadProfile() {
         var user = getTgUser();
         var cached = readProfileCache() || {};
-        // Kesh boshqa Telegram akkauntga tegishli bo'lsa ishlatilmaydi.
-        if (cached.user_id && Number(cached.user_id) !== Number(user && user.id)) {
-          cached = {};
-        }
+        var cachedId = Number(cached.user_id) || 0;
         if (user && user.id) {
+          // Kesh boshqa Telegram akkauntga tegishli bo'lsa ishlatilmaydi.
+          if (cachedId && cachedId !== Number(user.id)) cached = {};
           var fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
           return {
             id: user.id,
@@ -1968,17 +2013,32 @@ function profileCardHtml() {
             bunker_wins: Number(cached.bunker_wins) || 0,
             mafia_wins: Number(cached.mafia_wins) || 0,
             level: 1 + Math.floor((Number(cached.games_played) || 0) / 5),
-            guest: false
+            guest: false,
+            authenticated: true,
+            fromCache: false
           };
         }
-        var id = Number(window.sessionStorage.getItem("rg_guest_id"));
-        if (!id) {
-          id = -Math.floor(Math.random() * 900000000) - 1;
-          window.sessionStorage.setItem("rg_guest_id", String(id));
+        if (cachedId > 0) {
+          // Kod/ID bilan oldin kirilgan profil — kutmasdan darhol ochiladi.
+          return {
+            id: cachedId,
+            name: String(cached.full_name || ("ID " + cachedId)),
+            username: String(cached.username || ""),
+            photo: "",
+            balance: Number(cached.balance) || 0,
+            games_played: Number(cached.games_played) || 0,
+            wins: Number(cached.wins) || 0,
+            bunker_wins: Number(cached.bunker_wins) || 0,
+            mafia_wins: Number(cached.mafia_wins) || 0,
+            level: 1 + Math.floor((Number(cached.games_played) || 0) / 5),
+            guest: false,
+            authenticated: true,
+            fromCache: true
+          };
         }
         return {
-          id: id,
-          name: "Mehmon o'yinchi",
+          id: 0,
+          name: "",
           username: "",
           photo: "",
           balance: 0,
@@ -1987,8 +2047,158 @@ function profileCardHtml() {
           bunker_wins: 0,
           mafia_wins: 0,
           level: PLAYER_LEVEL,
-          guest: true
+          guest: true,
+          authenticated: false,
+          fromCache: false
         };
+      }
+
+      function renderLoginScreen(message) {
+        stopLive();
+        stopTimer();
+        setBackButton(false);
+        if (message) view.loginError = String(message);
+        app.innerHTML =
+          '<section class="auth-screen fade">' +
+            '<div class="auth-logo" aria-hidden="true">👑</div>' +
+            '<p class="eyebrow">REVILEND GAMES</p>' +
+            '<h1>Revilend Games</h1>' +
+            '<p class="auth-lede">O‘yinlarni boshlash va tangalaringizni boshqarish uchun profilingizga kiring.</p>' +
+            '<button class="btn primary block auth-main" data-act="login-telegram">🚀 Telegram Bot orqali kirish</button>' +
+            '<div class="auth-divider"><span>yoki</span></div>' +
+            '<form id="login-form" class="auth-form" autocomplete="off">' +
+              '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Bot bergan 6 xonali kirish kodini (yoki Telegram ID’ingizni) kiriting" aria-label="Kirish kodi yoki Telegram ID" />' +
+              '<button type="submit" class="btn block" id="login-submit">🔐 Kirish</button>' +
+            '</form>' +
+            '<p class="auth-error" id="login-error" role="alert">' + esc(view.loginError || "") + '</p>' +
+            '<p class="muted tiny auth-note">Kodni botda /start yoki /login buyrug‘i bilan oling. Kod 10 daqiqa amal qiladi va bir marta ishlatiladi.</p>' +
+          '</section>';
+      }
+
+      function setLoginError(message) {
+        view.loginError = String(message || "");
+        var node = document.getElementById("login-error");
+        if (node) node.textContent = view.loginError;
+      }
+
+      function updateProfileFromAccount(account) {
+        if (!account) return;
+        profile.id = Number(account.user_id) || profile.id;
+        profile.name = String(account.full_name || profile.name || "").trim() ||
+          (account.username ? "@" + account.username : "ID " + profile.id);
+        profile.username = String(account.username || "");
+        profile.balance = Number(account.coins) || 0;
+        profile.games_played = Number(account.games_played) || 0;
+        profile.wins = Number(account.wins) || 0;
+        profile.bunker_wins = Number(account.bunker_wins) || 0;
+        profile.mafia_wins = Number(account.mafia_wins) || 0;
+        profile.level = 1 + Math.floor(profile.games_played / 5);
+        profile.guest = false;
+        profile.authenticated = true;
+        profile.fromCache = false;
+        storeProfileCache(account);
+        // Eski Telegram akkaunt yoki eski ?uid= havolasi yangi login'ni
+        // bosib ketmasligi uchun ularni tozalaymiz.
+        try {
+          var stored = readStoredTgUser();
+          if (stored && Number(stored.id) !== Number(profile.id)) {
+            window.localStorage.removeItem(TG_USER_STORAGE_KEY);
+          }
+        } catch (error) {
+          /* localStorage yopiq bo'lsa ham davom etamiz. */
+        }
+      }
+
+      function stripIdentityParams() {
+        try {
+          var url = new URL(window.location.href);
+          ["uid", "user_id", "uname", "username", "fname", "full_name"].forEach(function (key) {
+            url.searchParams.delete(key);
+          });
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+          }
+        } catch (error) {
+          /* Tarixni yangilash imkoni bo'lmasa ham davom etamiz. */
+        }
+      }
+
+      async function submitLogin(value) {
+        var raw = String(value || "").replace(/\D/g, "");
+        if (raw.length < 5 || raw.length > 12) {
+          setLoginError("6 xonali kod yoki Telegram ID kiriting.");
+          return;
+        }
+        var submit = document.getElementById("login-submit");
+        if (submit) {
+          submit.disabled = true;
+          submit.textContent = "⏳ Tekshirilmoqda…";
+        }
+        setLoginError("");
+        try {
+          var payload = raw.length === 6 ? { login: raw } : { user_id: Number(raw) };
+          var data = await request("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (!data || !data.user) {
+            throw new Error("Profil ma'lumotlari olinmadi");
+          }
+          updateProfileFromAccount(data.user);
+          stripIdentityParams();
+          haptic("success");
+          if (view.code) {
+            if (/^SPY/.test(view.code)) enterSpy(view.code);
+            else if (/^MAF/.test(view.code)) enterMafia(view.code);
+            else enterRoom(view.code);
+          } else {
+            renderHub();
+            loadActivity();
+          }
+        } catch (error) {
+          setLoginError((error && error.message) || "Kirish amalga oshmadi. Qayta urinib ko‘ring.");
+          haptic("error");
+        } finally {
+          var again = document.getElementById("login-submit");
+          if (again) {
+            again.disabled = false;
+            again.textContent = "🔐 Kirish";
+          }
+        }
+      }
+
+      function openTelegramLogin() {
+        haptic("medium");
+        if (tg && tg.openTelegramLink) {
+          tg.openTelegramLink(BOT_LOGIN_URL);
+        } else {
+          window.open(BOT_LOGIN_URL, "_blank", "noopener");
+        }
+      }
+
+      function clearStoredAccount() {
+        try {
+          window.localStorage.removeItem(TG_USER_STORAGE_KEY);
+          window.localStorage.removeItem(PROFILE_CACHE_KEY);
+          window.sessionStorage.removeItem("rg_guest_id");
+        } catch (error) {
+          /* localStorage yopiq bo'lsa ham sahifa yangilanadi. */
+        }
+      }
+
+      function logout() {
+        clearStoredAccount();
+        haptic("medium");
+        try {
+          var url = new URL(window.location.href);
+          ["uid", "user_id", "uname", "username", "fname", "full_name"].forEach(function (key) {
+            url.searchParams.delete(key);
+          });
+          window.location.replace(url.pathname + (url.search ? url.search : ""));
+        } catch (error) {
+          window.location.reload();
+        }
       }
 
       async function request(path, options) {
@@ -2859,6 +3069,10 @@ function profileCardHtml() {
       function renderHub() {
         stopLive();
         stopTimer();
+        if (!profile || !profile.authenticated) {
+          renderLoginScreen();
+          return;
+        }
         view.mode = "bunker";
         view.code = "";
         view.mafia = null;
@@ -3529,6 +3743,10 @@ function profileCardHtml() {
 
         if (act === "home") {
           goHome();
+        } else if (act === "logout") {
+          logout();
+        } else if (act === "login-telegram") {
+          openTelegramLogin();
         } else if (act === "invite") {
           shareInvite();
         } else if (act === "open-bunker") {
@@ -3689,6 +3907,12 @@ function profileCardHtml() {
       }
 
       function handleSubmit(event) {
+        if (event.target.id === "login-form") {
+          event.preventDefault();
+          var loginInput = document.getElementById("login-input");
+          submitLogin(loginInput ? loginInput.value : "");
+          return;
+        }
         if (event.target.id === "spy-entry-form") {
           event.preventDefault();
           var spyInput = document.getElementById("spy-entry-code");
@@ -3770,7 +3994,19 @@ function profileCardHtml() {
       // Avval foydalanuvchi aniqlanadi (initData yoki ?uid=...), keyin
       // start_param / havola bo'yicha kerakli xona ochiladi.
       async function boot() {
+        if (!profile || !profile.authenticated) {
+          renderLoginScreen();
+          return;
+        }
+        // Oldin kirilgan profil keshdan darhol ko'rsatiladi, keyin serverdan
+        // yangilanadi — foydalanuvchi tarmoqni kutmaydi.
+        var hadCachedProfile = Boolean(profile.fromCache);
+        if (!view.code && hadCachedProfile) {
+          renderHub();
+          loadActivity();
+        }
         await loadAccount();
+        if (!profile.authenticated) return;
         if (initialSpyCode) {
           enterSpy(initialSpyCode);
         } else if (initialMafiaCode) {
@@ -3778,10 +4014,10 @@ function profileCardHtml() {
         } else if (view.code) {
           if (/^SPY\d{3}$/.test(view.code)) enterSpy(view.code);
           else enterRoom(view.code);
-        } else {
+        } else if (!hadCachedProfile) {
           renderHub();
+          loadActivity();
         }
-        if (view.mode === "bunker" && !view.code) loadActivity();
       }
 
       boot();

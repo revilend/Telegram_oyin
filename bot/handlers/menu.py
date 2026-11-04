@@ -240,10 +240,13 @@ async def menu_games(message: Message) -> None:
         username=(user.username or "") if user is not None else "",
         full_name=(user.full_name or "") if user is not None else "",
     )
+    from bot.handlers import common as common_handlers
+
     if not url.startswith("https://"):
         await message.answer(
             "⚠️ Mini App manzili sozlanmagan. Administratorga murojaat qiling."
         )
+        await common_handlers.send_login_code(message)
         return
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -261,6 +264,8 @@ async def menu_games(message: Message) -> None:
         "Balansingiz va statistikangiz Mini App'da ko'rinadi.",
         reply_markup=keyboard,
     )
+    # Mini App initData'siz ochilganda ham profilga kirish uchun kod.
+    await common_handlers.send_login_code(message)
 
 
 @router.message(PRIVATE, F.text == SHOP_BUTTON)

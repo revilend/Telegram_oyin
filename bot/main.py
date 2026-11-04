@@ -40,6 +40,7 @@ BOT_COMMANDS = [
     BotCommand(command="games", description="O'yinlar ro'yxati"),
     BotCommand(command="missions", description="Missiyalar va mukofotlar"),
     BotCommand(command="rules", description="Barcha o'yinlar qoidalari"),
+    BotCommand(command="login", description="Mini App kirish kodi"),
     BotCommand(command="shop", description="Tangalar xarid qilish"),
     BotCommand(command="profile", description="Mening profilim"),
     BotCommand(command="top", description="Reyting va Top"),

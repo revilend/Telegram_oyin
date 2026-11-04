@@ -10,11 +10,20 @@ from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    WebAppInfo,
+)
 
 from bot.config import get_config
 from bot.handlers.admin import is_admin
-from bot.keyboards.main_menu import INVITE_BUTTON, build_main_menu
+from bot.keyboards.main_menu import (
+    INVITE_BUTTON,
+    build_main_menu,
+    mini_app_url_for,
+)
 from core.economy import (
     REFERRAL_BONUS,
     EconomyError,
@@ -23,6 +32,7 @@ from core.economy import (
     get_economy,
     referral_earnings,
 )
+from core.login_codes import issue_login_code
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +128,57 @@ def invite_keyboard(account: UserAccount, bot_username: str) -> InlineKeyboardMa
     )
 
 
+LOGIN_START_ARG = "login"
+
+
+def login_text(code: str) -> str:
+    """Mini App'ga kirish kodi va avtomatik kirish haqidagi xabar."""
+    return (
+        "🔐 <b>Profilingizga kirish tayyor!</b>\n\n"
+        f"🔑 Kirish kodingiz: <code>{code}</code>\n"
+        "(Yoki kod terib o'tirmasdan pastdagi tugmani bosing — avtomatik "
+        "profilingiz bilan ochiladi)"
+    )
+
+
+def login_keyboard(user: UserAccount) -> InlineKeyboardMarkup | None:
+    """Mini App'ni foydalanuvchi profili bilan avtomatik ochuvchi tugma."""
+    config = get_config()
+    url = mini_app_url_for(
+        config.mini_app_url or "",
+        user_id=user.user_id,
+        username=user.username,
+        full_name=user.full_name,
+    )
+    if not url.startswith("https://"):
+        return None
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🎮 Profilingiz bilan kirish",
+                    web_app=WebAppInfo(url=url),
+                )
+            ]
+        ]
+    )
+
+
+async def send_login_code(
+    message: Message, account: UserAccount | None = None
+) -> None:
+    """Foydalanuvchiga yangi bir martalik kod va kirish tugmasini yuboradi."""
+    user = message.from_user
+    if user is None:
+        return
+    if account is None:
+        account = get_economy().ensure_user(
+            user.id, user.username or "", user.full_name
+        )
+    code = issue_login_code(user.id)
+    await message.answer(login_text(code), reply_markup=login_keyboard(account))
+
+
 async def _notify_inviter(
     bot: Bot, result, invited_name: str
 ) -> None:
@@ -184,6 +245,7 @@ async def start_command(message: Message, command: CommandObject | None = None) 
     name = escape(user.full_name if user else "do'stim")
     economy = get_economy()
     notes: list[str] = []
+    account: UserAccount | None = None
 
     if user is not None:
         inviter_id = parse_referral_arg(command.args if command is not None else None)
@@ -206,6 +268,13 @@ async def start_command(message: Message, command: CommandObject | None = None) 
             notes.append(f"⚠️ {escape(str(exc))}")
         except Exception:
             logger.exception("Foydalanuvchini saqlab bo'lmadi: %s", user.id)
+
+    args = (command.args if command is not None else "") or ""
+    if args.strip().split()[:1] == [LOGIN_START_ARG]:
+        if user is None:
+            return
+        await send_login_code(message, account)
+        return
 
     text = WELCOME_TEXT.format(name=name)
     if notes:
@@ -242,6 +311,26 @@ async def _send_welcome(message: Message, text: str, admin: bool) -> None:
                 include_web_app=False, **menu_kwargs
             ),
         )
+
+
+@router.message(F.chat.type == "private", Command("login"))
+async def login_command(message: Message) -> None:
+    """``/login`` — Mini App uchun yangi 6 xonali kirish kodi."""
+    user = message.from_user
+    if user is None:
+        return
+    try:
+        account = get_economy().ensure_user(
+            user.id, user.username or "", user.full_name
+        )
+    except Exception:
+        logger.exception("Kirish kodini yaratib bo'lmadi: %s", user.id)
+        await message.answer(
+            "⚠️ Kirish kodini hozircha yaratib bo'lmadi. Birozdan keyin "
+            "urinib ko'ring."
+        )
+        return
+    await send_login_code(message, account)
 
 
 @router.message(F.chat.type == "private", F.text == INVITE_BUTTON)

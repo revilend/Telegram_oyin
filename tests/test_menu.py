@@ -253,10 +253,54 @@ class MenuHandlerTest(MenuTestCase):
         message = FakeMessage(user_id=424242)
         with patch.object(menu, "get_config", return_value=config):
             asyncio.run(menu.menu_games(message))
-        markup = message.markups[-1]
+        markup = message.markups[-2]
         button = markup.inline_keyboard[0][0]
         self.assertEqual(button.text, "🚀 O'yinlar portaliga kirish")
         self.assertIn("uid=424242", button.web_app.url)
+        # Mini App initData'siz ochilsa ham kiradigan kod yuboriladi.
+        self.assertIn("Kirish kodingiz", message.answers[-1])
+        login_button = message.markups[-1].inline_keyboard[0][0]
+        self.assertEqual(login_button.text, "🎮 Profilingiz bilan kirish")
+        self.assertIn("uid=424242", login_button.web_app.url)
+
+    def test_start_login_sends_code_and_automatic_button(self) -> None:
+        config = SimpleNamespace(
+            mini_app_url="https://revilend.games",
+            bot_username="revilend_gamesbot",
+            admin_id=0,
+        )
+        store = EconomyStore(url="", key="", client=None)
+        message = FakeMessage(user_id=424250)
+        with patch.object(common, "get_config", return_value=config), patch.object(
+            common, "get_economy", return_value=store
+        ), patch.object(main_menu, "get_config", return_value=config):
+            asyncio.run(
+                common.start_command(message, SimpleNamespace(args="login"))
+            )
+        answer = message.answers[-1]
+        self.assertIn("Profilingizga kirish tayyor", answer)
+        self.assertIn("Kirish kodingiz", answer)
+        button = message.markups[-1].inline_keyboard[0][0]
+        self.assertEqual(button.text, "🎮 Profilingiz bilan kirish")
+        self.assertIn("uid=424250", button.web_app.url)
+        self.assertTrue(store.has_user(424250))
+
+    def test_login_command_creates_code(self) -> None:
+        config = SimpleNamespace(
+            mini_app_url="https://revilend.games",
+            bot_username="revilend_gamesbot",
+            admin_id=0,
+        )
+        store = EconomyStore(url="", key="", client=None)
+        message = FakeMessage(user_id=424251)
+        with patch.object(common, "get_config", return_value=config), patch.object(
+            common, "get_economy", return_value=store
+        ), patch.object(main_menu, "get_config", return_value=config):
+            asyncio.run(common.login_command(message))
+        self.assertIn("Kirish kodingiz", message.answers[-1])
+        button = message.markups[-1].inline_keyboard[0][0]
+        self.assertEqual(button.text, "🎮 Profilingiz bilan kirish")
+        self.assertIn("uid=424251", button.web_app.url)
 
     def test_admin_button_opens_panel_for_admin(self) -> None:
         message = FakeMessage()
