@@ -3324,7 +3324,9 @@ function profileCardHtml() {
             '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
             (active
               ? '<div class="matchmaking-row">' +
-                  '<button class="btn small" data-act="join-match" data-game="' + esc(game.slug) + '">🌐 Odam qidirish</button>' +
+                  (view.matchmaking[game.slug]
+                    ? '<button class="btn small" data-act="leave-match" data-game="' + esc(game.slug) + '">Navbatdan chiqish</button>'
+                    : '<button class="btn small" data-act="join-match" data-game="' + esc(game.slug) + '">🌐 Odam qidirish</button>') +
                   (view.matchmaking[game.slug]
                     ? '<span class="muted tiny">' + esc(view.matchmaking[game.slug].count || 0) + '/' + esc(view.matchmaking[game.slug].required || 0) + ' kishi qidirilmoqda</span>'
                     : '') +
@@ -3926,6 +3928,24 @@ function profileCardHtml() {
         }, 5000);
       }
 
+      async function leaveMatchmaking(gameType, button) {
+        if (button) button.disabled = true;
+        try {
+          await request("/api/matchmaking/leave", { method: "POST" });
+          delete view.matchmaking[gameType];
+          renderHub();
+          if (!Object.keys(view.matchmaking).length && view.matchmakingTimer) {
+            clearInterval(view.matchmakingTimer);
+            view.matchmakingTimer = null;
+          }
+          toast("Navbatdan chiqdingiz");
+        } catch (error) {
+          toast(error.message || "Navbatdan chiqib bo'lmadi", "error");
+        } finally {
+          if (button) button.disabled = false;
+        }
+      }
+
       async function joinMatchmaking(gameType, button) {
         if (button) button.disabled = true;
         try {
@@ -3960,7 +3980,7 @@ function profileCardHtml() {
         if (!button || !app.contains(button)) return;
         var act = button.getAttribute("data-act");
 
-        if (act === "leaderboard-period") {
+        if (act === "leave-match") {\n          leaveMatchmaking(button.getAttribute("data-game"), button);\n        } else if (act === "leaderboard-period") {
           view.activityPeriod = button.getAttribute("data-period") === "weekly" ? "weekly" : "all";
           renderHub();
         } else if (act === "join-match") {\n          joinMatchmaking(button.getAttribute("data-game"), button);\n        } else if (act === "home") {
