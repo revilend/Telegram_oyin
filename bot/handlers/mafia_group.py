@@ -708,59 +708,56 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
 # ==========================================
 # ARVOH REJIMI VA GURUH NAZORATI (MODERATION)
 # ==========================================
-from aiogram import F
-from aiogram.types import Message
+_last_words_spoken: set[tuple[str, int]] = set()
 
-# Xona o'liklarining so'nggi so'zini kuzatish
-_last_words_spoken = set()
+
+def _active_game_for_chat(chat_id: int) -> MafiaGame | None:
+    """Guruh ID bo'yicha faol Mafiya xonasini topadi."""
+    manager = get_default_manager()
+    for game in manager._games.values():
+        if game.chat_id == int(chat_id) and game.room.phase is not GamePhase.FINISHED:
+            return game
+    return None
+
 
 @router.message(F.chat.type.in_({"group", "supergroup"}))
-async def mafia_chat_moderator(message: Message):
-    """O'yin paytida o'yinda yo'qlar va o'liklarni nazorat qilish."""
-    # Agar buyruq bo'lsa (masalan /mafia yoki /cancel), tegmaymiz
+async def mafia_chat_moderator(message: Message) -> None:
+    """O'yin paytida qatnashmagan va halok bo'lgan o'yinchilarni nazorat qiladi."""
     if message.text and message.text.startswith("/"):
         return
+    if message.from_user is None:
+        return
 
-        # Faol xonani topamiz
-    manager = get_default_manager()
-    room = None
-    all_items = list(getattr(manager, "games", {}).values()) + list(getattr(manager, "rooms", {}).values())
-    for item in all_items:
-        r = getattr(item, "room", item)
-        if str(getattr(r, "chat_id", "")) == str(message.chat.id):
-            room = r
-            break
-            
-    if not room:
-        return  # O'yin bo'lmayotgan bo'lsa, hamma bemalol yozaveradi
+    game = _active_game_for_chat(message.chat.id)
+    if game is None:
+        return
 
     user_id = message.from_user.id
-    player_ids = [p.user_id for p in room.players.values()]
+    player = game.room.players.get(user_id)
 
-    # 1. O'YINDA UMUMAN YO'QLAR YOZA OLMAYDI:
-    if user_id not in player_ids:
+    # O'yinda qatnashmayotganlar faol o'yin guruhida yozolmaydi.
+    if player is None:
         try:
             await message.delete()
         except Exception:
-            pass
+            logger.debug("O'yinchi bo'lmagan xabarni o'chirib bo'lmadi")
         return
 
-    # 2. O'LGANLAR (ARVOHLAR) NAZORATI:
-    eliminated_ids = [getattr(p, "user_id", None) for p in getattr(room, "eliminated_players", [])]
-    if user_id in eliminated_ids or (user_id in room.players and not room.players[user_id].is_alive):
-        # Agar hali 1 ta so'nggi so'zini aytmagan bo'lsa:
-        if user_id not in _last_words_spoken:
-            _last_words_spoken.add(user_id)
+    # Halok bo'lgan o'yinchiga har bir o'yinda bir marta so'nggi so'z beriladi.
+    if not player.is_alive:
+        marker = (game.code, user_id)
+        if marker not in _last_words_spoken:
+            _last_words_spoken.add(marker)
             try:
-                await message.reply("⚰️ Bu sizning so'nggi so'zingiz edi. Endi o'yin tugaguncha arvoh kabi jim turing!")
+                await message.reply(
+                    "⚰️ Bu sizning so'nggi so'zingiz edi. "
+                    "Endi o'yin tugaguncha arvoh kabi jim turing!"
+                )
             except Exception:
-                pass
-            return  # 1 ta xabari qoladi
-        
-        # So'nggi so'zini aytib bo'lgan bo'lsa — barcha keyingi xabarlari o'chiriladi:
+                logger.debug("So'nggi so'z xabarini yuborib bo'lmadi")
+            return
+
         try:
             await message.delete()
         except Exception:
-            pass
-        return
-        
+            logger.debug("Arvoh xabarini o'chirib bo'lmadi")
