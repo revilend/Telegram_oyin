@@ -1483,7 +1483,8 @@
       function rankHtml(rank) {
         var value = Number(rank) || 0;
         if (value >= 1 && value <= 3) {
-          return '<span class="rank-badge rank-' + value + '">' + value + '</span>';
+          var medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
+          return '<span class="rank-badge rank-' + value + '">' + medals[value] + '</span>';
         }
         return '<span class="top-rank">' + value + '</span>';
       }
