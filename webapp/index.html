@@ -1416,6 +1416,7 @@
         shop: null,
         shopPackage: null,
         activity: null,
+        activityPeriod: "all",
         activityLoading: false,
         matchmaking: {},
         matchmakingTimer: null,
@@ -1952,8 +1953,9 @@ function profileCardHtml() {
 
       function leaderboardHtml() {
         var activity = activityState();
-        var top = activity.top || [];
-        if (!top.length) return "";
+        var weekly = view.activityPeriod === "weekly";
+        var top = (weekly ? activity.weeklyTop : activity.top) || [];
+        var me = weekly ? activity.weeklyMe : activity.me;
         var rows = top.map(function (player) {
           return '<div class="top-row' + (player.is_me ? " me" : "") + '">' +
             rankHtml(player.rank) +
@@ -1961,7 +1963,6 @@ function profileCardHtml() {
             '<span class="t-name">' + esc(player.name) + '</span>' +
             '<span class="t-rating">' + esc(money(player.rating)) + ' · ' + esc(player.wins) + ' ' + icon("trophy") + '</span></div>';
         }).join("");
-        var me = activity.me;
         if (me && Number(me.rank) > top.length) {
           rows += '<div class="top-row me">' + rankHtml(me.rank) +
             avatarHtml(me.name, me.user_id, "sm") +
@@ -1969,7 +1970,13 @@ function profileCardHtml() {
             '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' ' + icon("trophy") + '</span></div>';
         }
         return '<section class="fade"><div class="section-title"><h2>' + icon("trophy") + ' Reyting</h2>' +
-          '<span>top ' + top.length + '</span></div><div class="top-list">' + rows + '</div></section>';
+          '<span>top ' + top.length + '</span></div>' +
+          '<div class="matchmaking-row">' +
+            '<button class="btn small ' + (!weekly ? 'primary' : '') + '" data-act="leaderboard-period" data-period="all">🌟 Barcha davrlar</button>' +
+            '<button class="btn small ' + (weekly ? 'primary' : '') + '" data-act="leaderboard-period" data-period="weekly">⚡ Bu haftalik Liga</button>' +
+          '</div>' +
+          (rows ? '<div class="top-list">' + rows + '</div>' : '<p class="muted tiny">Bu davrda reyting hali shakllanmagan.</p>') +
+          '</section>';
       }
 
       async function loadActivity(forceRender) {
@@ -1979,13 +1986,16 @@ function profileCardHtml() {
           var data = await Promise.all([
             request("/api/bonus?user_id=" + encodeURIComponent(profile.id)),
             request("/api/missions?user_id=" + encodeURIComponent(profile.id)),
-            request("/api/top?limit=10&user_id=" + encodeURIComponent(profile.id))
+            request("/api/top?limit=10&user_id=" + encodeURIComponent(profile.id)),
+            request("/api/top?period=weekly&limit=10&user_id=" + encodeURIComponent(profile.id))
           ]);
           view.activity = {
             bonus: data[0] ? data[0].bonus : null,
             missions: data[1] && data[1].missions ? data[1].missions : [],
             top: data[2] && data[2].top ? data[2].top : [],
-            me: data[2] ? data[2].me : null
+            me: data[2] ? data[2].me : null,
+            weeklyTop: data[3] && data[3].top ? data[3].top : [],
+            weeklyMe: data[3] ? data[3].me : null
           };
           if (data[0] && data[0].coins != null) profile.balance = Number(data[0].coins) || 0;
           else if (data[1] && data[1].coins != null) profile.balance = Number(data[1].coins) || 0;
@@ -3901,7 +3911,10 @@ function profileCardHtml() {
         if (!button || !app.contains(button)) return;
         var act = button.getAttribute("data-act");
 
-        if (act === "join-match") {\n          joinMatchmaking(button.getAttribute("data-game"), button);\n        } else if (act === "home") {
+        if (act === "leaderboard-period") {
+          view.activityPeriod = button.getAttribute("data-period") === "weekly" ? "weekly" : "all";
+          renderHub();
+        } else if (act === "join-match") {\n          joinMatchmaking(button.getAttribute("data-game"), button);\n        } else if (act === "home") {
           goHome();
         } else if (act === "logout") {
           logout();
