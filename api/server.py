@@ -31,6 +31,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from api.auth import TelegramUser, resolve_user_id, telegram_user
+from games.spyfall_api import router as spyfall_router
 from bot.handlers import mafia_group as mafia_bot
 from bot.handlers.boosters import send_shield_offer
 from bot.main import build_dispatcher, set_commands
@@ -95,8 +96,8 @@ GAMES: list[dict[str, Any]] = [
         "slug": "spyfall",
         "name": "Josus",
         "emoji": "🕶️",
-        "status": "coming_soon",
-        "players": "4–10",
+        "status": "active",
+        "players": "3–10",
         "description": "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob "
         "orqali uni toping. Tez orada.",
     },
@@ -351,7 +352,8 @@ async def lifespan(app: FastAPI):
 # ----------------------------------------------------------------------
 # Ilova
 # ----------------------------------------------------------------------
-app = FastAPI(title="Revilend Games API", version="1.1.0", lifespan=lifespan)
+app = FastAPI(title="Revilend Games API", version="1.2.0", lifespan=lifespan)
+app.include_router(spyfall_router)
 
 
 @app.exception_handler(RoomNotFoundError)
