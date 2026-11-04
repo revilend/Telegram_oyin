@@ -54,6 +54,14 @@ from engine.game_manager import (
     RoomNotFoundError,
     get_default_manager,
 )
+from games.mafia.engine import (
+    GamePhase,
+    MafiaError,
+    MafiaRole,
+    NIGHT_ACTION_BY_ROLE,
+    NIGHT_OPTIONS_BY_ROLE,
+    resolve_day_vote,
+)
 from games.mafia.boosters import (
     MafiaBoosterError,
     booster_options,
@@ -147,6 +155,24 @@ class MafiaBoosterRequest(UserRequest):
     """Mafiya boosterini sotib olish so'rovi."""
 
     booster: str = ""
+
+class MafiaNightActionRequest(UserRequest):
+    """Mafiya tungi harakati."""
+
+    target_id: int
+    kind: str | None = None
+
+
+class MafiaVoteRequest(UserRequest):
+    """Mafiya kunduzgi ovozi."""
+
+    target_id: int
+
+
+class MafiaTallyRequest(UserRequest):
+    """Mafiya ovozlarini sanash."""
+
+    kamikaze_target_id: int | None = None
 
 
 # ----------------------------------------------------------------------
@@ -787,6 +813,195 @@ async def buy_mafia_booster(
         "message": purchase.message,
         "coins": purchase.account.coins,
         "me": mafia_me_payload(game, player, economy=economy),
+    }
+
+
+
+@app.get("/api/mafia/{code}/state")
+async def get_mafia_public_state(
+    code: str,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Mafiya Mini App uchun maxfiy rollarsiz umumiy holat."""
+    resolved_id = resolve_user_id(user, None)
+    game = _mafia_game_for(code)
+    room = game.room
+    viewer = room.players.get(resolved_id)
+    if viewer is None:
+        raise HTTPException(status_code=403, detail="Siz bu Mafiya xonasida emassiz")
+
+    night_options = ()
+    if viewer.role is not None:
+        night_options = NIGHT_OPTIONS_BY_ROLE.get(
+            viewer.role,
+            (NIGHT_ACTION_BY_ROLE[viewer.role],)
+            if viewer.role in NIGHT_ACTION_BY_ROLE
+            else (),
+        )
+    action_labels = {
+        "kill": "Nishonni tanlash",
+        "heal": "Davolash",
+        "protect": "Himoya qilish",
+        "block": "Harakatini bloklash",
+        "snipe": "Nishonga olish",
+        "investigate": "Tekshirish",
+        "frame": "Tekshiruvdan yashirish",
+        "witch_kill": "O'ldirish",
+        "witch_heal": "Tiriltirish",
+        "silence": "Ovozini bloklash",
+        "copy": "Rolini egallash",
+    }
+    report = room.last_report
+    private_result = (
+        report.sheriff_results.get(resolved_id)
+        if report is not None
+        else None
+    )
+    return {
+        "state": {
+            "code": game.code,
+            "phase": room.phase.value,
+            "round": room.round,
+            "is_host": resolved_id == game.host_id,
+            "is_alive": viewer.is_alive,
+            "players": [
+                {
+                    "user_id": player.user_id,
+                    "name": room.display_name(player),
+                    "is_alive": player.is_alive,
+                    "is_me": player.user_id == resolved_id,
+                }
+                for player in room.players.values()
+            ],
+            "night_actions": [
+                {"key": action.value, "label": action_labels.get(action.value, action.value)}
+                for action in night_options
+            ],
+            "has_submitted_night_action": resolved_id in room.night_actions,
+            "has_voted": resolved_id in room.votes,
+            "my_vote_target": room.votes.get(resolved_id),
+            "is_silenced": resolved_id in room.silenced,
+            "vote_counts": [
+                {"user_id": player.user_id, "count": room.vote_counts().get(player.user_id, 0)}
+                for player in room.alive_players
+            ],
+            "can_begin_voting": (
+                resolved_id == game.host_id
+                and room.phase is GamePhase.DAY_REPORT
+            ),
+            "can_tally": (
+                resolved_id == game.host_id
+                and room.phase is GamePhase.VOTING
+            ),
+            "private_result": private_result,
+            "phase_deadline": game.phase_deadline,
+            "phase_seconds_left": game.phase_seconds_left(),
+            "winner": room.winner.value if room.winner is not None else None,
+        }
+    }
+
+
+@app.post("/api/mafia/{code}/night-action")
+async def submit_mafia_night_action(
+    code: str,
+    payload: MafiaNightActionRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Tungi harakatni dvigatel qoidalari orqali yuboradi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    game = _mafia_game_for(code)
+    if resolved_id not in game.room.players:
+        raise HTTPException(status_code=403, detail="Siz bu Mafiya xonasida emassiz")
+    try:
+        game.room.submit_night_action(
+            resolved_id, payload.target_id, kind=payload.kind
+        )
+    except MafiaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@app.post("/api/mafia/{code}/begin-voting")
+async def begin_mafia_voting(
+    code: str,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Tonggi hisobotdan keyin ovoz berishni xona egasi boshlaydi."""
+    resolved_id = resolve_user_id(user, None)
+    game = _mafia_game_for(code)
+    if resolved_id != game.host_id:
+        raise HTTPException(status_code=403, detail="Ovoz berishni faqat xona egasi boshlaydi")
+    try:
+        game.room.begin_voting()
+    except MafiaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    game.start_phase_timer()
+    return {"ok": True}
+
+
+@app.post("/api/mafia/{code}/vote")
+async def cast_mafia_vote(
+    code: str,
+    payload: MafiaVoteRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Kunduzgi ovozni yuboradi; qoidalarni dvigatel tekshiradi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    game = _mafia_game_for(code)
+    try:
+        game.room.cast_vote(resolved_id, payload.target_id)
+    except MafiaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@app.post("/api/mafia/{code}/tally")
+async def tally_mafia_votes(
+    code: str,
+    payload: MafiaTallyRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Ovozlarni xona egasi sanaydi va dvigatel keyingi fazani boshlaydi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    game = _mafia_game_for(code)
+    if resolved_id != game.host_id:
+        raise HTTPException(status_code=403, detail="Ovozlarni faqat xona egasi sanaydi")
+    try:
+        eliminated_id = game.room.tally_votes()
+        if (
+            eliminated_id is not None
+            and game.room.players[eliminated_id].role is MafiaRole.KAMIKAZE
+            and payload.kamikaze_target_id is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Kamikadze haydaldi. U bilan birga ketadigan o'yinchini tanlang.",
+            )
+        winner = resolve_day_vote(
+            game.room,
+            eliminated_id,
+            kamikaze_target_id=payload.kamikaze_target_id,
+        )
+    except MafiaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if game.room.phase is GamePhase.FINISHED:
+        game.clear_phase_timer()
+        if _runtime_bot is not None:
+            await mafia_bot.announce_finish(_runtime_bot, game)
+    else:
+        game.start_phase_timer()
+        if _runtime_bot is not None:
+            if eliminated_id is not None:
+                await mafia_bot.announce_execution(
+                    _runtime_bot, game, game.room.players[eliminated_id]
+                )
+            await mafia_bot.announce_night(_runtime_bot, game)
+
+    return {
+        "ok": True,
+        "eliminated_id": eliminated_id,
+        "winner": winner.value if winner is not None else None,
     }
 
 
