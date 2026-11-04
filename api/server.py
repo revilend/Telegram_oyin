@@ -551,7 +551,7 @@ def _create_match_room(game_type: str, players: list[dict[str, Any]]) -> str:
 
     if game_type == "mafia":
         game = mafia_bot.get_default_manager().create_game(
-            chat_id=0,
+            chat_id=host_id,
             host_id=host_id,
             host_name=host_name,
             host_username=host_username,
