@@ -1567,7 +1567,7 @@
       }
 
       function toast(message, kind) {
-        toastEl.textContent = message;
+        toastEl.textContent = normalizeUzbekText(message);
         toastEl.className = "show" + (kind === "error" ? " error" : "");
         if (toastTimer) clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { toastEl.className = ""; }, 3200);
