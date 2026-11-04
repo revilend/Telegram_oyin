@@ -1350,6 +1350,45 @@
 
       var app = document.getElementById("app");
       var toastEl = document.getElementById("toast");
+
+      // Ko'rinadigan Mini App matnlarini yangi o'zbek lotin yozuviga o'tkazish.
+      function normalizeUzbekText(value) {
+        return String(value || "")
+          .replace(/o['ʻʼ’‘]/gi, function (part) { return part[0] === "O" ? "Ö" : "ö"; })
+          .replace(/g['ʻʼ’‘]/gi, function (part) { return part[0] === "G" ? "Ğ" : "ğ"; })
+          .replace(/sh/gi, function (part) { return part[0] === "S" ? "Ş" : "ş"; })
+          .replace(/ch/gi, function (part) { return part[0] === "C" ? "Ç" : "ç"; });
+      }
+
+      function normalizeTextNodes(root) {
+        if (!root) return;
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        var node;
+        while ((node = walker.nextNode())) {
+          var normalized = normalizeUzbekText(node.nodeValue);
+          if (normalized !== node.nodeValue) node.nodeValue = normalized;
+        }
+      }
+
+      if (window.MutationObserver && app) {
+        var alphabetObserver = new MutationObserver(function (records) {
+          records.forEach(function (record) {
+            if (record.type === "characterData") {
+              var normalized = normalizeUzbekText(record.target.nodeValue);
+              if (normalized !== record.target.nodeValue) record.target.nodeValue = normalized;
+            }
+            record.addedNodes && record.addedNodes.forEach(function (node) {
+              if (node.nodeType === 3) {
+                node.nodeValue = normalizeUzbekText(node.nodeValue);
+              } else if (node.nodeType === 1) {
+                normalizeTextNodes(node);
+              }
+            });
+          });
+        });
+        alphabetObserver.observe(app, { childList: true, subtree: true, characterData: true });
+        normalizeTextNodes(app);
+      }
       var params = new URLSearchParams(window.location.search);
       var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
         params.get("startapp") || params.get("tgWebAppStartParam") || "";
