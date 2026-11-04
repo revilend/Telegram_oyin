@@ -51,6 +51,8 @@ from core.economy import (
     player_rating,
 )
 from core.login_codes import verify_login_code
+from core.game_history import record_game_history, recent_user_games
+from core.leaderboard import record_weekly_win, weekly_top
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -458,14 +460,21 @@ def _record_finished_room(room: GameRoom) -> None:
     """FINISHED xonani statistika uchun bir marta qayd etadi."""
     if room.status is not RoomStatus.FINISHED:
         return
+    winner_ids = [player.user_id for player in room.alive_players]
     try:
         get_economy().record_finished_game(
             room.code,
             room.players.keys(),
-            [player.user_id for player in room.alive_players],
+            winner_ids,
         )
     except Exception:
         logger.exception("Tugagan o'yin natijasini saqlab bo'lmadi: %s", room.code)
+    record_game_history("bunker", room.code, room.players.keys(), winner_ids)
+    for winner_id in winner_ids:
+        try:
+            record_weekly_win(winner_id)
+        except Exception:
+            logger.exception("Bunker haftalik ballini yozib bo'lmadi: %s", winner_id)
 
 
 async def _notify_shield_offer(room: GameRoom) -> None:
