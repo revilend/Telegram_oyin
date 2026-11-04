@@ -7,7 +7,8 @@ yangilaydi.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from typing import Any
 
 from core.db import get_store
@@ -22,12 +23,13 @@ class LeaderboardError(RuntimeError):
     """Reyting ma'lumotini o'qish yoki yangilash xatosi."""
 
 
-def week_start_utc(moment: datetime | None = None) -> date:
-    """UTC bo'yicha joriy haftaning dushanba sanasi."""
-    value = moment or datetime.now(timezone.utc)
+def week_start_tashkent(moment: datetime | None = None) -> date:
+    """Toshkent vaqti bo'yicha joriy haftaning dushanba sanasi."""
+    zone = ZoneInfo("Asia/Tashkent")
+    value = moment or datetime.now(zone)
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    value = value.astimezone(timezone.utc)
+        value = value.replace(tzinfo=zone)
+    value = value.astimezone(zone)
     return value.date().fromordinal(value.date().toordinal() - value.weekday())
 
 
@@ -57,7 +59,7 @@ def weekly_top(limit: int = 10) -> list[UserAccount]:
         rows = (
             store.client.table("users")
             .select("*")
-            .eq("weekly_period_start", week_start_utc().isoformat())
+            .eq("weekly_period_start", week_start_tashkent().isoformat())
             .order("weekly_score", desc=True)
             .order("weekly_wins", desc=True)
             .limit(max(1, min(int(limit), 1000)))
@@ -81,7 +83,7 @@ def weekly_stats(user_id: int) -> dict[str, int]:
             store.client.table("users")
             .select("weekly_wins,weekly_score")
             .eq("telegram_id", int(user_id))
-            .eq("weekly_period_start", week_start_utc().isoformat())
+            .eq("weekly_period_start", week_start_tashkent().isoformat())
             .limit(1)
             .execute()
             .data
