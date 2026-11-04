@@ -115,6 +115,7 @@ class MafiaLobbyManager:
 
     def __init__(self, *, seed: int | None = None) -> None:
         self._games: dict[str, MafiaGame] = {}
+        self._times: dict[str, float] = {}
         self._rng = random.Random(seed)
         self._lock = threading.RLock()
 
@@ -139,6 +140,7 @@ class MafiaLobbyManager:
             )
             game.usernames[int(host_id)] = host_username or ""
             self._games[code] = game
+            self._times[code] = time.time()
             return game
 
     def get_game(self, code: str) -> MafiaGame:
@@ -149,7 +151,37 @@ class MafiaLobbyManager:
             raise MafiaGameError(
                 f"'{normalized or code}' kodli Mafiya xonasi topilmadi"
             )
+        self._times[normalized] = time.time()
         return game
+
+    def prune_lobbies(self, max_age_seconds: int = 30 * 60) -> int:
+        """Uzoq vaqt harakatsiz qolgan Mafiya lobby'larini yopadi."""
+        now = time.time()
+        removed = 0
+        with self._lock:
+            for code, game in list(self._games.items()):
+                if game.room.phase is not GamePhase.LOBBY:
+                    continue
+                if now - self._times.get(code, now) > max_age_seconds:
+                    self._games.pop(code, None)
+                    self._times.pop(code, None)
+                    removed += 1
+        return removed
+
+    def open_games(self, limit: int = 50) -> list[MafiaGame]:
+        """Global qidiruv uchun ochiq Mafiya lobby'lari."""
+        self.prune_lobbies()
+        with self._lock:
+            games = [
+                game
+                for game in self._games.values()
+                if game.room.phase is GamePhase.LOBBY
+            ]
+            games.sort(
+                key=lambda game: self._times.get(game.code, 0),
+                reverse=True,
+            )
+            return games[: max(1, int(limit))]
 
     def join(
         self,

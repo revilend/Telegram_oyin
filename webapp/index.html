@@ -4092,37 +4092,74 @@ function profileCardHtml() {
         applyTelegramTheme();
       }
 
-      // Avval foydalanuvchi aniqlanadi (initData yoki ?uid=...), keyin
-      // start_param / havola bo'yicha kerakli xona ochiladi.
-      async function boot() {
+      function startOrthographyObserver() {
+        const observer = new MutationObserver(function (mutations) {
+          for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+              if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+                node.textContent = toNewAlphabet(node.textContent);
+              } else if (node.nodeType === Node.ELEMENT_NODE) {
+                if (node.children) {
+                  for (const child of node.children) {
+                    if (child.children) {
+                      for (const leaf of leafTextNodes(child)) {
+                        leaf.textContent = toNewAlphabet(leaf.textContent);
+                      }
+                    }
+                  }
+                }
+                if (node.textContent && !/^</.test(node.textContent)) {
+                  node.textContent = toNewAlphabet(node.textContent);
+                }
+              }
+            }
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+
+      function leafTextNodes(root) {
+        const result = [];
+        const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        while ((node = walk.nextNode())) result.push(node);
+        return result;
+      }
+
+      function toNewAlphabet(text) {
+        if (!text) return text;
+        return text
+          .replace(/o['‘’ʻO]/g, function (m) { return m[0] === 'O' ? 'Ö' : 'ö'; })
+          .replace(/g['‘’ʻG]/g, function (m) { return m[0] === 'G' ? 'Ğ' : 'ğ'; })
+          .replace(/sh/gi, function (m) { return m[0] === m[0].toUpperCase() ? 'Ş' : 'ş'; })
+          .replace(/ch/gi, function (m) { return m[0] === m[0].toUpperCase() ? 'Ç' : 'ç'; });
+      }
+
+      function boot() {
         if (!profile || !profile.authenticated) {
           renderLoginScreen();
           return;
         }
-        // Oldin kirilgan profil keshdan darhol ko'rsatiladi, keyin serverdan
-        // yangilanadi — foydalanuvchi tarmoqni kutmaydi.
-        var hadCachedProfile = Boolean(profile.fromCache);
-        if (!view.code && hadCachedProfile) {
-          renderHub();
-          loadActivity();
-        }
-        await loadAccount();
-        if (!profile.authenticated) return;
-        if (initialSpyCode) {
-          enterSpy(initialSpyCode);
-        } else if (initialMafiaCode) {
-          enterMafia(initialMafiaCode);
-        } else if (view.code) {
-          if (/^SPY\d{3}$/.test(view.code)) enterSpy(view.code);
-          else enterRoom(view.code);
-        } else if (!hadCachedProfile) {
-          renderHub();
-          loadActivity();
-        }
+        renderHub();
+        loadActivity();
+        loadAccount().then(function () {
+          if (!profile.authenticated) return;
+          if (initialSpyCode) {
+            enterSpy(initialSpyCode);
+          } else if (initialMafiaCode) {
+            enterMafia(initialMafiaCode);
+          } else if (view.code) {
+            if (/^SPY\d{3}$/.test(view.code)) enterSpy(view.code);
+            else enterRoom(view.code);
+          }
+        });
       }
 
+      startOrthographyObserver();
       boot();
     })();
   </script>
+</body>
+</html>
 </body>
 </html>

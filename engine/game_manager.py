@@ -20,6 +20,7 @@ import copy
 import logging
 import random
 import threading
+import time
 import uuid
 from collections import Counter
 from collections.abc import Callable
@@ -77,6 +78,7 @@ class GameManager:
         self._generator = generator or CharacterGenerator()
         self._rng = random.Random(seed)
         self._rooms: dict[str, GameRoom] = {}
+        self._room_times: dict[str, float] = {}
         self._votes: dict[str, dict[int, int]] = {}
         self._lock = threading.RLock()
         self._on_change: RoomChangeHandler | None = None
@@ -126,6 +128,7 @@ class GameManager:
                 )
             )
             self._rooms[room.code] = room
+            self._room_times[room.code] = time.time()
             self._votes[room.code] = {}
             self._notify(room)
             return room
@@ -438,6 +441,37 @@ class GameManager:
             room.status = RoomStatus.PLAYING
             room.current_round += 1
 
+    def prune_lobbies(self, max_age_seconds: int = 30 * 60) -> int:
+        """Uzoq vaqt harakatsiz qolgan lobby xonalarini yopadi."""
+        now = time.time()
+        removed = 0
+        with self._lock:
+            for code, room in list(self._rooms.items()):
+                if room.status is not RoomStatus.LOBBY:
+                    continue
+                last = self._room_times.get(code, now)
+                if now - last > max_age_seconds:
+                    self._rooms.pop(code, None)
+                    self._votes.pop(code, None)
+                    self._room_times.pop(code, None)
+                    removed += 1
+        return removed
+
+    def open_rooms(self, limit: int = 50) -> list[GameRoom]:
+        """Global qidiruv uchun ochiq Bunker lobby xonalari."""
+        self.prune_lobbies()
+        with self._lock:
+            rooms = [
+                room
+                for room in self._rooms.values()
+                if room.status is RoomStatus.LOBBY
+            ]
+            rooms.sort(
+                key=lambda room: self._room_times.get(room.code, 0),
+                reverse=True,
+            )
+            return rooms[: max(1, int(limit))]
+
     @property
     def active_room_count(self) -> int:
         """Hozir o'ynalayotgan xonalar soni."""
@@ -486,6 +520,7 @@ class GameManager:
                 self._sync_vote_counts(room)
         if room is None:
             raise RoomNotFoundError(f"'{normalized or code}' kodli xona topilmadi")
+        self._room_times[normalized] = time.time()
         return room
 
     # ------------------------------------------------------------------

@@ -28,6 +28,7 @@ from aiogram.types import (
 
 from bot.config import get_config
 from core.economy import EconomyError, format_price, get_economy
+from core.metrics import metrics
 from core.settings import (
     SettingsError,
     format_card_number,
@@ -159,13 +160,17 @@ def panel_text() -> str:
         active_rooms=manager.active_room_count,
         total_rooms=manager.total_room_count,
     )
+    live = metrics.snapshot()
     return (
         "🛠 <b>Admin panel</b>\n\n"
         f"👥 Jami o'yinchilar: <b>{stats['users']}</b>\n"
         f"🪙 Umumiy xarid qilingan tangalar: <b>{format_price(stats['coins_purchased'])}</b>\n"
         f"💰 Balanslardagi tangalar: <b>{format_price(stats['coins_in_balance'])}</b>\n"
         f"🏠 Faol xonalar: <b>{stats['active_rooms']}</b>\n"
-        f"🗂 Jami xonalar: <b>{stats['total_rooms']}</b>\n\n"
+        f"🗂 Jami xonalar: <b>{stats['total_rooms']}</b>\n"
+        f"📈 So'rovlar: <b>{live.requests}</b> · xatolar: <b>{live.errors}</b>\n"
+        f"🎮 Tugagan o'yinlar: <b>{live.games_finished}</b> · "
+        f"tanga: <b>{format_price(live.coins_awarded)}</b>\n\n"
         f"{card_status_text()}\n\n"
         "Quyidagi tugmalardan birini tanlang:"
     )

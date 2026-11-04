@@ -187,3 +187,24 @@ create table if not exists public.spyfall_rooms (
 
 create index if not exists spyfall_rooms_updated_at_idx
     on public.spyfall_rooms (updated_at desc);
+
+-- ---------------------------------------------------------------------
+-- O'yin tarixi va haftalik liga
+-- ---------------------------------------------------------------------
+create table if not exists public.game_history (
+    id              bigserial primary key,
+    room_code       text not null,
+    user_id         bigint not null,
+    game_type       text not null default 'bunker',
+    won             boolean not null default false,
+    coins_awarded   integer not null default 0,
+    players_count   integer not null default 0,
+    details         jsonb not null default '{}'::jsonb,
+    created_at      timestamptz not null default now(),
+    unique (room_code, user_id)
+);
+
+create index if not exists game_history_user_created_idx
+    on public.game_history (user_id, created_at desc);
+create index if not exists game_history_created_idx
+    on public.game_history (created_at desc);

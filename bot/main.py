@@ -8,6 +8,7 @@ import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from bot.localized import LocalizedBot
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
@@ -91,7 +92,7 @@ async def main() -> None:
     )
 
     config = get_config()
-    bot = Bot(
+    bot = LocalizedBot(
         token=config.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )

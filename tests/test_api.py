@@ -374,9 +374,12 @@ class LifespanTest(unittest.TestCase):
             os.environ,
             {"BOT_TOKEN": "123456:TEST", "ALLOW_GUEST_AUTH": "true"},
         ):
-            with patch.object(server_module, "Bot", return_value=fake_bot), patch.object(
-                server_module, "build_dispatcher", return_value=fake_dispatcher
-            ), patch.object(server_module, "set_commands", new=AsyncMock()):
+            with (
+                patch.object(server_module, "Bot", return_value=fake_bot),
+                patch.object(server_module, "LocalizedBot", return_value=fake_bot),
+                patch.object(server_module, "build_dispatcher", return_value=fake_dispatcher),
+                patch.object(server_module, "set_commands", new=AsyncMock()),
+            ):
                 with TestClient(app) as client:
                     self.assertTrue(started.wait(2), "Polling fonda boshlanmadi")
                     self.assertEqual(client.get("/api/health").status_code, 200)

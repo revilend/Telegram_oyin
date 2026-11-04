@@ -25,7 +25,7 @@ from typing import Any, Literal
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -34,9 +34,11 @@ from api.auth import TelegramUser, resolve_user_id, telegram_user
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
 from games.spyfall.engine import SpyfallError
-from games.spyfall.manager import SpyfallNotFoundError
+from games.spyfall.manager import SpyfallNotFoundError, get_default_manager as get_spyfall_manager
+from bot.config import get_config
 from bot.handlers import mafia_group as mafia_bot
 from bot.handlers.boosters import send_shield_offer
+from bot.localized import LocalizedBot
 from bot.main import build_dispatcher, set_commands
 from core.billing import buy_booster, decline_shield
 from core.db import get_store
@@ -48,6 +50,7 @@ from core.economy import (
     player_rating,
 )
 from core.login_codes import verify_login_code
+from core.metrics import metrics
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -147,6 +150,13 @@ class UserRequest(BaseModel):
     """Faqat foydalanuvchini ko'rsatuvchi so'rov (initData ustuvor)."""
 
     user_id: int | None = None
+
+
+class JoinRequest(UserRequest):
+    """Global qidiruvdan xonaga qo'shilish so'rovi."""
+
+    full_name: str = ""
+    username: str = ""
 
 
 class PromoCodeRequest(UserRequest):
@@ -350,7 +360,7 @@ async def lifespan(app: FastAPI):
 
     if token:
         try:
-            bot = Bot(
+            bot = LocalizedBot(
                 token=token,
                 default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
@@ -374,13 +384,13 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if bot is not None:
+            await bot.session.close()
+        _runtime_bot = None
+        set_spyfall_bot(None)
         if polling is not None:
             polling.cancel()
             await asyncio.gather(polling, return_exceptions=True)
-        _runtime_bot = None
-        set_spyfall_bot(None)
-        if bot is not None:
-            await bot.session.close()
         get_store().close()
         # Global menejerni yopilgan omborga bog'lab qo'ymaymiz: keyingi ishga
         # tushirish (yoki test) toza holatdan boshlanadi.
@@ -394,6 +404,22 @@ async def lifespan(app: FastAPI):
 # Ilova
 # ----------------------------------------------------------------------
 app = FastAPI(title="Revilend Games API", version="1.2.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def count_requests(request: Request, call_next: Any) -> Any:
+    """Monitoring uchun so'rovlar va server xatolarini sanaydi."""
+    metrics.request()
+    try:
+        response = await call_next(request)
+    except Exception:
+        metrics.error()
+        raise
+    if int(getattr(response, "status_code", 0)) >= 500:
+        metrics.error()
+    return response
+
+
 app.include_router(spyfall_router)
 
 
@@ -749,6 +775,108 @@ async def top_players(
     return {"top": top, "me": me, "total": len(accounts)}
 
 
+@app.get("/api/league")
+async def weekly_league(
+    limit: int = 10,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Joriy haftalik liga: o'yin va g'alaba ballari."""
+    limit = max(1, min(int(limit), 50))
+    viewer_id = user.id if user is not None else user_id
+    return {"league": get_economy().weekly_league(limit=limit, viewer_id=viewer_id)}
+
+
+@app.get("/api/history")
+async def game_history(
+    limit: int = 10,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchining oxirgi o'yinlari."""
+    resolved_id = resolve_user_id(user, user_id)
+    metrics.user(resolved_id)
+    return {"history": get_economy().history_for_user(resolved_id, limit)}
+
+
+@app.get("/api/lobbies")
+async def open_lobbies(limit: int = 20, q: str = "") -> dict[str, Any]:
+    """Barcha o'yinlar bo'yicha global ochiq lobby qidiruvi."""
+    limit = max(1, min(int(limit), 50))
+    needle = (q or "").strip().lower()
+    bot_username = get_config().bot_username
+    rows: list[dict[str, Any]] = []
+
+    for room in manager().open_rooms(limit):
+        host = room.players.get(room.host_id)
+        rows.append(
+            {
+                "game_type": "bunker",
+                "game_name": "Bunker",
+                "code": room.code,
+                "host_name": (host.full_name or host.username) if host else "",
+                "players": len(room.players),
+                "max_players": room.max_players,
+                "need": max(0, 2 - len(room.players)),
+                "join_url": f"https://t.me/{bot_username}?startapp={room.code}",
+            }
+        )
+
+    for game in mafia_bot.get_default_manager().open_games(limit):
+        host = game.room.players.get(game.host_id)
+        rows.append(
+            {
+                "game_type": "mafia",
+                "game_name": "Mafiya",
+                "code": game.code,
+                "host_name": host.name if host else "",
+                "players": len(game.room.players),
+                "max_players": mafia_bot.MAX_PLAYERS,
+                "need": max(0, mafia_bot.MIN_PLAYERS - len(game.room.players)),
+                "join_url": f"https://t.me/{bot_username}?startapp=mafia_{game.code}",
+            }
+        )
+
+    for room in get_spyfall_manager().open_rooms(limit):
+        host = room.players.get(room.host_id)
+        rows.append(
+            {
+                "game_type": "spyfall",
+                "game_name": "Josus",
+                "code": room.code,
+                "host_name": host.display_name() if host else "",
+                "players": len(room.players),
+                "max_players": 12,
+                "need": max(0, 3 - len(room.players)),
+                "join_url": f"https://t.me/{bot_username}?startapp=spy_{room.code}",
+            }
+        )
+
+    if needle:
+        rows = [
+            row
+            for row in rows
+            if needle in row["code"].lower()
+            or needle in row["game_name"].lower()
+            or needle in row["host_name"].lower()
+        ]
+    return {"lobbies": rows[:limit], "total": len(rows)}
+
+
+@app.get("/api/metrics")
+async def monitoring_metrics(
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Admin uchun monitoring ko'rsatkichlari."""
+    economy = get_economy()
+    if user is None or not (
+        (get_config().admin_id and user.id == get_config().admin_id)
+        or economy.is_admin_user(user.id)
+    ):
+        raise HTTPException(status_code=403, detail="Faqat administrator uchun")
+    return {"metrics": asdict(metrics.snapshot())}
+
+
 @app.get("/api/meta/cards")
 async def meta_cards() -> dict[str, Any]:
     """Karta turlarining yorliqlari."""
@@ -858,6 +986,35 @@ def _mafia_game_for(code: str) -> mafia_bot.MafiaGame:
         return mafia_bot.get_default_manager().get_game(code)
     except mafia_bot.MafiaGameError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/mafia/{code}/join")
+async def join_mafia_lobby(
+    code: str,
+    payload: JoinRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Global qidiruvdan Mafiya lobby'siga qo'shilish."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    full_name = (
+        (user.full_name if user is not None else "") or payload.full_name or ""
+    ).strip()
+    username = (
+        (user.username if user is not None else "") or payload.username or ""
+    ).strip()
+    if not full_name:
+        raise HTTPException(status_code=400, detail="full_name majburiy")
+    economy = get_economy()
+    economy.ensure_user(resolved_id, username, full_name)
+    try:
+        player = mafia_bot.get_default_manager().join(
+            code, resolved_id, full_name, username
+        )
+        game = mafia_bot.get_default_manager().get_game(code)
+    except mafia_bot.MafiaGameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    metrics.user(resolved_id)
+    return {"ok": True, "me": mafia_me_payload(game, player, economy=economy)}
 
 
 @app.get("/api/mafia/{code}/me")

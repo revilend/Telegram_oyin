@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import random
 import threading
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -46,6 +47,7 @@ class SpyfallManager:
 
     def __init__(self, *, seed: int | None = None) -> None:
         self._rooms: dict[str, SpyfallRoom] = {}
+        self._times: dict[str, float] = {}
         self._lock = threading.RLock()
         self._rng = random.Random(seed)
 
@@ -70,6 +72,7 @@ class SpyfallManager:
             room = SpyfallRoom(self._new_code(), host_id, chat_id=chat_id)
             room.add_player(host_id, host_name, is_host=True)
             self._rooms[room.code] = room
+            self._times[room.code] = time.time()
             self._persist(room)
             return room
 
@@ -86,7 +89,30 @@ class SpyfallManager:
                 raise SpyfallNotFoundError(
                     f"'{normalized or code}' kodli Josus xonasi topilmadi"
                 )
+            self._times[normalized] = time.time()
             return room
+
+    def prune_lobbies(self, max_age_seconds: int = 30 * 60) -> int:
+        """Uzoq vaqt harakatsiz qolgan Josus lobby'larini yopadi."""
+        now = time.time()
+        removed = 0
+        with self._lock:
+            for code, room in list(self._rooms.items()):
+                if room.phase is not Phase.LOBBY:
+                    continue
+                if now - self._times.get(code, now) > max_age_seconds:
+                    self._rooms.pop(code, None)
+                    self._times.pop(code, None)
+                    removed += 1
+        return removed
+
+    def open_rooms(self, limit: int = 50) -> list[SpyfallRoom]:
+        """Global qidiruv uchun ochiq Josus lobby'lari."""
+        self.prune_lobbies()
+        with self._lock:
+            rooms = [room for room in self._rooms.values() if room.phase is Phase.LOBBY]
+            rooms.sort(key=lambda room: self._times.get(room.code, 0), reverse=True)
+            return rooms[: max(1, int(limit))]
 
     def join(self, code: str, user_id: int, name: str = "") -> SpyfallRoom:
         """O'yinchini xonaga qo'shadi."""
@@ -213,6 +239,18 @@ class SpyfallManager:
             except Exception:  # tanga yozilmasa o'yin holati buzilmasin
                 logger.exception("Josus mukofotini qo'shib bo'lmadi: %s", user_id)
         room.rewards_granted = True
+        recorder = getattr(store, "record_game_history", None)
+        if callable(recorder):
+            try:
+                recorder(
+                    "spyfall",
+                    room.code,
+                    room.players.keys(),
+                    room.winner_ids,
+                    {user_id: amount for user_id in room.winner_ids},
+                )
+            except Exception:
+                logger.exception("Josus tarixini yozib bo'lmadi: %s", room.code)
 
     # ------------------------------------------------------------------ saqlash
     def _persist(self, room: SpyfallRoom) -> None:

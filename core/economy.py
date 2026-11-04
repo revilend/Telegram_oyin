@@ -14,13 +14,14 @@ import re
 import threading
 import uuid
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
 from dotenv import load_dotenv
 
 from core.db import safe_insert, safe_update
+from core.metrics import metrics
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
@@ -33,7 +34,10 @@ USERS_ID_COLUMN = "telegram_id"
 PAYMENTS_TABLE = "payment_requests"
 BOOSTERS_TABLE = "player_boosters"
 RESULTS_TABLE = "game_results"
+HISTORY_TABLE = "game_history"
 REFERRALS_TABLE = "referrals"
+WEEKLY_WIN_POINTS = 3
+WEEKLY_PLAY_POINTS = 1
 
 PENDING = "PENDING"
 APPROVED = "APPROVED"
@@ -343,6 +347,7 @@ class EconomyStore:
         self._payments: dict[str, dict[str, Any]] = {}
         self._boosters: set[tuple[str, int, str]] = set()
         self._finished_rooms: set[str] = set()
+        self._history: list[dict[str, Any]] = []
         # taklif qilingan id -> taklif qilgan id
         self._referrals: dict[int, int] = {}
         self._promo_codes: dict[str, dict[str, Any]] = {}
@@ -1124,8 +1129,178 @@ class EconomyStore:
             return sorted({int(row[USERS_ID_COLUMN]) for row in rows})
 
     # ------------------------------------------------------------------
-    # O'yin natijalari
+    # O'yin natijalari va tarix
     # ------------------------------------------------------------------
+    def record_game_history(
+        self,
+        game_type: str,
+        room_code: str,
+        user_ids: Iterable[int],
+        winner_ids: Iterable[int],
+        coins_by_user: dict[int, int] | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Har bir o'yinchi uchun tarix yozuvini saqlaydi."""
+        code = str(room_code).strip().upper()
+        players = sorted({int(uid) for uid in user_ids})
+        winners = set(int(uid) for uid in winner_ids) & set(players)
+        coins = {int(uid): max(0, int(value)) for uid, value in (coins_by_user or {}).items()}
+        common = dict(details or {})
+        common.setdefault("players_count", len(players))
+        common.setdefault("winner_ids", sorted(winners))
+        created_at = _now()
+        rows = [
+            {
+                "room_code": code,
+                "user_id": uid,
+                "game_type": str(game_type or "bunker").strip().lower(),
+                "won": uid in winners,
+                "coins_awarded": coins.get(uid, 0),
+                "players_count": int(common["players_count"]),
+                "details": common,
+                "created_at": created_at,
+            }
+            for uid in players
+        ]
+        if not rows:
+            return []
+        with self._lock:
+            self._history.extend(rows)
+            if self.enabled:
+                try:
+                    safe_insert(self.client, HISTORY_TABLE, rows)
+                except Exception:
+                    logger.exception(
+                        "O'yin tarixini Supabase'ga yozib bo'lmadi: %s", code
+                    )
+        metrics.game_finished(sum(coins.values()))
+        return rows
+
+    @staticmethod
+    def _history_payload(row: dict[str, Any]) -> dict[str, Any]:
+        """Tarix yozuvini API uchun ixcham ko'rinishga keltiradi."""
+        return {
+            "room_code": str(row.get("room_code") or ""),
+            "game_type": str(row.get("game_type") or "bunker"),
+            "won": bool(row.get("won")),
+            "coins": int(row.get("coins_awarded") or row.get("coins") or 0),
+            "players_count": int(row.get("players_count") or 0),
+            "created_at": str(row.get("created_at") or ""),
+        }
+
+    def history_for_user(self, user_id: int, limit: int = 10) -> list[dict[str, Any]]:
+        """Foydalanuvchining oxirgi o'yinlari."""
+        uid = int(user_id)
+        limit = max(1, min(int(limit), 50))
+        with self._lock:
+            if self.enabled:
+                try:
+                    rows = (
+                        self.client.table(HISTORY_TABLE)
+                        .select("*")
+                        .eq("user_id", uid)
+                        .order("created_at", desc=True)
+                        .limit(limit)
+                        .execute()
+                        .data
+                        or []
+                    )
+                except Exception:
+                    logger.exception("O'yin tarixini o'qib bo'lmadi: %s", uid)
+                    rows = [row for row in self._history if int(row.get("user_id") or 0) == uid]
+            else:
+                rows = [row for row in self._history if int(row.get("user_id") or 0) == uid]
+            rows = [dict(row) for row in rows if int(row.get("user_id") or 0) == uid]
+            rows.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+            return [self._history_payload(row) for row in rows[:limit]]
+
+    def weekly_league(
+        self,
+        limit: int = 10,
+        *,
+        viewer_id: int | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Joriy hafta ligasi: o'yin va g'alaba ballari bo'yicha reyting."""
+        limit = max(1, min(int(limit), 50))
+        moment = now or _now_moment()
+        week_start = (moment - timedelta(days=moment.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        week_end = week_start + timedelta(days=7)
+        with self._lock:
+            if self.enabled:
+                try:
+                    rows = (
+                        self.client.table(HISTORY_TABLE)
+                        .select("*")
+                        .gte("created_at", week_start.isoformat())
+                        .lt("created_at", week_end.isoformat())
+                        .execute()
+                        .data
+                        or []
+                    )
+                except Exception:
+                    logger.exception("Haftalik ligani o'qib bo'lmadi")
+                    rows = self._history
+            else:
+                rows = self._history
+
+        totals: dict[int, dict[str, int]] = {}
+        for row in rows:
+            created = str(row.get("created_at") or "")
+            if created and not (week_start.isoformat() <= created < week_end.isoformat()):
+                continue
+            uid = int(row.get("user_id") or 0)
+            if uid <= 0:
+                continue
+            item = totals.setdefault(uid, {"points": 0, "wins": 0, "games": 0})
+            won = bool(row.get("won"))
+            item["games"] += 1
+            item["wins"] += 1 if won else 0
+            item["points"] += WEEKLY_WIN_POINTS if won else WEEKLY_PLAY_POINTS
+
+        ranked: list[dict[str, Any]] = []
+        for uid, item in totals.items():
+            account = self.ensure_user(uid)
+            points = int(item["points"])
+            ranked.append(
+                {
+                    "user_id": uid,
+                    "name": account.full_name or account.username or f"ID {uid}",
+                    "points": points,
+                    "wins": int(item["wins"]),
+                    "games": int(item["games"]),
+                    "tier": (
+                        "oltin" if points >= 30 else "kumush" if points >= 15 else "bronza"
+                    ),
+                }
+            )
+        ranked.sort(key=lambda item: (item["points"], item["wins"], item["games"]), reverse=True)
+        for index, item in enumerate(ranked, start=1):
+            item["rank"] = index
+        me = None
+        if viewer_id is not None:
+            me = next((item for item in ranked if item["user_id"] == int(viewer_id)), None)
+            if me is None:
+                account = self.ensure_user(int(viewer_id))
+                me = {
+                    "user_id": int(viewer_id),
+                    "name": account.full_name or account.username or f"ID {viewer_id}",
+                    "points": 0,
+                    "wins": 0,
+                    "games": 0,
+                    "tier": "bronza",
+                    "rank": len(ranked) + 1,
+                }
+        return {
+            "week_start": week_start.isoformat(),
+            "week_end": week_end.isoformat(),
+            "top": ranked[:limit],
+            "me": me,
+            "total": len(ranked),
+        }
+
     def record_finished_game(
         self,
         room_code: str,
@@ -1174,6 +1349,7 @@ class EconomyStore:
                             "bunker_wins": bunker_wins,
                         },
                     )
+            self.record_game_history("bunker", code, players, winners)
             return True
 
     def record_mafia_game(
@@ -1233,6 +1409,13 @@ class EconomyStore:
                             "coins": coins,
                         },
                     )
+            self.record_game_history(
+                "mafia",
+                code,
+                players,
+                winners,
+                {uid: reward for uid in winners},
+            )
             return True
 
 
