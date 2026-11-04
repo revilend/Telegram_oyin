@@ -408,6 +408,21 @@ app = FastAPI(title="Revilend Games API", version="1.2.0", lifespan=lifespan)
 app.include_router(spyfall_router)
 
 
+@app.exception_handler(Exception)
+async def unhandled_api_error_handler(request: Any, exc: Exception) -> JSONResponse:
+    """Kutilmagan API xatolarini to'liq stack-trace bilan qayd etadi."""
+    logger.error(
+        "Unhandled API exception: %s %s",
+        getattr(request, "method", ""),
+        getattr(request, "url", ""),
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Ichki server xatoligi. Xatolik qayd etildi."},
+    )
+
+
 @app.exception_handler(RoomNotFoundError)
 async def room_not_found_handler(request: Any, exc: RoomNotFoundError) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": str(exc)})
