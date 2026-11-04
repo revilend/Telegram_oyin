@@ -727,7 +727,11 @@ async def my_profile(
     account = get_economy().ensure_user(
         resolved_id, resolved_username, resolved_name
     )
-    weekly = weekly_stats(resolved_id)
+    try:
+        weekly = weekly_stats(resolved_id)
+    except Exception:
+        logger.exception("Profil haftalik statistikasini olishda xatolik")
+        weekly = {"weekly_wins": 0, "weekly_score": 0}
     account = replace(
         account,
         weekly_wins=weekly["weekly_wins"],
