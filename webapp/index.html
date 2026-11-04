@@ -1768,6 +1768,14 @@ function profileCardHtml() {
           '</div>' +
           '<div class="profile-split">' + icon("shield") + ' Bunker: <b>' + esc(profile.bunker_wins || 0) +
             '</b> g\'alaba | ' + icon("hat") + ' Mafiya: <b>' + esc(profile.mafia_wins || 0) + '</b> g\'alaba</div>' +
+          (Array.isArray(profile.recent_games) && profile.recent_games.length
+            ? '<div class="profile-split"><b>🕹 So\'nggi o\'yinlar</b><br>' +
+                profile.recent_games.map(function (item) {
+                  var won = (item.winner_ids || []).map(Number).indexOf(Number(profile.id)) >= 0;
+                  var label = item.game_type === "spyfall" ? "Josus" : (item.game_type === "mafia" ? "Mafiya" : "Bunker");
+                  return (won ? "🏆 Yutdi" : "▫️ Yutqazdi") + " · " + label;
+                }).join("<br>") + '</div>'
+            : '') +
           '<div class="xp-row"><div class="xp-bar"><i></i></div><span class="xp-text">0 / 100 XP</span></div>' +
           '<button class="btn invite" data-act="invite">' + icon("share") + ' Do\'stlarni taklif qilish</button>' +
         '</section>';
@@ -1867,6 +1875,7 @@ function profileCardHtml() {
           var data = await request(path);
           if (!data || !data.user) return;
           updateProfileFromAccount(data.user);
+          profile.recent_games = Array.isArray(data.recent_games) ? data.recent_games.slice(0, 5) : [];
           if (view.shopOpen) view.shop = data.shop || view.shop;
           if (!view.code) renderHub();
           else if (view.room) renderRoom(true);
