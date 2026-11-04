@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -36,12 +37,122 @@ def _env(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
+MAX_COLUMN_RETRIES = 12
+
+_PGRST_COLUMN_RE = re.compile(r"could not find the '([^']+)' column", re.I)
+_QUOTED_COLUMN_RE = re.compile(r'column ["\']([^"\']+)["\']', re.I)
+_BARE_COLUMN_RE = re.compile(r"column\s+([\w.]+)\s+does not exist", re.I)
+
+
 def _missing_column_error(exc: Exception, column: str) -> bool:
     """PostgREST xatosida ustun yo'qligini aniqlaydi."""
     message = str(exc).lower()
     return column in message and (
         "column" in message or "schema cache" in message
     )
+
+
+def missing_column(exc: Exception) -> str | None:
+    """Xatodan yetishmayotgan ustun nomini ajratib oladi.
+
+    PostgREST ``PGRST204`` (``Could not find the 'updated_at' column ... in the
+    schema cache``) va Postgres ``column ... does not exist`` xatolarini
+    tushunadi. Boshqa xatolar uchun ``None`` qaytaradi — ular qayta
+    yuborilmaydi.
+    """
+    message = str(exc or "")
+    lowered = message.lower()
+    code = str(getattr(exc, "code", "") or "").upper()
+    is_missing = (
+        code == "PGRST204"
+        or "pgrst204" in lowered
+        or ("schema cache" in lowered and "column" in lowered)
+        or ("column" in lowered and "does not exist" in lowered)
+    )
+    if not is_missing:
+        return None
+    for pattern in (_PGRST_COLUMN_RE, _QUOTED_COLUMN_RE, _BARE_COLUMN_RE):
+        match = pattern.search(message)
+        if match:
+            column = (match.group(1) or "").strip().strip('"\'')
+            column = column.rsplit(".", 1)[-1]
+            if column:
+                return column
+    return None
+
+
+def _without_column(payload: Any, column: str) -> Any:
+    """Payload (dict yoki dict ro'yxati)dan bitta ustunni olib tashlaydi."""
+    if isinstance(payload, dict):
+        return {key: value for key, value in payload.items() if key != column}
+    if isinstance(payload, list):
+        return [
+            {key: value for key, value in row.items() if key != column}
+            if isinstance(row, dict)
+            else row
+            for row in payload
+        ]
+    return payload
+
+
+def execute_with_column_retry(factory: Any, payload: Any) -> Any:
+    """So'rovni bajaradi; PGRST204 bo'lsa xato bergan ustunni olib tashlab qayta urinadi.
+
+    Args:
+        factory: ``payload``ni qabul qilib tayyor so'rovni qaytaradigan funksiya.
+        payload: yoziladigan dict yoki dict ro'yxati.
+    """
+    data = payload
+    stripped: set[str] = set()
+    for _ in range(MAX_COLUMN_RETRIES):
+        try:
+            return factory(data).execute()
+        except Exception as exc:
+            column = missing_column(exc)
+            if not column or column in stripped:
+                raise
+            stripped.add(column)
+            trimmed = _without_column(data, column)
+            if trimmed == data:
+                raise
+            data = trimmed
+            logger.warning(
+                "Supabase sxemasida '%s' ustuni yo'q — so'rov usiz qayta yuboriladi",
+                column,
+            )
+    raise RuntimeError("Supabase ustunlarini tozalash chegarasidan oshib ketdi")
+
+
+def safe_insert(client: Any, table: str, row: Any, **kwargs: Any) -> Any:
+    """``insert`` so'rovi; yetishmayotgan ustunlarni avtomatik tashlab yuboradi."""
+    return execute_with_column_retry(
+        lambda payload: client.table(table).insert(payload, **kwargs), row
+    )
+
+
+def safe_upsert(
+    client: Any, table: str, row: Any, *, on_conflict: str | None = None
+) -> Any:
+    """``upsert`` so'rovi; yetishmayotgan ustunlarni avtomatik tashlab yuboradi."""
+    def factory(payload: Any) -> Any:
+        if on_conflict:
+            return client.table(table).upsert(payload, on_conflict=on_conflict)
+        return client.table(table).upsert(payload)
+
+    return execute_with_column_retry(factory, row)
+
+
+def safe_update(
+    client: Any, table: str, changes: dict[str, Any], filters: dict[str, Any]
+) -> Any:
+    """``update`` so'rovi; yetishmayotgan ustunlarni avtomatik tashlab yuboradi."""
+    def factory(payload: Any) -> Any:
+        query = client.table(table).update(payload)
+        for column, value in filters.items():
+            query = query.eq(column, value)
+        return query
+
+    return execute_with_column_retry(factory, changes)
 
 
 class SupabaseStore:
@@ -135,10 +246,7 @@ class SupabaseStore:
             "updated_at": updated_at,
         }
         try:
-            client.table(ROOMS_TABLE).upsert(
-                room_row,
-                on_conflict="code",
-            ).execute()
+            safe_upsert(client, ROOMS_TABLE, room_row, on_conflict="code")
         except Exception as exc:
             if _missing_column_error(exc, "bunker_capacity"):
                 logger.error(
@@ -167,10 +275,12 @@ class SupabaseStore:
             for player in room.players.values()
         ]
         if player_rows:
-            client.table(PLAYERS_TABLE).upsert(
+            safe_upsert(
+                client,
+                PLAYERS_TABLE,
                 player_rows,
                 on_conflict="room_code,user_id",
-            ).execute()
+            )
 
     # ------------------------------------------------------------------
     # O'qish

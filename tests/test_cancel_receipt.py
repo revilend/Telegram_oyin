@@ -185,7 +185,7 @@ class ReceiptTest(BotTestCase):
         self.assertEqual(file_id, "doc-1")
         self.assertIsNotNone(keyboard)
 
-    def test_receipt_error_is_shown_to_user(self) -> None:
+    def test_receipt_error_is_hidden_from_user(self) -> None:
         class BrokenStore:
             def create_payment(self, **kwargs):
                 raise RuntimeError("baza ishlamayapti")
@@ -193,7 +193,9 @@ class ReceiptTest(BotTestCase):
         with patch.object(shop, "get_economy", return_value=BrokenStore()):
             message = FakeMessage(photo=[SimpleNamespace(file_id="photo-2")])
             asyncio.run(shop.receipt_file(message, self._state()))
-        self.assertIn("⚠️ Chek xatosi: baza ishlamayapti", message.answers[-1])
+        answer = message.answers[-1]
+        self.assertIn("vaqtincha xatolik", answer)
+        self.assertNotIn("baza ishlamayapti", answer)
 
     def test_receipt_without_package_asks_to_restart(self) -> None:
         message = FakeMessage(photo=[SimpleNamespace(file_id="photo-3")])

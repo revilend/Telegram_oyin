@@ -26,6 +26,8 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from core.db import safe_upsert
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -155,10 +157,12 @@ class SettingsStore:
             if not self.enabled:
                 self._values[key] = text
                 return
-            self.client.table(SYSTEM_SETTINGS_TABLE).upsert(
+            safe_upsert(
+                self.client,
+                SYSTEM_SETTINGS_TABLE,
                 {"key": key, "value": text, "updated_at": _now()},
                 on_conflict="key",
-            ).execute()
+            )
 
     def payment_card(self) -> tuple[str, str]:
         """To'lov kartasi: ``(raqam, egasi)``."""

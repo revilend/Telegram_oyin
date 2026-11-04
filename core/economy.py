@@ -20,6 +20,8 @@ from typing import Any, Iterable
 
 from dotenv import load_dotenv
 
+from core.db import safe_insert, safe_update
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -347,10 +349,15 @@ class EconomyStore:
         return dict(rows[0]) if rows else None
 
     def _update_user_row(self, user_id: int, changes: dict[str, Any]) -> None:
-        changes = {**changes, "updated_at": _now()}
-        self.client.table(USERS_TABLE).update(changes).eq(
-            USERS_ID_COLUMN, int(user_id)
-        ).execute()
+        # ``updated_at`` ataylab qo'shilmaydi: Supabase sxemasida bu ustun
+        # bo'lmasa PGRST204 xatosi chiqadi. Qolgan ustunlar ham xavfsiz
+        # yoziladi — yetishmayotganlari so'rovdan avtomatik olib tashlanadi.
+        safe_update(
+            self.client,
+            USERS_TABLE,
+            dict(changes),
+            {USERS_ID_COLUMN: int(user_id)},
+        )
 
     # ------------------------------------------------------------------
     # Foydalanuvchilar
@@ -409,10 +416,9 @@ class EconomyStore:
                     "referral_count": 0,
                     "role": "user",
                     "created_at": _now(),
-                    "updated_at": _now(),
                 }
                 try:
-                    self.client.table(USERS_TABLE).insert(row).execute()
+                    safe_insert(self.client, USERS_TABLE, row)
                 except Exception:
                     # Parallel yaratilgan bo'lsa, mavjud yozuvni qayta o'qiymiz.
                     row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
@@ -503,7 +509,7 @@ class EconomyStore:
                     "created_at": _now(),
                 }
                 try:
-                    self.client.table(REFERRALS_TABLE).insert(row).execute()
+                    safe_insert(self.client, REFERRALS_TABLE, row)
                 except Exception:
                     # `invited_id` unikal — takroriy taklif hisobga olinmaydi.
                     logger.info("Taklif allaqachon yozilgan: %s", invited)
@@ -606,20 +612,33 @@ class EconomyStore:
             "created_at": _now(),
         }
         with self._lock:
-            if not self.enabled:
-                self._payments[request_id] = row
-            else:
-                self.client.table(PAYMENTS_TABLE).insert(row).execute()
+            # Xotirada har doim saqlanadi: Supabase xatosi (masalan PGRST204)
+            # chekni adminga yuborishga to'sqinlik qilmasligi kerak.
+            self._payments[request_id] = row
+            if self.enabled:
+                try:
+                    safe_insert(self.client, PAYMENTS_TABLE, row)
+                except Exception:
+                    logger.exception(
+                        "Chekni Supabase'ga saqlab bo'lmadi, xotirada saqlandi: %s",
+                        request_id,
+                    )
         return _row_to_payment(row)
 
     def get_payment(self, request_id: str) -> PaymentRequest | None:
-        """Chekni id bo'yicha qaytaradi."""
+        """Chekni id bo'yicha qaytaradi (avval xotiradan, keyin Supabase'dan)."""
+        key = str(request_id)
         with self._lock:
+            row = self._payments.get(key)
+            if row is not None:
+                return _row_to_payment(row)
             if not self.enabled:
-                row = self._payments.get(str(request_id))
-                return _row_to_payment(row) if row else None
-            row = self._select_one(PAYMENTS_TABLE, id=str(request_id))
-            return _row_to_payment(row) if row else None
+                return None
+            row = self._select_one(PAYMENTS_TABLE, id=key)
+            if row is None:
+                return None
+            self._payments[key] = dict(row)
+            return _row_to_payment(row)
 
     def list_pending_payments(self) -> list[PaymentRequest]:
         """Tasdiqlanmagan (PENDING) cheklarni eski tartibda qaytaradi."""
@@ -639,24 +658,41 @@ class EconomyStore:
                     .data
                     or []
                 )
+            by_id: dict[str, dict[str, Any]] = {
+                str(row.get("id")): dict(row) for row in rows
+            }
+            for key, row in self._payments.items():
+                if str(row.get("status")) == PENDING and key not in by_id:
+                    by_id[key] = row
+            rows = list(by_id.values())
         payments = [_row_to_payment(row) for row in rows]
         payments.sort(key=lambda payment: payment.created_at)
         return payments
 
     def _set_payment_status(self, request_id: str, status: str, admin_id: int) -> None:
+        key = str(request_id)
+        changes = {
+            "status": status,
+            "reviewed_by": int(admin_id),
+            "reviewed_at": _now(),
+        }
+        row = self._payments.get(key)
+        if row is not None:
+            row.update(changes)
         if not self.enabled:
-            row = self._payments[str(request_id)]
-            row["status"] = status
-            row["reviewed_by"] = int(admin_id)
-            row["reviewed_at"] = _now()
             return
-        self.client.table(PAYMENTS_TABLE).update(
-            {
-                "status": status,
-                "reviewed_by": int(admin_id),
-                "reviewed_at": _now(),
-            }
-        ).eq("id", str(request_id)).eq("status", PENDING).execute()
+        try:
+            safe_update(
+                self.client,
+                PAYMENTS_TABLE,
+                dict(changes),
+                {"id": key},
+            )
+        except Exception:
+            # Baza xatosi admin amalini to'xtatmasin: xotiradagi nusxa yangilandi.
+            logger.exception(
+                "Chek holatini Supabase'da yangilab bo'lmadi: %s", key
+            )
 
     def approve_payment(self, request_id: str, admin_id: int) -> PaymentRequest:
         """PENDING chekni tasdiqlaydi va tangalarni bir marta qo'shadi."""
@@ -718,14 +754,16 @@ class EconomyStore:
             if not self.enabled:
                 self._boosters.add(key)
                 return True
-            self.client.table(BOOSTERS_TABLE).insert(
+            safe_insert(
+                self.client,
+                BOOSTERS_TABLE,
                 {
                     "room_code": key[0],
                     "user_id": key[1],
                     "booster": key[2],
                     "used_at": _now(),
-                }
-            ).execute()
+                },
+            )
             return True
 
     # ------------------------------------------------------------------
@@ -809,7 +847,7 @@ class EconomyStore:
             else:
                 if self._select_one(PROMO_CODES_TABLE, code=normalized) is not None:
                     raise EconomyError("Bu promo kod allaqachon mavjud")
-                self.client.table(PROMO_CODES_TABLE).insert(row).execute()
+                safe_insert(self.client, PROMO_CODES_TABLE, row)
         return _row_to_promo(row)
 
     def get_promo_code(self, code: str) -> PromoCode | None:
@@ -868,14 +906,16 @@ class EconomyStore:
                 self._promo_codes[normalized]["used_count"] = promo.used_count + 1
             else:
                 try:
-                    self.client.table(PROMO_REDEMPTIONS_TABLE).insert(
+                    safe_insert(
+                        self.client,
+                        PROMO_REDEMPTIONS_TABLE,
                         {
                             "code": normalized,
                             "user_id": uid,
                             "coins": promo.coins,
                             "redeemed_at": _now(),
-                        }
-                    ).execute()
+                        },
+                    )
                 except Exception as exc:
                     logger.info(
                         "Promo kod allaqachon ishlatilgan: %s / %s",
@@ -928,9 +968,11 @@ class EconomyStore:
                 self._mission_claims.setdefault(uid, set()).add(key)
             else:
                 try:
-                    self.client.table(MISSIONS_TABLE).insert(
-                        {"user_id": uid, "mission": key, "claimed_at": _now()}
-                    ).execute()
+                    safe_insert(
+                        self.client,
+                        MISSIONS_TABLE,
+                        {"user_id": uid, "mission": key, "claimed_at": _now()},
+                    )
                 except Exception as exc:
                     logger.info(
                         "Missiya mukofoti allaqachon olingan: %s / %s", key, uid
@@ -997,13 +1039,15 @@ class EconomyStore:
             else:
                 if self._select_one(RESULTS_TABLE, room_code=code) is not None:
                     return False
-                self.client.table(RESULTS_TABLE).insert(
+                safe_insert(
+                    self.client,
+                    RESULTS_TABLE,
                     {
                         "room_code": code,
                         "winner_ids": winners,
                         "finished_at": _now(),
-                    }
-                ).execute()
+                    },
+                )
 
             for uid in players:
                 account = self.ensure_user(uid)
@@ -1051,13 +1095,15 @@ class EconomyStore:
             else:
                 if self._select_one(RESULTS_TABLE, room_code=code) is not None:
                     return False
-                self.client.table(RESULTS_TABLE).insert(
+                safe_insert(
+                    self.client,
+                    RESULTS_TABLE,
                     {
                         "room_code": code,
                         "winner_ids": winners,
                         "finished_at": _now(),
-                    }
-                ).execute()
+                    },
+                )
 
             for uid in players:
                 account = self.ensure_user(uid)

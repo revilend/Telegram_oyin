@@ -239,19 +239,37 @@ async def _send_receipt_to_admin(message: Message, payment) -> None:
     )
     keyboard = review_keyboard(payment.id)
     if message.photo:
-        await message.bot.send_photo(
-            chat_id=config.admin_id,
-            photo=payment.receipt_file_id,
-            caption=caption,
-            reply_markup=keyboard,
-        )
-    else:
+        try:
+            await message.bot.send_photo(
+                chat_id=config.admin_id,
+                photo=payment.receipt_file_id,
+                caption=caption,
+                reply_markup=keyboard,
+            )
+            return
+        except TelegramAPIError:
+            logger.exception(
+                "Chekni rasm sifatida yuborib bo'lmadi: %s", payment.id
+            )
+    try:
         await message.bot.send_document(
             chat_id=config.admin_id,
             document=payment.receipt_file_id,
             caption=caption,
             reply_markup=keyboard,
         )
+        return
+    except TelegramAPIError:
+        logger.exception(
+            "Chekni hujjat sifatida yuborib bo'lmadi: %s", payment.id
+        )
+    # Oxirgi chora: fayl yuborilmasa ham chek matni va tasdiqlash tugmalari
+    # adminga yetib boradi — chek hech qachon yo'qolmaydi.
+    await message.bot.send_message(
+        chat_id=config.admin_id,
+        text=caption,
+        reply_markup=keyboard,
+    )
 
 
 @router.message(ShopStates.waiting_receipt, F.photo | F.document)
@@ -280,9 +298,13 @@ async def receipt_file(message: Message, state: FSMContext) -> None:
             package_coins=int(coins),
             receipt_file_id=file_id,
         )
-    except Exception as exc:  # foydalanuvchi jim qolmasligi kerak
+    except Exception:  # foydalanuvchi jim qolmasligi kerak
         logger.exception("Chekni qayta ishlashda xatolik")
-        await message.answer(f"⚠️ Chek xatosi: {escape(str(exc))}")
+        # Texnik tafsilot (PGRST204 va h.k.) foydalanuvchiga ko'rsatilmaydi.
+        await message.answer(
+            "⚠️ Chekni qabul qilishda vaqtincha xatolik yuz berdi. "
+            "Iltimos, qayta yuboring yoki administratorga yozing."
+        )
         return
 
     await state.clear()
@@ -292,10 +314,11 @@ async def receipt_file(message: Message, state: FSMContext) -> None:
 
     try:
         await _send_receipt_to_admin(message, payment)
-    except Exception as exc:
+    except Exception:
         logger.exception("Chekni adminga yuborib bo'lmadi: %s", payment.id)
         await message.answer(
-            f"⚠️ Chek saqlandi, ammo adminga yuborishda xatolik: {escape(str(exc))}"
+            "⚠️ Chek saqlandi, ammo adminga yuborishda vaqtincha xatolik yuz berdi. "
+            "Administrator tez orada ko'rib chiqadi."
         )
 
 
