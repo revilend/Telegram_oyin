@@ -7,6 +7,7 @@ bo'sh holatda iliq xabar ko'rsatiladi.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from html import escape
 
 from aiogram import F, Router
@@ -16,7 +17,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from bot.handlers.profile import display_name, safe_int
 from bot.keyboards.main_menu import LEADERBOARD_BUTTON
 from core.economy import UserAccount, format_price, get_economy, player_rating
-from core.leaderboard import weekly_top
+from core.leaderboard import weekly_stats, weekly_top
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,13 @@ async def switch_leaderboard(callback: CallbackQuery) -> None:
         economy = get_economy()
         top = weekly_top(TOP_LIMIT) if weekly else economy.top_users(TOP_LIMIT)
         me = economy.get_user(callback.from_user.id)
+        if weekly:
+            stats = weekly_stats(callback.from_user.id)
+            me = replace(
+                me,
+                weekly_wins=stats["weekly_wins"],
+                weekly_score=stats["weekly_score"],
+            )
         text_value = leaderboard_text(top, me, weekly=weekly)
         await callback.message.edit_text(
             text_value,
