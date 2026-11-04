@@ -16,6 +16,8 @@ from typing import Any
 
 from core.db import get_store
 from core.economy import EconomyStore, InsufficientCoinsError, get_economy
+from core.game_history import record_game_history
+from core.leaderboard import record_weekly_win
 from games.spyfall.engine import (
     HINT_PRICE,
     MAX_PLAYERS,
@@ -213,6 +215,16 @@ class SpyfallManager:
             except Exception:  # tanga yozilmasa o'yin holati buzilmasin
                 logger.exception("Josus mukofotini qo'shib bo'lmadi: %s", user_id)
         room.rewards_granted = True
+        record_game_history(
+            "spyfall", room.code, room.players.keys(), room.winner_ids
+        )
+        for winner_id in room.winner_ids:
+            try:
+                record_weekly_win(winner_id)
+            except Exception:
+                logger.exception(
+                    "Josus haftalik ballini yozib bo'lmadi: %s", winner_id
+                )
 
     # ------------------------------------------------------------------ saqlash
     def _persist(self, room: SpyfallRoom) -> None:
