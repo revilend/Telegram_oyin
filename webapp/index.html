@@ -1861,7 +1861,7 @@ function profileCardHtml() {
       }
 
       function fetchMafiaMe(code) {
-        return request("/api/mafia/" + encodeURIComponent(code) + "?user_id=" + encodeURIComponent(profile.id));
+        return request("/api/mafia/" + encodeURIComponent(code) + "/me?user_id=" + encodeURIComponent(profile.id));
       }
 
       function enterMafia(code) {
