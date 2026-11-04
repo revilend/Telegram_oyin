@@ -30,6 +30,9 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from engine.matchmaking import Matchmaking, MatchmakingError
+from games.spyfall.manager import get_default_manager as get_spyfall_manager
+
 from api.auth import TelegramUser, resolve_user_id, telegram_user
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
@@ -141,6 +144,12 @@ class ActionRequest(BaseModel):
     full_name: str | None = None
     username: str | None = None
     booster: str | None = None
+
+
+class MatchmakingJoinRequest(BaseModel):
+    game_type: Literal["bunker", "mafia", "spyfall"]
+    name: str = ""
+    username: str = ""
 
 
 class UserRequest(BaseModel):
@@ -483,6 +492,124 @@ async def health() -> dict[str, str]:
         "game_type": GAME_TYPE,
         "supabase": "on" if get_store().enabled else "off",
     }
+
+
+_matchmaking: Matchmaking | None = None
+
+
+def _create_match_room(game_type: str, players: list[dict[str, Any]]) -> str:
+    """Navbatdagi o'yinchilar uchun mavjud dvigatellardan xona ochadi."""
+    if not players:
+        raise MatchmakingError("Xona uchun o'yinchilar topilmadi")
+    host = players[0]
+    host_id = int(host["user_id"])
+    host_name = str(host.get("name") or f"ID {host_id}")
+    host_username = str(host.get("username") or "")
+
+    if game_type == "bunker":
+        game_room = get_default_manager().create_room(
+            host_id, host_name, host_username
+        )
+        for player in players[1:]:
+            get_default_manager().join_room(
+                game_room.code,
+                int(player["user_id"]),
+                str(player.get("name") or f"ID {player['user_id']}"),
+                str(player.get("username") or ""),
+            )
+        return game_room.code
+
+    if game_type == "mafia":
+        game = mafia_bot.get_default_manager().create_game(
+            chat_id=0,
+            host_id=host_id,
+            host_name=host_name,
+            host_username=host_username,
+        )
+        for player in players[1:]:
+            mafia_bot.get_default_manager().join(
+                game.code,
+                int(player["user_id"]),
+                str(player.get("name") or f"ID {player['user_id']}"),
+                str(player.get("username") or ""),
+            )
+        return game.code
+
+    spy_manager = get_spyfall_manager()
+    spy_room = spy_manager.create_room(host_id, host_name, chat_id=0)
+    for player in players[1:]:
+        spy_manager.join(
+            spy_room.code,
+            int(player["user_id"]),
+            str(player.get("name") or f"ID {player['user_id']}"),
+        )
+    return spy_room.code
+
+
+async def _notify_match_user(user_id: int, message: str) -> None:
+    """Tayyor xona havolasini bot orqali shaxsiy xabarda yuboradi."""
+    if _runtime_bot is None:
+        return
+    await _runtime_bot.send_message(user_id, message)
+
+
+def _get_matchmaking() -> Matchmaking:
+    global _matchmaking
+    if _matchmaking is None:
+        _matchmaking = Matchmaking(
+            room_factory=_create_match_room,
+            notifier=_notify_match_user,
+        )
+    return _matchmaking
+
+
+@app.post("/api/matchmaking/join")
+async def matchmaking_join(
+    payload: MatchmakingJoinRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchini global o'yin navbatiga qo'shadi."""
+    user_id = resolve_user_id(user, None)
+    name = (user.full_name if user else "") or payload.name
+    username = (user.username if user else "") or payload.username
+    try:
+        result = await _get_matchmaking().join_queue(
+            user_id,
+            payload.game_type,
+            name=name,
+            username=username,
+        )
+    except MatchmakingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if result["status"] == "matched":
+        code = str(result["room_code"])
+        prefix = {"bunker": "", "mafia": "mafia_", "spyfall": "spy_"}[
+            payload.game_type
+        ]
+        bot_username = (os.getenv("BOT_USERNAME") or "revilend_gamesbot").strip().lstrip("@")
+        result["startapp_url"] = f"https://t.me/{bot_username}?startapp={prefix}{code}"
+    return result
+
+
+@app.post("/api/matchmaking/leave")
+async def matchmaking_leave(
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchini barcha global navbatlardan chiqaradi."""
+    user_id = resolve_user_id(user, None)
+    removed = await _get_matchmaking().leave_queue(user_id)
+    return {"ok": True, "removed": removed}
+
+
+@app.get("/api/matchmaking/status")
+async def matchmaking_status(
+    game_type: Literal["bunker", "mafia", "spyfall"],
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Mini App hisoblagichi uchun navbatdagi odamlar soni."""
+    resolve_user_id(user, None)
+    return await _get_matchmaking().status(game_type)
 
 
 @app.get("/api/games")
