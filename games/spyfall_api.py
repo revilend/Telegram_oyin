@@ -33,7 +33,7 @@ class VoteIn(PlayerIn):
 def _identity(payload: PlayerIn, user: TelegramUser | None) -> tuple[int, str]:
     """Tasdiqlangan Telegram ID va server ishonadigan ismni qaytaradi."""
     user_id = resolve_user_id(user, payload.user_id)
-    name = user.full_name if user is not None else payload.name
+    name = (user.full_name or user.username) if user is not None else payload.name
     return user_id, (name or "O'yinchi").strip()[:64]
 
 def _code() -> str:
