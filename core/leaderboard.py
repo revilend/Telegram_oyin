@@ -57,6 +57,7 @@ def weekly_top(limit: int = 10) -> list[UserAccount]:
         rows = (
             store.client.table("users")
             .select("*")
+            .eq("weekly_period_start", week_start_utc().isoformat())
             .order("weekly_score", desc=True)
             .order("weekly_wins", desc=True)
             .limit(max(1, min(int(limit), 100)))
@@ -80,6 +81,7 @@ def weekly_stats(user_id: int) -> dict[str, int]:
             store.client.table("users")
             .select("weekly_wins,weekly_score")
             .eq("telegram_id", int(user_id))
+            .eq("weekly_period_start", week_start_utc().isoformat())
             .limit(1)
             .execute()
             .data
