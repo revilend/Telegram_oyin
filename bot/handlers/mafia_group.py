@@ -5,9 +5,9 @@ inline tugma orqali qo'shiladi, xona egasi o'yinni boshlaydi. Rollar har bir
 o'yinchiga shaxsiy xabar bilan yuboriladi, tun va tong bildirishnomalari esa
 guruhga chiqadi.
 
-Mini App hali Mafiya harakatlarini bajarmagani uchun tunni xona egasi
-«⏭ Tunni yakunlash» tugmasi bilan yopadi; vot natijalari keyingi bosqichda
-Mini App'dan keladi.
+Mini App orqali o'yinchilar tungi harakatlarni yuboradi va kunduzgi ovoz
+berishda qatnashadi. Tunni xona egasi guruhdagi
+«⏭ Tunni yakunlash» tugmasi bilan yopadi.
 """
 
 from __future__ import annotations
