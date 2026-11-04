@@ -24,6 +24,15 @@ class UzbekAlphabetRequestMiddleware(BaseRequestMiddleware):
             if isinstance(value, str):
                 updates[field_name] = new_uzbek_latin(value)
 
+        commands = getattr(method, "commands", None)
+        if commands:
+            copied_commands = [command.model_copy(deep=True) for command in commands]
+            for command in copied_commands:
+                description = getattr(command, "description", None)
+                if isinstance(description, str):
+                    command.description = new_uzbek_latin(description)
+            updates["commands"] = copied_commands
+
         markup = getattr(method, "reply_markup", None)
         if markup is not None:
             copied = markup.model_copy(deep=True)
