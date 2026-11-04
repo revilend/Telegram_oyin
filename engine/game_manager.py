@@ -518,8 +518,8 @@ class GameManager:
                 for voter_id in self._votes[normalized]:
                     room.vote_weights.setdefault(voter_id, 1)
                 self._sync_vote_counts(room)
-        if room is None:
-            raise RoomNotFoundError(f"'{normalized or code}' kodli xona topilmadi")
+        if room is None or room.status is RoomStatus.EXPIRED:
+            raise RoomNotFoundError(f"'{normalized or code}' kodli xona topilmadi yoki muddati tugagan")
         return room
 
     # ------------------------------------------------------------------
