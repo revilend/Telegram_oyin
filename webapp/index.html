@@ -2064,7 +2064,7 @@ function profileCardHtml() {
             request("/api/bonus?user_id=" + encodeURIComponent(profile.id)),
             request("/api/missions?user_id=" + encodeURIComponent(profile.id)),
             request("/api/top?limit=10&user_id=" + encodeURIComponent(profile.id)),
-            request("/api/top?period=weekly&limit=10&user_id=" + encodeURIComponent(profile.id))
+            request("/api/top?period=weekly&limit=10&user_id=" + encodeURIComponent(profile.id)).catch(function () { return null; })
           ]);
           view.activity = {
             bonus: data[0] ? data[0].bonus : null,
