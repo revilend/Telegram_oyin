@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 import unittest
 from types import SimpleNamespace
@@ -42,6 +43,40 @@ class ModeratorMessage:
 
     async def reply(self, text: str, **kwargs) -> None:
         self.replies.append(text)
+
+
+class MafiaModeratorCommandFilterTest(unittest.IsolatedAsyncioTestCase):
+    """Guruh buyruqlari catch-all moderatorda yutilmasligi kerak."""
+
+    async def _matches(self, text: str) -> bool:
+        handler = next(
+            item
+            for item in mafia_group.router.message.handlers
+            if item.callback.__name__ == "mafia_chat_moderator"
+        )
+        message = ModeratorMessage(999, text)
+        for filter_object in handler.filters:
+            result = filter_object.call(message)
+            if inspect.isawaitable(result):
+                result = await result
+            if not result:
+                return False
+        return True
+
+    async def test_game_commands_are_not_swallowed(self) -> None:
+        for text in (
+            "/bunker@revilend_gamesbot",
+            "/newgame@revilend_gamesbot",
+            "/spy@revilend_gamesbot",
+            "/mafia@revilend_gamesbot",
+            "/bunker",
+            "/spy",
+        ):
+            with self.subTest(text=text):
+                self.assertFalse(await self._matches(text))
+
+    async def test_plain_group_text_still_matches(self) -> None:
+        self.assertTrue(await self._matches("salom"))
 
 
 class MafiaModeratorLookupTest(unittest.TestCase):

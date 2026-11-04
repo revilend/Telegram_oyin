@@ -728,9 +728,17 @@ def _active_game_for_chat(chat_id: int) -> MafiaGame | None:
     return None
 
 
-@router.message(F.chat.type.in_({"group", "supergroup"}))
+@router.message(
+    F.chat.type.in_({"group", "supergroup"}),
+    F.text,
+    ~F.text.startswith("/"),
+)
 async def mafia_chat_moderator(message: Message) -> None:
-    """O'yin paytida qatnashmagan va halok bo'lgan o'yinchilarni nazorat qiladi."""
+    """O'yin paytida qatnashmagan va halok bo'lgan o'yinchilarni nazorat qiladi.
+
+    Filtrda buyruqlar chiqarib tashlanadi: aks holda bu catch-all handler
+    keyingi routerlardagi /bunker va /spy buyruqlarini yutib yuboradi.
+    """
     if message.text and message.text.startswith("/"):
         return
     if message.from_user is None:
