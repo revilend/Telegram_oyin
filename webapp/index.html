@@ -1367,10 +1367,30 @@
         '</div>';
       }
 
-      function profileAvatarHtml(sizeClass) {
+      function getTgUser() {
+  try {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      return tg.initDataUnsafe.user;
+    }
+    var raw = (tg && tg.initData) || "";
+    if (!raw) {
+      var hash = window.location.hash.substring(1);
+      var params = new URLSearchParams(hash || window.location.search);
+      raw = params.get("tgWebAppData") || "";
+    }
+    if (raw) {
+      var sp = new URLSearchParams(raw);
+      var uStr = sp.get("user");
+      if (uStr) return JSON.parse(decodeURIComponent(uStr));
+    }
+  } catch (e) {}
+  return null;
+}
+
+function profileAvatarHtml(sizeClass) {
   var cls = sizeClass || "";
-  var tg = window.Telegram && window.Telegram.WebApp;
-  var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  var u = getTgUser();
   var name = (u && u.first_name) || profile.name || "Mehmon";
   var pid = (u && u.id) || profile.id;
   if (profile.photo) {
@@ -1380,8 +1400,7 @@
 }
 
 function profileCardHtml() {
-  var tg = window.Telegram && window.Telegram.WebApp;
-  var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  var u = getTgUser();
   var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon";
   var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram o'yinchi");
   return '<section class="profile-card fade">' +
@@ -1389,6 +1408,7 @@ function profileCardHtml() {
     '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
     '<div class="profile-handle">' + esc(handle) + '</div></div>' +
     '</div>' +
+    
           '<div class="wallet-row">' +
             '<div class="wallet-balance"><span>🪙</span><b>' + esc(profile.balance) + '</b> tanga</div>' +
             '<button class="coin-btn" data-act="shop">＋ Do‘kon</button>' +
@@ -1480,8 +1500,16 @@ function profileCardHtml() {
 
       async function loadAccount() {
   try {
-    var tg = window.Telegram && window.Telegram.WebApp;
-    var uid = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) || profile.id;
+    var u = getTgUser();
+    var uid = (u && u.id) || profile.id;
+    
+    // O'yinchining ismini dinamik yangilash:
+    if (u) {
+      profile.name = u.first_name + (u.last_name ? ' ' + u.last_name : '');
+      profile.username = u.username || '';
+      profile.id = u.id;
+    }
+
     var data = await request("/api/me?user_id=" + encodeURIComponent(uid));
     if (!data || !data.user) return;
     profile.balance = Number(data.user.coins) || 0;
@@ -1494,9 +1522,10 @@ function profileCardHtml() {
     if (!view.code) renderHub();
     else if (view.room) renderRoom(true);
   } catch (error) {
-    /* Mehmon rejimida yoki tarmoq xatosida eski qiymat qoladi. */
+    /* Tarmoq xatosida */
   }
       }
+      
       
 
       // ----------------------------------------------------------------
