@@ -6,8 +6,10 @@ import string
 import threading
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from api.auth import TelegramUser, resolve_user_id, telegram_user
 
 router = APIRouter(prefix="/api/spy", tags=["spyfall"])
 _lock = threading.RLock()
@@ -21,11 +23,18 @@ LOCATIONS = [
 ]
 
 class PlayerIn(BaseModel):
-    user_id: int
+    user_id: int | None = None
     name: str = "O'yinchi"
 
 class VoteIn(PlayerIn):
     target_id: int
+
+
+def _identity(payload: PlayerIn, user: TelegramUser | None) -> tuple[int, str]:
+    """Tasdiqlangan Telegram ID va server ishonadigan ismni qaytaradi."""
+    user_id = resolve_user_id(user, payload.user_id)
+    name = user.full_name if user is not None else payload.name
+    return user_id, (name or "O'yinchi").strip()[:64]
 
 def _code() -> str:
     while True:
@@ -54,41 +63,45 @@ def _public(room: dict[str, Any], viewer: int) -> dict[str, Any]:
     }
 
 @router.post("/create")
-def create(payload: PlayerIn):
+def create(payload: PlayerIn, user: TelegramUser | None = Depends(telegram_user)):
+    user_id, name = _identity(payload, user)
     with _lock:
         code = _code()
-        room = {"code": code, "host_id": payload.user_id, "status": "LOBBY",
-                "players": {payload.user_id: {"user_id": payload.user_id, "name": payload.name}},
+        room = {"code": code, "host_id": user_id, "status": "LOBBY",
+                "players": {user_id: {"user_id": user_id, "name": name}},
                 "roles": {}, "location": "", "spy_id": None, "votes": {}, "winner": None}
         _rooms[code] = room
-        return {"state": _public(room, payload.user_id), "me": {"role": None, "location": None}}
+        return {"state": _public(room, user_id), "me": {"role": None, "location": None}}
 
 @router.post("/{code}/join")
-def join(code: str, payload: PlayerIn):
+def join(code: str, payload: PlayerIn, user: TelegramUser | None = Depends(telegram_user)):
+    user_id, name = _identity(payload, user)
     with _lock:
         room = _room(code)
         if room["status"] != "LOBBY":
             raise HTTPException(400, "O'yin boshlangan")
-        if payload.user_id not in room["players"] and len(room["players"]) >= 10:
+        if user_id not in room["players"] and len(room["players"]) >= 10:
             raise HTTPException(400, "Xonada eng ko'pi bilan 10 o'yinchi bo'ladi")
-        room["players"][payload.user_id] = {"user_id": payload.user_id, "name": payload.name}
-        return {"state": _public(room, payload.user_id)}
+        room["players"][user_id] = {"user_id": user_id, "name": name}
+        return {"state": _public(room, user_id)}
 
 @router.get("/{code}")
-def state(code: str, user_id: int):
+def state(code: str, user_id: int | None = None, user: TelegramUser | None = Depends(telegram_user)):
+    viewer_id = resolve_user_id(user, user_id)
     with _lock:
         room = _room(code)
-        if user_id not in room["players"]:
+        if viewer_id not in room["players"]:
             raise HTTPException(403, "Avval xonaga qo'shiling")
-        role = room["roles"].get(user_id)
-        return {"state": _public(room, user_id),
+        role = room["roles"].get(viewer_id)
+        return {"state": _public(room, viewer_id),
                 "me": {"role": role, "location": room["location"] if role == "player" else None}}
 
 @router.post("/{code}/start")
-def start(code: str, payload: PlayerIn):
+def start(code: str, payload: PlayerIn, user: TelegramUser | None = Depends(telegram_user)):
+    user_id, _ = _identity(payload, user)
     with _lock:
         room = _room(code)
-        if payload.user_id != room["host_id"]:
+        if user_id != room["host_id"]:
             raise HTTPException(403, "Faqat xona egasi boshlaydi")
         if len(room["players"]) < 3:
             raise HTTPException(400, "Boshlash uchun kamida 3 o'yinchi kerak")
@@ -100,19 +113,24 @@ def start(code: str, payload: PlayerIn):
         room["spy_id"] = spy
         room["roles"] = {uid: ("spy" if uid == spy else "player") for uid in ids}
         room["status"] = "PLAYING"
-        return {"state": _public(room, payload.user_id),
-                "me": {"role": room["roles"][payload.user_id],
-                       "location": room["location"] if payload.user_id != spy else None}}
+        return {"state": _public(room, user_id),
+                "me": {"role": room["roles"][user_id],
+                       "location": room["location"] if user_id != spy else None}}
 
 @router.post("/{code}/vote")
-def vote(code: str, payload: VoteIn):
+def vote(code: str, payload: VoteIn, user: TelegramUser | None = Depends(telegram_user)):
+    user_id, _ = _identity(payload, user)
     with _lock:
         room = _room(code)
         if room["status"] != "PLAYING":
             raise HTTPException(400, "Ovoz berish vaqti emas")
-        if payload.user_id not in room["players"] or payload.target_id not in room["players"]:
+        if user_id not in room["players"] or payload.target_id not in room["players"]:
             raise HTTPException(400, "O'yinchi topilmadi")
-        room["votes"][payload.user_id] = payload.target_id
+        if payload.target_id == user_id:
+            raise HTTPException(400, "O'zingizga ovoz bera olmaysiz")
+        if user_id in room["votes"]:
+            raise HTTPException(400, "Siz allaqachon ovoz bergansiz")
+        room["votes"][user_id] = payload.target_id
         if len(room["votes"]) == len(room["players"]):
             counts: dict[int, int] = {}
             for target in room["votes"].values():
@@ -126,7 +144,7 @@ def vote(code: str, payload: VoteIn):
             else:
                 room["winner"] = "spy"
             room["status"] = "FINISHED"
-        return {"state": _public(room, payload.user_id),
-                "me": {"role": room["roles"].get(payload.user_id),
-                       "location": room["location"] if room["roles"].get(payload.user_id) == "player" else None},
+        return {"state": _public(room, user_id),
+                "me": {"role": room["roles"].get(user_id),
+                       "location": room["location"] if room["roles"].get(user_id) == "player" else None},
                 "spy_id": room["spy_id"] if room["status"] == "FINISHED" else None}
