@@ -694,6 +694,7 @@ async def my_profile(
     )
     return {
         "user": asdict(account),
+        "recent_games": recent_user_games(resolved_id, 5),
         "shop": shop_meta(),
         "boosters": boosters_payload(),
     }
