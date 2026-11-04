@@ -138,6 +138,41 @@ class MafiaMiniAppApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertIs(self.game.room.phase, GamePhase.DAY_REPORT)
 
+    def test_host_tally_eliminates_player_and_starts_next_night(self) -> None:
+        self.game.room.phase = GamePhase.VOTING
+        self.game.room.cast_vote(1, 4)
+        self.game.room.cast_vote(2, 4)
+        self.game.room.cast_vote(3, 4)
+
+        with patch("api.server._runtime_bot", None):
+            response = self.client.post(
+                f"/api/mafia/{self.game.code}/tally",
+                headers=self.headers(1),
+                json={},
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["eliminated_id"], 4)
+        self.assertFalse(self.game.room.players[4].is_alive)
+        self.assertIs(self.game.room.phase, GamePhase.NIGHT)
+
+    def test_kamikaze_tally_requires_target_without_eliminating_anyone(self) -> None:
+        self.game.room.players[4].role = MafiaRole.KAMIKAZE
+        self.game.room.phase = GamePhase.VOTING
+        self.game.room.cast_vote(1, 4)
+        self.game.room.cast_vote(2, 4)
+        self.game.room.cast_vote(3, 4)
+
+        response = self.client.post(
+            f"/api/mafia/{self.game.code}/tally",
+            headers=self.headers(1),
+            json={},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(self.game.room.players[4].is_alive)
+        self.assertIs(self.game.room.phase, GamePhase.VOTING)
+
 
 if __name__ == "__main__":
     unittest.main()
