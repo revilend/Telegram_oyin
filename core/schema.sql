@@ -174,3 +174,16 @@ create table if not exists public.player_missions (
 -- create policy "rooms write" on public.rooms for all using (true) with check (true);
 -- create policy "players read" on public.room_players for select using (true);
 -- create policy "players write" on public.room_players for all using (true) with check (true);
+
+
+-- ---------------------------------------------------------------------
+-- Josus (Spyfall): xonalarni server qayta ishga tushganda ham tiklash
+-- ---------------------------------------------------------------------
+create table if not exists public.spyfall_rooms (
+    code        text primary key,
+    state       jsonb not null,
+    updated_at  timestamptz not null default now()
+);
+
+create index if not exists spyfall_rooms_updated_at_idx
+    on public.spyfall_rooms (updated_at desc);
