@@ -50,6 +50,7 @@ def _public(room: dict[str, Any], viewer: int) -> dict[str, Any]:
                     for p in room["players"].values()],
         "votes_count": len(room["votes"]),
         "winner": room.get("winner"),
+        "spy_id": room["spy_id"] if room["status"] == "FINISHED" else None,
     }
 
 @router.post("/create")
