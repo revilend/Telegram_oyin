@@ -737,6 +737,7 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
             )
             return
         resolve_night(game.room)
+        manager.touch(code)
         if game.room.phase is not GamePhase.FINISHED:
             game.start_phase_timer()
     except (MafiaGameError, MafiaError) as exc:
@@ -790,6 +791,7 @@ async def mafia_chat_moderator(message: Message) -> None:
     if game is None or game.room.phase not in MODERATED_PHASES:
         return
 
+    get_default_manager().touch(game.code)
     user_id = message.from_user.id
     player = game.room.players.get(user_id)
 
