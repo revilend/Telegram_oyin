@@ -464,18 +464,19 @@ async def get_shop() -> dict[str, Any]:
 @app.get("/api/me")
 async def my_profile(
     user_id: int | None = None,
-    user: TelegramUser | None = Depends(telegram_user),
+    username: str = "",
+    full_name: str = "",
 ) -> dict[str, Any]:
     """O'yinchining tanga balansi va statistikasi."""
-    resolved_id = resolve_user_id(user, user_id)
-    username = (user.username if user is not None else "") or ""
-    full_name = (user.full_name if user is not None else "") or ""
-    account = get_economy().ensure_user(resolved_id, username, full_name)
+    if not user_id:
+        return {"user": None, "shop": shop_meta(), "boosters": boosters_payload()}
+    account = get_economy().ensure_user(int(user_id), username, full_name)
     return {
         "user": asdict(account),
         "shop": shop_meta(),
         "boosters": boosters_payload(),
     }
+    
 
 
 def account_display_name(account: Any) -> str:
