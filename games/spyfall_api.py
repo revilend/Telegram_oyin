@@ -117,9 +117,29 @@ def _restore_room(code: str) -> dict[str, Any] | None:
 
 
 def _code() -> str:
+    """Bo'sh xona kodi; bazadagi kodlar bir marta olinadi."""
+    existing: set[str] = set()
+    store = get_store()
+    if store.enabled:
+        try:
+            rows = (
+                store.client.table(SPYFALL_TABLE)
+                .select("code")
+                .execute()
+                .data
+                or []
+            )
+            existing = {str(row["code"]).upper() for row in rows if row.get("code")}
+        except Exception:
+            # Jadval hali yaratilmagan bo'lsa, xotira rejimida ham xona ochish mumkin.
+            logger.warning(
+                "Josus jadvali mavjud emas yoki o'qib bo'lmadi; "
+                "xona vaqtincha xotirada saqlanadi",
+                exc_info=True,
+            )
     for _ in range(1000):
         code = "SPY" + "".join(random.choices(string.digits, k=3))
-        if code not in _rooms and _restore_room(code) is None:
+        if code not in _rooms and code not in existing:
             return code
     raise HTTPException(503, "Bo'sh Josus xonasi kodi topilmadi")
 
