@@ -1152,7 +1152,7 @@
           description: "Kechki shaharda mafiya va tinch aholi o'rtasidagi kurash. Guruhda /mafia bilan boshlang."
         },
         {
-          slug: "spyfall", name: "Josus", emoji: "🕶️", status: "coming_soon", players: "4–10",
+          slug: "spyfall", name: "Josus", emoji: "🕶️", status: "active", players: "3–10",
           description: "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob orqali uni toping. Tez orada."
         }
       ];
@@ -2140,6 +2140,7 @@ function profileCardHtml() {
       function gameCardHtml(game) {
         var active = game.status === "active";
         var isMafia = game.slug === "mafia";
+        var isSpy = game.slug === "spyfall";
         return '<article class="game-card ' + (active ? "active" : "") + '">' +
           '<div class="game-icon">' + game.emoji + '</div>' +
           '<div class="game-body">' +
@@ -2149,8 +2150,8 @@ function profileCardHtml() {
             '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
           '</div>' +
           (active
-            ? '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : "open-bunker") + '">' +
-                (isMafia ? "Kod bilan kirish" : "Boshlash") + '</button>'
+            ? '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : "open-bunker")) + '">' +
+                (isMafia ? "Kod bilan kirish" : (isSpy ? "O'ynash" : "Boshlash")) + '</button>'
             : '<button class="play-btn" disabled>Tez kunda</button>') +
         '</article>';
       }
@@ -2876,5 +2877,6 @@ function profileCardHtml() {
       if (view.mode === "bunker" && !view.code) loadActivity();
     })();
   </script>
+  <script src="/spyfall.js"></script>
 </body>
 </html>
