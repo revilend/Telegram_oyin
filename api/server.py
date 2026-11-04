@@ -748,26 +748,28 @@ def account_display_name(account: Any) -> str:
     return f"ID {account.user_id}"
 
 
-def account_rank(accounts: list[Any], account: Any) -> int:
+def account_rank(accounts: list[Any], account: Any, *, weekly: bool = False) -> int:
     """Reyting qoidasi bo'yicha o'yinchining o'rnini hisoblaydi."""
-    target = (player_rating(account), account.coins)
-    better = sum(
-        1 for item in accounts if (player_rating(item), item.coins) > target
+    score = (
+        (lambda item: (item.weekly_score, item.weekly_wins))
+        if weekly
+        else (lambda item: (player_rating(item), item.coins))
     )
-    return better + 1
+    target = score(account)
+    return sum(1 for item in accounts if score(item) > target) + 1
 
 
 def leaderboard_row(
-    account: Any, rank: int, viewer_id: int | None
+    account: Any, rank: int, viewer_id: int | None, *, weekly: bool = False
 ) -> dict[str, Any]:
     return {
         "rank": rank,
         "user_id": account.user_id,
         "name": account_display_name(account),
         "username": account.username,
-        "rating": player_rating(account),
+        "rating": account.weekly_score if weekly else player_rating(account),
         "coins": account.coins,
-        "wins": account.wins,
+        "wins": account.weekly_wins if weekly else account.wins,
         "games_played": account.games_played,
         "is_me": viewer_id is not None and account.user_id == int(viewer_id),
     }
@@ -860,16 +862,18 @@ async def redeem_promo_code(
 @app.get("/api/top")
 async def top_players(
     limit: int = 10,
+    period: Literal["all", "weekly"] = "all",
     user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Reyting jadvali va (imkon bo'lsa) o'z o'rni."""
     limit = max(1, min(int(limit), 50))
     economy = get_economy()
-    accounts = economy.top_users(limit=1000)
+    weekly = period == "weekly"
+    accounts = weekly_top(limit=100) if weekly else economy.top_users(limit=1000)
     viewer_id = user.id if user is not None else user_id
     top = [
-        leaderboard_row(account, index, viewer_id)
+        leaderboard_row(account, index, viewer_id, weekly=weekly)
         for index, account in enumerate(accounts[:limit], start=1)
     ]
 
@@ -880,10 +884,13 @@ async def top_players(
         )
         if viewer is None:
             viewer = economy.get_user(viewer_id)
-        me = leaderboard_row(viewer, account_rank(accounts, viewer), viewer_id)
+        me = leaderboard_row(
+            viewer, account_rank(accounts, viewer, weekly=weekly),
+            viewer_id, weekly=weekly
+        )
         me["in_top"] = me["rank"] <= limit
 
-    return {"top": top, "me": me, "total": len(accounts)}
+    return {"top": top, "me": me, "total": len(accounts), "period": period}
 
 
 @app.get("/api/meta/cards")
