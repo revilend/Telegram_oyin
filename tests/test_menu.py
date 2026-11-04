@@ -81,13 +81,19 @@ class MainMenuKeyboardTest(MenuTestCase):
     def test_menu_is_persistent_two_columns(self) -> None:
         markup = main_menu.build_main_menu()
         rows = [[button.text for button in row] for row in markup.keyboard]
-        self.assertEqual(rows[0], ["🎮 O'yinlar (Mini App)", "🪙 Tangalar do'koni"])
-        self.assertEqual(rows[1], ["🛡️ Yangi Bunker", "👤 Mening profilim"])
-        self.assertEqual(rows[2], ["🏆 Reyting va Top", "ℹ️ Qoidalar / Yordam"])
-        self.assertEqual(rows[3], ["👥 Do'stlarni taklif qilish"])
+        self.assertEqual(
+            rows[0], ["🎮 Mini App (Portal)", "🎲 O'yinlar ro'yxati"]
+        )
+        self.assertEqual(rows[1], ["🎯 Missiyalar", "🪙 Tangalar do'koni"])
+        self.assertEqual(rows[2], ["🎁 Kunlik bonus", "🎟 Promo kod"])
+        self.assertEqual(rows[3], ["👤 Mening profilim", "🏆 Reyting va Top"])
+        self.assertEqual(
+            rows[4], ["ℹ️ Qoidalar / Yordam", "👥 Do'stlarni taklif qilish"]
+        )
+        self.assertEqual(len(rows), 5)
         self.assertTrue(markup.resize_keyboard)
         self.assertTrue(markup.is_persistent)
-        for row in markup.keyboard[:3]:
+        for row in markup.keyboard:
             self.assertEqual(len(row), 2)
 
     def test_games_button_opens_mini_app(self) -> None:
@@ -100,12 +106,13 @@ class MainMenuKeyboardTest(MenuTestCase):
         # Telegram noto'g'ri HTTPS manzilni rad etadi: zaxira menyuda oddiy tugma.
         markup = main_menu.build_main_menu(include_web_app=False)
         self.assertIsNone(markup.keyboard[0][0].web_app)
-        self.assertEqual(markup.keyboard[0][0].text, "🎮 O'yinlar (Mini App)")
+        self.assertEqual(markup.keyboard[0][0].text, "🎮 Mini App (Portal)")
 
     def test_admin_button_is_only_for_admins(self) -> None:
         for_admin = main_menu.build_main_menu(is_admin=True)
-        texts = [button.text for button in for_admin.keyboard[3]]
-        self.assertEqual(texts, ["👥 Do'stlarni taklif qilish", "👑 Admin panel"])
+        texts = [button.text for button in for_admin.keyboard[5]]
+        self.assertEqual(texts, ["👑 Admin panel"])
+        self.assertEqual(len(for_admin.keyboard), 6)
 
         for_player = main_menu.build_main_menu(is_admin=False)
         self.assertNotIn(
@@ -187,14 +194,36 @@ class MenuHandlerTest(MenuTestCase):
         answer = message.answers[-1]
         self.assertIn("Hozircha reyting bo'sh", answer)
 
-    def test_new_game_button_shows_group_guide(self) -> None:
-        message = FakeMessage(text=main_menu.NEW_GAME_BUTTON)
-        asyncio.run(menu.menu_new_game(message))
+    def test_game_list_button_shows_every_game(self) -> None:
+        message = FakeMessage(text=main_menu.GAME_LIST_BUTTON)
+        asyncio.run(menu.menu_game_list(message))
         answer = message.answers[-1]
-        self.assertIn("/bunker", answer)
+        for command in ("/bunker", "/mafia", "/spy"):
+            self.assertIn(command, answer)
         self.assertIn("guruh", answer.lower())
-        button = message.markups[-1].inline_keyboard[0][0]
-        self.assertIn("startgroup=true", button.url)
+        keyboard = message.markups[-1].inline_keyboard
+        self.assertEqual(len(keyboard), 4)
+        self.assertIn("startgroup=true", keyboard[-1][0].url)
+
+    def test_missions_button_shows_tasks(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        message = FakeMessage(text=main_menu.MISSIONS_BUTTON)
+        with patch.object(menu.missions, "get_economy", return_value=store):
+            asyncio.run(menu.menu_missions(message))
+        answer = message.answers[-1]
+        self.assertIn("Missiyalar", answer)
+        self.assertIn("5", answer)
+
+    def test_rules_sections_cover_all_games(self) -> None:
+        message = FakeMessage(text=main_menu.RULES_BUTTON)
+        asyncio.run(menu.menu_rules(message))
+        text = message.answers[-1]
+        keyboard = message.markups[-1].inline_keyboard
+        buttons = [button.text for row in keyboard for button in row]
+        self.assertTrue(any("Bunker" in item for item in buttons))
+        self.assertTrue(any("Mafiya" in item for item in buttons))
+        self.assertTrue(any("Josus" in item for item in buttons))
+        self.assertIn("Qoidalar", text)
 
     def test_rules_button_shows_rules(self) -> None:
         message = FakeMessage(text=main_menu.RULES_BUTTON)

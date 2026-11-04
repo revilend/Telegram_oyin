@@ -416,9 +416,11 @@ async def save_promo(message: Message, state: FSMContext) -> None:
         await message.answer(f"⚠️ {escape(str(exc))}", reply_markup=back_keyboard())
         return
     except Exception:
-        logger.exception("Promo kod yaratib bo'lmadi")
+        # Baza xatosi promokod yaratishni to'xtatmasligi kerak: economy kodi
+        # avval xotirada saqlaydi. Bu yerga faqat kutilmagan holat tushadi.
+        logger.exception("Promo kod yaratishda kutilmagan xatolik")
         await message.answer(
-            "⚠️ Promo kod yaratilmadi. Qayta urinib ko'ring.",
+            "⚠️ Promo kodni saqlashda vaqtincha xatolik. Qayta urinib ko'ring.",
             reply_markup=back_keyboard(),
         )
         return
@@ -426,11 +428,10 @@ async def save_promo(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer(
         "✅ <b>Promo kod yaratildi!</b>\n\n"
-        f"🎟 <code>{escape(promo.code)}</code>\n"
-        f"🪙 {format_price(promo.coins)} tanga\n"
-        f"🔁 {promo.max_uses} marta ishlatiladi\n\n"
-        "O'yinchilar kodni botdagi «🎟 Promo kod» tugmasi yoki Mini App'dagi "
-        "do'kon orqali kiritadi.",
+        f"🎟 Kod: <code>{escape(promo.code)}</code>\n"
+        f"🪙 Mukofot: {format_price(promo.coins)} tanga\n"
+        f"👥 Limit: {promo.max_uses} marta\n\n"
+        "O'yinchilar kodni botdagi «🎟 Promo kod» tugmasi orqali kiritadi.",
         reply_markup=panel_keyboard(),
     )
 

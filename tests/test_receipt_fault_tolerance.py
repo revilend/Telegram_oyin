@@ -177,6 +177,49 @@ class EconomySafeWriteTest(unittest.TestCase):
         pending = [item.id for item in store.list_pending_payments()]
         self.assertIn(payment.id, pending)
 
+    def test_promo_code_strips_missing_alias_columns(self) -> None:
+        client = FakeClient(
+            {"promo_codes": {"reward_coins", "uses", "current_uses"}}
+        )
+        store = EconomyStore(client=client)
+
+        promo = store.create_promo_code("YANGIYIL", 500, 20)
+
+        self.assertEqual(promo.code, "YANGIYIL")
+        self.assertEqual(promo.coins, 500)
+        self.assertEqual(promo.max_uses, 20)
+        sent = client.payloads("promo_codes")[0]
+        self.assertNotIn("reward_coins", sent)
+        self.assertNotIn("uses", sent)
+        self.assertNotIn("current_uses", sent)
+        self.assertEqual(sent["coins"], 500)
+        self.assertEqual(sent["max_uses"], 20)
+
+    def test_promo_code_is_created_even_when_db_write_fails(self) -> None:
+        client = FakeClient(
+            fail_tables={"promo_codes": RuntimeError("baza ishlamayapti")}
+        )
+        store = EconomyStore(client=client)
+
+        promo = store.create_promo_code("YANGIYIL", 500, 20)
+
+        self.assertEqual(store.get_promo_code("yangiyil").coins, 500)
+        redemption = store.redeem_promo_code(704, "YANGIYIL")
+        self.assertEqual(redemption.coins, 500)
+        self.assertEqual(redemption.account.coins, START_COINS + 500)
+        self.assertEqual(store.get_promo_code(promo.code).used_count, 1)
+
+    def test_mission_claim_survives_mission_table_failure(self) -> None:
+        client = FakeClient(
+            fail_tables={"player_missions": RuntimeError("baza ishlamayapti")}
+        )
+        store = EconomyStore(client=client)
+
+        account = store.claim_mission_reward(705, "first_game", 50)
+
+        self.assertEqual(account.coins, START_COINS + 50)
+        self.assertIn("first_game", store.claimed_missions(705))
+
     def test_approval_works_even_if_payment_db_write_fails(self) -> None:
         client = FakeClient(
             select_rows={"users": [user_row(704)]},

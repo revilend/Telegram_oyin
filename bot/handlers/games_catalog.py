@@ -1,8 +1,8 @@
 """🎮 O'yinlar vitrinasi: Bunker, Mafiya va Josus qoidalari.
 
-``/games`` yoki «🎮 O'yinlar (Mini App)» tugmasi uchta faol o'yinni
-ko'rsatadi; tanlanganda qisqa qoidalar va guruhda boshlash yo'riqnomasi
-chiqadi.
+``/games`` yoki «🎲 O'yinlar ro'yxati» tugmasi platformadagi uchta faol
+o'yinni ko'rsatadi; tanlanganda qisqa qoidalar, guruhda boshlash buyrug'i va
+«➕ Guruhga qo'shish» tugmasi chiqadi.
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
-from bot.keyboards.main_menu import GAMES_BUTTON
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +31,15 @@ SPY_CALLBACK = "catalog_spy"
 BACK_CALLBACK = "catalog_back"
 
 CATALOG_TEXT = (
-    "🎮 <b>O'yinlar</b>\n\n"
-    "Qaysi o'yinni tanlaysiz?\n\n"
-    "🛡️ <b>Bunker</b> — falokatdan keyin omon qolish uchun kartalar "
-    "bo'yicha bahslashasiz.\n"
-    "🕵️ <b>Mafiya</b> — tunda yashirin rollar, kunduzi ovoz berish.\n"
-    "🔍 <b>Josus</b> — hamma joyni biladi, bitta josus bilmaydi. "
-    "Savol-javob orqali uni toping."
+    "🎲 <b>O'yinlar ro'yxati</b>\n\n"
+    "Platformadagi barcha o'yinlar. Har biri guruhda o'ynaladi:\n\n"
+    "🛡️ <b>Bunker</b> — <code>/bunker</code> bilan boshlanadi. Falokatdan "
+    "keyin omon qolish uchun kartalar bo'yicha bahslashasiz.\n"
+    "🕵️ <b>Mafiya</b> — <code>/mafia</code> bilan boshlanadi. Tunda yashirin "
+    "rollar, kunduzi ovoz berish.\n"
+    "🔍 <b>Josus</b> — <code>/spy</code> bilan boshlanadi. Hamma joyni "
+    "biladi, bitta josus bilmaydi. Savol-javob orqali uni toping.\n\n"
+    "👇 O'yinni tanlang — guruhda boshlash bo'yicha qo'llanma chiqadi."
 )
 
 BUNKER_TEXT = (
@@ -80,20 +81,29 @@ MAFIA_TEXT = (
 
 
 def catalog_keyboard() -> InlineKeyboardMarkup:
-    """Uchta faol o'yin tugmasi."""
+    """Har bir o'yin alohida qatorda + guruhga qo'shish tugmasi."""
+    config = get_config()
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🛡️ Bunker", callback_data=BUNKER_CALLBACK
-                ),
-                InlineKeyboardButton(
-                    text="🕵️ Mafiya", callback_data=MAFIA_CALLBACK
-                ),
+                    text="🛡️ Bunker — /bunker", callback_data=BUNKER_CALLBACK
+                )
             ],
             [
                 InlineKeyboardButton(
-                    text="🔍 Josus", callback_data=SPY_CALLBACK
+                    text="🕵️ Mafiya — /mafia", callback_data=MAFIA_CALLBACK
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔍 Josus (Spyfall) — /spy", callback_data=SPY_CALLBACK
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="➕ Botni guruhga qo'shish",
+                    url=f"https://t.me/{config.bot_username}?startgroup=true",
                 )
             ],
         ]
@@ -144,13 +154,7 @@ async def _edit_or_send(
 
 @router.message(Command("games"))
 async def games_command(message: Message) -> None:
-    """/games — ikkala o'yin vitrinasi."""
-    await show_games(message)
-
-
-@router.message(F.chat.type == "private", F.text == GAMES_BUTTON)
-async def games_button(message: Message) -> None:
-    """«🎮 O'yinlar (Mini App)» matn tugmasi (web_app bo'lmaganda)."""
+    """/games — barcha o'yinlar ro'yxati."""
     await show_games(message)
 
 

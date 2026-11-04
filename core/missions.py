@@ -1,7 +1,7 @@
 """Missiyalar katalogi: taraqqiyotni o'lchaydigan maqsadlar va mukofotlar.
 
 Har bir missiya foydalanuvchi statistikasidagi bitta ko'rsatkichga bog'langan
-(``games_played``, ``wins`` yoki ``referral_count``). Mukofot faqat bir marta
+(``games_played``, ``wins``, ``referral_count`` yoki ``bonus_streak``). Mukofot faqat bir marta
 olinadi; olingan missiyalar ``core.economy.EconomyStore``da saqlanadi.
 """
 
@@ -15,6 +15,7 @@ from core.economy import EconomyError, EconomyStore, UserAccount
 MISSION_GAMES = "games_played"
 MISSION_WINS = "wins"
 MISSION_REFERRALS = "referral_count"
+MISSION_BONUS_STREAK = "bonus_streak"
 
 
 @dataclass(frozen=True)
@@ -34,65 +35,47 @@ MISSIONS: tuple[Mission, ...] = (
     Mission(
         key="first_game",
         title="Birinchi qadam",
-        emoji="🎮",
-        description="Bitta o'yinda qatnashing",
+        emoji="🎲",
+        description="1 ta istalgan o'yinda qatnashing",
         metric=MISSION_GAMES,
         target=1,
         reward=50,
     ),
     Mission(
-        key="games_5",
-        title="Tajribali o'yinchi",
-        emoji="🕹️",
-        description="5 ta o'yinda qatnashing",
-        metric=MISSION_GAMES,
-        target=5,
-        reward=150,
-    ),
-    Mission(
-        key="games_20",
-        title="Bunker faxriysi",
-        emoji="🏅",
-        description="20 ta o'yinda qatnashing",
-        metric=MISSION_GAMES,
-        target=20,
-        reward=400,
-    ),
-    Mission(
         key="first_win",
-        title="Birinchi g'alaba",
-        emoji="🥇",
-        description="Bitta o'yinda bunkerga tushing",
+        title="G'olib",
+        emoji="🏆",
+        description="Bunker yoki Mafiyada 1 marta g'alaba qozoning",
         metric=MISSION_WINS,
         target=1,
         reward=100,
-    ),
-    Mission(
-        key="wins_5",
-        title="G'oliblar safida",
-        emoji="🏆",
-        description="5 ta o'yinda g'olib bo'ling",
-        metric=MISSION_WINS,
-        target=5,
-        reward=300,
     ),
     Mission(
         key="friend_1",
-        title="Do'st olib kel",
+        title="Do'stlar davrasi",
         emoji="👥",
-        description="1 do'stingizni taklif qiling",
+        description="1 ta do'stni referal orqali taklif qiling",
         metric=MISSION_REFERRALS,
         target=1,
-        reward=100,
+        reward=75,
     ),
     Mission(
-        key="friends_5",
-        title="Katta jamoa",
-        emoji="🤝",
-        description="5 do'stingizni taklif qiling",
-        metric=MISSION_REFERRALS,
+        key="bonus_3",
+        title="Faol o'yinchi",
+        emoji="🔥",
+        description="3 kun ketma-ket kunlik bonus oling",
+        metric=MISSION_BONUS_STREAK,
+        target=3,
+        reward=120,
+    ),
+    Mission(
+        key="games_5",
+        title="Tajribali",
+        emoji="🛡",
+        description="Jami 5 ta o'yinda qatnashing",
+        metric=MISSION_GAMES,
         target=5,
-        reward=500,
+        reward=200,
     ),
 )
 

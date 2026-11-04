@@ -12,7 +12,14 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
 from bot.keyboards.main_menu import BONUS_BUTTON, PROMO_BUTTON
-from core.economy import DailyBonusClaim, EconomyError, format_price, get_economy
+from core.economy import (
+    DAILY_BONUS_TABLE,
+    DailyBonusClaim,
+    DailyBonusStatus,
+    EconomyError,
+    format_price,
+    get_economy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +29,8 @@ PRIVATE = F.chat.type == "private"
 
 PROMO_PROMPT = (
     "🎟 <b>Promo kod</b>\n\n"
-    "Admin bergan kodni yuboring (masalan <code>WELCOME2026</code>).\n"
-    "Har bir kod faqat bir marta ishlaydi."
+    "Admin bergan kodni yuboring (masalan <code>YANGIYIL</code>).\n"
+    "Har bir foydalanuvchi kodni bir marta ishlatadi."
 )
 
 
@@ -33,28 +40,40 @@ class RewardStates(StatesGroup):
     waiting_promo = State()
 
 
+def bonus_table_text(streak: int) -> str:
+    """1–7 kunlik mukofotlar jadvali (hozirgi kun belgilanadi)."""
+    lines = ["📅 <b>Kunlik mukofotlar jadvali:</b>"]
+    for day, amount in enumerate(DAILY_BONUS_TABLE, start=1):
+        label = f"{day}-kun" + (" (Katta mukofot!)" if day == 7 else "")
+        mark = " ← hozir" if day == min(max(1, int(streak)), 7) else ""
+        lines.append(f"{label}: +{format_price(amount)} 🪙{mark}")
+    return "\n".join(lines)
+
+
 def bonus_text(claim: DailyBonusClaim) -> str:
-    """Muvaffaqiyatli bonus xabari."""
-    streak_line = (
-        f"\n🔥 Ketma-ket kunlar: <b>{claim.streak}</b>"
-        if claim.streak > 1
-        else ""
-    )
+    """Muvaffaqiyatli bonus xabari: seriya, jadval va ertangi mukofot."""
+    next_amount = claim.next_amount or claim.amount
     return (
         "🎁 <b>Kunlik bonus olindi!</b>\n\n"
-        f"🪙 <b>+{format_price(claim.amount)}</b> tanga hisobingizga qo'shildi."
-        f"{streak_line}\n"
+        f"🔥 Hozirgi seriya: <b>{claim.streak}-kun</b>\n"
+        f"🪙 Olgan bonusingiz: <b>+{format_price(claim.amount)}</b> tanga\n"
         f"💰 Balans: <b>{format_price(claim.account.coins)}</b> tanga\n\n"
-        "Ertaga yana kelib, bonusni oling!"
+        f"{bonus_table_text(claim.streak)}\n\n"
+        f"«Ertaga kirsangiz sizni <b>+{format_price(next_amount)}</b> tanga "
+        "kutmoqda! Seriyani uzib qo'ymang!»"
     )
 
 
-def bonus_wait_text(reason: str, coins: int) -> str:
+def bonus_wait_text(reason: str, status: DailyBonusStatus) -> str:
     """Bonus hali mavjud bo'lmaganda ko'rsatiladigan xabar."""
+    next_amount = status.next_amount or status.amount
     return (
         "🎁 <b>Kunlik bonus</b>\n\n"
+        f"🔥 Hozirgi seriya: <b>{status.streak}-kun</b>\n"
         f"⏳ {escape(reason)}\n\n"
-        f"💰 Balans: <b>{format_price(coins)}</b> tanga"
+        f"📅 Keyingi bonus: <b>+{format_price(next_amount)}</b> tanga\n\n"
+        f"{bonus_table_text(status.streak)}\n\n"
+        "Seriyani uzmaslik uchun ertaga ham kirib oling!"
     )
 
 
@@ -69,9 +88,13 @@ async def claim_bonus(message: Message) -> None:
     try:
         claim = economy.claim_daily_bonus(user.id)
     except EconomyError as exc:
-        await message.answer(
-            bonus_wait_text(str(exc), economy.get_user(user.id).coins)
-        )
+        try:
+            status = economy.daily_bonus_status(user.id)
+            wait_text = bonus_wait_text(str(exc), status)
+        except Exception:
+            logger.exception("Bonus holatini o'qib bo'lmadi: %s", user.id)
+            wait_text = f"⏳ {escape(str(exc))}"
+        await message.answer(wait_text)
         return
     except Exception:
         logger.exception("Kunlik bonusni berib bo'lmadi: %s", user.id)

@@ -20,7 +20,7 @@ from core.economy import (
     EconomyError,
     EconomyStore,
 )
-from core.missions import MISSIONS, claim_mission, mission_statuses
+from core.missions import claim_mission, mission_statuses
 
 NOW = datetime(2026, 11, 3, 9, 0, tzinfo=timezone.utc)
 
@@ -55,13 +55,14 @@ class DailyBonusTest(unittest.TestCase):
 
     def test_streak_grows_and_is_capped(self) -> None:
         self.store.ensure_user(71002)
-        amounts = [50, 60, 70, 80, 90, 90]
+        amounts = [25, 35, 50, 70, 100, 150, 250, 250]
         for day, amount in enumerate(amounts):
             claim = self.store.claim_daily_bonus(71002, NOW + timedelta(days=day))
             self.assertEqual(claim.amount, amount)
-            self.assertEqual(claim.streak, min(day + 1, 5))
+            self.assertEqual(claim.streak, min(day + 1, 7))
+            self.assertEqual(claim.next_amount, amounts[min(day + 1, 7)])
         account = self.store.get_user(71002)
-        self.assertEqual(account.bonus_streak, 5)
+        self.assertEqual(account.bonus_streak, 7)
         self.assertEqual(account.coins, START_COINS + sum(amounts))
 
     def test_streak_resets_after_long_break(self) -> None:
@@ -141,7 +142,14 @@ class MissionTest(unittest.TestCase):
 
     def test_progress_and_claim(self) -> None:
         statuses = mission_statuses(self.store, 73001)
-        self.assertEqual(len(statuses), len(MISSIONS))
+        self.assertEqual(len(statuses), 5)
+        self.assertEqual(
+            [item.mission.key for item in statuses],
+            ["first_game", "first_win", "friend_1", "bonus_3", "games_5"],
+        )
+        self.assertEqual(
+            [item.mission.reward for item in statuses], [50, 100, 75, 120, 200]
+        )
         self.assertFalse(any(status.claimable for status in statuses))
 
         self.store.record_finished_game("BNKM7301", [73001, 73002], [73001])
@@ -162,6 +170,22 @@ class MissionTest(unittest.TestCase):
         with self.assertRaises(EconomyError):
             claim_mission(self.store, 73001, "nope")
 
+    def test_bonus_streak_unlocks_mission(self) -> None:
+        now = datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc)
+        for day in range(2):
+            self.store.claim_daily_bonus(73005, now + timedelta(days=day))
+        statuses = {
+            item.mission.key: item for item in mission_statuses(self.store, 73005)
+        }
+        self.assertFalse(statuses["bonus_3"].claimable)
+
+        self.store.claim_daily_bonus(73005, now + timedelta(days=2))
+        statuses = {
+            item.mission.key: item for item in mission_statuses(self.store, 73005)
+        }
+        self.assertTrue(statuses["bonus_3"].claimable)
+        self.assertEqual(statuses["bonus_3"].progress, 3)
+
     def test_referral_progress(self) -> None:
         self.store.ensure_user(73003)
         self.store.ensure_user(73004)
@@ -169,7 +193,8 @@ class MissionTest(unittest.TestCase):
         statuses = {item.mission.key: item for item in mission_statuses(self.store, 73003)}
         self.assertEqual(statuses["friend_1"].progress, 1)
         self.assertTrue(statuses["friend_1"].claimable)
-        self.assertFalse(statuses["friends_5"].claimable)
+        self.assertFalse(statuses["games_5"].claimable)
+        self.assertFalse(statuses["bonus_3"].claimable)
 
 
 class RewardsApiTest(unittest.TestCase):
@@ -335,6 +360,23 @@ class RewardsHandlerTest(unittest.TestCase):
         again = FakeMessage(user_id=75002)
         asyncio.run(rewards.claim_bonus(again))
         self.assertIn("allaqachon", again.answers[-1])
+
+    def test_bonus_message_shows_table_and_next_reward(self) -> None:
+        claim = self.store.claim_daily_bonus(75005)
+        text = rewards.bonus_text(claim)
+        self.assertIn("1-kun", text)
+        self.assertIn("+25", text)
+        self.assertIn("7-kun", text)
+        self.assertIn("Katta mukofot", text)
+        self.assertIn("+35", text)
+        self.assertIn("Ertaga kirsangiz", text)
+        self.assertIn("2-kun", text)
+
+        status = self.store.daily_bonus_status(75005)
+        wait = rewards.bonus_wait_text("Kunlik bonus allaqachon olingan", status)
+        self.assertIn("seriya", wait)
+        self.assertIn("+25", wait)
+        self.assertIn("Kunlik mukofotlar jadvali", wait)
 
     def test_promo_flow(self) -> None:
         self.store.create_promo_code("BOTPROMO", 120)

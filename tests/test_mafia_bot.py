@@ -631,17 +631,29 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
         text, keyboard = message.answers[0]
         self.assertIn("Bunker", text)
         self.assertIn("Mafiya", text)
-        buttons = keyboard.inline_keyboard[0]
-        self.assertEqual([button.text for button in buttons], ["🛡️ Bunker", "🕵️ Mafiya"])
+        self.assertIn("Josus", text)
+        buttons = [row[0] for row in keyboard.inline_keyboard[:3]]
+        self.assertEqual(
+            [button.text for button in buttons],
+            [
+                "🛡️ Bunker — /bunker",
+                "🕵️ Mafiya — /mafia",
+                "🔍 Josus (Spyfall) — /spy",
+            ],
+        )
         self.assertEqual(
             [button.callback_data for button in buttons],
-            [games_catalog.BUNKER_CALLBACK, games_catalog.MAFIA_CALLBACK],
+            [
+                games_catalog.BUNKER_CALLBACK,
+                games_catalog.MAFIA_CALLBACK,
+                games_catalog.SPY_CALLBACK,
+            ],
         )
 
     async def test_games_button_opens_catalog(self) -> None:
-        message = FakeMessage(text="🎮 O'yinlar (Mini App)")
+        message = FakeMessage(text="🎲 O'yinlar ro'yxati")
 
-        await games_catalog.games_button(message)
+        await games_catalog.games_command(message)
 
         self.assertIn("O'yinlar", message.answers[0][0])
 
@@ -667,8 +679,8 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
         await games_catalog.back_to_catalog(callback)
 
         text, keyboard = callback.message.edits[0]
-        self.assertIn("Qaysi o'yinni tanlaysiz", text)
-        self.assertEqual(len(keyboard.inline_keyboard[0]), 2)
+        self.assertIn("O'yinlar ro'yxati", text)
+        self.assertEqual(len(keyboard.inline_keyboard), 4)
 
 
 class MafiaImageTest(unittest.TestCase):

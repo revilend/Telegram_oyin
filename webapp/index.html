@@ -298,6 +298,17 @@
       border-color: rgba(251, 191, 36, 0.28);
     }
     .bonus-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .bonus-days { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .bonus-day {
+      font-size: 10px; font-weight: 700; color: var(--muted);
+      padding: 5px 7px; border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(148, 163, 184, 0.08);
+    }
+    .bonus-day.now {
+      color: #bae6fd; border-color: rgba(56, 189, 248, 0.55);
+      background: rgba(56, 189, 248, 0.16);
+    }
     .bonus-head h2 { margin-bottom: 4px; }
     .mission-list { display: flex; flex-direction: column; gap: 8px; }
     .mission {
@@ -1735,18 +1746,28 @@ function profileCardHtml() {
         return Math.max(1, minutes) + " daqiqadan keyin";
       }
 
+      var BONUS_TABLE = [25, 35, 50, 70, 100, 150, 250];
+
       function bonusHtml() {
         var bonus = activityState().bonus;
         if (!bonus) return "";
-        var streak = bonus.streak > 1 ? " · " + bonus.streak + " kunlik seriya" : "";
+        var streak = Math.max(1, Number(bonus.streak) || 1);
+        var next = Number(bonus.next_amount) || BONUS_TABLE[Math.min(streak, 7) - 1];
         var action = bonus.available
-          ? '<button class="btn primary block" data-act="claim-bonus">🎁 ' + esc(money(bonus.amount)) + ' tanga olish</button>'
-          : '<div class="notice tiny" style="margin-top:0">⏳ Keyingi bonus ' + esc(waitText(bonus.seconds_left)) + '</div>';
+          ? '<button class="btn primary block" data-act="claim-bonus">🎁 ' + esc(money(bonus.amount)) + ' tanga olish</button>' +
+            '<p class="muted tiny" style="margin-top:8px">Ertaga sizni +' + esc(money(next)) + ' tanga kutmoqda!</p>'
+          : '<div class="notice tiny" style="margin-top:0">⏳ Keyingi bonus ' + esc(waitText(bonus.seconds_left)) + ' · +' + esc(money(next)) + ' tanga</div>';
+        var days = BONUS_TABLE.map(function (amount, index) {
+          var day = index + 1;
+          return '<span class="bonus-day' + (day === streak ? " now" : "") + '">' +
+            day + '-kun +' + esc(money(amount)) + '</span>';
+        }).join("");
         return '<section class="panel bonus-card fade">' +
           '<div class="bonus-head"><div><h2>🎁 Kunlik bonus</h2>' +
-            '<p class="muted tiny">Har 24 soatda bir marta bepul tanga' + esc(streak) + '.</p></div>' +
+            '<p class="muted tiny">🔥 Hozirgi seriya: ' + esc(streak) + '-kun · har 24 soatda bir marta.</p></div>' +
             '<span class="badge ' + (bonus.available ? "live" : "soon") + '">' +
               (bonus.available ? "+" + esc(money(bonus.amount)) : "24 SOAT") + '</span></div>' +
+          '<div class="bonus-days">' + days + '</div>' +
           action +
         '</section>';
       }

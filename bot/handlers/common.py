@@ -42,11 +42,13 @@ CANCELLED_TEXT = "❌ Jarayon bekor qilindi."
 WELCOME_TEXT = (
     "Salom, <b>{name}</b>! 👋\n\n"
     "<b>Revilend Games</b> — Telegram ichida o'ynaladigan stol o'yinlari platformasi.\n\n"
-    "«Bunker» o'yinida falokatdan keyin omon qolish uchun guruh bilan birga qaror "
-    "qabul qilasiz: kasbingiz, sog'lig'ingiz va yukingizga qarab kim bunkerga "
-    "tushishini aniqlaysiz.\n\n"
-    "🎮 O'yinlarni ochish uchun pastdagi menyudan foydalaning.\n"
-    "➕ Guruhda yangi o'yin ochish uchun: /bunker"
+    "🛡️ <b>Bunker</b> — falokatdan keyin kartalar bo'yicha bahslashib, bunkerga "
+    "kim tushishini hal qilasiz.\n"
+    "🕵️ <b>Mafiya</b> — tunda yashirin rollar, kunduzi ovoz berish.\n"
+    "🔍 <b>Josus</b> — hamma joyni biladi, faqat josus bilmaydi.\n\n"
+    "🎮 O'yinlarni ochish uchun pastdagi menyudan foydalaning yoki "
+    "«🎲 O'yinlar ro'yxati»ni bosing.\n"
+    "➕ Guruhda yangi o'yin ochish uchun: /bunker, /mafia yoki /spy"
 )
 
 WELCOME_ONLY_TEXT = (
@@ -175,7 +177,7 @@ async def start_command(message: Message, command: CommandObject | None = None) 
     user = message.from_user
     if message.chat.type != "private":
         await message.answer(
-            "Yangi Bunker o'yinini ochish uchun /bunker yoki /newgame buyrug'ini yuboring."
+            "O'yinni ochish uchun /bunker, /mafia yoki /spy buyrug'ini yuboring."
         )
         return
 

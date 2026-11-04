@@ -16,9 +16,11 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
 from bot.config import get_config
 
-GAMES_BUTTON = "🎮 O'yinlar (Mini App)"
+GAMES_BUTTON = "🎮 Mini App (Portal)"
+GAME_LIST_BUTTON = "🎲 O'yinlar ro'yxati"
+MISSIONS_BUTTON = "🎯 Missiyalar"
 SHOP_BUTTON = "🪙 Tangalar do'koni"
-NEW_GAME_BUTTON = "🛡️ Yangi Bunker"
+NEW_GAME_BUTTON = GAME_LIST_BUTTON
 PROFILE_BUTTON = "👤 Mening profilim"
 LEADERBOARD_BUTTON = "🏆 Reyting va Top"
 RULES_BUTTON = "ℹ️ Qoidalar / Yordam"
@@ -31,8 +33,9 @@ ADMIN_BUTTON = "👑 Admin panel"
 BUTTON_TEXTS: frozenset[str] = frozenset(
     {
         GAMES_BUTTON,
+        GAME_LIST_BUTTON,
+        MISSIONS_BUTTON,
         SHOP_BUTTON,
-        NEW_GAME_BUTTON,
         PROFILE_BUTTON,
         LEADERBOARD_BUTTON,
         RULES_BUTTON,
@@ -43,7 +46,7 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
     }
 )
 
-INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker yozing"
+INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker, /mafia, /spy yozing"
 
 
 def mini_app_url_for(
@@ -90,7 +93,8 @@ def build_main_menu(
 
     Args:
         is_admin: ``True`` bo'lsa oxirgi qatorga «👑 Admin panel» qo'shiladi.
-        include_web_app: ``False`` bo'lsa «O'yinlar» oddiy matn tugmasi bo'ladi.
+        include_web_app: ``False`` bo'lsa «Mini App (Portal)» oddiy matn
+            tugmasi bo'ladi.
             Telegram ``web_app`` tugmasini faqat to'g'ri HTTPS manzil bilan
             qabul qiladi, shuning uchun xato bo'lsa shu rejim ishlatiladi.
         user_id, username, full_name: Mini App havolasiga qo'shiladigan
@@ -112,24 +116,27 @@ def build_main_menu(
     rows: list[list[KeyboardButton]] = [
         [
             games_button,
+            KeyboardButton(text=GAME_LIST_BUTTON),
+        ],
+        [
+            KeyboardButton(text=MISSIONS_BUTTON),
             KeyboardButton(text=SHOP_BUTTON),
         ],
-        [
-            KeyboardButton(text=NEW_GAME_BUTTON),
-            KeyboardButton(text=PROFILE_BUTTON),
-        ],
-        [
-            KeyboardButton(text=LEADERBOARD_BUTTON),
-            KeyboardButton(text=RULES_BUTTON),
-        ],
-        [KeyboardButton(text=INVITE_BUTTON)],
         [
             KeyboardButton(text=BONUS_BUTTON),
             KeyboardButton(text=PROMO_BUTTON),
         ],
+        [
+            KeyboardButton(text=PROFILE_BUTTON),
+            KeyboardButton(text=LEADERBOARD_BUTTON),
+        ],
+        [
+            KeyboardButton(text=RULES_BUTTON),
+            KeyboardButton(text=INVITE_BUTTON),
+        ],
     ]
     if is_admin:
-        rows[3].append(KeyboardButton(text=ADMIN_BUTTON))
+        rows.append([KeyboardButton(text=ADMIN_BUTTON)])
 
     return ReplyKeyboardMarkup(
         keyboard=rows,
