@@ -3,18 +3,43 @@
   var app = document.getElementById("app");
   var tg = window.Telegram && window.Telegram.WebApp;
   var code = "", state = null, me = null, timer = null, errorText = "";
+  function initData() {
+    if (tg && tg.initData) return tg.initData;
+    var sources = [location.search, location.hash.substring(1)];
+    for (var i = 0; i < sources.length; i++) {
+      if (!sources[i]) continue;
+      var params = new URLSearchParams(sources[i]);
+      var embedded = params.get("tgWebAppData");
+      if (embedded) return embedded;
+      if (params.has("hash") && params.has("user")) return sources[i];
+    }
+    return "";
+  }
   function user() {
     var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-    if (u) return {user_id:u.id, name:[u.first_name,u.last_name].filter(Boolean).join(" ") || u.username || "O'yinchi"};
-    var id = Number(sessionStorage.getItem("rg_guest_id"));
-    if (!id) { id = -Math.floor(Math.random()*900000000)-1; sessionStorage.setItem("rg_guest_id",String(id)); }
-    return {user_id:id, name:sessionStorage.getItem("rg_guest_name") || "Mehmon"};
+    if (!u) {
+      try {
+        var raw = initData();
+        var userJson = raw ? new URLSearchParams(raw).get("user") : "";
+        u = userJson ? JSON.parse(userJson) : null;
+      } catch (e) { u = null; }
+    }
+    if (u && u.id) return {user_id:u.id, name:[u.first_name,u.last_name].filter(Boolean).join(" ") || u.username || "O'yinchi"};
+    return {user_id:null, name:"O'yinchi"};
   }
   function req(path, body) {
     var headers = {"Content-Type":"application/json"};
-    if (tg && tg.initData) headers["X-Telegram-Init-Data"] = tg.initData;
+    var raw = initData();
+    if (raw) headers["X-Telegram-Init-Data"] = raw;
     return fetch(path, {method:body ? "POST" : "GET", headers:headers, body:body ? JSON.stringify(body) : undefined})
-      .then(function(r){return r.json().then(function(d){if(!r.ok) throw new Error(d.detail || "Server xatosi"); return d;});});
+      .then(function(r){return r.json().then(function(d){
+        if(!r.ok) {
+          var message = d.detail || "Server xatosi";
+          if (r.status === 401) message = "Telegram botdagi O'yinlar tugmasidan qayta oching.";
+          throw new Error(message);
+        }
+        return d;
+      });});
   }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
   function toast(s) { var el=document.getElementById("toast"); if(el){el.textContent=s;el.classList.add("show");setTimeout(function(){el.classList.remove("show");},2400);} }
