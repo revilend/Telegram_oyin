@@ -31,6 +31,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from engine.matchmaking import Matchmaking, MatchmakingError
+from engine.cleaner import cleaner_loop
 from games.spyfall.manager import get_default_manager as get_spyfall_manager
 
 from api.auth import TelegramUser, resolve_user_id, telegram_user
@@ -357,6 +358,7 @@ async def lifespan(app: FastAPI):
     global _runtime_bot
     bot: Bot | None = None
     polling: asyncio.Task[None] | None = None
+    cleaner_task = asyncio.create_task(cleaner_loop())
     token = (os.getenv("BOT_TOKEN") or "").strip()
 
     if token:
@@ -388,6 +390,8 @@ async def lifespan(app: FastAPI):
         if polling is not None:
             polling.cancel()
             await asyncio.gather(polling, return_exceptions=True)
+        cleaner_task.cancel()
+        await asyncio.gather(cleaner_task, return_exceptions=True)
         _runtime_bot = None
         set_spyfall_bot(None)
         if bot is not None:
