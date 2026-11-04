@@ -3961,6 +3961,7 @@ function profileCardHtml() {
             else enterRoom(result.room_code);
             return;
           }
+          view.matchmaking = {};
           view.matchmaking[gameType] = {
             count: result.count,
             required: result.required
