@@ -40,6 +40,7 @@ from games.spyfall.api import set_runtime_bot as set_spyfall_bot
 from games.spyfall.engine import SpyfallError
 from games.spyfall.manager import SpyfallNotFoundError
 from bot.handlers import mafia_group as mafia_bot
+from bot.middlewares.uzbek_alphabet import UzbekAlphabetRequestMiddleware
 from bot.handlers.boosters import send_shield_offer
 from bot.main import build_dispatcher, set_commands
 from core.billing import buy_booster, decline_shield
@@ -367,6 +368,7 @@ async def lifespan(app: FastAPI):
                 token=token,
                 default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
+            bot.session.middleware(UzbekAlphabetRequestMiddleware())
             _runtime_bot = bot
             set_spyfall_bot(bot)
             dispatcher = build_dispatcher()
