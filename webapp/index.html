@@ -1500,7 +1500,9 @@ function profileCardHtml() {
 
       async function loadAccount() {
   try {
-    var u = getTgUser();
+    var tg = window.Telegram && window.Telegram.WebApp;
+var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+    
     var uid = (u && u.id) || profile.id;
     
     // O'yinchining ismini dinamik yangilash:
