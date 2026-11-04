@@ -32,6 +32,8 @@ from aiogram.types import (
 
 from bot.config import get_config
 from core.economy import MAFIA_WIN_REWARD, get_economy
+from core.game_history import record_game_history
+from core.leaderboard import record_weekly_win
 from games.mafia.boosters import KEVLAR
 from games.mafia.engine import (
     GamePhase,
@@ -476,11 +478,23 @@ async def announce_finish(bot: Bot, game: MafiaGame) -> None:
     game.clear_phase_timer()
     caption = finish_text(game.room.winner)
     try:
-        rewarded = get_economy().record_mafia_game(
+        winner_ids = winning_player_ids(game.room)
+        get_economy().record_mafia_game(
             game.code,
             game.room.players.keys(),
-            winning_player_ids(game.room),
+            winner_ids,
         )
+        record_game_history(
+            "mafia", game.code, game.room.players.keys(), winner_ids
+        )
+        for winner_id in winner_ids:
+            try:
+                record_weekly_win(winner_id)
+            except Exception:
+                logger.exception(
+                    "Mafiya haftalik ballini yozib bo'lmadi: %s", winner_id
+                )
+        rewarded = bool(winner_ids)
         if rewarded:
             caption += (
                 f"\n\n🪙 G'oliblar: +{MAFIA_WIN_REWARD} tanga"
