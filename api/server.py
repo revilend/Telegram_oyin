@@ -1176,6 +1176,7 @@ async def submit_mafia_night_action(
         game.room.submit_night_action(
             resolved_id, payload.target_id, kind=payload.kind
         )
+        mafia_bot.get_default_manager().touch(code)
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True}
@@ -1196,6 +1197,7 @@ async def begin_mafia_voting(
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     game.start_phase_timer()
+    mafia_bot.get_default_manager().touch(code)
     return {"ok": True}
 
 
@@ -1210,6 +1212,7 @@ async def cast_mafia_vote(
     game = _mafia_game_for(code)
     try:
         game.room.cast_vote(resolved_id, payload.target_id)
+        mafia_bot.get_default_manager().touch(code)
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True}
@@ -1242,6 +1245,7 @@ async def tally_mafia_votes(
             eliminated_id,
             kamikaze_target_id=payload.kamikaze_target_id,
         )
+        mafia_bot.get_default_manager().touch(code)
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
