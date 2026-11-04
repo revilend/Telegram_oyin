@@ -1171,10 +1171,16 @@
         mode: initialMafiaCode ? "mafia" : "bunker",
         code: initialCode,
         mafia: null,
+        mafiaState: null,
         mafiaLoading: false,
         mafiaError: null,
         mafiaOpen: false,
         mafiaTimer: null,
+        mafiaActionBusy: false,
+        mafiaActionKind: "",
+        mafiaActionTarget: null,
+        mafiaVoteTarget: null,
+        mafiaKamikazeTarget: null,
         boosterBusy: false,
         room: null,
         me: null,
@@ -1873,8 +1879,13 @@ function profileCardHtml() {
         view.mode = "mafia";
         view.code = normalized;
         view.mafia = null;
+        view.mafiaState = null;
         view.mafiaError = null;
         view.mafiaOpen = false;
+        view.mafiaActionKind = "";
+        view.mafiaActionTarget = null;
+        view.mafiaVoteTarget = null;
+        view.mafiaKamikazeTarget = null;
         if (view.mafiaTimer) {
           clearTimeout(view.mafiaTimer);
           view.mafiaTimer = null;
@@ -1897,11 +1908,15 @@ function profileCardHtml() {
           renderMafia();
         }
         try {
-          var data = await fetchMafiaMe(code);
+          var results = await Promise.all([
+            fetchMafiaMe(code),
+            request("/api/mafia/" + encodeURIComponent(code) + "/state")
+          ]);
           if (view.mode !== "mafia" || view.code !== code) return;
-          view.mafia = data.me;
+          view.mafia = results[0].me;
+          view.mafiaState = results[1].state;
           view.mafiaError = null;
-          if (data.me.phase !== "FINISHED") {
+          if (results[0].me.phase !== "FINISHED") {
             // Rol, taymer va mafiya jamoasi yangilanishi uchun qisqa poll.
             view.mafiaTimer = setTimeout(function () {
               if (view.mode === "mafia" && view.code === code) loadMafiaRole();
@@ -2009,6 +2024,116 @@ function profileCardHtml() {
         }
       }
 
+
+      function mafiaNightPanelHtml(me) {
+        var state = view.mafiaState || {};
+        if (me.phase !== "NIGHT" || !me.is_alive) return "";
+        var actions = state.night_actions || [];
+        if (!actions.length) {
+          return '<section class="panel"><h2>🌙 Tun</h2><p class="muted tiny">Sizning rolingizda bu tunda maxsus harakat yo‘q.</p></section>';
+        }
+        var selectedKind = view.mafiaActionKind || actions[0].key;
+        var selectedAction = actions.find(function (item) { return item.key === selectedKind; }) || actions[0];
+        var needsDead = selectedAction.key === "witch_heal" || selectedAction.key === "copy";
+        var targets = (state.players || []).filter(function (player) {
+          if (needsDead) return !player.is_alive;
+          return player.is_alive && !player.is_me;
+        });
+        var actionSelect = actions.length > 1
+          ? '<label class="muted tiny" for="mafia-night-kind">Harakat turi</label><select id="mafia-night-kind" class="field">' +
+              actions.map(function (action) {
+                return '<option value="' + esc(action.key) + '"' + (action.key === selectedKind ? ' selected' : '') + '>' + esc(action.label) + '</option>';
+              }).join("") + '</select>'
+          : '<p class="muted tiny">' + esc(selectedAction.label) + '</p>';
+        var targetSelect = targets.length
+          ? '<label class="muted tiny" for="mafia-night-target">Nishon</label><select id="mafia-night-target" class="field">' +
+              targets.map(function (player) {
+                return '<option value="' + player.user_id + '">' + esc(player.name) + '</option>';
+              }).join("") + '</select>'
+          : '<p class="muted tiny">' + (needsDead ? 'Tanlash uchun halok bo‘lgan o‘yinchi yo‘q.' : 'Tanlash uchun tirik nishon yo‘q.') + '</p>';
+        return '<section class="panel">' +
+          '<h2>🌙 Tungi harakat</h2>' +
+          (state.has_submitted_night_action ? '<p class="muted tiny">Harakatingiz yuborilgan. Tun tugamaguncha qayta tanlashingiz mumkin.</p>' : '') +
+          actionSelect + targetSelect +
+          '<button class="btn primary block" data-act="mafia-night-submit"' + (!targets.length || view.mafiaActionBusy ? ' disabled' : '') + '>Harakatni yuborish</button>' +
+        '</section>';
+      }
+
+      function mafiaVotingPanelHtml(me) {
+        var state = view.mafiaState || {};
+        if (me.phase === "DAY_REPORT") {
+          var report = state.private_result
+            ? '<div class="notice">🔎 Sherif tekshiruvi: ' + esc(state.private_result) + '</div>'
+            : '';
+          return '<section class="panel"><h2>🌅 Tonggi muhokama</h2>' + report +
+            (me.is_host
+              ? '<button class="btn primary block" data-act="mafia-begin-voting">🗳 Ovoz berishni boshlash</button>'
+              : '<p class="muted tiny">Xona egasi ovoz berishni boshlashini kuting.</p>') +
+            '</section>';
+        }
+        if (me.phase !== "VOTING") return "";
+        var players = (state.players || []).filter(function (player) {
+          return player.is_alive && !player.is_me;
+        });
+        var counts = {};
+        (state.vote_counts || []).forEach(function (item) { counts[item.user_id] = item.count; });
+        var voteButtons = players.map(function (player) {
+          var selected = Number(view.mafiaVoteTarget) === Number(player.user_id);
+          return '<button class="vote-target' + (selected ? ' sel' : '') + '" data-act="mafia-vote-select" data-target="' + player.user_id + '">' +
+            '<span class="name">' + esc(player.name) + '</span><span class="count">' + (counts[player.user_id] || 0) + ' ovoz</span></button>';
+        }).join("");
+        var voteHtml = !me.is_alive
+          ? '<p class="muted tiny">Siz o‘yindan chiqqansiz. Ovoz bera olmaysiz.</p>'
+          : (state.is_silenced
+            ? '<p class="muted tiny">Siz shantaj qilingansiz va bu kuni ovoz bera olmaysiz.</p>'
+            : '<div class="vote-list">' + voteButtons + '</div>' +
+              '<button class="btn primary block" data-act="mafia-vote-submit"' + (view.mafiaVoteTarget == null || view.mafiaActionBusy ? ' disabled' : '') + '>' +
+                (state.has_voted ? 'Ovozni yangilash' : 'Ovoz berish') + '</button>');
+        var aliveTargets = (state.players || []).filter(function (player) {
+          return player.is_alive && !player.is_me;
+        });
+        var kamikazeSelect = aliveTargets.length
+          ? '<label class="muted tiny" for="mafia-kamikaze-target">Agar Kamikadze haydalsa, u bilan birga ketadigan o‘yinchi</label>' +
+            '<select id="mafia-kamikaze-target" class="field"><option value="">Tanlanmagan</option>' +
+            aliveTargets.map(function (player) {
+              return '<option value="' + player.user_id + '"' +
+                (Number(view.mafiaKamikazeTarget) === Number(player.user_id) ? ' selected' : '') +
+                '>' + esc(player.name) + '</option>';
+            }).join("") + '</select>'
+          : '';
+        return '<section class="panel"><h2>🗳 Kunduzgi ovoz</h2>' + voteHtml +
+          (state.can_tally
+            ? kamikazeSelect + '<button class="btn block" data-act="mafia-tally"' + (view.mafiaActionBusy ? ' disabled' : '') + '>Ovozlarni sanash</button>'
+            : '<p class="muted tiny">Ovozlarni xona egasi sanaydi.</p>') +
+          '</section>';
+      }
+
+      async function submitMafiaAction(action, payload) {
+        if (view.mafiaActionBusy) return;
+        var code = view.code;
+        view.mafiaActionBusy = true;
+        renderMafia();
+        try {
+          await request("/api/mafia/" + encodeURIComponent(code) + "/" + action, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload || {})
+          });
+          if (view.mode !== "mafia" || view.code !== code) return;
+          toast("Bajarildi", "success");
+          await loadMafiaRole();
+        } catch (error) {
+          if (view.mode === "mafia" && view.code === code) {
+            toast(error.message || "Harakat bajarilmadi", "error");
+          }
+        } finally {
+          if (view.mode === "mafia" && view.code === code) {
+            view.mafiaActionBusy = false;
+            renderMafia();
+          }
+        }
+      }
+
       function renderMafia() {
         var top = '<div class="topbar">' +
           '<button class="icon-btn" data-act="home" aria-label="Orqaga">←</button>' +
@@ -2086,6 +2211,8 @@ function profileCardHtml() {
                 '</section>'
               : '') +
             mafiaTeamHtml(me.teammates) +
+            mafiaNightPanelHtml(me) +
+            mafiaVotingPanelHtml(me) +
             '<section class="panel mafia-status">' +
               '<div class="mafia-timer-row">' + timerHtml +
                 '<div class="mafia-timer-copy"><b>' + esc(phase) +
@@ -2780,6 +2907,35 @@ function profileCardHtml() {
           haptic("success");
         } else if (act === "mafia-booster") {
           buyMafiaBooster(button.getAttribute("data-booster"));
+        } else if (act === "mafia-night-submit") {
+          var nightKind = document.getElementById("mafia-night-kind");
+          var nightTarget = document.getElementById("mafia-night-target");
+          if (!nightTarget || !nightTarget.value) {
+            toast("Nishonni tanlang", "error");
+            return;
+          }
+          submitMafiaAction("night-action", {
+            kind: nightKind ? nightKind.value : (view.mafiaState.night_actions[0] || {}).key,
+            target_id: Number(nightTarget.value)
+          });
+        } else if (act === "mafia-begin-voting") {
+          submitMafiaAction("begin-voting", {});
+        } else if (act === "mafia-vote-select") {
+          view.mafiaVoteTarget = Number(button.getAttribute("data-target"));
+          renderMafia();
+        } else if (act === "mafia-vote-submit") {
+          if (view.mafiaVoteTarget == null) {
+            toast("Avval o‘yinchini tanlang", "error");
+            return;
+          }
+          submitMafiaAction("vote", { target_id: Number(view.mafiaVoteTarget) });
+        } else if (act === "mafia-tally") {
+          var kamikazeTarget = document.getElementById("mafia-kamikaze-target");
+          submitMafiaAction("tally", {
+            kamikaze_target_id: kamikazeTarget && kamikazeTarget.value
+              ? Number(kamikazeTarget.value)
+              : null
+          });
         } else if (act === "reveal") {
           sendAction({ action: "reveal", card_type: button.getAttribute("data-card") }, "Karta ochildi");
         } else if (act === "select") {
