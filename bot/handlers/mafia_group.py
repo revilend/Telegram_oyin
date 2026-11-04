@@ -704,3 +704,63 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
     await callback.answer("Tun yakunlandi.")
     await notify_kevlar_saved(callback.bot, game)
     await announce_day(callback.bot, game)
+
+# ==========================================
+# ARVOH REJIMI VA GURUH NAZORATI (MODERATION)
+# ==========================================
+from aiogram import F
+from aiogram.types import Message
+
+# Xona o'liklarining so'nggi so'zini kuzatish
+_last_words_spoken = set()
+
+@router.message(F.chat.type.in_({"group", "supergroup"}))
+async def mafia_chat_moderator(message: Message):
+    """O'yin paytida o'yinda yo'qlar va o'liklarni nazorat qilish."""
+    # Agar buyruq bo'lsa (masalan /mafia yoki /cancel), tegmaymiz
+    if message.text and message.text.startswith("/"):
+        return
+
+        # Faol xonani topamiz
+    manager = get_default_manager()
+    room = None
+    all_items = list(getattr(manager, "games", {}).values()) + list(getattr(manager, "rooms", {}).values())
+    for item in all_items:
+        r = getattr(item, "room", item)
+        if str(getattr(r, "chat_id", "")) == str(message.chat.id):
+            room = r
+            break
+            
+    if not room:
+        return  # O'yin bo'lmayotgan bo'lsa, hamma bemalol yozaveradi
+
+    user_id = message.from_user.id
+    player_ids = [p.user_id for p in room.players.values()]
+
+    # 1. O'YINDA UMUMAN YO'QLAR YOZA OLMAYDI:
+    if user_id not in player_ids:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        return
+
+    # 2. O'LGANLAR (ARVOHLAR) NAZORATI:
+    eliminated_ids = [getattr(p, "user_id", None) for p in getattr(room, "eliminated_players", [])]
+    if user_id in eliminated_ids or (user_id in room.players and not room.players[user_id].is_alive):
+        # Agar hali 1 ta so'nggi so'zini aytmagan bo'lsa:
+        if user_id not in _last_words_spoken:
+            _last_words_spoken.add(user_id)
+            try:
+                await message.reply("⚰️ Bu sizning so'nggi so'zingiz edi. Endi o'yin tugaguncha arvoh kabi jim turing!")
+            except Exception:
+                pass
+            return  # 1 ta xabari qoladi
+        
+        # So'nggi so'zini aytib bo'lgan bo'lsa — barcha keyingi xabarlari o'chiriladi:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        return
+        
