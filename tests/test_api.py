@@ -12,8 +12,10 @@ from fastapi.testclient import TestClient
 from api import server as server_module
 from api.server import app
 from bot.handlers import mafia_group as mafia_bot
+from core.economy import START_COINS, EconomyStore
 from engine.game_manager import get_default_manager
 from games.mafia.images import role_image_url
+from games.mafia.roles import Faction
 
 
 class ApiTestCase(unittest.TestCase):
@@ -94,6 +96,12 @@ class MafiaRoleApiTest(unittest.TestCase):
         )
         patcher.start()
         self.addCleanup(patcher.stop)
+        self.economy = EconomyStore(url="", key="", client=None)
+        economy_patch = patch.object(
+            server_module, "get_economy", return_value=self.economy
+        )
+        economy_patch.start()
+        self.addCleanup(economy_patch.stop)
 
         self.game = self.manager.create_game(-1001, 3001, "Ali", "ali")
         for user_id in (3002, 3003, 3004):
@@ -116,6 +124,72 @@ class MafiaRoleApiTest(unittest.TestCase):
         self.assertIn(me["phase"], {"NIGHT", "DAY_REPORT", "VOTING"})
         self.assertEqual(me["players_count"], 4)
         self.assertTrue(me["is_host"])
+        self.assertEqual(me["phase_duration"], 60)
+        self.assertGreater(me["phase_deadline"], 0)
+        self.assertGreater(me["phase_seconds_left"], 0)
+        self.assertEqual(me["coins"], START_COINS)
+        self.assertEqual(
+            {item["key"] for item in me["boosters"]},
+            {"kevlar", "reroll", "double_vote"},
+        )
+
+    def test_mafia_team_is_visible_only_to_mafia(self) -> None:
+        players = list(self.game.room.players.values())
+        mafia = [p for p in players if p.faction is Faction.MAFIA]
+        town = [p for p in players if p.faction is Faction.TOWN]
+        self.assertTrue(mafia)
+        self.assertTrue(town)
+
+        mafia_payload = self.client.get(
+            f"/api/mafia/{self.game.code}/me?user_id={mafia[0].user_id}"
+        ).json()["me"]
+        expected = {
+            player.user_id for player in mafia if player.user_id != mafia[0].user_id
+        }
+        self.assertEqual(
+            {mate["user_id"] for mate in mafia_payload["teammates"]},
+            expected,
+        )
+
+        town_payload = self.client.get(
+            f"/api/mafia/{self.game.code}/me?user_id={town[0].user_id}"
+        ).json()["me"]
+        self.assertEqual(town_payload["teammates"], [])
+
+    def test_buy_kevlar_and_reroll_boosters(self) -> None:
+        kevlar = self.client.post(
+            f"/api/mafia/{self.game.code}/booster",
+            json={"user_id": 3001, "booster": "kevlar"},
+        )
+        self.assertEqual(kevlar.status_code, 200, kevlar.text)
+        payload = kevlar.json()
+        self.assertEqual(payload["coins"], START_COINS - 40)
+        options = {item["key"]: item for item in payload["me"]["boosters"]}
+        self.assertTrue(options["kevlar"]["active"])
+        self.assertFalse(options["kevlar"]["available"])
+
+        again = self.client.post(
+            f"/api/mafia/{self.game.code}/booster",
+            json={"user_id": 3001, "booster": "kevlar"},
+        )
+        self.assertEqual(again.status_code, 400, again.text)
+
+        old_role = self.game.room.players[3001].role
+        reroll = self.client.post(
+            f"/api/mafia/{self.game.code}/booster",
+            json={"user_id": 3001, "booster": "reroll"},
+        )
+        self.assertEqual(reroll.status_code, 200, reroll.text)
+        self.assertNotEqual(self.game.room.players[3001].role, old_role)
+        self.assertIn("Yangi rolingiz", reroll.json()["message"])
+
+    def test_double_vote_requires_day_phase(self) -> None:
+        response = self.client.post(
+            f"/api/mafia/{self.game.code}/booster",
+            json={"user_id": 3002, "booster": "double_vote"},
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertIn("kunduzgi", response.json()["detail"])
 
     def test_non_player_and_unknown_room_are_rejected(self) -> None:
         self.assertEqual(
@@ -126,6 +200,13 @@ class MafiaRoleApiTest(unittest.TestCase):
         )
         self.assertEqual(
             self.client.get("/api/mafia/MAF000/me?user_id=3001").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/api/mafia/{self.game.code}/booster",
+                json={"user_id": 9999, "booster": "kevlar"},
+            ).status_code,
             404,
         )
 

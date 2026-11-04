@@ -51,6 +51,8 @@ RATING_BASE = 1_000
 RATING_WIN_BONUS = 50
 # Har bir muvaffaqiyatli taklif uchun taklif qiluvchiga beriladigan tanga.
 REFERRAL_BONUS = 50
+# Mafiya o'yinida g'olib bo'lgan har bir tirik o'yinchi uchun mukofot.
+MAFIA_WIN_REWARD = 25
 
 # Kunlik bonus: asosiy mukofot, har bir ketma-ket kun uchun qo'shimcha va
 # seriyaning eng yuqori chegarasi.
@@ -86,6 +88,8 @@ class UserAccount:
     total_purchased: int = 0
     games_played: int = 0
     wins: int = 0
+    bunker_wins: int = 0
+    mafia_wins: int = 0
     referral_count: int = 0
     last_bonus_at: str = ""
     bonus_streak: int = 0
@@ -231,6 +235,8 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         total_purchased=int(row.get("total_purchased") or 0),
         games_played=int(row.get("games_played") or 0),
         wins=int(row.get("wins") or 0),
+        bunker_wins=int(row.get("bunker_wins") or 0),
+        mafia_wins=int(row.get("mafia_wins") or 0),
         referral_count=int(row.get("referral_count") or 0),
         last_bonus_at=str(row.get("last_bonus_at") or ""),
         bonus_streak=int(row.get("bonus_streak") or 0),
@@ -374,6 +380,8 @@ class EconomyStore:
                         "total_purchased": 0,
                         "games_played": 0,
                         "wins": 0,
+                        "bunker_wins": 0,
+                        "mafia_wins": 0,
                         "referral_count": 0,
                         "role": "user",
                         "created_at": _now(),
@@ -396,6 +404,8 @@ class EconomyStore:
                     "total_purchased": 0,
                     "games_played": 0,
                     "wins": 0,
+                    "bunker_wins": 0,
+                    "mafia_wins": 0,
                     "referral_count": 0,
                     "role": "user",
                     "created_at": _now(),
@@ -997,16 +1007,79 @@ class EconomyStore:
 
             for uid in players:
                 account = self.ensure_user(uid)
+                won = uid in winners
+                games = account.games_played + 1
+                wins = account.wins + (1 if won else 0)
+                bunker_wins = account.bunker_wins + (1 if won else 0)
                 if not self.enabled:
                     row = self._users[uid]
-                    row["games_played"] = account.games_played + 1
-                    row["wins"] = account.wins + (1 if uid in winners else 0)
+                    row["games_played"] = games
+                    row["wins"] = wins
+                    row["bunker_wins"] = bunker_wins
                 else:
                     self._update_user_row(
                         uid,
                         {
-                            "games_played": account.games_played + 1,
-                            "wins": account.wins + (1 if uid in winners else 0),
+                            "games_played": games,
+                            "wins": wins,
+                            "bunker_wins": bunker_wins,
+                        },
+                    )
+            return True
+
+    def record_mafia_game(
+        self,
+        room_code: str,
+        user_ids: Iterable[int],
+        winner_ids: Iterable[int],
+        reward: int = MAFIA_WIN_REWARD,
+    ) -> bool:
+        """Tugagan Mafiya o'yinini bir marta hisobga oladi.
+
+        Barcha o'yinchilarga o'yin, g'oliblarga g'alaba va ``mafia_wins``
+        qo'shiladi; har bir g'olibga ``reward`` tanga beriladi.
+        """
+        code = str(room_code).strip().upper()
+        players = sorted({int(uid) for uid in user_ids})
+        winners = sorted({int(uid) for uid in winner_ids} & set(players))
+        reward = max(0, int(reward))
+        with self._lock:
+            if not self.enabled:
+                if code in self._finished_rooms:
+                    return False
+                self._finished_rooms.add(code)
+            else:
+                if self._select_one(RESULTS_TABLE, room_code=code) is not None:
+                    return False
+                self.client.table(RESULTS_TABLE).insert(
+                    {
+                        "room_code": code,
+                        "winner_ids": winners,
+                        "finished_at": _now(),
+                    }
+                ).execute()
+
+            for uid in players:
+                account = self.ensure_user(uid)
+                won = uid in winners
+                games = account.games_played + 1
+                wins = account.wins + (1 if won else 0)
+                mafia_wins = account.mafia_wins + (1 if won else 0)
+                coins = account.coins + (reward if won else 0)
+                if not self.enabled:
+                    row = self._users[uid]
+                    row["games_played"] = games
+                    row["wins"] = wins
+                    row["mafia_wins"] = mafia_wins
+                    row["coins"] = coins
+                else:
+                    self._update_user_row(
+                        uid,
+                        {
+                            "games_played": games,
+                            "wins": wins,
+                            "mafia_wins": mafia_wins,
+                            "coins": coins,
                         },
                     )
             return True

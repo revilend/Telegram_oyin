@@ -109,6 +109,10 @@ class MafiaPlayer:
     role: MafiaRole | None = None
     is_alive: bool = True
     used_actions: set[NightActionType] = field(default_factory=set)
+    kevlar_active: bool = False
+    kevlar_used: bool = False
+    double_vote: bool = False
+    role_rerolled: bool = False
 
     def __post_init__(self) -> None:
         self.name = (self.name or "").strip()
@@ -150,6 +154,7 @@ class NightReport:
     silenced: tuple[int, ...] = ()
     revived: tuple[int, ...] = ()
     copied: dict[int, MafiaRole] = field(default_factory=dict)
+    shielded: tuple[int, ...] = ()
 
     @property
     def peaceful(self) -> bool:
@@ -365,6 +370,47 @@ class MafiaRoom:
         self.night_actions[actor_id] = action
         return action
 
+    def reroll_role(
+        self, user_id: int, *, rng: random.Random | None = None
+    ) -> MafiaRole:
+        """Birinchi tunda rolni boshqa tirik o'yinchi roli bilan almashtiradi.
+
+        Rol tarkibi o'zgarmaydi: o'yinchilar o'rtasida almashinadi. Har bir
+        o'yinchi buni bir marta qilishi mumkin.
+        """
+        if self.phase is not GamePhase.NIGHT or self.round != 1:
+            raise MafiaError(
+                "Rolni faqat o'yin boshida, birinchi tunda almashtirish mumkin"
+            )
+        player = self.get_player(user_id)
+        if not player.is_alive:
+            raise MafiaError("Halok bo'lgan o'yinchi rolni almashtira olmaydi")
+        if player.role is None:
+            raise MafiaError("Rol hali berilmagan")
+        if player.role_rerolled:
+            raise MafiaError("Rol allaqachon almashtirilgan")
+
+        candidates = [
+            other
+            for other in self.players.values()
+            if other.user_id != user_id
+            and other.is_alive
+            and other.role is not None
+        ]
+        if not candidates:
+            raise MafiaError("Rolni almashtirish uchun boshqa o'yinchi yo'q")
+
+        chooser = rng or random
+        other = chooser.choice(candidates)
+        player.role, other.role = other.role, player.role
+        player.role_rerolled = True
+        self.log.append(
+            f"{self.display_name(player)} rolini almashtirdi."
+        )
+        if player.role is None:  # pragma: no cover - himoya tekshiruvi
+            raise MafiaError("Yangi rol aniqlanmadi")
+        return player.role
+
     def report_text(self) -> str:
         """Oxirgi tungi hisobotning o'zbekcha matni."""
         report = self.last_report
@@ -397,6 +443,26 @@ class MafiaRoom:
                 f"{self.display_name(target)} allaqachon halok bo'lgan"
             )
         self.votes[voter_id] = target_id
+
+    def vote_counts(self) -> dict[int, int]:
+        """Ovozlarni 2x booster hisobga olib sanaydi."""
+        counts: dict[int, int] = {}
+        for voter_id, target_id in self.votes.items():
+            voter = self.players.get(voter_id)
+            weight = 2 if voter is not None and voter.double_vote else 1
+            counts[target_id] = counts.get(target_id, 0) + weight
+        return counts
+
+    def tally_votes(self) -> int | None:
+        """Eng ko'p ovoz olgan o'yinchini qaytaradi; tenglikda ``None``."""
+        if self.phase is not GamePhase.VOTING:
+            raise MafiaError("Ovozlarni faqat VOTING bosqichida sanash mumkin")
+        counts = self.vote_counts()
+        if not counts:
+            return None
+        best = max(counts.values())
+        leaders = [uid for uid, count in counts.items() if count == best]
+        return leaders[0] if len(leaders) == 1 else None
 
 
 # Hujjatlar va tashqi kod uchun qulay taxallus.
@@ -549,6 +615,19 @@ def resolve_night(room: MafiaRoom) -> NightReport:
         if room.players[victim_id].role is MafiaRole.KAMIKAZE:
             deaths.add(attacker_id)
 
+    # Kevlar jilet: o'limga hukm qilingan o'yinchini bir marta saqlaydi.
+    # Jilet faqat shu tun uchun; ishlatilmasa ham keyingi kunga qoldirilmaydi.
+    shielded: set[int] = set()
+    for user_id in sorted(deaths):
+        player = room.players.get(user_id)
+        if player is not None and player.kevlar_active:
+            shielded.add(user_id)
+    for player in room.players.values():
+        if player.kevlar_active:
+            player.kevlar_active = False
+            player.kevlar_used = True
+    deaths -= shielded
+
     for user_id in sorted(deaths):
         player = room.players.get(user_id)
         if player is not None and player.is_alive:
@@ -613,6 +692,7 @@ def resolve_night(room: MafiaRoom) -> NightReport:
         silenced=tuple(silenced),
         revived=tuple(sorted(revived)),
         copied=copied,
+        shielded=tuple(sorted(shielded)),
     )
     room.last_report = report
     room.phase = GamePhase.DAY_REPORT
@@ -646,6 +726,29 @@ def check_game_over(room: MafiaRoom) -> Winner | None:
     if mafia and len(mafia) >= len(town):
         return Winner.MAFIA
     return None
+
+
+def winning_player_ids(room: MafiaRoom) -> list[int]:
+    """G'olib jamoadagi (yoki yakka g'olib) tirik o'yinchilar id'lari."""
+    if room.winner is None:
+        return []
+    if room.winner is Winner.JESTER:
+        return sorted(
+            player.user_id
+            for player in room.players.values()
+            if player.role is MafiaRole.JESTER
+        )
+    faction = {
+        Winner.TOWN: Faction.TOWN,
+        Winner.MAFIA: Faction.MAFIA,
+        Winner.MANIAC: Faction.NEUTRAL,
+    }[room.winner]
+    return sorted(
+        player.user_id
+        for player in room.alive_players
+        if player.faction is faction
+        and (room.winner is not Winner.MANIAC or player.role is MafiaRole.MANIAC)
+    )
 
 
 def resolve_day_vote(

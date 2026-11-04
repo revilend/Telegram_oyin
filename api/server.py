@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from dataclasses import asdict
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -52,8 +53,13 @@ from engine.game_manager import (
     RoomNotFoundError,
     get_default_manager,
 )
+from games.mafia.boosters import (
+    MafiaBoosterError,
+    booster_options,
+    purchase_booster,
+)
 from games.mafia.images import COVER_IMAGE, role_image_url
-from games.mafia.roles import get_role_profile
+from games.mafia.roles import Faction, get_role_profile
 from models.game import GameRoom, Player, RoomStatus
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -134,6 +140,12 @@ class PromoCodeRequest(UserRequest):
     """Promo kodni ishlatish so'rovi."""
 
     code: str = ""
+
+
+class MafiaBoosterRequest(UserRequest):
+    """Mafiya boosterini sotib olish so'rovi."""
+
+    booster: str = ""
 
 
 # ----------------------------------------------------------------------
@@ -617,6 +629,111 @@ async def meta_cards() -> dict[str, Any]:
     return {"card_types": card_type_options()}
 
 
+def mafia_me_payload(
+    game: mafia_bot.MafiaGame,
+    player: Any,
+    *,
+    economy: Any | None = None,
+) -> dict[str, Any]:
+    """Mini App uchun Mafiya o'yinchisi holati."""
+    economy = economy or get_economy()
+    profile = (
+        get_role_profile(player.role) if player.role is not None else None
+    )
+
+    teammates: list[dict[str, Any]] = []
+    if profile is not None and profile.faction is Faction.MAFIA:
+        for other in game.room.players.values():
+            if other.user_id == player.user_id or other.role is None:
+                continue
+            other_profile = get_role_profile(other.role)
+            if other_profile.faction is not Faction.MAFIA:
+                continue
+            teammates.append(
+                {
+                    "user_id": other.user_id,
+                    "full_name": other.name or f"ID {other.user_id}",
+                    "role": other_profile.role.value,
+                    "role_name": other_profile.name_uz,
+                    "is_alive": other.is_alive,
+                }
+            )
+
+    options = booster_options(
+        game.room, game.code, economy, player.user_id
+    )
+    deadline = game.phase_deadline
+    try:
+        coins = economy.get_user(player.user_id).coins
+    except Exception:
+        coins = 0
+    return {
+        "code": game.code,
+        "user_id": player.user_id,
+        "full_name": player.name,
+        "is_alive": player.is_alive,
+        "is_host": player.user_id == game.host_id,
+        "role": profile.role.value if profile else None,
+        "role_name": (
+            profile.name_uz if profile else "Rol hali tarqatilmagan"
+        ),
+        "description": (
+            profile.description
+            if profile
+            else "O'yin boshlangach, rolingiz shu yerda ochiladi."
+        ),
+        "faction": profile.faction.value if profile else None,
+        "has_night_action": (
+            profile.has_night_action if profile else False
+        ),
+        "photo": (
+            role_image_url(profile.role)
+            if profile
+            else f"/assets/images/mafia/{COVER_IMAGE}"
+        ),
+        "phase": game.room.phase.value,
+        "round": game.room.round,
+        "players_count": len(game.room.players),
+        "phase_deadline": deadline,
+        "phase_duration": game.phase_duration,
+        "phase_seconds_left": (
+            max(0, int(round(deadline - time.time())))
+            if deadline is not None
+            else 0
+        ),
+        "server_time": time.time(),
+        "coins": coins,
+        "teammates": teammates,
+        "boosters": [
+            {
+                "key": option.booster.key,
+                "name": option.booster.name,
+                "emoji": option.booster.emoji,
+                "price": option.booster.price,
+                "description": option.booster.description,
+                "used": option.used,
+                "active": option.active,
+                "available": option.available,
+                "reason": option.reason,
+            }
+            for option in options
+        ],
+        "winner": (
+            game.room.winner.value
+            if game.room.winner is not None
+            else None
+        ),
+    }
+
+
+def _mafia_game_for(code: str) -> mafia_bot.MafiaGame:
+    """Kod bo'yicha xonani qaytaradi yoki 404 beradi."""
+    try:
+        return mafia_bot.get_default_manager().get_game(code)
+    except mafia_bot.MafiaGameError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.get("/api/mafia/{code}/me")
 async def get_mafia_role(
     code: str,
@@ -625,54 +742,48 @@ async def get_mafia_role(
 ) -> dict[str, Any]:
     """Guruh Mafiya o'yinidagi o'yinchining roli va karta ma'lumoti."""
     resolved_id = resolve_user_id(user, user_id)
-    try:
-        game = mafia_bot.get_default_manager().get_game(code)
-    except mafia_bot.MafiaGameError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    game = _mafia_game_for(code)
+    player = game.room.players.get(resolved_id)
+    if player is None:
+        raise HTTPException(
+            status_code=404, detail="Siz bu Mafiya xonasida emassiz"
+        )
+    return {"me": mafia_me_payload(game, player)}
 
+
+@app.post("/api/mafia/{code}/booster")
+async def buy_mafia_booster(
+    code: str,
+    payload: MafiaBoosterRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Mafiya boosterini sotib oladi (Kevlar, Reroll yoki 2x ovoz)."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    game = _mafia_game_for(code)
     player = game.room.players.get(resolved_id)
     if player is None:
         raise HTTPException(
             status_code=404, detail="Siz bu Mafiya xonasida emassiz"
         )
 
-    profile = (
-        get_role_profile(player.role) if player.role is not None else None
-    )
+    economy = get_economy()
+    try:
+        purchase = purchase_booster(
+            economy,
+            game.room,
+            game.code,
+            resolved_id,
+            payload.booster,
+        )
+    except MafiaBoosterError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     return {
-        "me": {
-            "code": game.code,
-            "user_id": player.user_id,
-            "full_name": player.name,
-            "is_alive": player.is_alive,
-            "is_host": player.user_id == game.host_id,
-            "role": profile.role.value if profile else None,
-            "role_name": (
-                profile.name_uz if profile else "Rol hali tarqatilmagan"
-            ),
-            "description": (
-                profile.description
-                if profile
-                else "O'yin boshlangach, rolingiz shu yerda ochiladi."
-            ),
-            "faction": profile.faction.value if profile else None,
-            "has_night_action": (
-                profile.has_night_action if profile else False
-            ),
-            "photo": (
-                role_image_url(profile.role)
-                if profile
-                else f"/assets/images/mafia/{COVER_IMAGE}"
-            ),
-            "phase": game.room.phase.value,
-            "round": game.room.round,
-            "players_count": len(game.room.players),
-            "winner": (
-                game.room.winner.value
-                if game.room.winner is not None
-                else None
-            ),
-        }
+        "ok": True,
+        "booster": purchase.booster.key,
+        "message": purchase.message,
+        "coins": purchase.account.coins,
+        "me": mafia_me_payload(game, player, economy=economy),
     }
 
 

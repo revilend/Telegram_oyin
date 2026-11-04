@@ -53,6 +53,8 @@ def profile_text(account: UserAccount) -> str:
     coins = safe_int(account.coins, START_COINS)
     games = safe_int(account.games_played)
     wins = safe_int(account.wins)
+    bunker_wins = safe_int(account.bunker_wins)
+    mafia_wins = safe_int(account.mafia_wins)
     return (
         "╭───────────────────────╮\n"
         "    👤 <b>Mening profilim</b>\n"
@@ -63,6 +65,8 @@ def profile_text(account: UserAccount) -> str:
         f"🪙 Tangalar: <b>{format_price(coins)}</b>\n"
         f"🎮 O'ynalgan o'yinlar: <b>{games}</b> | "
         f"🥇 G'alabalar: <b>{wins}</b>\n"
+        f"🛡️ Bunker: <b>{bunker_wins}</b> g'alaba | "
+        f"🕵️ Mafiya: <b>{mafia_wins}</b> g'alaba\n"
         f"🏆 Reyting: <b>{format_price(player_rating(account))}</b>"
     )
 

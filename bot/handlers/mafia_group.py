@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import random
 import threading
+import time
 from dataclasses import dataclass, field
 from html import escape
 
@@ -30,6 +31,8 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.economy import MAFIA_WIN_REWARD, get_economy
+from games.mafia.boosters import KEVLAR
 from games.mafia.engine import (
     GamePhase,
     MafiaError,
@@ -37,6 +40,7 @@ from games.mafia.engine import (
     MafiaRoom,
     Winner,
     resolve_night,
+    winning_player_ids,
 )
 from games.mafia.generator import MIN_PLAYERS
 from games.mafia.images import (
@@ -87,6 +91,23 @@ class MafiaGame:
     room: MafiaRoom
     usernames: dict[int, str] = field(default_factory=dict)
     lobby_message_id: int | None = None
+    phase_deadline: float | None = None
+    phase_duration: int = 60
+
+    def start_phase_timer(self, seconds: int = 60) -> None:
+        """Joriy bosqich uchun 60 soniyalik taymerni boshlaydi."""
+        self.phase_duration = max(1, int(seconds))
+        self.phase_deadline = time.time() + self.phase_duration
+
+    def clear_phase_timer(self) -> None:
+        """Taymerni to'xtatadi (o'yin tugaganda)."""
+        self.phase_deadline = None
+
+    def phase_seconds_left(self) -> int:
+        """Taymer tugashiga qolgan soniyalar."""
+        if self.phase_deadline is None:
+            return 0
+        return max(0, int(round(self.phase_deadline - time.time())))
 
 
 class MafiaLobbyManager:
@@ -163,6 +184,7 @@ class MafiaLobbyManager:
                 game.room.start(rng=self._rng)
             except MafiaError as exc:
                 raise MafiaGameError(str(exc)) from exc
+            game.start_phase_timer()
             return game
 
     def _generate_code(self) -> str:
@@ -371,6 +393,57 @@ async def announce_night(bot: Bot, game: MafiaGame) -> None:
         caption=night_text(game),
         reply_markup=night_keyboard(game),
     )
+    await send_kevlar_offers(bot, game)
+
+
+async def send_kevlar_offers(bot: Bot, game: MafiaGame) -> None:
+    """Tirik o'yinchilarga Kevlar jilet taklifini shaxsiy yuboradi."""
+    economy = get_economy()
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"🦺 Kevlar olish ({KEVLAR.price} tanga)",
+                    url=_startapp(game.code),
+                )
+            ]
+        ]
+    )
+    text = (
+        "🦺 <b>Kevlar Jilet</b>\n"
+        f"{KEVLAR.price} tanga evaziga Kevlar jilet kiyib, omon qolasizmi?\n\n"
+        "Tunda mafiya yoki maniak nishoniga tushsangiz, jilet sizni bir "
+        "marta o'limdan saqlaydi. Faqat shu o'yinda bir marta ishlatiladi."
+    )
+    for player in game.room.players.values():
+        if not player.is_alive or player.kevlar_used or player.kevlar_active:
+            continue
+        if economy.has_booster(game.code, player.user_id, KEVLAR.key):
+            continue
+        try:
+            await bot.send_message(
+                player.user_id, text, reply_markup=keyboard
+            )
+        except Exception:
+            logger.info(
+                "Kevlar taklifini yuborib bo'lmadi: %s", player.user_id
+            )
+
+
+async def notify_kevlar_saved(bot: Bot, game: MafiaGame) -> None:
+    """Kevlar jilet saqlab qolgan o'yinchilarga xabar yuboradi."""
+    report = game.room.last_report
+    if report is None:
+        return
+    for user_id in report.shielded:
+        try:
+            await bot.send_message(
+                user_id,
+                "🦺 <b>Kevlar jilet sizni o'limdan saqlab qoldi!</b>\n"
+                "Bu kecha mafiya yoki maniak hujumi sizga yetib bormadi.",
+            )
+        except Exception:
+            logger.info("Kevlar natijasini yuborib bo'lmadi: %s", user_id)
 
 
 async def announce_day(bot: Bot, game: MafiaGame) -> None:
@@ -400,10 +473,24 @@ async def announce_finish(bot: Bot, game: MafiaGame) -> None:
     """G'olib jamoa haqidagi xabarni mos g'alaba rasmi bilan yuboradi."""
     if game.room.winner is None:
         return
+    game.clear_phase_timer()
+    caption = finish_text(game.room.winner)
+    try:
+        rewarded = get_economy().record_mafia_game(
+            game.code,
+            game.room.players.keys(),
+            winning_player_ids(game.room),
+        )
+        if rewarded:
+            caption += (
+                f"\n\n🪙 G'oliblar: +{MAFIA_WIN_REWARD} tanga"
+            )
+    except Exception:
+        logger.exception("Mafiya mukofotini yozib bo'lmadi: %s", game.code)
     await bot.send_photo(
         game.chat_id,
         FSInputFile(victory_image_path(game.room.winner)),
-        caption=finish_text(game.room.winner),
+        caption=caption,
     )
 
 
@@ -608,9 +695,12 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
             )
             return
         resolve_night(game.room)
+        if game.room.phase is not GamePhase.FINISHED:
+            game.start_phase_timer()
     except (MafiaGameError, MafiaError) as exc:
         await callback.answer(str(exc), show_alert=True)
         return
 
     await callback.answer("Tun yakunlandi.")
+    await notify_kevlar_saved(callback.bot, game)
     await announce_day(callback.bot, game)

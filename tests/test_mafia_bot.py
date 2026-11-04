@@ -17,6 +17,7 @@ from bot import main as bot_main
 from bot.handlers import games_catalog, mafia_group
 from bot.handlers.mafia_group import MafiaGame, MafiaLobbyManager
 from bot.main import BOT_COMMANDS
+from core.economy import MAFIA_WIN_REWARD, START_COINS, EconomyStore
 from games.mafia.engine import (
     GamePhase,
     MafiaError,
@@ -321,6 +322,8 @@ class StartGameHandlerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(callback.answers[-1][0], "O'yin boshlandi!")
         self.assertTrue(message.edits)
         self.assertIn("BOSHLANDI", message.edits[0][0])
+        self.assertIsNotNone(game.phase_deadline)
+        self.assertGreater(game.phase_seconds_left(), 50)
 
         group_texts = message.bot.texts_for(game.chat_id)
         self.assertTrue(
@@ -523,12 +526,77 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(callback.answers[-1][0], "Tun yakunlandi.")
         self.assertIs(game.room.phase, GamePhase.DAY_REPORT)
+        self.assertIsNotNone(game.phase_deadline)
         self.assertTrue(
             any(
                 "TONG OTDI" in text
                 for text in callback.bot.texts_for(game.chat_id)
             )
         )
+
+    async def test_night_sends_kevlar_offers_and_saved_notice(self) -> None:
+        game = make_game(
+            {
+                1: MafiaRole.DON,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.CITIZEN,
+            }
+        )
+        bot = FakeBot()
+        await mafia_group.announce_night(bot, game)
+
+        offers = [
+            (chat_id, text)
+            for chat_id, text, _ in bot.messages
+            if "omon qolasizmi" in text
+        ]
+        self.assertEqual({chat_id for chat_id, _ in offers}, {1, 2, 3, 4, 5})
+        self.assertTrue(any("40 tanga" in text for _, text in offers))
+
+        game.room.get_player(4).kevlar_active = True
+        game.room.submit_night_action(1, 4)
+        resolve_night(game.room)
+        await mafia_group.notify_kevlar_saved(bot, game)
+        self.assertTrue(
+            any(
+                chat_id == 4 and "saqlab qoldi" in text
+                for chat_id, text, _ in bot.messages
+            )
+        )
+
+    async def test_finish_awards_winners_once(self) -> None:
+        game = make_game(
+            {
+                1: MafiaRole.DON,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+            }
+        )
+        game.room.submit_night_action(1, 4)
+        resolve_night(game.room)
+        self.assertIs(game.room.winner, Winner.MAFIA)
+
+        store = EconomyStore(url="", key="", client=None)
+        bot = FakeBot()
+        with patch.object(mafia_group, "get_economy", return_value=store):
+            await mafia_group.announce_finish(bot, game)
+            caption = bot.messages[-1][1]
+            self.assertIn(f"+{MAFIA_WIN_REWARD} tanga", caption)
+            self.assertEqual(
+                store.get_user(1).coins, START_COINS + MAFIA_WIN_REWARD
+            )
+            self.assertEqual(
+                store.get_user(2).coins, START_COINS + MAFIA_WIN_REWARD
+            )
+            self.assertEqual(store.get_user(3).coins, START_COINS)
+
+            await mafia_group.announce_finish(bot, game)
+            self.assertEqual(
+                store.get_user(1).coins, START_COINS + MAFIA_WIN_REWARD
+            )
 
     async def test_non_host_cannot_end_night(self) -> None:
         game = make_game(

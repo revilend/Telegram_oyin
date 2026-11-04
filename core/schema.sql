@@ -63,6 +63,8 @@ create table if not exists public.users (
     total_purchased  integer not null default 0,
     games_played     integer not null default 0,
     wins             integer not null default 0,
+    bunker_wins      integer not null default 0,
+    mafia_wins       integer not null default 0,
     referral_count   integer not null default 0,
     role             text not null default 'user',
     created_at       timestamptz not null default now(),
@@ -74,6 +76,10 @@ alter table public.users
     add column if not exists role text not null default 'user';
 alter table public.users
     add column if not exists referral_count integer not null default 0;
+alter table public.users
+    add column if not exists bunker_wins integer not null default 0;
+alter table public.users
+    add column if not exists mafia_wins integer not null default 0;
 
 -- Referal tizimi: kim kimni taklif qilgani (har bir taklif bir marta).
 create table if not exists public.referrals (

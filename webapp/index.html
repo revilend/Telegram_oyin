@@ -1037,6 +1037,63 @@
     .mafia-status-row b { font-weight: 700; }
     .mafia-status .tiny { margin-top: 2px; }
 
+    /* ---------- Mafiya taymeri, jamoasi va boosterlari ---------- */
+    .mafia-timer-row { display: flex; align-items: center; gap: 13px; }
+    .mafia-timer {
+      position: relative; width: 76px; height: 76px; min-width: 76px;
+      display: grid; place-items: center; border-radius: 50%;
+      background: radial-gradient(circle, rgba(248, 113, 113, 0.14), transparent 70%);
+      border: 1px solid rgba(248, 113, 113, 0.38);
+    }
+    .mafia-timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    .mafia-timer .track { fill: none; stroke: rgba(248, 113, 113, 0.16); stroke-width: 5; }
+    .mafia-timer .progress {
+      fill: none; stroke: #f87171; stroke-width: 5; stroke-linecap: round;
+      filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.9));
+      transition: stroke-dashoffset 0.45s linear;
+    }
+    .mafia-timer span {
+      position: relative; z-index: 1; font-size: 15px; font-weight: 800;
+      font-variant-numeric: tabular-nums; color: #fecaca;
+    }
+    .mafia-timer.low .progress { stroke: #ef4444; animation: warningPulse 0.9s infinite; }
+    .mafia-timer.low span { color: #ef4444; }
+    .mafia-timer-copy b { display: block; font-size: 15px; }
+    .mafia-timer-copy small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.4; }
+    .mafia-team {
+      padding: 15px; border-radius: 18px;
+      background: radial-gradient(360px 150px at 0% 0%, rgba(248, 113, 113, 0.18), transparent 72%), var(--panel);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+    }
+    .mafia-team h2 { font-size: 14px; margin-bottom: 8px; color: #fecaca; }
+    .mafia-team-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    .mafia-team-row:first-of-type { border-top: 0; }
+    .mafia-team-dot { width: 9px; height: 9px; min-width: 9px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 9px rgba(239, 68, 68, 0.95); }
+    .mafia-team-name { font-size: 13px; font-weight: 700; flex: 1; }
+    .mafia-team-role { font-size: 11px; color: #fca5a5; }
+    .mafia-team-row.dead .mafia-team-name { text-decoration: line-through; color: var(--muted); }
+    .mafia-shop { padding: 15px; border-radius: 18px; background: var(--panel); border: 1px solid var(--border); }
+    .mafia-shop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+    .mafia-shop-head h2 { font-size: 15px; }
+    .mafia-shop-head span { color: var(--warning); font-size: 12px; font-weight: 700; }
+    .mafia-booster {
+      display: flex; align-items: center; gap: 9px; width: 100%; margin-top: 7px;
+      padding: 10px 11px; border-radius: 13px; text-align: left; cursor: pointer;
+      color: var(--text); background: var(--panel-strong); border: 1px solid var(--border);
+    }
+    .mafia-booster[disabled] { opacity: 0.45; cursor: default; }
+    .mafia-booster .mb-icon { font-size: 20px; }
+    .mafia-booster .mb-body { flex: 1; min-width: 0; }
+    .mafia-booster .mb-body b { display: block; font-size: 12px; }
+    .mafia-booster .mb-body small { display: block; color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 2px; }
+    .mafia-booster .mb-price { font-size: 11px; font-weight: 800; color: var(--warning); text-align: right; max-width: 42%; }
+    .profile-split {
+      margin-top: 10px; padding: 9px 11px; border-radius: 12px; text-align: center;
+      background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.22);
+      font-size: 12px; color: var(--muted);
+    }
+    .profile-split b { color: var(--text); }
+
     @media (max-width: 390px) {
       .status-pill { display: none; }
       .room-code { font-size: 15px; }
@@ -1118,6 +1175,7 @@
         mafiaError: null,
         mafiaOpen: false,
         mafiaTimer: null,
+        boosterBusy: false,
         room: null,
         me: null,
         error: null,
@@ -1143,6 +1201,7 @@
 
       var toastTimer = null;
       var timer = { key: "", deadline: 0, duration: 0, status: "", interval: null };
+      var mafiaClock = { deadline: 0, serverOffset: 0, duration: 60, interval: null };
 
       // ----------------------------------------------------------------
       // Yordamchilar
@@ -1333,6 +1392,8 @@
             '<div class="pstat"><span>⭐ Daraja</span><b>Level ' + esc(profile.level) + '</b></div>' +
             '<div class="pstat"><span>🎮 O‘yinlar</span><b>' + esc(profile.games_played || 0) + '</b></div>' +
           '</div>' +
+          '<div class="profile-split">🛡️ Bunker: <b>' + esc(profile.bunker_wins || 0) +
+            '</b> g\'alaba | 🕵️ Mafiya: <b>' + esc(profile.mafia_wins || 0) + '</b> g\'alaba</div>' +
           '<div class="xp-row"><div class="xp-bar"><i></i></div><span class="xp-text">0 / 100 XP</span></div>' +
           '<button class="btn invite" data-act="invite">📤 Do\'stlarni taklif qilish</button>' +
         '</section>';
@@ -1419,6 +1480,8 @@
           profile.balance = Number(data.user.coins) || 0;
           profile.games_played = Number(data.user.games_played) || 0;
           profile.wins = Number(data.user.wins) || 0;
+          profile.bunker_wins = Number(data.user.bunker_wins) || 0;
+          profile.mafia_wins = Number(data.user.mafia_wins) || 0;
           profile.level = 1 + Math.floor(profile.games_played / 5);
           if (!view.shopOpen) view.shop = data.shop || view.shop;
           if (!view.code) renderHub();
@@ -1647,6 +1710,8 @@
             balance: 0,
             games_played: 0,
             wins: 0,
+            bunker_wins: 0,
+            mafia_wins: 0,
             level: PLAYER_LEVEL,
             guest: false
           };
@@ -1664,6 +1729,8 @@
           balance: 0,
           games_played: 0,
           wins: 0,
+          bunker_wins: 0,
+          mafia_wins: 0,
           level: PLAYER_LEVEL,
           guest: true
         };
@@ -1745,6 +1812,7 @@
           clearTimeout(view.mafiaTimer);
           view.mafiaTimer = null;
         }
+        stopMafiaClock();
         stopLive();
         stopTimer();
         setBackButton(true);
@@ -1766,8 +1834,8 @@
           if (view.mode !== "mafia" || view.code !== code) return;
           view.mafia = data.me;
           view.mafiaError = null;
-          if (!data.me.role) {
-            // Rol hali tarqatilmagan: o'yin boshlanishini kutib, qayta so'raymiz.
+          if (data.me.phase !== "FINISHED") {
+            // Rol, taymer va mafiya jamoasi yangilanishi uchun qisqa poll.
             view.mafiaTimer = setTimeout(function () {
               if (view.mode === "mafia" && view.code === code) loadMafiaRole();
             }, 5000);
@@ -1783,6 +1851,97 @@
         }
       }
 
+      function stopMafiaClock() {
+        if (mafiaClock.interval) clearInterval(mafiaClock.interval);
+        mafiaClock.interval = null;
+        mafiaClock.deadline = 0;
+      }
+
+      function paintMafiaClock() {
+        var el = document.querySelector("[data-mafia-timer]");
+        if (!el || !mafiaClock.deadline) return;
+        var now = Date.now() / 1000 + mafiaClock.serverOffset;
+        var remaining = Math.max(0, Math.ceil(mafiaClock.deadline - now));
+        var text = el.querySelector("[data-mafia-time]");
+        if (text) text.textContent = formatSeconds(remaining);
+        var ring = el.querySelector("[data-mafia-ring]");
+        if (ring) {
+          var ratio = Math.max(0, Math.min(1, remaining / mafiaClock.duration));
+          ring.style.strokeDashoffset = String(113.1 * (1 - ratio));
+        }
+        el.classList.toggle("low", remaining <= 10);
+      }
+
+      function syncMafiaClock(me) {
+        stopMafiaClock();
+        if (!me || !me.phase_deadline) return;
+        if (["NIGHT", "DAY_REPORT", "VOTING"].indexOf(me.phase) < 0) return;
+        mafiaClock.deadline = Number(me.phase_deadline) || 0;
+        mafiaClock.duration = Math.max(1, Number(me.phase_duration) || 60);
+        mafiaClock.serverOffset = Number(me.server_time)
+          ? Number(me.server_time) - Date.now() / 1000
+          : 0;
+        paintMafiaClock();
+        mafiaClock.interval = setInterval(paintMafiaClock, 1000);
+      }
+
+      function mafiaTeamHtml(teammates) {
+        if (!teammates || !teammates.length) return "";
+        return '<section class="mafia-team">' +
+          '<h2>🔴 Mafiya aloqasi</h2>' +
+          teammates.map(function (mate) {
+            return '<div class="mafia-team-row' + (mate.is_alive ? "" : " dead") + '">' +
+              '<span class="mafia-team-dot"></span>' +
+              '<span class="mafia-team-name">' + esc(mate.full_name) + '</span>' +
+              '<span class="mafia-team-role">' + esc(mate.role_name) + '</span></div>';
+          }).join("") +
+        '</section>';
+      }
+
+      function mafiaBoosterHtml(booster) {
+        var statusText;
+        if (booster.active) statusText = "Faol";
+        else if (booster.used) statusText = "Ishlatilgan";
+        else if (booster.available) statusText = esc(booster.price) + " 🪙";
+        else statusText = booster.reason || "Mavjud emas";
+        var disabled = !booster.available || view.boosterBusy;
+        return '<button class="mafia-booster" data-act="mafia-booster" data-booster="' +
+          esc(booster.key) + '"' + (disabled ? " disabled" : "") + '>' +
+          '<span class="mb-icon">' + esc(booster.emoji) + '</span>' +
+          '<span class="mb-body"><b>' + esc(booster.name) + '</b><small>' +
+            esc(booster.description) + '</small></span>' +
+          '<span class="mb-price">' + statusText + '</span></button>';
+      }
+
+      async function buyMafiaBooster(key) {
+        if (view.boosterBusy) return;
+        var code = view.code;
+        view.boosterBusy = true;
+        renderMafia();
+        try {
+          var data = await request("/api/mafia/" + encodeURIComponent(code) + "/booster", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id, booster: key })
+          });
+          if (view.mode !== "mafia" || view.code !== code) return;
+          if (data.me) view.mafia = data.me;
+          if (data.coins != null) profile.balance = Number(data.coins) || 0;
+          if (key === "reroll") view.mafiaOpen = false;
+          toast(data.message || "Booster faollashtirildi", "success");
+          haptic("success");
+        } catch (error) {
+          if (view.mode === "mafia" && view.code === code) {
+            toast(error.message || "Booster olinmadi", "error");
+          }
+        } finally {
+          if (view.mode === "mafia" && view.code === code) {
+            view.boosterBusy = false;
+            renderMafia();
+          }
+        }
+      }
+
       function renderMafia() {
         var top = '<div class="topbar">' +
           '<button class="icon-btn" data-act="home" aria-label="Orqaga">←</button>' +
@@ -1790,11 +1949,13 @@
           '<span class="status-pill">🕵️ Mafiya</span></div></div>';
 
         if (view.mafiaLoading) {
+          stopMafiaClock();
           app.innerHTML = top + '<div class="skeleton"></div><div class="skeleton"></div>';
           return;
         }
 
         if (view.mafiaError) {
+          stopMafiaClock();
           app.innerHTML = top +
             '<div class="state-screen fade"><div class="emoji">🎭</div>' +
             '<h2>Karta topilmadi</h2>' +
@@ -1804,13 +1965,32 @@
         }
 
         var me = view.mafia;
-        if (!me) { app.innerHTML = top; return; }
+        if (!me) { stopMafiaClock(); app.innerHTML = top; return; }
 
         var hasRole = Boolean(me.role);
         var opened = hasRole && view.mafiaOpen;
         var phase = MAFIA_PHASES[me.phase] || me.phase || "";
         var faction = MAFIA_FACTIONS[me.faction] || "Noma'lum";
         var photo = me.photo || "/assets/images/mafia/cover.png";
+        var timerVisible = Boolean(me.phase_deadline) &&
+          ["NIGHT", "DAY_REPORT", "VOTING"].indexOf(me.phase) >= 0;
+        var timerCopy = me.phase === "NIGHT"
+          ? "Tungi harakatlar uchun 60 soniya"
+          : (me.phase === "VOTING"
+            ? "Ovoz berish uchun 60 soniya"
+            : "Tonggi muhokama uchun 60 soniya");
+        var timerHtml = timerVisible
+          ? '<div class="mafia-timer" data-mafia-timer>' +
+              '<svg viewBox="0 0 44 44" aria-hidden="true">' +
+                '<circle class="track" cx="22" cy="22" r="18"></circle>' +
+                '<circle class="progress" data-mafia-ring cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="0"></circle>' +
+              '</svg><span data-mafia-time>' + esc(formatSeconds(Number(me.phase_seconds_left) || 0)) + '</span></div>'
+          : '';
+        var shopHtml = (me.boosters && me.boosters.length)
+          ? '<section class="mafia-shop"><div class="mafia-shop-head"><h2>🛒 Mafiya boosterlari</h2><span>' +
+              esc(me.coins || 0) + ' 🪙</span></div>' +
+              me.boosters.map(mafiaBoosterHtml).join("") + '</section>'
+          : '';
 
         app.innerHTML = top +
           '<main class="fade mafia-shell">' +
@@ -1838,16 +2018,23 @@
                   '<p class="muted tiny">' + esc(me.description) + '</p>' +
                 '</section>'
               : '') +
+            mafiaTeamHtml(me.teammates) +
             '<section class="panel mafia-status">' +
+              '<div class="mafia-timer-row">' + timerHtml +
+                '<div class="mafia-timer-copy"><b>' + esc(phase) +
+                  (me.round ? " · " + esc(me.round) + '-raund' : '') + '</b><small>' +
+                  esc(timerVisible ? timerCopy : "Taymer tun va ovoz berishda ishlaydi") +
+                '</small></div>' +
+              '</div>' +
               '<div class="mafia-status-row"><span>Xona</span><b>' + esc(me.code) + '</b></div>' +
-              '<div class="mafia-status-row"><span>Bosqich</span><b>' + esc(phase) +
-                (me.round ? " · " + esc(me.round) + '-raund' : '') + '</b></div>' +
               '<div class="mafia-status-row"><span>O\'yinchilar</span><b>' + esc(me.players_count) + ' kishi</b></div>' +
               '<p class="muted tiny">' + (me.is_alive ? "Siz o'yindasiz." : "Siz kuzatuvchisiz.") +
                 ' Tungi harakatlar keyingi bosqichda Mini App\'da faollashadi.</p>' +
             '</section>' +
+            shopHtml +
             '<div class="footer">Revilend Games · Mafiya</div>' +
           '</main>';
+        syncMafiaClock(me);
       }
 
       // ----------------------------------------------------------------
@@ -1865,6 +2052,7 @@
           clearTimeout(view.mafiaTimer);
           view.mafiaTimer = null;
         }
+        stopMafiaClock();
         setBackButton(false);
         app.innerHTML =
           '<header class="brand fade">' +
@@ -2522,6 +2710,8 @@
           button.textContent = "🃏 Karta ochildi";
           view.mafiaOpen = true;
           haptic("success");
+        } else if (act === "mafia-booster") {
+          buyMafiaBooster(button.getAttribute("data-booster"));
         } else if (act === "reveal") {
           sendAction({ action: "reveal", card_type: button.getAttribute("data-card") }, "Karta ochildi");
         } else if (act === "select") {
