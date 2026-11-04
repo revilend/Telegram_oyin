@@ -25,6 +25,7 @@ from bot.handlers import (
     profile,
     rewards,
     shop,
+    spy_group,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ BOT_COMMANDS = [
     BotCommand(command="bunker", description="Yangi Bunker o'yini (guruhda)"),
     BotCommand(command="newgame", description="Yangi Bunker o'yini (guruhda)"),
     BotCommand(command="mafia", description="Yangi Mafiya o'yini (guruhda)"),
+    BotCommand(command="spy", description="Yangi Josus o'yini (guruhda)"),
     BotCommand(command="games", description="O'yinlar katalogi"),
     BotCommand(command="shop", description="Tangalar xarid qilish"),
     BotCommand(command="profile", description="Mening profilim"),
@@ -56,6 +58,8 @@ def build_dispatcher() -> Dispatcher:
     # shuning uchun Bunker'dan oldin ulanadi.
     dispatcher.include_router(mafia_group.router)
     dispatcher.include_router(bunker_group.router)
+    # Josus callbacklari ``spy_join_``/``spy_start_`` prefiksi bilan keladi.
+    dispatcher.include_router(spy_group.router)
     dispatcher.include_router(games_catalog.router)
     dispatcher.include_router(profile.router)
     dispatcher.include_router(leaderboard.router)

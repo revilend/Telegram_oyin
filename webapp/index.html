@@ -1092,6 +1092,50 @@
     .mafia-booster .mb-body { flex: 1; min-width: 0; }
     .mafia-booster .mb-body b { display: block; font-size: 12px; }
     .mafia-booster .mb-body small { display: block; color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 2px; }
+
+    /* ---------- Josus (Spyfall) ---------- */
+    .spy-shell { display: flex; flex-direction: column; gap: 14px; }
+    .spy-hero { text-align: center; padding: 10px 10px 0; }
+    .spy-hero h1 { font-size: 23px; margin: 7px 0; }
+    .spy-hero p { color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .spy-card-front {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 18px; text-align: center;
+      background: radial-gradient(circle at 50% 22%, rgba(56, 189, 248, 0.32), rgba(7, 11, 22, 0.97) 70%);
+    }
+    .spy-card-front::after { display: none; }
+    .spy-card-front > * { position: relative; z-index: 1; }
+    .spy-card-front .spy-emoji { font-size: 46px; }
+    .spy-card-front .spy-place { font-size: 21px; font-weight: 800; line-height: 1.2; }
+    .spy-card-front .spy-role {
+      padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+      background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.42);
+    }
+    .spy-card-front .spy-note { font-size: 11px; color: var(--muted); line-height: 1.45; }
+    .spy-card-front.spy-alert { background: radial-gradient(circle at 50% 22%, rgba(248, 113, 113, 0.42), rgba(7, 11, 22, 0.97) 70%); }
+    .spy-card-front.spy-alert .spy-role { background: rgba(248, 113, 113, 0.18); border-color: rgba(248, 113, 113, 0.46); }
+    .spy-locations { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .spy-location {
+      display: flex; align-items: center; gap: 6px; padding: 8px 9px; border-radius: 10px;
+      font-size: 11.5px; font-weight: 600; text-align: left; color: var(--text); cursor: pointer;
+      background: var(--panel-strong); border: 1px solid var(--border);
+    }
+    .spy-location.sel { border-color: rgba(56, 189, 248, 0.8); box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.45); }
+    .spy-location.ruled { opacity: 0.42; text-decoration: line-through; }
+    .spy-location.hinted { opacity: 0.32; text-decoration: line-through; cursor: default; }
+    .spy-location .sl-emoji { font-size: 15px; }
+    .spy-hint-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; }
+    .spy-timer {
+      position: relative; width: 70px; height: 70px; min-width: 70px; display: grid; place-items: center;
+      border-radius: 50%; border: 1px solid rgba(56, 189, 248, 0.38);
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.14), transparent 70%);
+    }
+    .spy-timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    .spy-timer .track { fill: none; stroke: rgba(56, 189, 248, 0.16); stroke-width: 5; }
+    .spy-timer .progress { fill: none; stroke: #38bdf8; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.45s linear; }
+    .spy-timer span { position: relative; z-index: 1; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .spy-timer.low .progress { stroke: #ef4444; }
+    .spy-timer.low span { color: #fecaca; }
     .mafia-booster .mb-price { font-size: 11px; font-weight: 800; color: var(--warning); text-align: right; max-width: 42%; }
     .profile-split {
       margin-top: 10px; padding: 9px 11px; border-radius: 12px; text-align: center;
@@ -1158,7 +1202,7 @@
           description: "Kechki shaharda mafiya va tinch aholi o'rtasidagi kurash. Guruhda /mafia bilan boshlang."
         },
         {
-          slug: "spyfall", name: "Josus", emoji: "🕶️", status: "active", players: "3–10",
+          slug: "spyfall", name: "Josus", emoji: "🕶️", status: "active", players: "3–12",
           description: "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob orqali uni toping."
         }
       ];
@@ -1171,11 +1215,29 @@
         (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
         params.get("mafia") || params.get("startapp") || params.get("tgWebAppStartParam") || ""
       );
+      var initialSpyCode = spyStartCode(
+        (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
+        params.get("spy") || params.get("room") || params.get("startapp") ||
+        params.get("tgWebAppStartParam") || ""
+      );
+      if (initialSpyCode) initialCode = "";
 
       var profile = loadProfile();
       var view = {
-        mode: initialMafiaCode ? "mafia" : "bunker",
+        mode: initialSpyCode ? "spy" : (initialMafiaCode ? "mafia" : "bunker"),
         code: initialCode,
+        spy: null,
+        spyState: null,
+        spyError: null,
+        spyLoading: false,
+        spyOpen: false,
+        spyTimer: null,
+        spyActionBusy: false,
+        spyVoteTarget: null,
+        spyGuessKey: null,
+        spyRuled: {},
+        spyLocations: [],
+        spyEntry: false,
         mafia: null,
         mafiaState: null,
         mafiaLoading: false,
@@ -1453,6 +1515,23 @@
         }
       }
 
+      function urlParamUser() {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var uid = Number(params.get("uid") || params.get("user_id") || 0);
+          if (!uid) return null;
+          return {
+            id: uid,
+            first_name: (params.get("fname") || params.get("full_name") || "").trim(),
+            last_name: "",
+            username: (params.get("uname") || params.get("username") || "").trim(),
+            photo_url: params.get("photo") || ""
+          };
+        } catch (error) {
+          return null;
+        }
+      }
+
       function getTgUser() {
         try {
           var webApp = window.Telegram && window.Telegram.WebApp;
@@ -1470,8 +1549,11 @@
         } catch (error) {
           console.warn("Telegram foydalanuvchi ma'lumotini o'qib bo'lmadi", error);
         }
-        // initData bo'sh kelganda (pastki klaviaturadan ochilganda) oxirgi
-        // ma'lum foydalanuvchini xotiradan o'qiymiz.
+        // Pastki klaviaturadagi web_app havolasi initData yubormasligi mumkin:
+        // havoladagi ?uid=&uname=&fname= parametrlaridan foydalanamiz.
+        var fromUrl = urlParamUser();
+        if (fromUrl) return storeTgUser(fromUrl);
+        // initData bo'sh kelganda oxirgi ma'lum foydalanuvchini xotiradan o'qiymiz.
         return readStoredTgUser();
       }
 
@@ -1482,7 +1564,7 @@ function profileAvatarHtml(sizeClass) {
   var p = (typeof profile !== "undefined" && profile) ? profile : {};
 
   var photo = (u && u.photo_url) || p.photo || "";
-  var name = (u && u.first_name) || p.name || "Telegram orqali oching";
+  var name = (u && u.first_name) || p.name || "Mehmon o'yinchi";
   var pid = (u && u.id) || p.id || "";
 
   if (photo) {
@@ -1498,7 +1580,7 @@ function profileAvatarHtml(sizeClass) {
 
 function profileCardHtml() {
   var u = getTgUser();
-  var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Telegram orqali oching";
+  var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon o'yinchi";
   var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram o'yinchi");
   return '<section class="profile-card fade">' +
     '<div class="profile-head">' + profileAvatarHtml("lg") +
@@ -1599,7 +1681,7 @@ function profileCardHtml() {
   try {
     var u = getTgUser();
     if (!u || !u.id) {
-      profile.name = "Telegram orqali oching";
+      profile.name = "Mehmon o'yinchi";
       profile.username = "";
       profile.guest = true;
       if (!view.code) renderHub();
@@ -1875,7 +1957,7 @@ function profileCardHtml() {
         }
         return {
           id: id,
-          name: "Telegram orqali oching",
+          name: "Mehmon o'yinchi",
           username: "",
           photo: "",
           balance: 0,
@@ -2323,6 +2405,434 @@ function profileCardHtml() {
       }
 
       // ----------------------------------------------------------------
+      // Josus (Spyfall)
+      // ----------------------------------------------------------------
+      var SPY_PHASES = {
+        LOBBY: "Kutilmoqda",
+        PLAYING: "Muhokama",
+        VOTING: "Ovoz berish",
+        FINISHED: "Tugadi"
+      };
+      var spyClock = { deadline: 0, duration: 300, offset: 0, interval: null };
+
+      function spyStartCode(value) {
+        var match = /^(?:spy_)?(SPY\d{3})$/i.exec(String(value || "").trim());
+        return match ? match[1].toUpperCase() : "";
+      }
+
+      function spyRuled() {
+        if (!view.spyRuled) view.spyRuled = {};
+        return view.spyRuled;
+      }
+
+      function enterSpy(code) {
+        var normalized = spyStartCode(code) || normalizeCode(code);
+        if (!/^SPY\d{3}$/.test(normalized)) {
+          toast("Josus xona kodi SPY123 ko'rinishida bo'ladi", "error");
+          return;
+        }
+        view.mode = "spy";
+        view.code = normalized;
+        view.spy = null;
+        view.spyState = null;
+        view.spyError = null;
+        view.spyLoading = true;
+        view.spyOpen = false;
+        view.spyVoteTarget = null;
+        view.spyGuessKey = null;
+        view.spyRuled = {};
+        view.spyEntry = false;
+        if (view.spyTimer) {
+          clearTimeout(view.spyTimer);
+          view.spyTimer = null;
+        }
+        stopLive();
+        stopTimer();
+        stopMafiaClock();
+        stopSpyClock();
+        setBackButton(true);
+        renderSpy();
+        loadSpyState();
+      }
+
+      function stopSpyClock() {
+        if (spyClock.interval) clearInterval(spyClock.interval);
+        spyClock.interval = null;
+        spyClock.deadline = 0;
+      }
+
+      function paintSpyClock() {
+        var el = document.querySelector("[data-spy-timer]");
+        if (!el || !spyClock.deadline) return;
+        var now = Date.now() / 1000 + spyClock.offset;
+        var remaining = Math.max(0, Math.ceil(spyClock.deadline - now));
+        var text = el.querySelector("[data-spy-time]");
+        if (text) text.textContent = formatSeconds(remaining);
+        var ring = el.querySelector("[data-spy-ring]");
+        if (ring) {
+          var ratio = Math.max(0, Math.min(1, remaining / spyClock.duration));
+          ring.style.strokeDashoffset = String(113.1 * (1 - ratio));
+        }
+        el.classList.toggle("low", remaining <= 30);
+      }
+
+      function syncSpyClock(state) {
+        stopSpyClock();
+        if (!state || !state.deadline || state.status === "FINISHED") return;
+        spyClock.deadline = Number(state.deadline) || 0;
+        spyClock.duration = Math.max(1, Number(state.round_seconds) || 300);
+        spyClock.offset = (Number(state.deadline) - Number(state.seconds_left || 0))
+          - Date.now() / 1000;
+        paintSpyClock();
+        spyClock.interval = setInterval(paintSpyClock, 1000);
+      }
+
+      function scheduleSpyPoll() {
+        if (view.spyTimer) {
+          clearTimeout(view.spyTimer);
+          view.spyTimer = null;
+        }
+        var state = view.spyState;
+        if (!state || state.status === "FINISHED") return;
+        if (!["LOBBY", "PLAYING", "VOTING"].includes(state.status)) return;
+        view.spyTimer = setTimeout(function () {
+          if (view.mode === "spy") loadSpyState();
+        }, 4000);
+      }
+
+      function applySpyData(data) {
+        if (!data || !data.state) return;
+        view.spy = data.me;
+        view.spyState = data.state;
+        if (data.locations) view.spyLocations = data.locations;
+        if (data.coins != null) profile.balance = Number(data.coins) || 0;
+        if (data.state.status === "FINISHED") {
+          view.spyVoteTarget = null;
+          view.spyGuessKey = null;
+        }
+        view.spyLoading = false;
+        view.spyError = null;
+      }
+
+      async function loadSpyState(retried) {
+        var code = view.code;
+        try {
+          var data = await request(
+            "/api/spy/" + encodeURIComponent(code) + "?user_id=" +
+            encodeURIComponent(profile.id)
+          );
+          if (view.mode !== "spy" || view.code !== code) return;
+          applySpyData(data);
+          renderSpy();
+          scheduleSpyPoll();
+        } catch (error) {
+          if (view.mode !== "spy" || view.code !== code) return;
+          if (error.status === 403 && !retried) {
+            // Guruhdan kelgan foydalanuvchi hali qo'shilmagan bo'lsa — avtomatik qo'shamiz.
+            try {
+              var joined = await request(
+                "/api/spy/" + encodeURIComponent(code) + "/join",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ user_id: profile.id, name: profile.name || "" })
+                }
+              );
+              if (view.mode !== "spy" || view.code !== code) return;
+              applySpyData(joined);
+              renderSpy();
+              scheduleSpyPoll();
+              return;
+            } catch (joinError) {
+              error = joinError;
+            }
+          }
+          view.spyLoading = false;
+          view.spyError = error;
+          stopSpyClock();
+          renderSpy();
+        }
+      }
+
+      async function createSpyRoom() {
+        if (view.actionBusy) return;
+        view.actionBusy = true;
+        try {
+          var data = await request("/api/spy/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id, name: profile.name || "O'yinchi" })
+          });
+          view.spyEntry = false;
+          if (data && data.state && data.state.code) enterSpy(data.state.code);
+        } catch (error) {
+          toast(error.message || "Xona yaratilmadi", "error");
+        } finally {
+          view.actionBusy = false;
+        }
+      }
+
+      async function spyPost(path, payload, successMessage) {
+        if (view.spyActionBusy) return null;
+        var code = view.code;
+        view.spyActionBusy = true;
+        renderSpy();
+        try {
+          var data = await request("/api/spy/" + encodeURIComponent(code) + "/" + path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(Object.assign(
+              { user_id: profile.id, name: profile.name || "" },
+              payload || {}
+            ))
+          });
+          if (view.mode !== "spy" || view.code !== code) return null;
+          applySpyData(data);
+          if (data.result && data.result.reason) {
+            toast(data.result.reason, data.result.correct === false ? "error" : "success");
+          } else if (successMessage) {
+            toast(successMessage, "success");
+          }
+          haptic("success");
+          return data;
+        } catch (error) {
+          if (view.mode === "spy" && view.code === code) {
+            toast(error.message || "Harakat bajarilmadi", "error");
+          }
+          return null;
+        } finally {
+          if (view.mode === "spy" && view.code === code) {
+            view.spyActionBusy = false;
+            renderSpy();
+            scheduleSpyPoll();
+          }
+        }
+      }
+
+      function spyCardHtml(me, state) {
+        if (!me) return "";
+        var finished = state && state.status === "FINISHED";
+        var opened = Boolean(view.spyOpen) || finished;
+        var front;
+        if (me.is_spy && !finished) {
+          front = '<span class="spy-emoji">\ud83d\udd75\ufe0f</span>' +
+            '<span class="spy-place">SIZ JOSUSSIZ!</span>' +
+            '<span class="spy-role">Joyni topishga harakat qiling</span>' +
+            '<span class="spy-note">' + esc(me.spy_warning || "Savollarga ehtiyotkorlik bilan javob bering.") + '</span>';
+        } else {
+          front = '<span class="spy-emoji">' + esc(me.location_emoji || "\ud83d\udccd") + '</span>' +
+            '<span class="spy-place">' + esc(me.location_name || "Lokatsiya") + '</span>' +
+            '<span class="spy-role">' + esc(me.role_name || "Rol") + '</span>' +
+            '<span class="spy-note">' +
+              (me.is_spy
+                ? "Siz josus edingiz — joy endi ochildi."
+                : "Bu joyni josusga bildirmang. Savollar orqali uni aniqlang.") +
+            '</span>';
+        }
+        var teammates = "";
+        if (me.is_spy && me.teammates && me.teammates.length) {
+          teammates = '<div class="notice tiny">\ud83d\udd75\ufe0f Ikkinchi josus: ' +
+            me.teammates.map(function (mate) { return esc(mate.name); }).join(", ") + '</div>';
+        }
+        return '<div class="tarot-scene"><div class="tarot-card' + (opened ? " flipped" : "") + '">' +
+            '<div class="tarot-face tarot-back"><span>?</span></div>' +
+            '<div class="tarot-face tarot-front spy-card-front' + (me.is_spy ? " spy-alert" : "") + '">' + front + '</div>' +
+          '</div></div>' +
+          (opened
+            ? ''
+            : '<button class="btn primary block" data-act="spy-flip">\ud83c\udccf Kartani ochish</button>') +
+          teammates;
+      }
+
+      function spyLocationsHtml(me, state) {
+        var locations = view.spyLocations || [];
+        if (!locations.length || !state) return "";
+        if (state.status === "LOBBY") return "";
+        var hinted = {};
+        ((me && me.hint_exclusions) || []).forEach(function (key) { hinted[key] = true; });
+        var ruled = spyRuled();
+        var canGuess = Boolean(me && me.is_spy) && state.status !== "FINISHED";
+        var rows = locations.map(function (location) {
+          var classes = ["spy-location"];
+          if (hinted[location.key]) classes.push("hinted");
+          else if (!canGuess && ruled[location.key]) classes.push("ruled");
+          if (canGuess && view.spyGuessKey === location.key) classes.push("sel");
+          var attrs = hinted[location.key]
+            ? " disabled"
+            : (canGuess
+              ? ' data-act="spy-pick" data-key="' + esc(location.key) + '"'
+              : ' data-act="spy-rule" data-key="' + esc(location.key) + '"');
+          return '<button class="' + classes.join(" ") + '"' + attrs + '>' +
+            '<span class="sl-emoji">' + esc(location.emoji) + '</span>' +
+            '<span>' + esc(location.name) + '</span></button>';
+        }).join("");
+
+        var hint = "";
+        if (canGuess) {
+          var excluded = ((me && me.hint_exclusions) || []).length;
+          hint = '<div class="spy-hint-row"><span class="muted tiny">' +
+              (excluded ? "\ud83d\udce1 Radar: " + excluded + " ta noto'g'ri joy o'chirildi" : "Lokatsiyani tanlab, taxmin qiling") +
+            '</span></div>' +
+            '<button class="btn primary block" data-act="spy-guess"' +
+              (view.spyGuessKey == null || view.spyActionBusy ? " disabled" : "") +
+              '>\ud83c\udfaf Men joyni topdim!</button>';
+        } else if (state.status !== "FINISHED") {
+          hint = '<p class="muted tiny" style="margin-top:8px">Shubhadan chiqarilgan joyni belgilash uchun bosing.</p>';
+        }
+
+        return '<section class="panel"><h2>\ud83d\uddfa\ufe0f Lokatsiyalar (' + locations.length + ')</h2>' +
+          '<div class="spy-locations">' + rows + '</div>' + hint + '</section>';
+      }
+
+      function spyPlayersHtml(me, state) {
+        if (!state) return "";
+        var players = state.players || [];
+        var finished = state.status === "FINISHED";
+        var voting = state.status === "VOTING" || state.status === "PLAYING";
+        var canVote = Boolean(me) && voting && !me.has_voted;
+        var rows = players.map(function (player) {
+          var self = player.is_me;
+          var selected = Number(view.spyVoteTarget) === Number(player.user_id);
+          var action = "";
+          if (canVote && !self) {
+            action = '<button class="btn small' + (selected ? " primary" : "") + '" data-act="spy-vote-select" data-target="' +
+              player.user_id + '">' + (selected ? "Tanlandi" : "Ovoz") + '</button>';
+          } else if (finished) {
+            action = '<span class="badge ' + (player.is_spy ? "soon" : "live") + '">' +
+              (player.is_spy ? "JOSUS" : "TINCH") + '</span>';
+          }
+          return '<div class="player' + (selected ? " sel" : "") + '">' +
+            avatarHtml(player.name, player.user_id, "sm") +
+            '<div class="p-body"><div class="p-name">' + esc(player.name) +
+              (self ? ' <span class="badge me">SIZ</span>' : '') +
+              (player.is_host ? ' <span class="badge">EGASI</span>' : '') + '</div>' +
+              '<div class="p-meta">' +
+                (player.has_voted ? "Ovoz berdi" : (voting ? "Ovoz bermagan" : "O'yinda")) +
+                ((state.votes_count && (finished || state.status === "VOTING"))
+                  ? " · " + Number(player.votes || 0) + " ovoz"
+                  : "") +
+              '</div></div>' + action + '</div>';
+        }).join("");
+
+        var controls = "";
+        if (canVote && view.spyVoteTarget != null) {
+          controls = '<button class="btn primary block" data-act="spy-vote-submit" style="margin-top:10px"' +
+            (view.spyActionBusy ? " disabled" : "") + '>Josus deb ovoz berish</button>';
+        } else if (me && me.has_voted && voting) {
+          controls = '<div class="notice tiny" style="margin-top:10px">Ovozingiz qabul qilindi. Boshqalarni kuting.</div>';
+        }
+        return '<section class="panel"><h2>\ud83d\udc65 O\'yinchilar (' + players.length + '/' + (state.max_players || 12) + ')</h2>' +
+          '<div class="players">' + rows + '</div>' + controls + '</section>';
+      }
+
+      function renderSpy() {
+        var top = '<div class="topbar">' +
+          '<button class="icon-btn" data-act="home" aria-label="Orqaga">\u2190</button>' +
+          '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span>' +
+          '<span class="status-pill">\ud83d\udd0d Josus</span></div></div>';
+
+        if (view.spyLoading) {
+          stopSpyClock();
+          app.innerHTML = top + '<div class="skeleton"></div><div class="skeleton"></div>';
+          return;
+        }
+
+        if (view.spyError) {
+          stopSpyClock();
+          app.innerHTML = top +
+            '<div class="state-screen fade"><div class="emoji">\ud83d\udd75\ufe0f</div>' +
+            '<h2>Xona ochilmadi</h2>' +
+            '<p>' + esc(view.spyError.message || "Xona yoki o'yinchi topilmadi.") + '</p>' +
+            '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button>' +
+            '<button class="btn" data-act="spy-create" style="margin-top:8px">\uff0b Yangi Josus xonasi</button></div>';
+          return;
+        }
+
+        var state = view.spyState;
+        var me = view.spy;
+        if (!state) { stopSpyClock(); app.innerHTML = top; return; }
+
+        var status = state.status || "LOBBY";
+        var players = state.players || [];
+        var isHost = Boolean(me && me.is_host);
+        var phaseLabel = SPY_PHASES[status] || status;
+
+        var hero = '<section class="spy-hero">' +
+          '<p class="mafia-kicker">Revilend Games \u00b7 Spyfall</p>' +
+          '<h1>' + (status === "LOBBY" ? "\ud83d\udd75\ufe0f Josus yig\u2018ilmoqda" : (status === "FINISHED" ? "O\u2018yin yakunlandi" : "\ud83d\udd75\ufe0f Josus kim?")) + '</h1>' +
+          '<p>' + (status === "LOBBY"
+            ? "Xona kodini do\u2018stlaringizga yuboring. Kamida 3 kishi kerak."
+            : "Joyni sir saqlang, savol-javob qiling va josusni toping.") + '</p></section>';
+
+        var lobby = "";
+        if (status === "LOBBY") {
+          lobby = '<section class="panel"><div class="notice">Xona kodi: <b>' + esc(state.code) +
+            '</b> \u00b7 ' + players.length + '/' + (state.max_players || 12) + ' o\u2018yinchi</div>' +
+            (isHost
+              ? '<button class="btn primary block" data-act="spy-start" style="margin-top:10px"' +
+                (players.length < (state.min_players || 3) || view.spyActionBusy ? " disabled" : "") +
+                '>\u25b6\ufe0f O\u2018yinni boshlash</button>'
+              : '<p class="muted tiny" style="margin-top:10px">Xona egasi o\u2018yinni boshlashini kuting.</p>') +
+            '</section>';
+        }
+
+        var timer = "";
+        if (state.deadline && status !== "FINISHED") {
+          timer = '<div class="mafia-status"><div class="mafia-timer-row">' +
+            '<div class="spy-timer" data-spy-timer>' +
+              '<svg viewBox="0 0 44 44" aria-hidden="true">' +
+                '<circle class="track" cx="22" cy="22" r="18"></circle>' +
+                '<circle class="progress" data-spy-ring cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="0"></circle>' +
+              '</svg><span data-spy-time>' + esc(formatSeconds(Number(state.seconds_left) || 0)) + '</span></div>' +
+            '<div class="mafia-timer-copy"><b>' + esc(phaseLabel) + '</b><small>' +
+              (status === "VOTING" ? "Vaqt tugadi \u2014 ovoz bering" : "Muhokama davom etmoqda") +
+            '</small></div></div></div>';
+        }
+
+        var booster = "";
+        if (me && me.is_spy && (status === "PLAYING" || status === "VOTING")) {
+          var used = ((me.hint_exclusions) || []).length > 0;
+          var price = Number(me.hint_price) || 20;
+          var affordable = Number(profile.balance) >= price;
+          booster = '<section class="mafia-shop"><div class="mafia-shop-head"><h2>\ud83c\udf9f\ufe0f Josus radari</h2><span>' +
+              esc(profile.balance) + ' \ud83e\ude99</span></div>' +
+            '<button class="mafia-booster" data-act="spy-hint"' + (used || !affordable || view.spyActionBusy ? " disabled" : "") + '>' +
+              '<span class="mb-icon">\ud83d\udce1</span>' +
+              '<span class="mb-body"><b>Maslahat: 3 ta noto\u2018g\u2018ri joyni o\u2018chirish</b>' +
+                '<small>' + (used ? "Radar allaqachon ishlatilgan" : (affordable ? "20 tanga evaziga 3 ta noto\u2018g\u2018ri lokatsiya o\u2018chiriladi" : "Tangalar yetarli emas")) + '</small></span>' +
+              '<span class="mb-price">' + (used ? "Faol" : price + " \ud83e\ude99") + '</span></button></section>';
+        }
+
+        var result = "";
+        if (status === "FINISHED") {
+          var spies = players.filter(function (player) { return player.is_spy; });
+          result = '<section class="mafia-reveal">' +
+            '<h2>' + (state.winner === "spies" ? "\ud83d\udd75\ufe0f Josus g\u2018alaba qozondi!" : "\ud83c\udf89 Tinch aholi g\u2018alaba qozondi!") + '</h2>' +
+            '<p>' + esc(state.finish_reason || "") + '</p>' +
+            (state.location
+              ? '<div class="mafia-tags"><span>' + esc(state.location.emoji) + ' ' + esc(state.location.name) + '</span>' +
+                '<span>\ud83d\udd75\ufe0f ' + esc(spies.map(function (player) { return player.name; }).join(", " ) || "\u2014") + '</span></div>'
+              : '') +
+            '<p class="muted tiny">G\u2018oliblarga mos ravishda +25 / +35 tanga berildi.</p></section>';
+        }
+
+        var tally = "";
+        if (isHost && (status === "PLAYING" || status === "VOTING") && state.votes_count > 0) {
+          tally = '<button class="btn block" data-act="spy-tally"' + (view.spyActionBusy ? " disabled" : "") + '>\ud83d\uddf3 Ovozlarni yakunlash</button>';
+        }
+
+        app.innerHTML = top +
+          '<main class="fade spy-shell">' + hero + lobby +
+            (status === "LOBBY" ? "" : spyCardHtml(me, state)) +
+            timer + result + booster +
+            spyPlayersHtml(me, state) +
+            spyLocationsHtml(me, state) + tally +
+            '<div class="footer">Revilend Games \u00b7 Josus</div>' +
+          '</main>';
+        syncSpyClock(state);
+      }
+
+      // ----------------------------------------------------------------
       // Hub (bosh sahifa)
       // ----------------------------------------------------------------
       function renderHub() {
@@ -2343,6 +2853,16 @@ function profileCardHtml() {
           view.mafiaTimer = null;
         }
         stopMafiaClock();
+        view.spy = null;
+        view.spyState = null;
+        view.spyError = null;
+        view.spyVoteTarget = null;
+        view.spyGuessKey = null;
+        if (view.spyTimer) {
+          clearTimeout(view.spyTimer);
+          view.spyTimer = null;
+        }
+        stopSpyClock();
         setBackButton(false);
         app.innerHTML =
           '<header class="brand fade">' +
@@ -2357,7 +2877,7 @@ function profileCardHtml() {
             '<section class="hero">' +
               '<p class="eyebrow">STOL O\'YINLARI</p>' +
               '<h1>Kechqurun nima o\'ynaymiz?</h1>' +
-              '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker yoki /mafia yuboring.</p>' +
+              '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker, /mafia yoki /spy yuboring.</p>' +
             '</section>' +
             profileCardHtml() +
             bonusHtml() +
@@ -2368,14 +2888,30 @@ function profileCardHtml() {
             '<section class="panel" id="join-panel">' +
               '<h2>Xonaga kod orqali qo\'shilish</h2>' +
               '<form id="join-form" class="join-form">' +
-                '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123" aria-label="Xona kodi" />' +
+                '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123 / SPY123" aria-label="Xona kodi" />' +
                 '<button type="submit" class="btn primary">Kirish</button>' +
               '</form>' +
-              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker» yoki «Mafiya» xabaridan oling. Mafiya kodini kiritsangiz, rolingiz kartasi ochiladi.</p>' +
+              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya» yoki «Josus» xabaridan oling. Kod turiga qarab kerakli o\'yin ochiladi.</p>' +
             '</section>' +
-            '<div class="footer">Revilend Games · Bunker · Mafiya</div>' +
+            '<div class="footer">Revilend Games · Bunker · Mafiya · Josus</div>' +
           '</main>' +
-          shopModalHtml();
+          shopModalHtml() +
+          spyEntryHtml();
+      }
+
+      function spyEntryHtml() {
+        if (!view.spyEntry) return "";
+        return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Josus xonasi">' +
+          '<div class="shop-head"><div><h2>\ud83d\udd75\ufe0f Josus</h2>' +
+            '<p class="shop-lede">Guruhdan olingan <b>SPY123</b> kodini kiriting yoki yangi xona oching.</p></div>' +
+            '<button class="shop-close" data-act="spy-entry-close" aria-label="Yopish">\u2715</button></div>' +
+          '<form id="spy-entry-form" class="join-form">' +
+            '<input id="spy-entry-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="SPY123" aria-label="Josus xona kodi" />' +
+            '<button type="submit" class="btn primary">Kirish</button>' +
+          '</form>' +
+          '<button class="btn block" data-act="spy-create" style="margin-top:10px">\uff0b Yangi Josus xonasi</button>' +
+          '<p class="shop-note">Xona kodi guruhdagi «\ud83d\udeaa Josusga kirish» xabarida ko\u2018rinadi. Har kimga maxfiy kartochka beriladi.</p>' +
+        '</section></div>';
       }
 
       function gameCardHtml(game) {
@@ -2980,6 +3516,23 @@ function profileCardHtml() {
             input.focus();
             input.scrollIntoView({ behavior: "smooth", block: "center" });
           }
+        } else if (act === "open-spyfall") {
+          view.spyEntry = true;
+          renderHub();
+        } else if (act === "spy-entry-close") {
+          view.spyEntry = false;
+          renderHub();
+        } else if (act === "spy-create") {
+          createSpyRoom();
+        } else if (act === "spy-start") {
+          spyPost("start", {}, "O'yin boshlandi!");
+        } else if (act === "spy-flip") {
+          var spyCard = app.querySelector(".tarot-card");
+          if (spyCard) spyCard.classList.add("flipped");
+          view.spyOpen = true;
+          button.disabled = true;
+          button.textContent = "🃏 Karta ochildi";
+          haptic("success");
         } else if (act === "open-mafia") {
           var mafiaInput = document.getElementById("room-code");
           var mafiaCode = mafiaInput ? mafiaStartCode(mafiaInput.value) : "";
@@ -2992,6 +3545,34 @@ function profileCardHtml() {
             mafiaInput.scrollIntoView({ behavior: "smooth", block: "center" });
           }
           toast("Guruhdagi Mafiya havolasini oching yoki MAF kodini kiriting");
+        } else if (act === "spy-pick") {
+          view.spyGuessKey = button.getAttribute("data-key");
+          renderSpy();
+        } else if (act === "spy-rule") {
+          var ruleKey = button.getAttribute("data-key");
+          var ruledMap = spyRuled();
+          if (ruledMap[ruleKey]) delete ruledMap[ruleKey];
+          else ruledMap[ruleKey] = true;
+          renderSpy();
+        } else if (act === "spy-guess") {
+          if (!view.spyGuessKey) {
+            toast("Avval lokatsiyani tanlang", "error");
+            return;
+          }
+          spyPost("guess", { location: view.spyGuessKey });
+        } else if (act === "spy-hint") {
+          spyPost("hint", {}, "Radar yoqildi: 3 ta noto'g'ri joy o'chirildi");
+        } else if (act === "spy-vote-select") {
+          view.spyVoteTarget = Number(button.getAttribute("data-target"));
+          renderSpy();
+        } else if (act === "spy-vote-submit") {
+          if (view.spyVoteTarget == null) {
+            toast("Avval o'yinchini tanlang", "error");
+            return;
+          }
+          spyPost("vote", { target_id: Number(view.spyVoteTarget) });
+        } else if (act === "spy-tally") {
+          spyPost("tally", {}, "Ovozlar sanaldi");
         } else if (act === "flip-mafia") {
           var tarot = app.querySelector(".tarot-card");
           if (tarot) tarot.classList.add("flipped");
@@ -3087,6 +3668,17 @@ function profileCardHtml() {
       }
 
       function handleSubmit(event) {
+        if (event.target.id === "spy-entry-form") {
+          event.preventDefault();
+          var spyInput = document.getElementById("spy-entry-code");
+          var spyValue = spyStartCode(spyInput ? spyInput.value : "");
+          if (!spyValue) {
+            toast("Kod SPY123 ko'rinishida bo'lishi kerak", "error");
+            return;
+          }
+          enterSpy(spyValue);
+          return;
+        }
         if (event.target.id === "join-form") {
           event.preventDefault();
           var input = document.getElementById("room-code");
@@ -3097,6 +3689,10 @@ function profileCardHtml() {
           }
           if (/^MAF\d{3}$/.test(code)) {
             enterMafia(code);
+            return;
+          }
+          if (/^SPY\d{3}$/.test(code)) {
+            enterSpy(code);
             return;
           }
           window.location.href = window.location.pathname + "?room=" + encodeURIComponent(code);
@@ -3150,17 +3746,25 @@ function profileCardHtml() {
         applyTelegramTheme();
       }
 
-      if (initialMafiaCode) {
-        enterMafia(initialMafiaCode);
-      } else if (view.code) {
-        enterRoom(view.code);
-      } else {
-        renderHub();
+      // Avval foydalanuvchi aniqlanadi (initData yoki ?uid=...), keyin
+      // start_param / havola bo'yicha kerakli xona ochiladi.
+      async function boot() {
+        await loadAccount();
+        if (initialSpyCode) {
+          enterSpy(initialSpyCode);
+        } else if (initialMafiaCode) {
+          enterMafia(initialMafiaCode);
+        } else if (view.code) {
+          if (/^SPY\d{3}$/.test(view.code)) enterSpy(view.code);
+          else enterRoom(view.code);
+        } else {
+          renderHub();
+        }
+        if (view.mode === "bunker" && !view.code) loadActivity();
       }
-      loadAccount();
-      if (view.mode === "bunker" && !view.code) loadActivity();
+
+      boot();
     })();
   </script>
-  <script src="/spyfall.js"></script>
 </body>
 </html>

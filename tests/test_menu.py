@@ -11,7 +11,7 @@ from aiogram.types import ReplyKeyboardMarkup
 from aiogram.exceptions import TelegramBadRequest
 
 from bot.config import get_config
-from bot.handlers import common, leaderboard, menu, profile
+from bot.handlers import admin, common, leaderboard, menu, profile
 from bot.keyboards import main_menu
 from core.economy import START_COINS, EconomyStore
 
@@ -217,6 +217,18 @@ class MenuHandlerTest(MenuTestCase):
         self.assertIn("Salom", message.answers[-1])
         self.assertIsNone(message.markups[-1].keyboard[0][0].web_app)
 
+    def test_games_button_sends_web_app_with_identity(self) -> None:
+        config = SimpleNamespace(
+            mini_app_url="https://revilend.games", bot_username="revilend_gamesbot"
+        )
+        message = FakeMessage(user_id=424242)
+        with patch.object(menu, "get_config", return_value=config):
+            asyncio.run(menu.menu_games(message))
+        markup = message.markups[-1]
+        button = markup.inline_keyboard[0][0]
+        self.assertEqual(button.text, "🚀 O'yinlar portaliga kirish")
+        self.assertIn("uid=424242", button.web_app.url)
+
     def test_admin_button_opens_panel_for_admin(self) -> None:
         message = FakeMessage()
         asyncio.run(menu.menu_admin(message))
@@ -226,6 +238,53 @@ class MenuHandlerTest(MenuTestCase):
         message = FakeMessage(user_id=999)
         asyncio.run(menu.menu_admin(message))
         self.assertIn("faqat administrator", message.answers[-1])
+
+
+class MiniAppUrlTest(unittest.TestCase):
+    """Pastki menyu web_app havolasi foydalanuvchi ma'lumotini olib yurishi."""
+
+    def test_url_contains_user_identity(self) -> None:
+        url = main_menu.mini_app_url_for(
+            "https://revilend.games",
+            user_id=42,
+            username="ali_dev",
+            full_name="Ali Valiyev",
+        )
+        self.assertTrue(url.startswith("https://revilend.games?"))
+        self.assertIn("uid=42", url)
+        self.assertIn("uname=ali_dev", url)
+        self.assertIn("fname=Ali%20Valiyev", url)
+
+    def test_existing_query_is_preserved(self) -> None:
+        url = main_menu.mini_app_url_for("https://x.dev/app?lang=uz", user_id=7)
+        self.assertIn("?lang=uz&uid=7", url)
+
+    def test_url_without_user_is_unchanged(self) -> None:
+        self.assertEqual(
+            main_menu.mini_app_url_for("https://revilend.games"), "https://revilend.games"
+        )
+
+    def test_keyboard_web_app_button_has_identity(self) -> None:
+        config = SimpleNamespace(mini_app_url="https://revilend.games")
+        with patch.object(main_menu, "get_config", return_value=config):
+            markup = main_menu.build_main_menu(
+                user_id=555, username="vali", full_name="Vali Karimov"
+            )
+        button = markup.keyboard[0][0]
+        self.assertIsNotNone(button.web_app)
+        self.assertIn("uid=555", button.web_app.url)
+        self.assertIn("uname=vali", button.web_app.url)
+
+    def test_start_menu_carries_user_id(self) -> None:
+        config = SimpleNamespace(mini_app_url="https://revilend.games", admin_id=0)
+        message = FakeMessage(user_id=424242)
+        with patch.object(common, "get_config", return_value=config), patch.object(
+            main_menu, "get_config", return_value=config
+        ), patch.object(admin, "get_config", return_value=config):
+            asyncio.run(common.start_command(message, None))
+        button = message.markups[-1].keyboard[0][0]
+        self.assertIn("uid=424242", button.web_app.url)
+
 
 
 if __name__ == "__main__":

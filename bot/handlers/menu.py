@@ -12,15 +12,22 @@ import logging
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    WebAppInfo,
+)
 
 from bot.config import get_config
 from bot.handlers import admin, shop
 from bot.keyboards.main_menu import (
     ADMIN_BUTTON,
+    GAMES_BUTTON,
     NEW_GAME_BUTTON,
     RULES_BUTTON,
     SHOP_BUTTON,
+    mini_app_url_for,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,6 +54,44 @@ RULES_TEXT = (
     "kartani qayta tanlash kabi boosterlarga sarflanadi.\n\n"
     "❓ Savol bo'lsa administratorga yozing."
 )
+
+
+@router.message(PRIVATE, F.text == GAMES_BUTTON)
+async def menu_games(message: Message) -> None:
+    """🎮 O'yinlar — Mini App'ni inline web_app tugmasi orqali ochadi.
+
+    Pastki (reply) klaviaturadagi ``web_app`` tugmasi initData yubormasligi
+    mumkin, shuning uchun havolaga foydalanuvchi id'si va ismi qo'shiladi.
+    """
+    config = get_config()
+    user = message.from_user
+    url = mini_app_url_for(
+        config.mini_app_url or "",
+        user_id=user.id if user is not None else None,
+        username=(user.username or "") if user is not None else "",
+        full_name=(user.full_name or "") if user is not None else "",
+    )
+    if not url.startswith("https://"):
+        await message.answer(
+            "⚠️ Mini App manzili sozlanmagan. Administratorga murojaat qiling."
+        )
+        return
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🚀 O'yinlar portaliga kirish",
+                    web_app=WebAppInfo(url=url),
+                )
+            ]
+        ]
+    )
+    await message.answer(
+        "🎮 <b>O'yinlar portali</b>\n\n"
+        "Bunker, Mafiya va Josus o'yinlarini shu yerda oching. "
+        "Balansingiz va statistikangiz Mini App'da ko'rinadi.",
+        reply_markup=keyboard,
+    )
 
 
 @router.message(PRIVATE, F.text == SHOP_BUTTON)

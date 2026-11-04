@@ -10,6 +10,8 @@ mos keladigan yoki ``users`` jadvalida ``role = 'admin'`` bo'lgan foydalanuvchig
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
 from bot.config import get_config
@@ -44,8 +46,45 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
 INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker yozing"
 
 
+def mini_app_url_for(
+    base_url: str,
+    *,
+    user_id: int | None = None,
+    username: str = "",
+    full_name: str = "",
+) -> str:
+    """Mini App havolasiga foydalanuvchi ma'lumotlarini qo'shadi.
+
+    Telegram pastki (reply) klaviaturasidagi ``web_app`` tugmasi ba'zi
+    holatlarda ``initData`` yubormaydi. Shu sababli foydalanuvchi id'si va
+    ismi havola query parametrlariga qo'shiladi — Mini App ularni o'qib,
+    haqiqiy balans va statistikani ko'rsatadi.
+    """
+    url = (base_url or "").strip()
+    if not url:
+        return url
+    params: list[str] = []
+    if user_id is not None and int(user_id) > 0:
+        params.append(f"uid={int(user_id)}")
+    clean_username = (username or "").strip().lstrip("@")
+    if clean_username:
+        params.append(f"uname={quote(clean_username, safe='')}")
+    clean_name = (full_name or "").strip()
+    if clean_name:
+        params.append(f"fname={quote(clean_name, safe='')}")
+    if not params:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{'&'.join(params)}"
+
+
 def build_main_menu(
-    *, is_admin: bool = False, include_web_app: bool = True
+    *,
+    is_admin: bool = False,
+    include_web_app: bool = True,
+    user_id: int | None = None,
+    username: str = "",
+    full_name: str = "",
 ) -> ReplyKeyboardMarkup:
     """Doimiy 2 ustunli pastki menyuni qaytaradi.
 
@@ -54,9 +93,16 @@ def build_main_menu(
         include_web_app: ``False`` bo'lsa «O'yinlar» oddiy matn tugmasi bo'ladi.
             Telegram ``web_app`` tugmasini faqat to'g'ri HTTPS manzil bilan
             qabul qiladi, shuning uchun xato bo'lsa shu rejim ishlatiladi.
+        user_id, username, full_name: Mini App havolasiga qo'shiladigan
+            foydalanuvchi ma'lumotlari (``?uid=...&uname=...&fname=...``).
     """
     config = get_config()
-    mini_app_url = config.mini_app_url or ""
+    mini_app_url = mini_app_url_for(
+        config.mini_app_url or "",
+        user_id=user_id,
+        username=username,
+        full_name=full_name,
+    )
     games_button = KeyboardButton(text=GAMES_BUTTON)
     if include_web_app and mini_app_url.startswith("https://"):
         games_button = KeyboardButton(

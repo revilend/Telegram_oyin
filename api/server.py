@@ -31,7 +31,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from api.auth import TelegramUser, resolve_user_id, telegram_user
-from games.spyfall_api import router as spyfall_router
+from games.spyfall.api import router as spyfall_router
+from games.spyfall.api import set_runtime_bot as set_spyfall_bot
+from games.spyfall.engine import SpyfallError
+from games.spyfall.manager import SpyfallNotFoundError
 from bot.handlers import mafia_group as mafia_bot
 from bot.handlers.boosters import send_shield_offer
 from bot.main import build_dispatcher, set_commands
@@ -343,6 +346,7 @@ async def lifespan(app: FastAPI):
                 default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
             _runtime_bot = bot
+            set_spyfall_bot(bot)
             dispatcher = build_dispatcher()
             await set_commands(bot)
             polling = asyncio.create_task(dispatcher.start_polling(bot))
@@ -350,6 +354,7 @@ async def lifespan(app: FastAPI):
         except Exception:  # bot xatosi Mini App'ni to'xtatmasligi kerak
             logger.exception("Botni ishga tushirib bo'lmadi")
             _runtime_bot = None
+            set_spyfall_bot(None)
             if bot is not None:
                 await bot.session.close()
             bot = None
@@ -364,6 +369,7 @@ async def lifespan(app: FastAPI):
             polling.cancel()
             await asyncio.gather(polling, return_exceptions=True)
         _runtime_bot = None
+        set_spyfall_bot(None)
         if bot is not None:
             await bot.session.close()
         get_store().close()
@@ -390,6 +396,18 @@ async def room_not_found_handler(request: Any, exc: RoomNotFoundError) -> JSONRe
 @app.exception_handler(PlayerNotFoundError)
 async def player_not_found_handler(request: Any, exc: PlayerNotFoundError) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(SpyfallNotFoundError)
+async def spyfall_not_found_handler(
+    request: Any, exc: SpyfallNotFoundError
+) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(SpyfallError)
+async def spyfall_error_handler(request: Any, exc: SpyfallError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 @app.exception_handler(InsufficientCoinsError)

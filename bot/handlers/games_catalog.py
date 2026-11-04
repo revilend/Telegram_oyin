@@ -1,7 +1,8 @@
-"""🎮 O'yinlar vitrinasi: Bunker va Mafiya qoidalari.
+"""🎮 O'yinlar vitrinasi: Bunker, Mafiya va Josus qoidalari.
 
-``/games`` yoki «🎮 O'yinlar (Mini App)» tugmasi ikkala o'yinni ko'rsatadi;
-tanlanganda qisqa qoidalar va guruhda boshlash yo'riqnomasi chiqadi.
+``/games`` yoki «🎮 O'yinlar (Mini App)» tugmasi uchta faol o'yinni
+ko'rsatadi; tanlanganda qisqa qoidalar va guruhda boshlash yo'riqnomasi
+chiqadi.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ router = Router(name="games_catalog")
 
 BUNKER_CALLBACK = "catalog_bunker"
 MAFIA_CALLBACK = "catalog_mafia"
+SPY_CALLBACK = "catalog_spy"
 BACK_CALLBACK = "catalog_back"
 
 CATALOG_TEXT = (
@@ -34,7 +36,9 @@ CATALOG_TEXT = (
     "Qaysi o'yinni tanlaysiz?\n\n"
     "🛡️ <b>Bunker</b> — falokatdan keyin omon qolish uchun kartalar "
     "bo'yicha bahslashasiz.\n"
-    "🕵️ <b>Mafiya</b> — tunda yashirin rollar, kunduzi ovoz berish."
+    "🕵️ <b>Mafiya</b> — tunda yashirin rollar, kunduzi ovoz berish.\n"
+    "🔍 <b>Josus</b> — hamma joyni biladi, bitta josus bilmaydi. "
+    "Savol-javob orqali uni toping."
 )
 
 BUNKER_TEXT = (
@@ -47,6 +51,20 @@ BUNKER_TEXT = (
     "2. Guruhda <code>/bunker</code> yuboring.\n"
     "3. Do'stlar «Guruh orqali qo'shilish»ni bosadi.\n"
     "4. Xona egasi «O'yinni boshlash»ni bosadi."
+)
+
+SPY_TEXT = (
+    "🔍 <b>Josus (Spyfall)</b>\n\n"
+    "Hamma bitta joyda — masalan, to'yxonada yoki kosmik stantsiyada. "
+    "Faqat bitta (yoki ikkita) josus qayerda ekanligini bilmaydi. "
+    "Savol-javob orqali josusni toping, josus esa joyni taxmin qilishga "
+    "harakat qiladi.\n\n"
+    "🎮 <b>Guruhda boshlash:</b>\n"
+    "1. Botni guruhingizga qo'shing.\n"
+    "2. Guruhda <code>/spy</code> yoki <code>/josus</code> yuboring.\n"
+    "3. Kamida 3 kishi «Qo'shilish»ni bosadi.\n"
+    "4. Xona egasi o'yinni boshlaydi — kartalar Mini App'da ochiladi.\n\n"
+    "🏆 G'olibga: tinch aholi +25, josus +35 tanga."
 )
 
 MAFIA_TEXT = (
@@ -62,7 +80,7 @@ MAFIA_TEXT = (
 
 
 def catalog_keyboard() -> InlineKeyboardMarkup:
-    """Ikkala o'yin tugmasi."""
+    """Uchta faol o'yin tugmasi."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -72,7 +90,12 @@ def catalog_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="🕵️ Mafiya", callback_data=MAFIA_CALLBACK
                 ),
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔍 Josus", callback_data=SPY_CALLBACK
+                )
+            ],
         ]
     )
 
@@ -143,6 +166,13 @@ async def show_mafia(callback: CallbackQuery) -> None:
     """Mafiya qoidalari va guruhda boshlash yo'riqnomasi."""
     await callback.answer()
     await _edit_or_send(callback, MAFIA_TEXT, detail_keyboard())
+
+
+@router.callback_query(F.data == SPY_CALLBACK)
+async def show_spy(callback: CallbackQuery) -> None:
+    """Josus qoidalari va guruhda boshlash yo'riqnomasi."""
+    await callback.answer()
+    await _edit_or_send(callback, SPY_TEXT, detail_keyboard())
 
 
 @router.callback_query(F.data == BACK_CALLBACK)

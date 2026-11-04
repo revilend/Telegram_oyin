@@ -147,11 +147,18 @@ async def cancel_process(message: Message, state: FSMContext) -> None:
     if message.chat.type == "private":
         user = message.from_user
         try:
+            menu_kwargs: dict[str, object] = {
+                "is_admin": is_admin(user.id) if user is not None else False
+            }
+            if user is not None:
+                menu_kwargs.update(
+                    user_id=user.id,
+                    username=user.username or "",
+                    full_name=user.full_name,
+                )
             await message.answer(
                 CANCELLED_TEXT,
-                reply_markup=build_main_menu(
-                    is_admin=is_admin(user.id) if user is not None else False
-                ),
+                reply_markup=build_main_menu(**menu_kwargs),
             )
             return
         except TelegramAPIError:
@@ -206,18 +213,32 @@ async def start_command(message: Message, command: CommandObject | None = None) 
 
 
 async def _send_welcome(message: Message, text: str, admin: bool) -> None:
-    """Menyuni yuboradi; web_app tugmasi rad etilsa, oddiy menyuga qaytadi."""
+    """Menyuni yuboradi; web_app tugmasi rad etilsa, oddiy menyuga qaytadi.
+
+    Mini App havolasiga foydalanuvchi id'si va ismi qo'shiladi, shuning uchun
+    pastki klaviaturadan ochilganda ham profil haqiqiy ma'lumot bilan to'ladi.
+    """
+    user = message.from_user
+    menu_kwargs: dict[str, object] = {"is_admin": admin}
+    if user is not None:
+        menu_kwargs.update(
+            user_id=user.id,
+            username=user.username or "",
+            full_name=user.full_name,
+        )
     try:
         await message.answer(
             text,
-            reply_markup=build_main_menu(is_admin=admin),
+            reply_markup=build_main_menu(**menu_kwargs),
         )
     except TelegramAPIError:
         # Masalan MINI_APP_URL http bo'lsa Telegram web_app tugmasini rad etadi.
         logger.exception("Menyu bilan xabar yuborilmadi, web_app'siz qayta urinish")
         await message.answer(
             text,
-            reply_markup=build_main_menu(is_admin=admin, include_web_app=False),
+            reply_markup=build_main_menu(
+                include_web_app=False, **menu_kwargs
+            ),
         )
 
 
