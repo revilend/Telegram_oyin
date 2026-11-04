@@ -979,6 +979,12 @@
 
     /* ---------- Mafiya: 3D tarot kartasi ---------- */
     .mafia-shell { display: flex; flex-direction: column; gap: 14px; }
+    .mafia-shell .mafia-select {
+      display: block; width: 100%; margin: 6px 0 12px; padding: 11px 12px;
+      border-radius: 11px; color: var(--text); background: var(--panel-strong);
+      border: 1px solid var(--border); font-size: 13px;
+    }
+    .mafia-shell label { display: block; margin-top: 8px; }
     .mafia-hero { text-align: center; padding: 10px 10px 0; }
     .mafia-kicker { font-size: 10px; letter-spacing: 2.2px; text-transform: uppercase; color: var(--muted); }
     .mafia-hero h1 { font-size: 24px; margin: 7px 0; }
@@ -1915,6 +1921,11 @@ function profileCardHtml() {
           if (view.mode !== "mafia" || view.code !== code) return;
           view.mafia = results[0].me;
           view.mafiaState = results[1].state;
+          if (results[1].state.phase === "VOTING" && results[1].state.my_vote_target != null) {
+            view.mafiaVoteTarget = Number(results[1].state.my_vote_target);
+          } else if (results[1].state.phase !== "VOTING") {
+            view.mafiaVoteTarget = null;
+          }
           view.mafiaError = null;
           if (results[0].me.phase !== "FINISHED") {
             // Rol, taymer va mafiya jamoasi yangilanishi uchun qisqa poll.
