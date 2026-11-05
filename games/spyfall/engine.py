@@ -58,6 +58,7 @@ class Phase(str, Enum):
     PLAYING = "PLAYING"
     VOTING = "VOTING"
     FINISHED = "FINISHED"
+    EXPIRED = "EXPIRED"
 
 
 class Winner(str, Enum):

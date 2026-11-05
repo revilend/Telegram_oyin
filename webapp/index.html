@@ -1253,6 +1253,51 @@
       .cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .cat-grid { grid-template-columns: 1fr 1fr; }
     }
+    /* ---------- Navbat, liga vkladkalari, o'yin tarixi ---------- */
+    .game-actions { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; }
+    .match-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .match-status { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .match-status:empty { display: none; }
+    .match-text { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--accent-2); }
+    .link-btn {
+      border: 0; background: transparent; color: var(--muted); cursor: pointer;
+      font-size: 11px; font-weight: 600; text-decoration: underline; padding: 0;
+    }
+    .board-tabs { display: flex; gap: 8px; margin: 10px 0 12px; }
+    .board-tab {
+      flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04);
+      color: var(--muted); border-radius: 12px; padding: 9px 10px;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+    }
+    .board-tab.active {
+      color: var(--text); border-color: rgba(139, 92, 246, 0.55);
+      background: rgba(139, 92, 246, 0.16);
+    }
+    .medal {
+      width: 26px; height: 26px; border-radius: 999px; display: inline-flex;
+      align-items: center; justify-content: center; color: #0a0f1f; flex: 0 0 auto;
+    }
+    .medal svg { width: 14px; height: 14px; }
+    .medal-gold { background: linear-gradient(135deg, #fde68a, #f59e0b); }
+    .medal-silver { background: linear-gradient(135deg, #f8fafc, #94a3b8); }
+    .medal-bronze { background: linear-gradient(135deg, #fcd9b6, #b45309); color: #fff; }
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+    .history-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 14px; border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .history-row.win { border-color: rgba(52, 211, 153, 0.35); }
+    .history-row.lose { border-color: rgba(248, 113, 113, 0.25); }
+    .history-row .h-ico { color: var(--muted); display: inline-flex; }
+    .history-row.win .h-ico { color: var(--success); }
+    .history-row.lose .h-ico { color: var(--danger); }
+    .history-row .h-body { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+    .history-row .h-body b { font-size: 13px; }
+    .history-row .h-res { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; }
+    .history-row.win .h-res { color: var(--success); }
+    .history-row.lose .h-res { color: var(--danger); }
   </style>
 </head>
 <body>
@@ -1325,7 +1370,8 @@
         PLAYING: "Davom etmoqda",
         VOTING: "Ovoz berish",
         SHIELD_OFFER: "Qalqon qarori",
-        FINISHED: "Tugadi"
+        FINISHED: "Tugadi",
+        EXPIRED: "Muddati o'tgan"
       };
       var TIMER_DURATIONS = { PLAYING: 120, VOTING: 60 };
       var PLAYER_LEVEL = 1;
@@ -1864,6 +1910,7 @@ function profileCardHtml() {
           var data = await request(path);
           if (!data || !data.user) return;
           updateProfileFromAccount(data.user);
+          view.history = data.history || view.history || [];
           if (view.shopOpen) view.shop = data.shop || view.shop;
           if (!view.code) renderHub();
           else if (view.room) renderRoom(true);
@@ -1948,26 +1995,228 @@ function profileCardHtml() {
           }).join("") + '</div></section>';
       }
 
+      function boardPeriod() {
+        return view.boardPeriod === "week" ? "week" : "all";
+      }
+
+      function medalBadge(medal, rank) {
+        if (!medal) return rankHtml(rank);
+        var labels = { gold: "Oltin", silver: "Kumush", bronze: "Bronza" };
+        return '<span class="medal medal-' + esc(medal) + '" title="' +
+          esc(labels[medal] || "") + '">' + icon("trophy") + '</span>';
+      }
+
       function leaderboardHtml() {
         var activity = activityState();
-        var top = activity.top || [];
-        if (!top.length) return "";
+        var period = boardPeriod();
+        var board = period === "week"
+          ? (activity.week || { top: [], me: null })
+          : { top: activity.top || [], me: activity.me };
+        var top = board.top || [];
+        var tabs = '<div class="board-tabs">' +
+          '<button class="board-tab' + (period === "all" ? " active" : "") +
+            '" data-act="board-period" data-period="all">' + icon("star") + ' Barcha davrlar</button>' +
+          '<button class="board-tab' + (period === "week" ? " active" : "") +
+            '" data-act="board-period" data-period="week">' + icon("bolt") + ' Bu haftalik liga</button>' +
+          '</div>';
+        var head = '<section class="fade"><div class="section-title"><h2>' + icon("trophy") +
+          ' Reyting</h2><span>' + (period === "week" ? "haftalik liga" : "top " + top.length) +
+          '</span></div>' + tabs;
+        if (!top.length) {
+          return head + '<p class="muted tiny" style="margin:10px 2px 2px">' +
+            (period === "week"
+              ? "Bu hafta hali o'yin o'ynalmagan. Birinchi bo'lib ligani boshlang!"
+              : "Reyting hali bo'sh.") + '</p></section>';
+        }
         var rows = top.map(function (player) {
+          var meta = period === "week"
+            ? esc(money(player.points)) + ' ball · ' + esc(player.wins) + ' ta g\'alaba'
+            : esc(money(player.rating)) + ' · ' + esc(player.wins) + ' ' + icon("trophy");
           return '<div class="top-row' + (player.is_me ? " me" : "") + '">' +
-            rankHtml(player.rank) +
+            medalBadge(player.medal, player.rank) +
             avatarHtml(player.name, player.user_id, "sm") +
             '<span class="t-name">' + esc(player.name) + '</span>' +
-            '<span class="t-rating">' + esc(money(player.rating)) + ' · ' + esc(player.wins) + ' ' + icon("trophy") + '</span></div>';
+            '<span class="t-rating">' + meta + '</span></div>';
         }).join("");
-        var me = activity.me;
+        var me = board.me;
         if (me && Number(me.rank) > top.length) {
-          rows += '<div class="top-row me">' + rankHtml(me.rank) +
+          rows += '<div class="top-row me">' + medalBadge(me.medal, me.rank) +
             avatarHtml(me.name, me.user_id, "sm") +
             '<span class="t-name">' + esc(me.name) + ' (siz)</span>' +
-            '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' ' + icon("trophy") + '</span></div>';
+            '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' ' +
+            icon("trophy") + '</span></div>';
         }
-        return '<section class="fade"><div class="section-title"><h2>' + icon("trophy") + ' Reyting</h2>' +
-          '<span>top ' + top.length + '</span></div><div class="top-list">' + rows + '</div></section>';
+        return head + '<div class="top-list">' + rows + '</div></section>';
+      }
+
+      async function setBoardPeriod(period) {
+        view.boardPeriod = period === "week" ? "week" : "all";
+        haptic("light");
+        renderHub();
+        await loadActivity(true);
+      }
+
+      // ----------------------------------------------------------------
+      // Oxirgi o'yinlar tarixi
+      // ----------------------------------------------------------------
+      var HISTORY_TITLES = { bunker: "Bunker", mafia: "Mafiya", spyfall: "Josus" };
+
+      function shortDate(value) {
+        var text = String(value || "");
+        if (text.length >= 16) return text.slice(8, 10) + "." + text.slice(5, 7) + " " + text.slice(11, 16);
+        return text.slice(0, 10);
+      }
+
+      function historyHtml() {
+        var rows = (view.history || []).slice(0, 5);
+        if (!rows.length) return "";
+        var items = rows.map(function (item) {
+          var won = Boolean(item.won);
+          var title = HISTORY_TITLES[item.game_type] || item.game_type;
+          return '<div class="history-row ' + (won ? "win" : "lose") + '">' +
+            '<span class="h-ico">' + icon(won ? "trophy" : "close") + '</span>' +
+            '<span class="h-body"><b>' + esc(title) + '</b>' +
+            '<span class="muted tiny">' + esc(item.room_code || "") + ' · ' +
+            esc(shortDate(item.created_at)) + ' · ' + esc(item.players_count || 0) +
+            ' o\'yinchi</span></span>' +
+            '<span class="h-res">' + (won ? "Yutdi" : "Yutqazdi") + '</span></div>';
+        }).join("");
+        return '<section class="fade"><div class="section-title"><h2>' + icon("hourglass") +
+          ' Oxirgi o\'yinlar</h2><span>' + rows.length + ' ta</span></div>' +
+          '<div class="history-list">' + items + '</div></section>';
+      }
+
+      // ----------------------------------------------------------------
+      // Umumiy navbat (matchmaking)
+      // ----------------------------------------------------------------
+      var MATCH_MIN = { bunker: 5, mafia: 6, spyfall: 4 };
+
+      function matchQueue(slug) {
+        var data = view.matchmaking;
+        var queues = data && data.queues ? data.queues : [];
+        for (var i = 0; i < queues.length; i += 1) {
+          if (queues[i].game_type === slug) return queues[i];
+        }
+        return null;
+      }
+
+      function matchInQueue(slug) {
+        var queue = matchQueue(slug);
+        if (!queue || !queue.players) return false;
+        var uid = Number(profile && profile.id);
+        for (var i = 0; i < queue.players.length; i += 1) {
+          if (Number(queue.players[i].user_id) === uid) return true;
+        }
+        return false;
+      }
+
+      function matchStatusHtml(slug) {
+        var queue = matchQueue(slug);
+        var minimum = queue ? Number(queue.min) || MATCH_MIN[slug] : MATCH_MIN[slug];
+        var count = queue ? Number(queue.count) || 0 : 0;
+        var mine = matchInQueue(slug);
+        if (!count && !mine) return "";
+        var text = count + "/" + minimum + " kishi qidirilmoqda";
+        if (count < minimum) text += " · yana " + (minimum - count) + " kishi kerak";
+        else text += " · jamoa yig'ildi";
+        return '<span class="match-text">' + icon("users") + ' ' + esc(text) + '</span>' +
+          (mine ? '<button class="link-btn" data-act="match-leave" data-game="' +
+            esc(slug) + '">Bekor qilish</button>' : "");
+      }
+
+      function refreshMatchStatus() {
+        var nodes = app.querySelectorAll("[data-match-status]");
+        for (var i = 0; i < nodes.length; i += 1) {
+          var slug = nodes[i].getAttribute("data-match-status");
+          nodes[i].innerHTML = matchStatusHtml(slug);
+        }
+      }
+
+      function syncMatchPolling() {
+        var queued = false;
+        var slugs = ["bunker", "mafia", "spyfall"];
+        for (var i = 0; i < slugs.length; i += 1) {
+          if (matchInQueue(slugs[i])) { queued = true; break; }
+        }
+        if (queued && !view.matchTimer) {
+          view.matchTimer = setInterval(loadMatchmaking, 3000);
+        } else if (!queued && view.matchTimer) {
+          clearInterval(view.matchTimer);
+          view.matchTimer = null;
+        }
+      }
+
+      async function loadMatchmaking() {
+        if (!profile || !profile.authenticated) return;
+        try {
+          var data = await request(
+            "/api/matchmaking?user_id=" + encodeURIComponent(profile.id)
+          );
+          if (data && data.match) {
+            handleMatchFound(data.match);
+            return;
+          }
+          view.matchmaking = data;
+          refreshMatchStatus();
+          syncMatchPolling();
+        } catch (error) {
+          /* Tarmoq xatosida oxirgi ma'lumot qoladi. */
+        }
+      }
+
+      async function startMatchmaking(slug) {
+        if (view.matchBusy) return;
+        view.matchBusy = true;
+        haptic("medium");
+        try {
+          var data = await request("/api/matchmaking/join", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              game_type: slug,
+              user_id: profile.id,
+              name: profile.name || "",
+              username: profile.username || ""
+            })
+          });
+          if (data && data.match) {
+            handleMatchFound(data.match);
+            return;
+          }
+          toast((data && data.count ? data.count : 1) + "/" +
+            ((data && data.min) || MATCH_MIN[slug]) + " kishi navbatda");
+          await loadMatchmaking();
+        } catch (error) {
+          toast(error.message || "Navbatga qo'shilib bo'lmadi", "error");
+        } finally {
+          view.matchBusy = false;
+        }
+      }
+
+      async function stopMatchmaking(slug) {
+        try {
+          await request("/api/matchmaking/leave", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game_type: slug, user_id: profile.id })
+          });
+          toast("Navbatdan chiqdingiz");
+        } catch (error) {
+          toast(error.message || "Navbatdan chiqib bo'lmadi", "error");
+        }
+        await loadMatchmaking();
+      }
+
+      function handleMatchFound(match) {
+        haptic("success");
+        toast("Jamoa yig'ildi! Xona: " + match.code);
+        if (view.matchTimer) {
+          clearInterval(view.matchTimer);
+          view.matchTimer = null;
+        }
+        if (match.game_type === "mafia") enterMafia(match.code);
+        else if (match.game_type === "spyfall") enterSpy(match.code);
+        else enterRoom(match.code);
       }
 
       async function loadActivity(forceRender) {
@@ -1977,13 +2226,15 @@ function profileCardHtml() {
           var data = await Promise.all([
             request("/api/bonus?user_id=" + encodeURIComponent(profile.id)),
             request("/api/missions?user_id=" + encodeURIComponent(profile.id)),
-            request("/api/top?limit=10&user_id=" + encodeURIComponent(profile.id))
+            request("/api/top?limit=10&period=all&user_id=" + encodeURIComponent(profile.id)),
+            request("/api/top?limit=10&period=week&user_id=" + encodeURIComponent(profile.id))
           ]);
           view.activity = {
             bonus: data[0] ? data[0].bonus : null,
             missions: data[1] && data[1].missions ? data[1].missions : [],
             top: data[2] && data[2].top ? data[2].top : [],
-            me: data[2] ? data[2].me : null
+            me: data[2] ? data[2].me : null,
+            week: data[3] || null
           };
           if (data[0] && data[0].coins != null) profile.balance = Number(data[0].coins) || 0;
           else if (data[1] && data[1].coins != null) profile.balance = Number(data[1].coins) || 0;
@@ -3216,6 +3467,7 @@ function profileCardHtml() {
               '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker, /mafia yoki /spy yuboring.</p>' +
             '</section>' +
             profileCardHtml() +
+            historyHtml() +
             bonusHtml() +
             '<div class="section-title"><h2>O\'yinlar</h2><span>' + GAMES.length + ' ta</span></div>' +
             GAMES.map(gameCardHtml).join("") +
@@ -3233,6 +3485,7 @@ function profileCardHtml() {
           '</main>' +
           shopModalHtml() +
           spyEntryHtml();
+        loadMatchmaking();
       }
 
       function spyEntryHtml() {
@@ -3263,8 +3516,14 @@ function profileCardHtml() {
             '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
           '</div>' +
           (active
-            ? '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : "open-bunker")) + '">' +
-                "O'ynash" + '</button>'
+            ? '<div class="game-actions">' +
+                '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : "open-bunker")) + '">' +
+                  "O'ynash" + '</button>' +
+                '<button class="btn small match-btn" data-act="match-join" data-game="' + esc(game.slug) + '">' +
+                  icon("users") + ' Odam qidirish</button>' +
+              '</div>' +
+              '<div class="match-status" data-match-status="' + esc(game.slug) + '">' +
+                matchStatusHtml(game.slug) + '</div>'
             : '<button class="play-btn" disabled>Tez kunda</button>') +
         '</article>';
       }
@@ -3984,6 +4243,12 @@ function profileCardHtml() {
           renderHub();
         } else if (act === "shop-pay") {
           openShopPayment();
+        } else if (act === "board-period") {
+          setBoardPeriod(button.getAttribute("data-period"));
+        } else if (act === "match-join") {
+          startMatchmaking(button.getAttribute("data-game"));
+        } else if (act === "match-leave") {
+          stopMatchmaking(button.getAttribute("data-game"));
         } else if (act === "claim-bonus") {
           claimBonus();
         } else if (act === "claim-mission") {
@@ -4092,47 +4357,70 @@ function profileCardHtml() {
         applyTelegramTheme();
       }
 
-      function startOrthographyObserver() {
-        const observer = new MutationObserver(function (mutations) {
-          for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-              if (node.nodeType === Node.TEXT_NODE && node.textContent) {
-                node.textContent = toNewAlphabet(node.textContent);
-              } else if (node.nodeType === Node.ELEMENT_NODE) {
-                if (node.children) {
-                  for (const child of node.children) {
-                    if (child.children) {
-                      for (const leaf of leafTextNodes(child)) {
-                        leaf.textContent = toNewAlphabet(leaf.textContent);
-                      }
-                    }
-                  }
-                }
-                if (node.textContent && !/^</.test(node.textContent)) {
-                  node.textContent = toNewAlphabet(node.textContent);
-                }
-              }
-            }
-          }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-      }
-
-      function leafTextNodes(root) {
-        const result = [];
-        const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-        let node;
-        while ((node = walk.nextNode())) result.push(node);
-        return result;
-      }
-
       function toNewAlphabet(text) {
         if (!text) return text;
         return text
-          .replace(/o['‘’ʻO]/g, function (m) { return m[0] === 'O' ? 'Ö' : 'ö'; })
-          .replace(/g['‘’ʻG]/g, function (m) { return m[0] === 'G' ? 'Ğ' : 'ğ'; })
-          .replace(/sh/gi, function (m) { return m[0] === m[0].toUpperCase() ? 'Ş' : 'ş'; })
-          .replace(/ch/gi, function (m) { return m[0] === m[0].toUpperCase() ? 'Ç' : 'ç'; });
+          .replace(/o['\u2018\u2019\u02BB]/g, function (m) {
+            return m[0] === 'O' ? '\u00d6' : '\u00f6';
+          })
+          .replace(/O['\u2018\u2019\u02BB]/g, '\u00d6')
+          .replace(/g['\u2018\u2019\u02BB]/g, '\u011f')
+          .replace(/G['\u2018\u2019\u02BB]/g, '\u011e')
+          .replace(/sh/g, '\u015f')
+          .replace(/Sh/g, '\u015e')
+          .replace(/SH/g, '\u015e')
+          .replace(/ch/g, '\u00e7')
+          .replace(/Ch/g, '\u00c7')
+          .replace(/CH/g, '\u00c7');
+      }
+
+      // Alifbo almashtirish faqat matn tugunlarida bajariladi: elementning
+      // textContent'ini yozish ichki teglarni (tugma, ikona) o'chirib yuboradi.
+      var ORTHO_SKIP_TAGS = { SCRIPT: 1, STYLE: 1, CODE: 1, PRE: 1, TEXTAREA: 1 };
+
+      function localizeTextNode(node) {
+        if (!node || node.nodeType !== Node.TEXT_NODE) return;
+        var current = node.textContent;
+        if (!current) return;
+        var next = toNewAlphabet(current);
+        // Almashtirish idempotent: matn teng bo'lsa qayta yozilmaydi va
+        // kuzatuvchi cheksiz aylanmaydi.
+        if (next !== current) node.textContent = next;
+      }
+
+      function localizeSubtree(node) {
+        if (!node) return;
+        if (node.nodeType === Node.TEXT_NODE) {
+          localizeTextNode(node);
+          return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        if (ORTHO_SKIP_TAGS[node.tagName]) return;
+        for (var i = 0; i < node.childNodes.length; i += 1) {
+          localizeSubtree(node.childNodes[i]);
+        }
+      }
+
+      function startOrthographyObserver() {
+        if (!window.MutationObserver || !document.body) return;
+        localizeSubtree(document.body);
+        var observer = new MutationObserver(function (mutations) {
+          for (var i = 0; i < mutations.length; i += 1) {
+            var mutation = mutations[i];
+            if (mutation.type === "characterData") {
+              localizeTextNode(mutation.target);
+              continue;
+            }
+            for (var j = 0; j < mutation.addedNodes.length; j += 1) {
+              localizeSubtree(mutation.addedNodes[j]);
+            }
+          }
+        });
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          characterData: true
+        });
       }
 
       function boot() {

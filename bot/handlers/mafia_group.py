@@ -168,6 +168,42 @@ class MafiaLobbyManager:
                     removed += 1
         return removed
 
+    def expire_stale(
+        self,
+        *,
+        lobby_idle_seconds: float = 15 * 60,
+        game_idle_seconds: float = 30 * 60,
+    ) -> dict[str, int]:
+        """Tashlab ketilgan Mafiya xonalarini yopadi va xotiradan olib tashlaydi."""
+        now = time.time()
+        expired = 0
+        finished = 0
+        with self._lock:
+            for code, game in list(self._games.items()):
+                idle = now - self._times.get(code, now)
+                if game.room.phase is GamePhase.LOBBY and idle > lobby_idle_seconds:
+                    game.room.phase = GamePhase.EXPIRED
+                    game.clear_phase_timer()
+                    self._games.pop(code, None)
+                    self._times.pop(code, None)
+                    expired += 1
+                elif (
+                    game.room.phase not in (GamePhase.FINISHED, GamePhase.EXPIRED)
+                    and idle > game_idle_seconds
+                ):
+                    game.room.phase = GamePhase.FINISHED
+                    game.clear_phase_timer()
+                    self._games.pop(code, None)
+                    self._times.pop(code, None)
+                    finished += 1
+        if expired or finished:
+            logger.info(
+                "Mafiya xonalari tozalandi: %s ta muddati o'tgan, %s ta yopilgan",
+                expired,
+                finished,
+            )
+        return {"expired": expired, "finished": finished}
+
     def open_games(self, limit: int = 50) -> list[MafiaGame]:
         """Global qidiruv uchun ochiq Mafiya lobby'lari."""
         self.prune_lobbies()

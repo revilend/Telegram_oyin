@@ -106,6 +106,40 @@ class SpyfallManager:
                     removed += 1
         return removed
 
+    def expire_stale(
+        self,
+        *,
+        lobby_idle_seconds: float = 15 * 60,
+        game_idle_seconds: float = 30 * 60,
+    ) -> dict[str, int]:
+        """Tashlab ketilgan Josus xonalarini yopadi va xotiradan olib tashlaydi."""
+        now = time.time()
+        expired = 0
+        finished = 0
+        with self._lock:
+            for code, room in list(self._rooms.items()):
+                idle = now - self._times.get(code, now)
+                if room.phase is Phase.LOBBY and idle > lobby_idle_seconds:
+                    room.phase = Phase.EXPIRED
+                    self._rooms.pop(code, None)
+                    self._times.pop(code, None)
+                    expired += 1
+                elif (
+                    room.phase in (Phase.PLAYING, Phase.VOTING)
+                    and idle > game_idle_seconds
+                ):
+                    room.phase = Phase.FINISHED
+                    self._rooms.pop(code, None)
+                    self._times.pop(code, None)
+                    finished += 1
+        if expired or finished:
+            logger.info(
+                "Josus xonalari tozalandi: %s ta muddati o'tgan, %s ta yopilgan",
+                expired,
+                finished,
+            )
+        return {"expired": expired, "finished": finished}
+
     def open_rooms(self, limit: int = 50) -> list[SpyfallRoom]:
         """Global qidiruv uchun ochiq Josus lobby'lari."""
         self.prune_lobbies()

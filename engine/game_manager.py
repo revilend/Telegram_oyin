@@ -457,6 +457,50 @@ class GameManager:
                     removed += 1
         return removed
 
+    def expire_stale(
+        self,
+        *,
+        lobby_idle_seconds: float = 15 * 60,
+        game_idle_seconds: float = 30 * 60,
+    ) -> dict[str, int]:
+        """Tashlab ketilgan xonalarni yopadi va xotiradan olib tashlaydi.
+
+        Harakatsiz lobby ``EXPIRED`` holatiga o'tadi, boshlangan o'yin esa
+        ``FINISHED`` deb yopiladi.  Ikkalasi ham reyestrdan o'chiriladi.
+        """
+        now = time.time()
+        expired = 0
+        finished = 0
+        closing = (
+            RoomStatus.PLAYING,
+            RoomStatus.VOTING,
+            RoomStatus.SHIELD_OFFER,
+        )
+        with self._lock:
+            for code, room in list(self._rooms.items()):
+                idle = now - self._room_times.get(code, now)
+                if room.status is RoomStatus.LOBBY and idle > lobby_idle_seconds:
+                    room.status = RoomStatus.EXPIRED
+                    self._notify(room)
+                    self._rooms.pop(code, None)
+                    self._votes.pop(code, None)
+                    self._room_times.pop(code, None)
+                    expired += 1
+                elif room.status in closing and idle > game_idle_seconds:
+                    room.status = RoomStatus.FINISHED
+                    self._notify(room)
+                    self._rooms.pop(code, None)
+                    self._votes.pop(code, None)
+                    self._room_times.pop(code, None)
+                    finished += 1
+        if expired or finished:
+            logger.info(
+                "Bunker xonalari tozalandi: %s ta muddati o'tgan, %s ta yopilgan",
+                expired,
+                finished,
+            )
+        return {"expired": expired, "finished": finished}
+
     def open_rooms(self, limit: int = 50) -> list[GameRoom]:
         """Global qidiruv uchun ochiq Bunker lobby xonalari."""
         self.prune_lobbies()

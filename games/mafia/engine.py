@@ -45,6 +45,7 @@ class GamePhase(Enum):
     DAY_REPORT = "DAY_REPORT"
     VOTING = "VOTING"
     FINISHED = "FINISHED"
+    EXPIRED = "EXPIRED"
 
 
 class Winner(Enum):

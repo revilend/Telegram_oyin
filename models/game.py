@@ -29,6 +29,7 @@ class RoomStatus(str, Enum):
     VOTING = "VOTING"
     SHIELD_OFFER = "SHIELD_OFFER"
     FINISHED = "FINISHED"
+    EXPIRED = "EXPIRED"
 
 
 class PlayerCard(BaseModel):

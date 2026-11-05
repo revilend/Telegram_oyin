@@ -50,7 +50,14 @@ from core.economy import (
     player_rating,
 )
 from core.login_codes import verify_login_code
+from core.leaderboard import build_leaderboard, normalize_period
 from core.metrics import metrics
+from engine.cleaner import get_cleaner
+from engine.matchmaking import (
+    MatchmakingError,
+    get_matchmaker,
+    normalize_game_type,
+)
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -381,9 +388,19 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("BOT_TOKEN yo'q — bot polling o'chirilgan")
 
+    matchmaker = get_matchmaker()
+    matchmaker.set_room_factory(_create_match_room)
+    matchmaker.set_notifier(_notify_match)
+    cleaner = get_cleaner()
+    cleaner.start()
+
     try:
         yield
     finally:
+        await get_cleaner().stop()
+        matchmaker.set_room_factory(None)
+        matchmaker.set_notifier(None)
+        matchmaker.reset()
         if bot is not None:
             await bot.session.close()
         _runtime_bot = None
@@ -408,13 +425,25 @@ app = FastAPI(title="Revilend Games API", version="1.2.0", lifespan=lifespan)
 
 @app.middleware("http")
 async def count_requests(request: Request, call_next: Any) -> Any:
-    """Monitoring uchun so'rovlar va server xatolarini sanaydi."""
+    """Monitoring uchun so'rovlar va server xatolarini sanaydi.
+
+    Markaziy xatolik tutuvchi: kutilmagan har qanday xatolik to'liq stack-trace
+    bilan jurnalga yoziladi, mijoz esa umumiy 500 javobini oladi.
+    """
     metrics.request()
     try:
         response = await call_next(request)
     except Exception:
         metrics.error()
-        raise
+        logger.exception(
+            "So'rovda kutilmagan xatolik: %s %s",
+            request.method,
+            request.url.path,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Serverda ichki xatolik yuz berdi"},
+        )
     if int(getattr(response, "status_code", 0)) >= 500:
         metrics.error()
     return response
@@ -467,6 +496,28 @@ async def game_error_handler(request: Any, exc: GameError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.exception_handler(MatchmakingError)
+async def matchmaking_error_handler(
+    request: Any, exc: MatchmakingError
+) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Any, exc: Exception) -> JSONResponse:
+    """Har qanday kutilmagan xatoni stack-trace bilan jurnalga yozadi."""
+    metrics.error()
+    logger.exception(
+        "Ushlay olmagan xatolik: %s %s",
+        getattr(request, "method", "?"),
+        getattr(getattr(request, "url", None), "path", "?"),
+        exc_info=exc,
+    )
+    return JSONResponse(
+        status_code=500, content={"detail": "Serverda ichki xatolik yuz berdi"}
+    )
+
+
 def manager() -> GameManager:
     return get_default_manager()
 
@@ -500,6 +551,130 @@ def _schedule_shield_offer(room: GameRoom) -> None:
         if not finished.cancelled()
         else None
     )
+
+
+# ----------------------------------------------------------------------
+# Umumiy navbat (matchmaking)
+# ----------------------------------------------------------------------
+def _bot_username() -> str:
+    """Bot username'ini sozlamadan yoki muhitdan oladi.
+
+    ``BOT_TOKEN`` yo'q muhitda (masalan lokal test) sozlama o'qish xato
+    beradi, shuning uchun muhit qiymatiga qaytamiz.
+    """
+    try:
+        username = get_config().bot_username
+    except Exception:
+        username = ""
+    return (username or os.getenv("BOT_USERNAME") or "revilend_gamesbot").strip().lstrip("@")
+
+
+def _startapp_url(game_type: str, code: str) -> str:
+    """Bot ichidagi Mini App havolasi."""
+    bot_username = _bot_username()
+    if game_type == "bunker":
+        return f"https://t.me/{bot_username}?startapp={code}"
+    return f"https://t.me/{bot_username}?startapp={game_type}_{code}"
+
+
+def _create_match_room(
+    game_type: str, players: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Navbatdagi o'yinchilar uchun umumiy xona ochadi."""
+    if not players:
+        return None
+    host = players[0]
+    host_id = int(host.get("user_id") or 0)
+    host_name = str(host.get("name") or "") or f"ID {host_id}"
+    host_username = str(host.get("username") or "")
+
+    if game_type == "bunker":
+        room = manager().create_room(host_id, host_name, host_username)
+        code = room.code
+        for entry in players[1:]:
+            try:
+                manager().join_room(
+                    code,
+                    int(entry.get("user_id") or 0),
+                    str(entry.get("name") or ""),
+                    str(entry.get("username") or ""),
+                )
+            except Exception:
+                logger.exception("Navbat o'yinchisini Bunker xonasiga qo'shib bo'lmadi")
+    elif game_type == "mafia":
+        lobby = mafia_bot.get_default_manager()
+        code = lobby.create_game(0, host_id, host_name, host_username).code
+        for entry in players[1:]:
+            try:
+                lobby.join(
+                    code,
+                    int(entry.get("user_id") or 0),
+                    str(entry.get("name") or ""),
+                    str(entry.get("username") or ""),
+                )
+            except Exception:
+                logger.exception("Navbat o'yinchisini Mafiya xonasiga qo'shib bo'lmadi")
+    elif game_type == "spyfall":
+        lobby = get_spyfall_manager()
+        code = lobby.create_room(host_id, host_name).code
+        for entry in players[1:]:
+            try:
+                lobby.join(code, int(entry.get("user_id") or 0), str(entry.get("name") or ""))
+            except Exception:
+                logger.exception("Navbat o'yinchisini Josus xonasiga qo'shib bo'lmadi")
+    else:  # pragma: no cover - normalize_game_type buni to'sadi
+        raise MatchmakingError(f"Noma'lum o'yin turi: {game_type}")
+
+    return {
+        "game_type": game_type,
+        "code": code,
+        "join_url": _startapp_url(game_type, code),
+        "players": len(players),
+    }
+
+
+async def _send_match_messages(
+    players: list[dict[str, Any]], match: dict[str, Any]
+) -> None:
+    """Navbatdagi o'yinchilarga shaxsiy xabarda xona havolasini yuboradi."""
+    bot = _runtime_bot
+    if bot is None:
+        return
+    title = MATCH_TITLES.get(match.get("game_type", ""), "O'yin")
+    code = match.get("code", "")
+    text_parts = [
+        f"<b>{title}: jamoa yig'ildi!</b>\n",
+        f"Xona kodi: <code>{code}</code>\n",
+        "Havola orqali darhol qo'shiling:",
+        match.get("join_url", ""),
+    ]
+    text = "\n".join(text_parts)
+    for entry in players:
+        user_id = int(entry.get("user_id") or 0)
+        if user_id <= 0:
+            continue
+        try:
+            await bot.send_message(user_id, text)
+        except Exception:
+            logger.info("Navbat xabarini yuborib bo'lmadi: %s", user_id)
+
+
+def _notify_match(players: list[dict[str, Any]], match: dict[str, Any]) -> None:
+    """Navbat to'lganda bildirishnomani fonda yuboradi."""
+    if _runtime_bot is None:
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        logger.info("Navbat bildirishnomasi uchun hodisa sikli yo'q")
+        return
+    task = loop.create_task(_send_match_messages(players, match))
+    task.add_done_callback(
+        lambda finished: None if finished.cancelled() else finished.exception()
+    )
+
+
+MATCH_TITLES = {"bunker": "Bunker", "mafia": "Mafiya", "spyfall": "Josus"}
 
 
 @app.get("/api/health")
@@ -579,13 +754,17 @@ async def my_profile(
     resolved_id, resolved_username, resolved_name = profile_identity(
         user, user_id, username, full_name
     )
-    account = get_economy().ensure_user(
+    economy = get_economy()
+    account = economy.ensure_user(
         resolved_id, resolved_username, resolved_name
     )
+    metrics.user(resolved_id)
     return {
         "user": asdict(account),
         "shop": shop_meta(),
         "boosters": boosters_payload(),
+        # Profilda oxirgi 5 o'yin natijasi ko'rsatiladi.
+        "history": economy.history_for_user(resolved_id, 5),
     }
     
 
@@ -749,30 +928,20 @@ async def redeem_promo_code(
 @app.get("/api/top")
 async def top_players(
     limit: int = 10,
+    period: str = "all",
     user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Reyting jadvali va (imkon bo'lsa) o'z o'rni."""
+    """Reyting jadvali: barcha davrlar yoki joriy haftalik liga."""
     limit = max(1, min(int(limit), 50))
-    economy = get_economy()
-    accounts = economy.top_users(limit=1000)
     viewer_id = user.id if user is not None else user_id
-    top = [
-        leaderboard_row(account, index, viewer_id)
-        for index, account in enumerate(accounts[:limit], start=1)
-    ]
-
-    me: dict[str, Any] | None = None
-    if viewer_id is not None:
-        viewer = next(
-            (item for item in accounts if item.user_id == int(viewer_id)), None
-        )
-        if viewer is None:
-            viewer = economy.get_user(viewer_id)
-        me = leaderboard_row(viewer, account_rank(accounts, viewer), viewer_id)
-        me["in_top"] = me["rank"] <= limit
-
-    return {"top": top, "me": me, "total": len(accounts)}
+    board = build_leaderboard(
+        period, limit, viewer_id, economy=get_economy()
+    )
+    board["period"] = normalize_period(period)
+    if board.get("me") is not None:
+        board["me"]["in_top"] = int(board["me"].get("rank") or 0) <= limit
+    return board
 
 
 @app.get("/api/league")
@@ -799,12 +968,76 @@ async def game_history(
     return {"history": get_economy().history_for_user(resolved_id, limit)}
 
 
+class MatchmakingJoinRequest(BaseModel):
+    """Navbatga qo'shilish so'rovi."""
+
+    game_type: str
+    user_id: int | None = None
+    name: str = ""
+    username: str = ""
+
+
+class MatchmakingLeaveRequest(BaseModel):
+    """Navbatdan chiqish so'rovi."""
+
+    game_type: str | None = None
+    user_id: int | None = None
+
+
+@app.get("/api/matchmaking")
+async def matchmaking_status(
+    game_type: str | None = None,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Navbat holati: nechta kishi qidirilmoqda va qancha kerak."""
+    kind = normalize_game_type(game_type) if game_type else None
+    payload = get_matchmaker().status(kind)
+    viewer_id = user.id if user is not None else user_id
+    if viewer_id is not None:
+        if kind is not None:
+            payload["position"] = get_matchmaker().position(int(viewer_id), kind)
+        # Navbat to'lganini boshqa ishtirokchilar ham polling orqali biladi.
+        payload["match"] = get_matchmaker().recent_match(int(viewer_id), kind)
+    return payload
+
+
+@app.post("/api/matchmaking/join")
+async def matchmaking_join(
+    payload: MatchmakingJoinRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """O'yinchini global navbatga qo'shadi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    metrics.user(resolved_id)
+    name = payload.name
+    username = payload.username
+    if user is not None:
+        name = name or user.full_name
+        username = username or user.username
+    result = get_matchmaker().join(
+        resolved_id, payload.game_type, name=name, username=username
+    )
+    return {"ok": True, **result}
+
+
+@app.post("/api/matchmaking/leave")
+async def matchmaking_leave(
+    payload: MatchmakingLeaveRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """O'yinchini navbatdan chiqaradi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    result = get_matchmaker().leave(resolved_id, payload.game_type)
+    return {"ok": True, **result}
+
+
 @app.get("/api/lobbies")
 async def open_lobbies(limit: int = 20, q: str = "") -> dict[str, Any]:
     """Barcha o'yinlar bo'yicha global ochiq lobby qidiruvi."""
     limit = max(1, min(int(limit), 50))
     needle = (q or "").strip().lower()
-    bot_username = get_config().bot_username
+    bot_username = _bot_username()
     rows: list[dict[str, Any]] = []
 
     for room in manager().open_rooms(limit):
@@ -874,7 +1107,11 @@ async def monitoring_metrics(
         or economy.is_admin_user(user.id)
     ):
         raise HTTPException(status_code=403, detail="Faqat administrator uchun")
-    return {"metrics": asdict(metrics.snapshot())}
+    return {
+        "metrics": asdict(metrics.snapshot()),
+        "matchmaking": get_matchmaker().stats(),
+        "cleanup": get_cleaner().stats(),
+    }
 
 
 @app.get("/api/meta/cards")
