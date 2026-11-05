@@ -28,6 +28,14 @@ from core.economy import (
     package_price,
 )
 from core.settings import format_card_number, get_settings_store
+from core.shop import (
+    CATALOG_BY_SLUG,
+    SECTION_ORDER,
+    SECTION_TITLES,
+    SPIN,
+    ShopError,
+    get_shop_store,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +45,14 @@ PACK_PREFIX = "shop_pack_"
 CANCEL_CALLBACK = "shop_cancel"
 PAY_OK_PREFIX = "pay_ok_"
 PAY_NO_PREFIX = "pay_no_"
+
+# Mega Store navigatsiyasi: bosh menyu → ikki bölum → buyumlar.
+HOME_CALLBACK = "shop_home"
+PAY_SECTION_CALLBACK = "shopsection_pay"
+ITEMS_CALLBACK = "shopsection_items"
+SECTION_PREFIX = "shopsec_"
+BUY_PREFIX = "shopbuy_"
+SPIN_CALLBACK = "shop_spin_wheel"
 
 SHOP_START_PATTERN = re.compile(r"^/start(?:@\w+)?\s+shop(?:_(\d+))?\s*$")
 
@@ -58,21 +74,116 @@ def packages_keyboard() -> InlineKeyboardMarkup:
         ]
         for coins, price in COIN_PACKAGES.items()
     ]
+    rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=HOME_CALLBACK)])
     rows.append([InlineKeyboardButton(text="❌ Bekor qiliş", callback_data=CANCEL_CALLBACK)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def shop_text() -> str:
-    """Do'konning birinchi xabari."""
-    return (
-        "🪙 <b>Tangalar dökoni</b>\n\n"
-        "Tangalar Mini App'da boosterlar uçun işlatiladi.\n"
-        "Kerakli paketni tanlang:\n\n"
-        + "\n".join(
-            f"• <b>{format_price(coins)} tanga</b> — {format_price(price)} söm"
-            for coins, price in COIN_PACKAGES.items()
-        )
+def balance_of(user_id: int) -> int:
+    """Foydalanuvchining joriy tanga balansi."""
+    return get_economy().ensure_user(int(user_id)).coins
+
+
+def shop_text(user_id: int | None = None) -> str:
+    """Do'konning bosh menyusi: ikki katta bölum."""
+    lines = ["🪙 <b>Tangalar dökoni</b>", ""]
+    if user_id is not None:
+        lines.append(f"Balans: <b>{format_price(balance_of(user_id))}</b> tanga")
+        lines.append("")
+    lines.append("Kerakli bölumni tanlang:")
+    return "\n".join(lines)
+
+
+def shop_keyboard() -> InlineKeyboardMarkup:
+    """Bosh menyu: tanga xaridi yoki buyumlar dökoni."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💳 Tangalar xarid qiliş (Humo/Uzcard)",
+                    callback_data=PAY_SECTION_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🛍️ Buyumlar va İmkoniyatlar dökoni",
+                    callback_data=ITEMS_CALLBACK,
+                )
+            ],
+        ]
     )
+
+
+def packages_text(user_id: int | None = None) -> str:
+    """Tanga paketlari bölumi matni."""
+    lines = ["💳 <b>Tangalar xarid qiliş</b>", ""]
+    if user_id is not None:
+        lines.append(f"Balans: <b>{format_price(balance_of(user_id))}</b> tanga")
+        lines.append("")
+    lines.append("Paketni tanlang — karta raqami va summa keyingi xabarda körinadi.")
+    lines.append("")
+    lines.extend(
+        f"• <b>{format_price(coins)} tanga</b> — {format_price(price)} söm"
+        for coins, price in COIN_PACKAGES.items()
+    )
+    return "\n".join(lines)
+
+
+def items_text(user_id: int) -> str:
+    """Buyumlar dökoni bosh sahifasi."""
+    return (
+        "🛍️ <b>Buyumlar va İmkoniyatlar dökoni</b>\n\n"
+        f"Balans: <b>{format_price(balance_of(user_id))}</b> tanga\n\n"
+        "Bölumni tanlang: ramkalar, unvonlar, boosterlar va çiptalar."
+    )
+
+
+def items_keyboard() -> InlineKeyboardMarkup:
+    """Bölumlar ro'yxati va orqaga qaytish."""
+    rows = [
+        [InlineKeyboardButton(text=SECTION_TITLES[section], callback_data=f"{SECTION_PREFIX}{section}")]
+        for section in SECTION_ORDER
+        if any(item.section == section for item in CATALOG_BY_SLUG.values())
+    ]
+    rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=HOME_CALLBACK)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def section_text(user_id: int, section: str) -> str:
+    """Bitta bölumdagi buyumlar ro'yxati."""
+    items = [item for item in CATALOG_BY_SLUG.values() if item.section == section]
+    lines = [f"<b>{SECTION_TITLES.get(section, section)}</b>", ""]
+    lines.append(f"Balans: <b>{format_price(balance_of(user_id))}</b> tanga")
+    lines.append("")
+    for item in items:
+        lines.append(
+            f"{item.emoji} <b>{item.title}</b> — {format_price(item.price)} tanga\n"
+            f"<i>{item.description}</i>"
+        )
+    if section == SPIN:
+        lines.append("")
+        lines.append("Kuniga bir marta bepul; keyingi aylantiriş 20 tanga yoki çipta.")
+    return "\n".join(lines)
+
+
+def section_keyboard(section: str) -> InlineKeyboardMarkup:
+    """Bölumdagi buyumlarni sotib olish tugmalari."""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"{item.emoji} {item.title} — {format_price(item.price)}",
+                callback_data=f"{BUY_PREFIX}{item.slug}",
+            )
+        ]
+        for item in CATALOG_BY_SLUG.values()
+        if item.section == section
+    ]
+    if section == SPIN:
+        rows.append(
+            [InlineKeyboardButton(text="🎰 Aylantiriş", callback_data=SPIN_CALLBACK)]
+        )
+    rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=ITEMS_CALLBACK)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def payment_text(coins: int, price: int) -> str:
@@ -163,10 +274,11 @@ async def _begin_payment(event: Message | CallbackQuery, state: FSMContext, coin
 
 
 async def send_shop(message: Message, state: FSMContext | None = None) -> None:
-    """Do'kon xabarini yuboradi (``/shop`` va pastki menyu uchun umumiy)."""
+    """Do'kon bosh menyusini yuboradi (``/shop`` va pastki menyu uchun)."""
     if state is not None:
         await state.clear()
-    await message.answer(shop_text(), reply_markup=packages_keyboard())
+    user_id = message.from_user.id if message.from_user is not None else None
+    await message.answer(shop_text(user_id), reply_markup=shop_keyboard())
 
 
 @router.message(F.chat.type == "private", Command("shop"))
@@ -189,9 +301,120 @@ async def shop_deep_link(message: Message, state: FSMContext) -> None:
     match = SHOP_START_PATTERN.match(message.text or "")
     coins = int(match.group(1)) if match and match.group(1) else None
     if coins is None:
-        await message.answer(shop_text(), reply_markup=packages_keyboard())
+        await send_shop(message, state)
         return
     await _begin_payment(message, state, coins)
+
+
+async def _show(callback: CallbackQuery, text: str, markup: InlineKeyboardMarkup) -> None:
+    """Callback xabarini yangilaydi (imkoni bo'lmasa yangisini yuboradi)."""
+    message = callback.message
+    if isinstance(message, Message):
+        try:
+            await message.edit_text(text, reply_markup=markup)
+            return
+        except TelegramAPIError:
+            pass
+    await callback.bot.send_message(
+        callback.from_user.id, text, reply_markup=markup
+    )
+
+
+@router.callback_query(F.data == HOME_CALLBACK)
+async def shop_home(callback: CallbackQuery) -> None:
+    """Do'kon bosh menyusiga qaytish."""
+    await callback.answer()
+    await _show(
+        callback, shop_text(callback.from_user.id), shop_keyboard()
+    )
+
+
+@router.callback_query(F.data == PAY_SECTION_CALLBACK)
+async def shop_pay_section(callback: CallbackQuery) -> None:
+    """Tanga paketlari bölumi (Humo/Uzcard cheki)."""
+    await callback.answer()
+    await _show(
+        callback, packages_text(callback.from_user.id), packages_keyboard()
+    )
+
+
+@router.callback_query(F.data == ITEMS_CALLBACK)
+async def shop_items_section(callback: CallbackQuery) -> None:
+    """Buyumlar va İmkoniyatlar dökoni bosh sahifasi."""
+    await callback.answer()
+    await _show(
+        callback, items_text(callback.from_user.id), items_keyboard()
+    )
+
+
+@router.callback_query(F.data.startswith(SECTION_PREFIX))
+async def shop_section(callback: CallbackQuery) -> None:
+    """Bölumdagi buyumlarni körsatadi."""
+    section = (callback.data or "")[len(SECTION_PREFIX) :]
+    if section not in SECTION_TITLES:
+        await callback.answer("Bölum topilmadi", show_alert=True)
+        return
+    await callback.answer()
+    await _show(
+        callback,
+        section_text(callback.from_user.id, section),
+        section_keyboard(section),
+    )
+
+
+@router.callback_query(F.data.startswith(BUY_PREFIX))
+async def shop_buy_item(callback: CallbackQuery) -> None:
+    """Buyumni tangalarga sotib oladi."""
+    slug = (callback.data or "")[len(BUY_PREFIX) :]
+    item = CATALOG_BY_SLUG.get(slug)
+    if item is None:
+        await callback.answer("Buyum topilmadi", show_alert=True)
+        return
+    try:
+        result = get_shop_store().buy(callback.from_user.id, slug)
+    except ShopError as exc:
+        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        return
+    await callback.answer(
+        f"✅ {result.item.title} sotib olindi!\n"
+        f"Balans: {format_price(result.account.coins)} tanga",
+        show_alert=True,
+    )
+    await _show(
+        callback,
+        section_text(callback.from_user.id, item.section),
+        section_keyboard(item.section),
+    )
+
+
+@router.callback_query(F.data == SPIN_CALLBACK)
+async def shop_spin_wheel(callback: CallbackQuery) -> None:
+    """Omad ğildiragini aylantiradi."""
+    try:
+        result = get_shop_store().spin(callback.from_user.id)
+    except ShopError as exc:
+        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        return
+    reward = (
+        f"+{format_price(result.segment.coins)} tanga"
+        if result.segment.coins
+        else result.segment.label
+    )
+    if result.free:
+        source = "bepul aylantiriş"
+    elif result.ticket_used:
+        source = "çipta işlatildi"
+    else:
+        source = f"{format_price(result.expense)} tanga"
+    await callback.answer(
+        f"🎰 {result.segment.emoji} {reward}\n({source})",
+        show_alert=True,
+    )
+    await _show(
+        callback,
+        section_text(callback.from_user.id, SPIN),
+        section_keyboard(SPIN),
+    )
 
 
 @router.callback_query(F.data.startswith(PACK_PREFIX))

@@ -1524,10 +1524,10 @@
       var STATUS_LABELS = {
         LOBBY: "Kutilmoqda",
         PLAYING: "Davom etmoqda",
-        VOTING: "Ovoz berish",
+        VOTING: "Ovoz beriş",
         SHIELD_OFFER: "Qalqon qarori",
         FINISHED: "Tugadi",
-        EXPIRED: "Muddati o'tgan"
+        EXPIRED: "Muddati ötgan"
       };
       var TIMER_DURATIONS = { PLAYING: 120, VOTING: 60 };
       var PLAYER_LEVEL = 1;
@@ -1538,11 +1538,11 @@
       var GAMES = [
         {
           slug: "bunker", name: "Bunker", icon: "radiation", status: "active", players: "4–16",
-          description: "Falokatdan keyin omon qolish uchun kartalaringizni oching, bahslashing va bunkerga kim tushishini hal qiling."
+          description: "Falokatdan keyin omon qoliş uçun kartalaringizni oçing, bahslaşing va bunkerga kim tuşişini hal qiling."
         },
         {
           slug: "mafia", name: "Mafiya", icon: "hat", status: "active", players: "4–20",
-          description: "Kechki shaharda mafiya va tinch aholi o'rtasidagi kurash. Guruhda /mafia bilan boshlang."
+          description: "Keçki şaharda mafiya va tinç aholi örtasidagi kuraş. Guruhda /mafia bilan boşlang."
         },
         {
           slug: "spyfall", name: "Josus", icon: "glasses", status: "active", players: "3–12",
@@ -1550,7 +1550,7 @@
         },
         {
           slug: "alias", name: "Alias / Krokodil", icon: "sparkles", status: "active", players: "2–20",
-          description: "Tezkor so'z tushuntirish va topish poygasi. Guruhda /alias bilan boshlang."
+          description: "Tezkor söz tuşuntiriş va topiş poygasi. Guruhda /alias bilan boşlang."
         }
       ];
 
@@ -1920,7 +1920,7 @@
             }
           }
         } catch (error) {
-          console.warn("Telegram foydalanuvchi ma'lumotini o'qib bo'lmadi", error);
+          console.warn("Telegram foydalanuvçi ma'lumotini öqib bölmadi", error);
         }
         // Pastki klaviaturadagi web_app havolasi initData yubormasligi mumkin:
         // havoladagi ?uid=&uname=&fname= parametrlaridan foydalanamiz.
@@ -1937,7 +1937,7 @@ function profileAvatarHtml(sizeClass) {
   var p = (typeof profile !== "undefined" && profile) ? profile : {};
 
   var photo = (u && u.photo_url) || p.photo || "";
-  var name = (u && u.first_name) || p.name || "Mehmon o'yinchi";
+  var name = (u && u.first_name) || p.name || "Mehmon öyinçi";
   var pid = (u && u.id) || p.id || "";
 
   if (photo) {
@@ -1953,10 +1953,10 @@ function profileAvatarHtml(sizeClass) {
 
 function profileCardHtml() {
   var u = getTgUser();
-  var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon o'yinchi";
-  var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram o'yinchi");
+  var name = (u && (u.first_name + (u.last_name ? ' ' + u.last_name : ''))) || profile.name || "Mehmon öyinçi";
+  var handle = (u && (u.username ? '@' + u.username : 'ID: ' + u.id)) || (profile.username ? '@' + profile.username : "Telegram öyinçi");
   return '<section class="profile-card fade">' +
-    '<button class="profile-logout" data-act="logout" aria-label="Chiqish">' + icon("logout") + ' Chiqish</button>' +
+    '<button class="profile-logout" data-act="logout" aria-label="Çiqiş">' + icon("logout") + ' Çiqiş</button>' +
     '<div class="profile-head">' + profileAvatarHtml("lg") +
     '<div><div class="profile-name-lg">' + esc(name) + '</div>' +
     '<div class="profile-handle">' + esc(handle) + '</div></div>' +
@@ -1964,23 +1964,23 @@ function profileCardHtml() {
     
           '<div class="wallet-row">' +
             '<div class="wallet-balance"><span>' + icon("coin") + '</span><b>' + esc(profile.balance) + '</b> tanga</div>' +
-            '<button class="coin-btn" data-act="shop">' + icon("plus") + ' Do‘kon</button>' +
+            '<button class="coin-btn" data-act="shop">' + icon("plus") + ' Dökon</button>' +
           '</div>' +
           '<div class="profile-stats">' +
             '<div class="pstat"><span>' + icon("star") + ' Daraja</span><b>Level ' + esc(profile.level) + '</b></div>' +
-            '<div class="pstat"><span>' + icon("gamepad") + ' O‘yinlar</span><b>' + esc(profile.games_played || 0) + '</b></div>' +
+            '<div class="pstat"><span>' + icon("gamepad") + ' Öyinlar</span><b>' + esc(profile.games_played || 0) + '</b></div>' +
           '</div>' +
           '<div class="profile-split">' + icon("shield") + ' Bunker: <b>' + esc(profile.bunker_wins || 0) +
-            '</b> g\'alaba | ' + icon("hat") + ' Mafiya: <b>' + esc(profile.mafia_wins || 0) + '</b> g\'alaba</div>' +
+            '</b> ğalaba | ' + icon("hat") + ' Mafiya: <b>' + esc(profile.mafia_wins || 0) + '</b> ğalaba</div>' +
           '<div class="xp-row"><div class="xp-bar"><i></i></div><span class="xp-text">0 / 100 XP</span></div>' +
-          '<button class="btn invite" data-act="invite">' + icon("share") + ' Do\'stlarni taklif qilish</button>' +
+          '<button class="btn invite" data-act="invite">' + icon("share") + ' Döstlarni taklif qiliş</button>' +
         '</section>';
       }
 
       function inviteUrl() {
         var url = window.location.origin + window.location.pathname;
         if (view.code) url += "?room=" + encodeURIComponent(view.code);
-        var text = "Revilend Games — Telegram ichida Bunker va boshqa stol o'yinlari. Qo'shiling!";
+        var text = "Revilend Games — Telegram içida Bunker va boşqa stol öyinlari. Qöşiling!";
         return "https://t.me/share/url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(text);
       }
 
@@ -1994,60 +1994,267 @@ function profileCardHtml() {
         }
       }
 
-      function shopModalHtml() {
-        if (!view.shopOpen) return "";
+      function inventoryMap() {
+        var map = {};
+        var source = (view.items && view.items.inventory) || profile.inventory || [];
+        source.forEach(function (entry) {
+          map[entry.slug] = entry;
+        });
+        return map;
+      }
+
+      function packagesBody() {
         var shop = view.shop || DEFAULT_SHOP;
         var packages = (shop.packages && shop.packages.length ? shop.packages : DEFAULT_SHOP.packages);
         var selected = null;
         packages.forEach(function (pack) {
           if (Number(pack.coins) === Number(view.shopPackage)) selected = pack;
         });
-        var body = '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Tangalar do‘koni">' +
-          '<div class="shop-head"><div><h2>' + icon("coin") + ' Tangalar do‘koni</h2>' +
-            '<p class="shop-lede">Balans: <b>' + esc(profile.balance) + ' tanga</b>. Paketni tanlab, botda chek yuboring.</p></div>' +
-            '<button class="shop-close" data-act="shop-close" aria-label="Yopish">' + icon("close") + '</button></div>';
-
+        var body = '';
         if (view.shopLoading) {
           body += '<div class="notice">' + icon("hourglass") + ' Paketlar yuklanmoqda…</div>';
         } else {
           body += '<div class="shop-packages">' + packages.map(function (pack) {
             var isSelected = selected && Number(selected.coins) === Number(pack.coins);
             return '<button class="shop-package' + (isSelected ? " sel" : "") + '" data-act="shop-pack" data-coins="' + esc(pack.coins) + '">' +
-              '<span><b>' + esc(money(pack.coins)) + ' tanga</b><small>Mini App va boosterlar uchun</small></span>' +
-              '<span class="price">' + esc(money(pack.price)) + ' so‘m</span></button>';
+              '<span><b>' + esc(money(pack.coins)) + ' tanga</b><small>Mini App va boosterlar uçun</small></span>' +
+              '<span class="price">' + esc(money(pack.price)) + ' söm</span></button>';
           }).join("") + '</div>';
 
           if (selected) {
-            body += '<div class="shop-card"><b>' + icon("card") + ' To‘lov uchun karta</b><br>' +
+            body += '<div class="shop-card"><b>' + icon("card") + ' Tölov uçun karta</b><br>' +
               '<code>' + esc(shop.card_number || "Karta kiritilmagan") + '</code>' +
               '<br>' + esc(shop.card_holder || "Karta egasi kiritilmagan") +
-              '<br>Summa: <b>' + esc(money(selected.price)) + ' so‘m</b>' +
-              '<button class="btn primary block" style="margin-top:11px" data-act="shop-pay">Botda chek yuborish</button>' +
-              '<p class="shop-note">Botga o‘tib, chek (skrinshot) rasmini yuboring. Admin tasdiqlagach tangalar avtomatik qo‘shiladi.</p></div>';
+              '<br>Summa: <b>' + esc(money(selected.price)) + ' söm</b>' +
+              '<button class="btn primary block" style="margin-top:11px" data-act="shop-pay">Botda çek yuboriş</button>' +
+              '<p class="shop-note">Botga ötib, çek (skrinşot) rasmini yuboring. Admin tasdiqlagaç tangalar avtomatik qöşiladi.</p></div>';
           } else {
-            body += '<p class="shop-note">Paketni tanlang — karta raqami va summa shu yerda ko‘rinadi.</p>';
+            body += '<p class="shop-note">Paketni tanlang — karta raqami va summa şu yerda körinadi.</p>';
           }
+          body += '<div class="promo-row"><input id="promo-code" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Promo kod" aria-label="Promo kod" />' +
+            '<button class="btn" data-act="promo">Işlatiş</button></div>' +
+            '<p class="shop-note">Promo kodingiz bölsa, şu yerda kiriting — tangalar darhol qöşiladi.</p>';
         }
-        body += '<div class="promo-row"><input id="promo-code" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Promo kod" aria-label="Promo kod" />' +
-          '<button class="btn" data-act="promo">Ishlatish</button></div>' +
-          '<p class="shop-note">Promo kodingiz bo‘lsa, shu yerda kiriting — tangalar darhol qo‘shiladi.</p>';
+        return body;
+      }
+
+      function itemsBody() {
+        var data = view.items;
+        if (view.itemsLoading && !data) {
+          return '<div class="notice">' + icon("hourglass") + ' Buyumlar yuklanmoqda…</div>';
+        }
+        if (!data || !data.sections || !data.sections.length) {
+          return '<div class="notice">' + icon("info") + ' Dökon hozirça böş. Keyinroq qayta urinib köring.</div>';
+        }
+        var owned = inventoryMap();
+        var current = data.sections.filter(function (section) {
+          return section.key === view.shopSection;
+        })[0] || data.sections[0];
+        var chips = data.sections.map(function (section) {
+          return '<button class="chip' + (section.key === current.key ? " sel" : "") + '" data-act="shop-section" data-section="' + esc(section.key) + '">' +
+            esc(section.title) + '</button>';
+        }).join("");
+        var cards = current.items.map(function (item) {
+          var entry = owned[item.slug];
+          var count = entry ? Number(entry.quantity) || 0 : 0;
+          var equipped = !!(entry && entry.is_equipped);
+          var action;
+          if (item.equippable && count > 0) {
+            action = '<button class="btn small' + (equipped ? " sel" : " primary") + '" data-act="equip-toggle" data-slug="' + esc(item.slug) + '" data-equip="' + (equipped ? "0" : "1") + '">' +
+              (equipped ? "Taqilgan" : "Taqiş") + '</button>';
+          } else {
+            action = '<button class="btn small primary" data-act="shop-buy" data-slug="' + esc(item.slug) + '">' +
+              esc(money(item.price)) + ' ' + icon("coin") + '</button>';
+          }
+          return '<div class="item-card' + (count > 0 ? " owned" : "") + '">' +
+            '<span class="item-emoji">' + esc(item.emoji) + '</span>' +
+            '<span class="item-main"><b>' + esc(item.title) + '</b>' +
+              (count > 0 ? '<span class="item-owned">' + (count > 1 ? "×" + count : "✓") + '</span>' : '') +
+              '<small>' + esc(item.description) + '</small></span>' +
+            '<span class="item-side">' + action + '</span>' +
+          '</div>';
+        }).join("");
+        var wheel = "";
+        if (current.key === "SPIN") {
+          wheel = '<button class="btn primary block" data-act="wheel-open" style="margin-top:10px">🎰 Omad ğildiragini aylantiriş</button>';
+        }
+        return '<div class="shop-chips">' + chips + '</div>' +
+          wheel +
+          '<div class="item-list">' + cards + '</div>';
+      }
+
+      function shopModalHtml() {
+        if (!view.shopOpen) return "";
+        var tab = view.shopTab === "coins" ? "coins" : "items";
+        var body = '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Dökon">' +
+          '<div class="shop-head"><div><h2>' + icon("coin") + ' Dökon</h2>' +
+            '<p class="shop-lede">Balans: <b>' + esc(money(profile.balance)) + ' tanga</b></p></div>' +
+            '<button class="shop-close" data-act="shop-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+          '<div class="shop-tabs">' +
+            '<button class="shop-tab' + (tab === "items" ? " sel" : "") + '" data-act="shop-tab" data-tab="items">🛍️ Buyumlar</button>' +
+            '<button class="shop-tab' + (tab === "coins" ? " sel" : "") + '" data-act="shop-tab" data-tab="coins">💳 Tangalar</button>' +
+          '</div>';
+        body += tab === "coins" ? packagesBody() : itemsBody();
         body += '</section></div>';
         return body;
+      }
+
+      function wheelModalHtml() {
+        if (!view.wheelOpen) return "";
+        var wheel = (view.items && view.items.wheel) || { cost: 20, segments: [] };
+        var segments = wheel.segments || [];
+        var spin = (view.items && view.items.spin) || view.spin || { free: true, tickets: 0 };
+        var colors = ["#7c3aed", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#f472b6", "#0ea5e9", "#eab308", "#14b8a6", "#6366f1"];
+        var step = segments.length ? 360 / segments.length : 30;
+        var stops = segments.map(function (segment, index) {
+          return colors[index % colors.length] + " " + (index * step) + "deg " + ((index + 1) * step) + "deg";
+        }).join(", ");
+        var labels = segments.map(function (segment, index) {
+          var angle = index * step + step / 2;
+          return '<span class="wheel-label" style="transform: rotate(' + angle + 'deg) translateY(-104px) rotate(-' + angle + 'deg)">' + esc(segment.emoji) + '</span>';
+        }).join("");
+        var label = spin.free ? "Bepul aylantiriş" : (Number(spin.tickets) > 0 ? "Çipta bilan" : esc(wheel.cost) + ' tanga');
+        var result = "";
+        if (view.wheelResult) {
+          var reward = view.wheelResult.reward || {};
+          var text = reward.kind === "coins"
+            ? '+' + esc(money(reward.coins)) + ' tanga'
+            : (reward.item ? esc(reward.item.title) : 'Sovğa');
+          result = '<div class="wheel-result">' + icon("sparkles") + ' Siz yutdingiz: <b>' + text + '</b></div>';
+        }
+        return '<div class="shop-overlay"><section class="shop-sheet wheel-sheet" role="dialog" aria-modal="true" aria-label="Omad ğildiragi">' +
+          '<div class="shop-head"><div><h2>🎰 Omad ğildiragi</h2>' +
+            '<p class="shop-lede">Kuniga bir marta bepul, keyin 20 tanga yoki çipta.</p></div>' +
+            '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+          '<div class="wheel-wrap">' +
+            '<div class="wheel-pointer"></div>' +
+            '<div class="wheel' + (view.wheelBusy ? " spinning" : "") + '" style="background: conic-gradient(' + stops + ')">' + labels + '</div>' +
+          '</div>' + result +
+          '<button class="btn primary block" data-act="wheel-spin"' + (view.wheelBusy ? " disabled" : "") + '>🎰 ' + label + '</button>' +
+          '</section></div>';
+      }
+
+      async function loadShopItems() {
+        view.itemsLoading = true;
+        try {
+          var path = "/api/shop/items" + (profile.id ? "?user_id=" + encodeURIComponent(profile.id) : "");
+          var data = await request(path);
+          if (data) {
+            view.items = data;
+            if (data.shop) view.shop = data.shop;
+            if (data.equipped) {
+              profile.frame = data.equipped.frame || "";
+              profile.title = data.equipped.title || "";
+            }
+            if (data.inventory) profile.inventory = data.inventory;
+            if (data.spin) view.spin = data.spin;
+            if (typeof data.coins === "number") profile.balance = data.coins;
+          }
+        } catch (error) {
+          toast(error.message || "Buyumlarni yuklab bölmadi", "error");
+        }
+        view.itemsLoading = false;
       }
 
       async function openShop() {
         if (view.code) return;
         view.shopOpen = true;
+        view.wheelOpen = false;
+        view.shopTab = "items";
         view.shopPackage = null;
-        view.shopLoading = true;
+        renderHub();
+        await loadShopItems();
+        renderHub();
+      }
+
+      async function openWheel() {
+        if (view.code) return;
+        view.wheelOpen = true;
+        view.shopOpen = false;
+        view.wheelResult = null;
+        renderHub();
+        if (!view.items) {
+          await loadShopItems();
+          renderHub();
+        }
+      }
+
+      async function buyItem(slug) {
+        if (!slug || view.itemBusy) return;
+        view.itemBusy = true;
+        try {
+          var data = await request("/api/shop/buy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id, item_slug: slug })
+          });
+          if (data) {
+            profile.balance = Number(data.coins) || profile.balance;
+            profile.inventory = data.inventory || profile.inventory;
+            profile.frame = (data.equipped && data.equipped.frame) || profile.frame;
+            profile.title = (data.equipped && data.equipped.title) || profile.title;
+            if (view.items) view.items.inventory = data.inventory || view.items.inventory;
+            toast("✅ " + data.item.title + " sotib olindi!", "success");
+            haptic("success");
+          }
+        } catch (error) {
+          toast(error.message || "Xarid amalga oşmadi", "error");
+          haptic("error");
+        }
+        view.itemBusy = false;
+        renderHub();
+      }
+
+      async function toggleEquip(slug, equip) {
+        if (!slug || view.itemBusy) return;
+        view.itemBusy = true;
+        try {
+          var data = await request("/api/profile/equip", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id, item_slug: slug, equip: !!equip })
+          });
+          if (data) {
+            profile.frame = (data.equipped && data.equipped.frame) || "";
+            profile.title = (data.equipped && data.equipped.title) || "";
+            profile.inventory = data.inventory || profile.inventory;
+            if (view.items) view.items.inventory = data.inventory || view.items.inventory;
+            toast(equip ? "Taqildi" : "Yeçildi", "success");
+          }
+        } catch (error) {
+          toast(error.message || "Amal bajarilmadi", "error");
+        }
+        view.itemBusy = false;
+        renderHub();
+      }
+
+      async function spinWheel() {
+        if (view.wheelBusy) return;
+        view.wheelBusy = true;
+        view.wheelResult = null;
         renderHub();
         try {
-          var data = await request("/api/shop");
-          if (data && data.shop) view.shop = data.shop;
+          var data = await request("/api/spin/wheel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id })
+          });
+          if (data) {
+            view.wheelResult = data;
+            profile.balance = Number(data.coins) || profile.balance;
+            profile.inventory = data.inventory || profile.inventory;
+            if (view.items) {
+              view.items.inventory = data.inventory || view.items.inventory;
+              view.items.spin = data.spin || view.items.spin;
+            }
+            view.spin = data.spin || view.spin;
+            haptic("success");
+          }
         } catch (error) {
-          view.shop = DEFAULT_SHOP;
+          toast(error.message || "Aylantiriş amalga oşmadi", "error");
+          haptic("error");
         }
-        view.shopLoading = false;
+        view.wheelBusy = false;
         renderHub();
       }
 
@@ -2110,7 +2317,7 @@ function profileCardHtml() {
         var streak = Math.max(1, Number(bonus.streak) || 1);
         var next = Number(bonus.next_amount) || BONUS_TABLE[Math.min(streak, 7) - 1];
         var action = bonus.available
-          ? '<button class="btn primary block" data-act="claim-bonus">' + icon("gift") + ' ' + esc(money(bonus.amount)) + ' tanga olish</button>' +
+          ? '<button class="btn primary block" data-act="claim-bonus">' + icon("gift") + ' ' + esc(money(bonus.amount)) + ' tanga oliş</button>' +
             '<p class="muted tiny" style="margin-top:8px">Ertaga sizni +' + esc(money(next)) + ' tanga kutmoqda!</p>'
           : '<div class="notice tiny" style="margin-top:0">' + icon("hourglass") + ' Keyingi bonus ' + esc(waitText(bonus.seconds_left)) + ' · +' + esc(money(next)) + ' tanga</div>';
         var days = BONUS_TABLE.map(function (amount, index) {
@@ -2162,7 +2369,7 @@ function profileCardHtml() {
 
       function medalBadge(medal, rank) {
         if (!medal) return rankHtml(rank);
-        var labels = { gold: "Oltin", silver: "Kumush", bronze: "Bronza" };
+        var labels = { gold: "Oltin", silver: "Kumuş", bronze: "Bronza" };
         return '<span class="medal medal-' + esc(medal) + '" title="' +
           esc(labels[medal] || "") + '">' + icon("trophy") + '</span>';
       }
@@ -2176,7 +2383,7 @@ function profileCardHtml() {
         var top = board.top || [];
         var tabs = '<div class="board-tabs">' +
           '<button class="board-tab' + (period === "all" ? " active" : "") +
-            '" data-act="board-period" data-period="all">' + icon("star") + ' Barcha davrlar</button>' +
+            '" data-act="board-period" data-period="all">' + icon("star") + ' Barça davrlar</button>' +
           '<button class="board-tab' + (period === "week" ? " active" : "") +
             '" data-act="board-period" data-period="week">' + icon("bolt") + ' Bu haftalik liga</button>' +
           '</div>';
@@ -2186,12 +2393,12 @@ function profileCardHtml() {
         if (!top.length) {
           return head + '<p class="muted tiny" style="margin:10px 2px 2px">' +
             (period === "week"
-              ? "Bu hafta hali o'yin o'ynalmagan. Birinchi bo'lib ligani boshlang!"
-              : "Reyting hali bo'sh.") + '</p></section>';
+              ? "Bu hafta hali öyin öynalmagan. Birinçi bölib ligani boşlang!"
+              : "Reyting hali böş.") + '</p></section>';
         }
         var rows = top.map(function (player) {
           var meta = period === "week"
-            ? esc(money(player.points)) + ' ball · ' + esc(player.wins) + ' ta g\'alaba'
+            ? esc(money(player.points)) + ' ball · ' + esc(player.wins) + ' ta ğalaba'
             : esc(money(player.rating)) + ' · ' + esc(player.wins) + ' ' + icon("trophy");
           return '<div class="top-row' + (player.is_me ? " me" : "") + '">' +
             medalBadge(player.medal, player.rank) +
@@ -2239,11 +2446,11 @@ function profileCardHtml() {
             '<span class="h-body"><b>' + esc(title) + '</b>' +
             '<span class="muted tiny">' + esc(item.room_code || "") + ' · ' +
             esc(shortDate(item.created_at)) + ' · ' + esc(item.players_count || 0) +
-            ' o\'yinchi</span></span>' +
+            ' öyinçi</span></span>' +
             '<span class="h-res">' + (won ? "Yutdi" : "Yutqazdi") + '</span></div>';
         }).join("");
         return '<section class="fade"><div class="section-title"><h2>' + icon("hourglass") +
-          ' Oxirgi o\'yinlar</h2><span>' + rows.length + ' ta</span></div>' +
+          ' Oxirgi öyinlar</h2><span>' + rows.length + ' ta</span></div>' +
           '<div class="history-list">' + items + '</div></section>';
       }
 
@@ -2277,12 +2484,12 @@ function profileCardHtml() {
         var count = queue ? Number(queue.count) || 0 : 0;
         var mine = matchInQueue(slug);
         if (!count && !mine) return "";
-        var text = count + "/" + minimum + " kishi qidirilmoqda";
-        if (count < minimum) text += " · yana " + (minimum - count) + " kishi kerak";
-        else text += " · jamoa yig'ildi";
+        var text = count + "/" + minimum + " kişi qidirilmoqda";
+        if (count < minimum) text += " · yana " + (minimum - count) + " kişi kerak";
+        else text += " · jamoa yiğildi";
         return '<span class="match-text">' + icon("users") + ' ' + esc(text) + '</span>' +
           (mine ? '<button class="link-btn" data-act="match-leave" data-game="' +
-            esc(slug) + '">Bekor qilish</button>' : "");
+            esc(slug) + '">Bekor qiliş</button>' : "");
       }
 
       function refreshMatchStatus() {
@@ -2345,10 +2552,10 @@ function profileCardHtml() {
             return;
           }
           toast((data && data.count ? data.count : 1) + "/" +
-            ((data && data.min) || MATCH_MIN[slug]) + " kishi navbatda");
+            ((data && data.min) || MATCH_MIN[slug]) + " kişi navbatda");
           await loadMatchmaking();
         } catch (error) {
-          toast(error.message || "Navbatga qo'shilib bo'lmadi", "error");
+          toast(error.message || "Navbatga qöşilib bölmadi", "error");
         } finally {
           view.matchBusy = false;
         }
@@ -2361,16 +2568,16 @@ function profileCardHtml() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ game_type: slug, user_id: profile.id })
           });
-          toast("Navbatdan chiqdingiz");
+          toast("Navbatdan çiqdingiz");
         } catch (error) {
-          toast(error.message || "Navbatdan chiqib bo'lmadi", "error");
+          toast(error.message || "Navbatdan çiqib bölmadi", "error");
         }
         await loadMatchmaking();
       }
 
       function handleMatchFound(match) {
         haptic("success");
-        toast("Jamoa yig'ildi! Xona: " + match.code);
+        toast("Jamoa yiğildi! Xona: " + match.code);
         if (view.matchTimer) {
           clearInterval(view.matchTimer);
           view.matchTimer = null;
@@ -2418,10 +2625,10 @@ function profileCardHtml() {
           });
           if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
           haptic("success");
-          toast("+" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
+          toast("+" + money(data ? data.amount : 0) + " tanga qöşildi!");
           await loadActivity(true);
         } catch (error) {
-          toast(error.message || "Bonusni olib bo‘lmadi", "error");
+          toast(error.message || "Bonusni olib bölmadi", "error");
         } finally {
           view.actionBusy = false;
         }
@@ -2441,7 +2648,7 @@ function profileCardHtml() {
           toast("Missiya mukofoti olindi!");
           await loadActivity(true);
         } catch (error) {
-          toast(error.message || "Mukofotni olib bo‘lmadi", "error");
+          toast(error.message || "Mukofotni olib bölmadi", "error");
         } finally {
           view.actionBusy = false;
         }
@@ -2465,7 +2672,7 @@ function profileCardHtml() {
           if (data && data.coins != null) profile.balance = Number(data.coins) || 0;
           if (input) input.value = "";
           haptic("success");
-          toast("+" + money(data ? data.amount : 0) + " tanga qo‘shildi!");
+          toast("+" + money(data ? data.amount : 0) + " tanga qöşildi!");
           await loadActivity(true);
         } catch (error) {
           toast(error.message || "Kod qabul qilinmadi", "error");
@@ -2521,14 +2728,14 @@ function profileCardHtml() {
         var dock = document.createElement("div");
         dock.id = "chat-dock";
         dock.innerHTML =
-          '<button class="chat-fab" data-chat="toggle" aria-label="Guruh suhbatini ochish">' + icon("send") + "💬 Guruh suhbati</button>" +
+          '<button class="chat-fab" data-chat="toggle" aria-label="Guruh suhbatini oçiş">' + icon("send") + "💬 Guruh suhbati</button>" +
           '<section class="chat-sheet" id="chat-sheet">' +
             '<header class="chat-head"><b>💬 Guruh suhbati</b><span class="chat-online">online</span>' +
-              '<button class="icon-btn" data-chat="close" aria-label="Yopish">' + icon("close") + "</button></header>" +
+              '<button class="icon-btn" data-chat="close" aria-label="Yopiş">' + icon("close") + "</button></header>" +
             '<div class="chat-list" id="chat-list"></div>' +
-            '<div class="chat-lock" id="chat-lock" hidden>Siz o\'yindan chiqqansiz (arvohsiz). Yozish uchun iltimos guruhga qaylang.</div>' +
+            '<div class="chat-lock" id="chat-lock" hidden>Siz öyindan çiqqansiz (arvohsiz). Yoziş uçun iltimos guruhga qaylang.</div>' +
             '<form id="chat-form"><input id="chat-input" placeholder="Xabar yozing..." maxlength="300" autocomplete="off" />' +
-              '<button type="submit" class="play-btn">Yuborish</button></form>' +
+              '<button type="submit" class="play-btn">Yuboriş</button></form>' +
           "</section>";
         document.body.appendChild(dock);
         chatState.mount = chatBoot();
@@ -2579,7 +2786,7 @@ function profileCardHtml() {
         var bubble = '<div class="chat-bubble">' + esc(m.text) + '</div><div class="chat-time">' + time +
           (m.kind === "mafia" ? ' <span style="color:#fca5a5">· maxfiy</span>' : "") + "</div>";
         if (own) return '<div class="chat-msg own">' + bubble + "</div>";
-        var author = m.name ? esc(m.name) : "O'yinchi";
+        var author = m.name ? esc(m.name) : "Öyinçi";
         return '<div class="chat-msg" style="color:hsl(' + (Math.abs(Number(m.user_id)) % 360) + ', 70%, 60%)">' +
           '<div class="chat-author">' + author + "</div>" + bubble + "</div>";
       }
@@ -2689,7 +2896,7 @@ function profileCardHtml() {
           var fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
           return {
             id: user.id,
-            name: fullName || user.username || "O'yinchi",
+            name: fullName || user.username || "Öyinçi",
             username: user.username || "",
             photo: user.photo_url || "",
             balance: Number(cached.balance) || 0,
@@ -2748,15 +2955,15 @@ function profileCardHtml() {
             '<div class="auth-logo" aria-hidden="true">' + icon("crown") + '</div>' +
             '<p class="eyebrow">REVILEND GAMES</p>' +
             '<h1>Revilend Games</h1>' +
-            '<p class="auth-lede">O‘yinlarni boshlash va tangalaringizni boshqarish uchun profilingizga kiring.</p>' +
-            '<button class="btn primary block auth-main" data-act="login-telegram">' + icon("send") + ' Telegram Bot orqali kirish</button>' +
+            '<p class="auth-lede">Öyinlarni boşlaş va tangalaringizni boşqariş uçun profilingizga kiring.</p>' +
+            '<button class="btn primary block auth-main" data-act="login-telegram">' + icon("send") + ' Telegram Bot orqali kiriş</button>' +
             '<div class="auth-divider"><span>yoki</span></div>' +
             '<form id="login-form" class="auth-form" autocomplete="off">' +
-              '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Bot bergan 6 xonali kirish kodini (yoki Telegram ID’ingizni) kiriting" aria-label="Kirish kodi yoki Telegram ID" />' +
-              '<button type="submit" class="btn block" id="login-submit">' + icon("lock") + ' Kirish</button>' +
+              '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Bot bergan 6 xonali kiriş kodini (yoki Telegram ID’ingizni) kiriting" aria-label="Kiriş kodi yoki Telegram ID" />' +
+              '<button type="submit" class="btn block" id="login-submit">' + icon("lock") + ' Kiriş</button>' +
             '</form>' +
             '<p class="auth-error" id="login-error" role="alert">' + esc(view.loginError || "") + '</p>' +
-            '<p class="muted tiny auth-note">Kodni botda /start yoki /login buyrug‘i bilan oling. Kod 10 daqiqa amal qiladi va bir marta ishlatiladi.</p>' +
+            '<p class="muted tiny auth-note">Kodni botda /start yoki /login buyruği bilan oling. Kod 10 daqiqa amal qiladi va bir marta işlatiladi.</p>' +
           '</section>';
       }
 
@@ -2817,7 +3024,7 @@ function profileCardHtml() {
         var submit = document.getElementById("login-submit");
         if (submit) {
           submit.disabled = true;
-          submit.innerHTML = icon("hourglass") + " Tekshirilmoqda…";
+          submit.innerHTML = icon("hourglass") + " Tekşirilmoqda…";
         }
         setLoginError("");
         try {
@@ -2842,13 +3049,13 @@ function profileCardHtml() {
             loadActivity();
           }
         } catch (error) {
-          setLoginError((error && error.message) || "Kirish amalga oshmadi. Qayta urinib ko‘ring.");
+          setLoginError((error && error.message) || "Kiriş amalga oşmadi. Qayta urinib köring.");
           haptic("error");
         } finally {
           var again = document.getElementById("login-submit");
           if (again) {
             again.disabled = false;
-            again.innerHTML = icon("lock") + " Kirish";
+            again.innerHTML = icon("lock") + " Kiriş";
           }
         }
       }
@@ -2933,13 +3140,13 @@ function profileCardHtml() {
         LOBBY: "Kutilmoqda",
         NIGHT: "Tun",
         DAY_REPORT: "Tong",
-        VOTING: "Ovoz berish",
+        VOTING: "Ovoz beriş",
         FINISHED: "Tugadi"
       };
       var MAFIA_FACTIONS = {
-        town: "Shahar aholisi",
+        town: "Şahar aholisi",
         mafia: "Mafiya",
-        neutral: "Yolg'iz"
+        neutral: "Yolğiz"
       };
 
       function mafiaStartCode(value) {
@@ -2954,7 +3161,7 @@ function profileCardHtml() {
       function enterMafia(code) {
         var normalized = mafiaStartCode(code) || normalizeCode(code);
         if (!/^MAF\d{3}$/.test(normalized)) {
-          toast("Mafiya xona kodi MAF123 ko'rinishida bo'ladi", "error");
+          toast("Mafiya xona kodi MAF123 körinişida böladi", "error");
           return;
         }
         view.mode = "mafia";
@@ -3070,7 +3277,7 @@ function profileCardHtml() {
       function mafiaBoosterHtml(booster) {
         var statusText;
         if (booster.active) statusText = "Faol";
-        else if (booster.used) statusText = "Ishlatilgan";
+        else if (booster.used) statusText = "Işlatilgan";
         else if (booster.available) statusText = esc(booster.price) + " " + icon("coin");
         else statusText = booster.reason || "Mavjud emas";
         var disabled = !booster.available || view.boosterBusy;
@@ -3097,7 +3304,7 @@ function profileCardHtml() {
           if (data.me) view.mafia = data.me;
           if (data.coins != null) profile.balance = Number(data.coins) || 0;
           if (key === "reroll") view.mafiaOpen = false;
-          toast(data.message || "Booster faollashtirildi", "success");
+          toast(data.message || "Booster faollaştirildi", "success");
           haptic("success");
         } catch (error) {
           if (view.mode === "mafia" && view.code === code) {
@@ -3117,7 +3324,7 @@ function profileCardHtml() {
         if (me.phase !== "NIGHT" || !me.is_alive) return "";
         var actions = state.night_actions || [];
         if (!actions.length) {
-          return '<section class="panel"><h2>' + icon("moon") + ' Tun</h2><p class="muted tiny">Sizning rolingizda bu tunda maxsus harakat yo‘q.</p></section>';
+          return '<section class="panel"><h2>' + icon("moon") + ' Tun</h2><p class="muted tiny">Sizning rolingizda bu tunda maxsus harakat yöq.</p></section>';
         }
         var selectedKind = view.mafiaActionKind || actions[0].key;
         var selectedAction = actions.find(function (item) { return item.key === selectedKind; }) || actions[0];
@@ -3136,18 +3343,18 @@ function profileCardHtml() {
               }).join("") + '</select>'
           : '<p class="muted tiny">' + esc(selectedAction.label) + '</p>';
         var targetSelect = targets.length
-          ? '<label class="muted tiny" for="mafia-night-target">Nishon</label><select id="mafia-night-target" class="mafia-select">' +
+          ? '<label class="muted tiny" for="mafia-night-target">Nişon</label><select id="mafia-night-target" class="mafia-select">' +
               targets.map(function (player) {
                 return '<option value="' + player.user_id + '"' +
                   (Number(view.mafiaActionTarget) === Number(player.user_id) ? ' selected' : '') +
                   '>' + esc(player.name) + '</option>';
               }).join("") + '</select>'
-          : '<p class="muted tiny">' + (needsDead ? 'Tanlash uchun halok bo‘lgan o‘yinchi yo‘q.' : 'Tanlash uchun tirik nishon yo‘q.') + '</p>';
+          : '<p class="muted tiny">' + (needsDead ? 'Tanlaş uçun halok bölgan öyinçi yöq.' : 'Tanlaş uçun tirik nişon yöq.') + '</p>';
         return '<section class="panel">' +
           '<h2>' + icon("moon") + ' Tungi harakat</h2>' +
-          (state.has_submitted_night_action ? '<p class="muted tiny">Harakatingiz yuborilgan. Tun tugamaguncha qayta tanlashingiz mumkin.</p>' : '') +
+          (state.has_submitted_night_action ? '<p class="muted tiny">Harakatingiz yuborilgan. Tun tugamagunça qayta tanlaşingiz mumkin.</p>' : '') +
           actionSelect + targetSelect +
-          '<button class="btn primary block" data-act="mafia-night-submit"' + (!targets.length || view.mafiaActionBusy ? ' disabled' : '') + '>Harakatni yuborish</button>' +
+          '<button class="btn primary block" data-act="mafia-night-submit"' + (!targets.length || view.mafiaActionBusy ? ' disabled' : '') + '>Harakatni yuboriş</button>' +
         '</section>';
       }
 
@@ -3155,12 +3362,12 @@ function profileCardHtml() {
         var state = view.mafiaState || {};
         if (me.phase === "DAY_REPORT") {
           var report = state.private_result
-            ? '<div class="notice">' + icon("eye") + ' Sherif tekshiruvi: ' + esc(state.private_result) + '</div>'
+            ? '<div class="notice">' + icon("eye") + ' Şerif tekşiruvi: ' + esc(state.private_result) + '</div>'
             : '';
           return '<section class="panel"><h2>' + icon("sun") + ' Tonggi muhokama</h2>' + report +
             (me.is_host
-              ? '<button class="btn primary block" data-act="mafia-begin-voting">' + icon("ballot") + ' Ovoz berishni boshlash</button>'
-              : '<p class="muted tiny">Xona egasi ovoz berishni boshlashini kuting.</p>') +
+              ? '<button class="btn primary block" data-act="mafia-begin-voting">' + icon("ballot") + ' Ovoz berişni boşlaş</button>'
+              : '<p class="muted tiny">Xona egasi ovoz berişni boşlaşini kuting.</p>') +
             '</section>';
         }
         if (me.phase !== "VOTING") return "";
@@ -3175,17 +3382,17 @@ function profileCardHtml() {
             '<span class="name">' + esc(player.name) + '</span><span class="count">' + (counts[player.user_id] || 0) + ' ovoz</span></button>';
         }).join("");
         var voteHtml = !me.is_alive
-          ? '<p class="muted tiny">Siz o‘yindan chiqqansiz. Ovoz bera olmaysiz.</p>'
+          ? '<p class="muted tiny">Siz öyindan çiqqansiz. Ovoz bera olmaysiz.</p>'
           : (state.is_silenced
-            ? '<p class="muted tiny">Siz shantaj qilingansiz va bu kuni ovoz bera olmaysiz.</p>'
+            ? '<p class="muted tiny">Siz şantaj qilingansiz va bu kuni ovoz bera olmaysiz.</p>'
             : '<div class="vote-list">' + voteButtons + '</div>' +
               '<button class="btn primary block" data-act="mafia-vote-submit"' + (view.mafiaVoteTarget == null || view.mafiaActionBusy ? ' disabled' : '') + '>' +
-                (state.has_voted ? 'Ovozni yangilash' : 'Ovoz berish') + '</button>');
+                (state.has_voted ? 'Ovozni yangilaş' : 'Ovoz beriş') + '</button>');
         var aliveTargets = (state.players || []).filter(function (player) {
           return player.is_alive && !player.is_me;
         });
         var kamikazeSelect = aliveTargets.length
-          ? '<label class="muted tiny" for="mafia-kamikaze-target">Agar Kamikadze haydalsa, u bilan birga ketadigan o‘yinchi</label>' +
+          ? '<label class="muted tiny" for="mafia-kamikaze-target">Agar Kamikadze haydalsa, u bilan birga ketadigan öyinçi</label>' +
             '<select id="mafia-kamikaze-target" class="mafia-select"><option value="">Tanlanmagan</option>' +
             aliveTargets.map(function (player) {
               return '<option value="' + player.user_id + '"' +
@@ -3195,7 +3402,7 @@ function profileCardHtml() {
           : '';
         return '<section class="panel"><h2>' + icon("ballot") + ' Kunduzgi ovoz</h2>' + voteHtml +
           (state.can_tally
-            ? kamikazeSelect + '<button class="btn block" data-act="mafia-tally"' + (view.mafiaActionBusy ? ' disabled' : '') + '>Ovozlarni sanash</button>'
+            ? kamikazeSelect + '<button class="btn block" data-act="mafia-tally"' + (view.mafiaActionBusy ? ' disabled' : '') + '>Ovozlarni sanaş</button>'
             : '<p class="muted tiny">Ovozlarni xona egasi sanaydi.</p>') +
           '</section>';
       }
@@ -3243,8 +3450,8 @@ function profileCardHtml() {
           app.innerHTML = top +
             '<div class="state-screen fade"><div class="emoji">' + icon("hat") + '</div>' +
             '<h2>Karta topilmadi</h2>' +
-            '<p>' + esc(view.mafiaError.message || "Xona yoki o'yinchi topilmadi.") + '</p>' +
-            '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button></div>';
+            '<p>' + esc(view.mafiaError.message || "Xona yoki öyinçi topilmadi.") + '</p>' +
+            '<button class="btn primary" data-act="home">Boş sahifaga qaytiş</button></div>';
           return;
         }
 
@@ -3259,10 +3466,10 @@ function profileCardHtml() {
         var timerVisible = Boolean(me.phase_deadline) &&
           ["NIGHT", "DAY_REPORT", "VOTING"].indexOf(me.phase) >= 0;
         var timerCopy = me.phase === "NIGHT"
-          ? "Tungi harakatlar uchun 60 soniya"
+          ? "Tungi harakatlar uçun 60 soniya"
           : (me.phase === "VOTING"
-            ? "Ovoz berish uchun 60 soniya"
-            : "Tonggi muhokama uchun 60 soniya");
+            ? "Ovoz beriş uçun 60 soniya"
+            : "Tonggi muhokama uçun 60 soniya");
         var timerHtml = timerVisible
           ? '<div class="mafia-timer" data-mafia-timer>' +
               '<svg viewBox="0 0 44 44" aria-hidden="true">' +
@@ -3282,8 +3489,8 @@ function profileCardHtml() {
               '<p class="mafia-kicker">Revilend Mafia</p>' +
               '<h1>' + (hasRole ? "Sizning kartangiz" : "Karta tarqatilmoqda") + '</h1>' +
               '<p>' + (hasRole
-                ? "Kartani ochib, o'z rolingizni bilib oling. Bu ma'lumot faqat sizga ko'rinadi."
-                : "Xona egasi o'yinni boshlagach, rolingiz shu yerda paydo bo'ladi.") + '</p>' +
+                ? "Kartani oçib, öz rolingizni bilib oling. Bu ma'lumot faqat sizga körinadi."
+                : "Xona egasi öyinni boşlagaç, rolingiz şu yerda paydo böladi.") + '</p>' +
             '</section>' +
             '<div class="tarot-scene">' +
               '<div class="tarot-card' + (opened ? " flipped" : "") + '">' +
@@ -3292,7 +3499,7 @@ function profileCardHtml() {
               '</div>' +
             '</div>' +
             (hasRole && !opened
-              ? '<button class="btn primary block" data-act="flip-mafia">' + icon("card") + ' Kartani ochish</button>'
+              ? '<button class="btn primary block" data-act="flip-mafia">' + icon("card") + ' Kartani oçiş</button>'
               : '') +
             (hasRole
               ? '<section class="mafia-reveal fade" data-reveal' + (opened ? '' : ' hidden') + '>' +
@@ -3309,13 +3516,13 @@ function profileCardHtml() {
               '<div class="mafia-timer-row">' + timerHtml +
                 '<div class="mafia-timer-copy"><b>' + esc(phase) +
                   (me.round ? " · " + esc(me.round) + '-raund' : '') + '</b><small>' +
-                  esc(timerVisible ? timerCopy : "Taymer tun va ovoz berishda ishlaydi") +
+                  esc(timerVisible ? timerCopy : "Taymer tun va ovoz berişda işlaydi") +
                 '</small></div>' +
               '</div>' +
               '<div class="mafia-status-row"><span>Xona</span><b>' + esc(me.code) + '</b></div>' +
-              '<div class="mafia-status-row"><span>O\'yinchilar</span><b>' + esc(me.players_count) + ' kishi</b></div>' +
-              '<p class="muted tiny">' + (me.is_alive ? "Siz o'yindasiz." : "Siz kuzatuvchisiz.") +
-                (me.phase === "NIGHT" ? " Tungi harakatlar shu oynadan yuboriladi." : "") + '</p>' +
+              '<div class="mafia-status-row"><span>Öyinçilar</span><b>' + esc(me.players_count) + ' kişi</b></div>' +
+              '<p class="muted tiny">' + (me.is_alive ? "Siz öyindasiz." : "Siz kuzatuvçisiz.") +
+                (me.phase === "NIGHT" ? " Tungi harakatlar şu oynadan yuboriladi." : "") + '</p>' +
             '</section>' +
             shopHtml +
             '<div class="footer">Revilend Games · Mafiya</div>' +
@@ -3329,7 +3536,7 @@ function profileCardHtml() {
       var SPY_PHASES = {
         LOBBY: "Kutilmoqda",
         PLAYING: "Muhokama",
-        VOTING: "Ovoz berish",
+        VOTING: "Ovoz beriş",
         FINISHED: "Tugadi"
       };
       var spyClock = { deadline: 0, duration: 300, offset: 0, interval: null };
@@ -3347,7 +3554,7 @@ function profileCardHtml() {
       function enterSpy(code) {
         var normalized = spyStartCode(code) || normalizeCode(code);
         if (!/^SPY\d{3}$/.test(normalized)) {
-          toast("Josus xona kodi SPY123 ko'rinishida bo'ladi", "error");
+          toast("Josus xona kodi SPY123 körinişida böladi", "error");
           return;
         }
         view.mode = "spy";
@@ -3480,7 +3687,7 @@ function profileCardHtml() {
           var data = await request("/api/spy/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: profile.id, name: profile.name || "O'yinchi" })
+            body: JSON.stringify({ user_id: profile.id, name: profile.name || "Öyinçi" })
           });
           view.spyEntry = false;
           if (data && data.state && data.state.code) enterSpy(data.state.code);
@@ -3536,7 +3743,7 @@ function profileCardHtml() {
         if (me.is_spy && !finished) {
           front = '<span class="spy-emoji">' + icon("glasses") + '</span>' +
             '<span class="spy-place">SIZ JOSUSSIZ!</span>' +
-            '<span class="spy-role">Joyni topishga harakat qiling</span>' +
+            '<span class="spy-role">Joyni topişga harakat qiling</span>' +
             '<span class="spy-note">' + esc(me.spy_warning || "Savollarga ehtiyotkorlik bilan javob bering.") + '</span>';
         } else {
           front = '<span class="spy-emoji">' + esc(me.location_emoji || "\ud83d\udccd") + '</span>' +
@@ -3544,13 +3751,13 @@ function profileCardHtml() {
             '<span class="spy-role">' + esc(me.role_name || "Rol") + '</span>' +
             '<span class="spy-note">' +
               (me.is_spy
-                ? "Siz josus edingiz — joy endi ochildi."
+                ? "Siz josus edingiz — joy endi oçildi."
                 : "Bu joyni josusga bildirmang. Savollar orqali uni aniqlang.") +
             '</span>';
         }
         var teammates = "";
         if (me.is_spy && me.teammates && me.teammates.length) {
-          teammates = '<div class="notice tiny">' + icon("glasses") + ' Ikkinchi josus: ' +
+          teammates = '<div class="notice tiny">' + icon("glasses") + ' Ikkinçi josus: ' +
             me.teammates.map(function (mate) { return esc(mate.name); }).join(", ") + '</div>';
         }
         return '<div class="tarot-scene"><div class="tarot-card' + (opened ? " flipped" : "") + '">' +
@@ -3559,7 +3766,7 @@ function profileCardHtml() {
           '</div></div>' +
           (opened
             ? ''
-            : '<button class="btn primary block" data-act="spy-flip">' + icon("card") + ' Kartani ochish</button>') +
+            : '<button class="btn primary block" data-act="spy-flip">' + icon("card") + ' Kartani oçiş</button>') +
           teammates;
       }
 
@@ -3590,13 +3797,13 @@ function profileCardHtml() {
         if (canGuess) {
           var excluded = ((me && me.hint_exclusions) || []).length;
           hint = '<div class="spy-hint-row"><span class="muted tiny">' +
-              (excluded ? icon("eye") + " Radar: " + excluded + " ta noto'g'ri joy o'chirildi" : "Lokatsiyani tanlab, taxmin qiling") +
+              (excluded ? icon("eye") + " Radar: " + excluded + " ta notöğri joy öçirildi" : "Lokatsiyani tanlab, taxmin qiling") +
             '</span></div>' +
             '<button class="btn primary block" data-act="spy-guess"' +
               (view.spyGuessKey == null || view.spyActionBusy ? " disabled" : "") +
               '>' + icon("target") + ' Men joyni topdim!</button>';
         } else if (state.status !== "FINISHED") {
-          hint = '<p class="muted tiny" style="margin-top:8px">Shubhadan chiqarilgan joyni belgilash uchun bosing.</p>';
+          hint = '<p class="muted tiny" style="margin-top:8px">Şubhadan çiqarilgan joyni belgilaş uçun bosing.</p>';
         }
 
         return '<section class="panel"><h2>' + icon("map-pin") + ' Lokatsiyalar (' + locations.length + ')</h2>' +
@@ -3626,7 +3833,7 @@ function profileCardHtml() {
               (self ? ' <span class="badge me">SIZ</span>' : '') +
               (player.is_host ? ' <span class="badge">EGASI</span>' : '') + '</div>' +
               '<div class="p-meta">' +
-                (player.has_voted ? "Ovoz berdi" : (voting ? "Ovoz bermagan" : "O'yinda")) +
+                (player.has_voted ? "Ovoz berdi" : (voting ? "Ovoz bermagan" : "Öyinda")) +
                 ((state.votes_count && (finished || state.status === "VOTING"))
                   ? " · " + Number(player.votes || 0) + " ovoz"
                   : "") +
@@ -3636,11 +3843,11 @@ function profileCardHtml() {
         var controls = "";
         if (canVote && view.spyVoteTarget != null) {
           controls = '<button class="btn primary block" data-act="spy-vote-submit" style="margin-top:10px"' +
-            (view.spyActionBusy ? " disabled" : "") + '>Josus deb ovoz berish</button>';
+            (view.spyActionBusy ? " disabled" : "") + '>Josus deb ovoz beriş</button>';
         } else if (me && me.has_voted && voting) {
-          controls = '<div class="notice tiny" style="margin-top:10px">Ovozingiz qabul qilindi. Boshqalarni kuting.</div>';
+          controls = '<div class="notice tiny" style="margin-top:10px">Ovozingiz qabul qilindi. Boşqalarni kuting.</div>';
         }
-        return '<section class="panel"><h2>' + icon("users") + ' O\'yinchilar (' + players.length + '/' + (state.max_players || 12) + ')</h2>' +
+        return '<section class="panel"><h2>' + icon("users") + ' Öyinçilar (' + players.length + '/' + (state.max_players || 12) + ')</h2>' +
           '<div class="players">' + rows + '</div>' + controls + '</section>';
       }
 
@@ -3660,9 +3867,9 @@ function profileCardHtml() {
           stopSpyClock();
           app.innerHTML = top +
             '<div class="state-screen fade"><div class="emoji">' + icon("glasses") + '</div>' +
-            '<h2>Xona ochilmadi</h2>' +
-            '<p>' + esc(view.spyError.message || "Xona yoki o'yinchi topilmadi.") + '</p>' +
-            '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button>' +
+            '<h2>Xona oçilmadi</h2>' +
+            '<p>' + esc(view.spyError.message || "Xona yoki öyinçi topilmadi.") + '</p>' +
+            '<button class="btn primary" data-act="home">Boş sahifaga qaytiş</button>' +
             '<button class="btn" data-act="spy-create" style="margin-top:8px">' + icon("plus") + ' Yangi Josus xonasi</button></div>';
           return;
         }
@@ -3678,20 +3885,20 @@ function profileCardHtml() {
 
         var hero = '<section class="spy-hero">' +
           '<p class="mafia-kicker">Revilend Games \u00b7 Spyfall</p>' +
-          '<h1>' + (status === "LOBBY" ? icon("glasses") + " Josus yig‘ilmoqda" : (status === "FINISHED" ? "O‘yin yakunlandi" : icon("glasses") + " Josus kim?")) + '</h1>' +
+          '<h1>' + (status === "LOBBY" ? icon("glasses") + " Josus yiğilmoqda" : (status === "FINISHED" ? "Öyin yakunlandi" : icon("glasses") + " Josus kim?")) + '</h1>' +
           '<p>' + (status === "LOBBY"
-            ? "Xona kodini do\u2018stlaringizga yuboring. Kamida 3 kishi kerak."
+            ? "Xona kodini döstlaringizga yuboring. Kamida 3 kişi kerak."
             : "Joyni sir saqlang, savol-javob qiling va josusni toping.") + '</p></section>';
 
         var lobby = "";
         if (status === "LOBBY") {
           lobby = '<section class="panel"><div class="notice">Xona kodi: <b>' + esc(state.code) +
-            '</b> \u00b7 ' + players.length + '/' + (state.max_players || 12) + ' o\u2018yinchi</div>' +
+            '</b> \u00b7 ' + players.length + '/' + (state.max_players || 12) + ' öyinçi</div>' +
             (isHost
               ? '<button class="btn primary block" data-act="spy-start" style="margin-top:10px"' +
                 (players.length < (state.min_players || 3) || view.spyActionBusy ? " disabled" : "") +
-                '>\u25b6\ufe0f O\u2018yinni boshlash</button>'
-              : '<p class="muted tiny" style="margin-top:10px">Xona egasi o\u2018yinni boshlashini kuting.</p>') +
+                '>\u25b6\ufe0f Öyinni boşlaş</button>'
+              : '<p class="muted tiny" style="margin-top:10px">Xona egasi öyinni boşlaşini kuting.</p>') +
             '</section>';
         }
 
@@ -3717,8 +3924,8 @@ function profileCardHtml() {
               esc(profile.balance) + ' ' + icon("coin") + '</span></div>' +
             '<button class="mafia-booster" data-act="spy-hint"' + (used || !affordable || view.spyActionBusy ? " disabled" : "") + '>' +
               '<span class="mb-icon">' + icon("eye") + '</span>' +
-              '<span class="mb-body"><b>Maslahat: 3 ta noto\u2018g\u2018ri joyni o\u2018chirish</b>' +
-                '<small>' + (used ? "Radar allaqachon ishlatilgan" : (affordable ? "20 tanga evaziga 3 ta noto\u2018g\u2018ri lokatsiya o\u2018chiriladi" : "Tangalar yetarli emas")) + '</small></span>' +
+              '<span class="mb-body"><b>Maslahat: 3 ta notöğri joyni öçiriş</b>' +
+                '<small>' + (used ? "Radar allaqaçon işlatilgan" : (affordable ? "20 tanga evaziga 3 ta notöğri lokatsiya öçiriladi" : "Tangalar yetarli emas")) + '</small></span>' +
               '<span class="mb-price">' + (used ? "Faol" : price + " " + icon("coin")) + '</span></button></section>';
         }
 
@@ -3726,18 +3933,18 @@ function profileCardHtml() {
         if (status === "FINISHED") {
           var spies = players.filter(function (player) { return player.is_spy; });
           result = '<section class="mafia-reveal">' +
-            '<h2>' + (state.winner === "spies" ? icon("glasses") + " Josus g‘alaba qozondi!" : icon("trophy") + " Tinch aholi g‘alaba qozondi!") + '</h2>' +
+            '<h2>' + (state.winner === "spies" ? icon("glasses") + " Josus ğalaba qozondi!" : icon("trophy") + " Tinç aholi ğalaba qozondi!") + '</h2>' +
             '<p>' + esc(state.finish_reason || "") + '</p>' +
             (state.location
               ? '<div class="mafia-tags"><span>' + esc(state.location.emoji) + ' ' + esc(state.location.name) + '</span>' +
                 '<span>' + icon("glasses") + ' ' + esc(spies.map(function (player) { return player.name; }).join(", " ) || "—") + '</span></div>'
               : '') +
-            '<p class="muted tiny">G\u2018oliblarga mos ravishda +25 / +35 tanga berildi.</p></section>';
+            '<p class="muted tiny">Ğoliblarga mos ravişda +25 / +35 tanga berildi.</p></section>';
         }
 
         var tally = "";
         if (isHost && (status === "PLAYING" || status === "VOTING") && state.votes_count > 0) {
-          tally = '<button class="btn block" data-act="spy-tally"' + (view.spyActionBusy ? " disabled" : "") + '>' + icon("ballot") + ' Ovozlarni yakunlash</button>';
+          tally = '<button class="btn block" data-act="spy-tally"' + (view.spyActionBusy ? " disabled" : "") + '>' + icon("ballot") + ' Ovozlarni yakunlaş</button>';
         }
 
         app.innerHTML = top +
@@ -3798,24 +4005,24 @@ function profileCardHtml() {
           '</header>' +
           '<main class="fade">' +
             '<section class="hero">' +
-              '<p class="eyebrow">STOL O\'YINLARI</p>' +
-              '<h1>Kechqurun nima o\'ynaymiz?</h1>' +
-              '<p>Guruh bilan birga o\'ynaladigan o\'yinlar. Xona kodini kiriting yoki guruhda /bunker, /mafia yoki /spy yuboring.</p>' +
+              '<p class="eyebrow">STOL ÖYINLARI</p>' +
+              '<h1>Keçqurun nima öynaymiz?</h1>' +
+              '<p>Guruh bilan birga öynaladigan öyinlar. Xona kodini kiriting yoki guruhda /bunker, /mafia yoki /spy yuboring.</p>' +
             '</section>' +
             profileCardHtml() +
             historyHtml() +
             bonusHtml() +
-            '<div class="section-title"><h2>O\'yinlar</h2><span>' + GAMES.length + ' ta</span></div>' +
+            '<div class="section-title"><h2>Öyinlar</h2><span>' + GAMES.length + ' ta</span></div>' +
             GAMES.map(gameCardHtml).join("") +
             missionsHtml() +
             leaderboardHtml() +
             '<section class="panel" id="join-panel">' +
-              '<h2>Xonaga kod orqali qo\'shilish</h2>' +
+              '<h2>Xonaga kod orqali qöşiliş</h2>' +
               '<form id="join-form" class="join-form">' +
                 '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123 / SPY123" aria-label="Xona kodi" />' +
-                '<button type="submit" class="btn primary">Kirish</button>' +
+                '<button type="submit" class="btn primary">Kiriş</button>' +
               '</form>' +
-              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya» yoki «Josus» xabaridan oling. Kod turiga qarab kerakli o\'yin ochiladi.</p>' +
+              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya» yoki «Josus» xabaridan oling. Kod turiga qarab kerakli öyin oçiladi.</p>' +
             '</section>' +
             '<div class="footer">Revilend Games · Bunker · Mafiya · Josus · Alias</div>' +
           '</main>' +
@@ -3829,14 +4036,14 @@ function profileCardHtml() {
         if (!view.spyEntry) return "";
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Josus xonasi">' +
           '<div class="shop-head"><div><h2>' + icon("glasses") + ' Josus</h2>' +
-            '<p class="shop-lede">Guruhdan olingan <b>SPY123</b> kodini kiriting yoki yangi xona oching.</p></div>' +
-            '<button class="shop-close" data-act="spy-entry-close" aria-label="Yopish">' + icon("close") + '</button></div>' +
+            '<p class="shop-lede">Guruhdan olingan <b>SPY123</b> kodini kiriting yoki yangi xona oçing.</p></div>' +
+            '<button class="shop-close" data-act="spy-entry-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
           '<form id="spy-entry-form" class="join-form">' +
             '<input id="spy-entry-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="SPY123" aria-label="Josus xona kodi" />' +
-            '<button type="submit" class="btn primary">Kirish</button>' +
+            '<button type="submit" class="btn primary">Kiriş</button>' +
           '</form>' +
           '<button class="btn block" data-act="spy-create" style="margin-top:10px">' + icon("plus") + ' Yangi Josus xonasi</button>' +
-          '<p class="shop-note">Xona kodi guruhdagi «Josusga kirish» xabarida ko‘rinadi. Har kimga maxfiy kartochka beriladi.</p>' +
+          '<p class="shop-note">Xona kodi guruhdagi «Josusga kiriş» xabarida körinadi. Har kimga maxfiy kartoçka beriladi.</p>' +
         '</section></div>';
       }
 
@@ -3844,19 +4051,19 @@ function profileCardHtml() {
         if (!view.aliasEntry) return "";
         var botUser = String((view.shop && view.shop.bot_username) || "revilend_gamesbot").replace(/^@/, "");
         var groupUrl = "https://t.me/" + encodeURIComponent(botUser) + "?startgroup=true";
-        return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Alias yo\'riqnomasi">' +
+        return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Alias yöriqnomasi">' +
           '<div class="shop-head"><div><h2>' + icon("sparkles") + ' Alias / Krokodil</h2>' +
-            '<p class="shop-lede">Tezkor so\'z tushuntirish va topish poygasi. 2–20 o\'yinchi.</p></div>' +
-            '<button class="shop-close" data-act="alias-entry-close" aria-label="Yopish">' + icon("close") + '</button></div>' +
+            '<p class="shop-lede">Tezkor söz tuşuntiriş va topiş poygasi. 2–20 öyinçi.</p></div>' +
+            '<button class="shop-close" data-act="alias-entry-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
           '<ol class="rules-list">' +
-            '<li>Botni guruhingizga qo\'shing.</li>' +
+            '<li>Botni guruhingizga qöşing.</li>' +
             '<li>Guruhda <code>/alias</code> yoki <code>/krokodil</code> yuboring.</li>' +
-            '<li>Do\'stlar «Qo\'shilish» tugmasini bosadi.</li>' +
-            '<li>Kamida 2 kishi bo\'lgach xona egasi o\'yinni boshlaydi.</li>' +
-            '<li>Tushuntiruvchi so\'zni tavsiflaydi, qolganlar topadi.</li>' +
+            '<li>Döstlar «Qöşiliş» tugmasini bosadi.</li>' +
+            '<li>Kamida 2 kişi bölgaç xona egasi öyinni boşlaydi.</li>' +
+            '<li>Tuşuntiruvçi sözni tavsiflaydi, qolganlar topadi.</li>' +
           '</ol>' +
-          '<a class="btn primary block" href="' + groupUrl + '" target="_blank" rel="noopener">' + icon("plus") + ' Guruhga qo\'shish</a>' +
-          '<button class="btn block" data-act="alias-entry-close" style="margin-top:8px">Yopish</button>' +
+          '<a class="btn primary block" href="' + groupUrl + '" target="_blank" rel="noopener">' + icon("plus") + ' Guruhga qöşiş</a>' +
+          '<button class="btn block" data-act="alias-entry-close" style="margin-top:8px">Yopiş</button>' +
         '</section></div>';
       }
 
@@ -3868,11 +4075,11 @@ function profileCardHtml() {
         var playAction = isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : (isAlias ? "open-alias" : "open-bunker"));
         var actions = active
           ? '<div class="game-actions">' +
-              '<button class="play-btn" data-act="' + playAction + '">O\'ynash</button>' +
+              '<button class="play-btn" data-act="' + playAction + '">Öynaş</button>' +
               (isAlias
                 ? ''
                 : '<button class="btn small match-btn" data-act="match-join" data-game="' + esc(game.slug) + '">' +
-                    icon("users") + ' Odam qidirish</button>') +
+                    icon("users") + ' Odam qidiriş</button>') +
               '<div class="match-status" data-match-status="' + esc(game.slug) + '">' +
                 matchStatusHtml(game.slug) + '</div>' +
             '</div>'
@@ -3883,7 +4090,7 @@ function profileCardHtml() {
             '<div class="game-top"><span class="game-name">' + esc(game.name) + '</span>' +
               '<span class="badge ' + (active ? "live" : "soon") + '">' + (active ? "FAOL" : "TEZ KUNDA") + '</span></div>' +
             '<p class="game-desc">' + esc(game.description) + '</p>' +
-            '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
+            '<div class="game-meta">' + esc(game.players) + ' öyinçi</div>' +
           '</div>' +
           actions +
         '</article>';
@@ -3944,7 +4151,7 @@ function profileCardHtml() {
             '<div class="emoji">' + icon("map-pin") + '</div>' +
             '<h2>Xona topilmadi</h2>' +
             '<p>' + esc(error && error.message ? error.message : "Xona mavjud emas yoki kodi xato.") + '</p>' +
-            '<button class="btn primary" data-act="home">Bosh sahifaga qaytish</button>' +
+            '<button class="btn primary" data-act="home">Boş sahifaga qaytiş</button>' +
           '</div>';
       }
 
@@ -4007,7 +4214,7 @@ function profileCardHtml() {
         if (!me && status === "LOBBY") {
           html += joinRoomHtml(room);
         } else if (!me) {
-          html += '<div class="notice">⏳ O\'yin allaqachon boshlangan. Siz kuzatuvchisiz — keyingi o\'yinni kuting.</div>';
+          html += '<div class="notice">⏳ Öyin allaqaçon boşlangan. Siz kuzatuvçisiz — keyingi öyinni kuting.</div>';
         }
 
         if (me) {
@@ -4034,18 +4241,18 @@ function profileCardHtml() {
           '<p>' + esc(cat.description || "") + '</p>' +
           '<div class="cat-grid">' +
             '<div class="cat-block"><h4>' + icon("bag") + ' Bunker zaxirasi</h4>' + listHtml(supplies) + '</div>' +
-            '<div class="cat-block"><h4>' + icon("check") + ' Omon qolish</h4>' + listHtml(requirements) + '</div>' +
+            '<div class="cat-block"><h4>' + icon("check") + ' Omon qoliş</h4>' + listHtml(requirements) + '</div>' +
           '</div>' +
           '<div class="stat-row">' +
             '<div class="stat"><b>' + (room.alive_count != null ? room.alive_count : 0) + '</b><span>tirik</span></div>' +
-            '<div class="stat"><b>' + esc(room.bunker_capacity) + '</b><span>sig\'im</span></div>' +
-            '<div class="stat"><b>' + (room.players ? room.players.length : 0) + '/' + esc(room.max_players) + '</b><span>o\'yinchi</span></div>' +
+            '<div class="stat"><b>' + esc(room.bunker_capacity) + '</b><span>siğim</span></div>' +
+            '<div class="stat"><b>' + (room.players ? room.players.length : 0) + '/' + esc(room.max_players) + '</b><span>öyinçi</span></div>' +
           '</div>' +
         '</section>';
       }
 
       function listHtml(items) {
-        if (!items.length) return '<p class="muted tiny">Ma\'lumot yo\'q</p>';
+        if (!items.length) return '<p class="muted tiny">Ma\'lumot yöq</p>';
         return '<ul>' + items.map(function (item) {
           return '<li>' + esc(item) + '</li>';
         }).join("") + '</ul>';
@@ -4057,18 +4264,18 @@ function profileCardHtml() {
         var capacity = room.bunker_capacity || 0;
         var first;
         if (!count) {
-          first = "Bunker eshigi hech kim omon qolmasdan yopildi va " + catastrophe +
-            " tashqarida hamma narsani yutib yubordi.";
+          first = "Bunker eşigi heç kim omon qolmasdan yopildi va " + catastrophe +
+            " taşqarida hamma narsani yutib yubordi.";
         } else if (count >= capacity) {
-          first = "Bunker eshigi og'ir metall ovoz bilan yopildi; " + catastrophe +
-            " tashqarida qoldi. Ichkarida " + count + " kishi omon qoldi va ajratilgan joy to'liq yetdi.";
+          first = "Bunker eşigi oğir metall ovoz bilan yopildi; " + catastrophe +
+            " taşqarida qoldi. Içkarida " + count + " kişi omon qoldi va ajratilgan joy töliq yetdi.";
         } else {
-          first = "Bunker eshigi og'ir metall ovoz bilan yopildi va " + catastrophe +
-            " tashqarida qoldi. Ichkarida " + count + " kishi omon qoldi, ammo bo'sh joylar endi hech qachon to'lmaydi.";
+          first = "Bunker eşigi oğir metall ovoz bilan yopildi va " + catastrophe +
+            " taşqarida qoldi. Içkarida " + count + " kişi omon qoldi, ammo böş joylar endi heç qaçon tölmaydi.";
         }
         var second = count
-          ? "Ular zaxiralarni bo'lishib, yangi jamiyat uchun birinchi qadamni qo'ydi; insoniyatning taqdiri endi shu hovuch odamning qo'lida."
-          : "Insoniyatning so'nggi umidi ham so'ndi; bu falokat tarixda eng og'ir saboq bo'lib qoldi.";
+          ? "Ular zaxiralarni bölişib, yangi jamiyat uçun birinçi qadamni qöydi; insoniyatning taqdiri endi şu hovuç odamning qölida."
+          : "Insoniyatning sönggi umidi ham söndi; bu falokat tarixda eng oğir saboq bölib qoldi.";
         return first + " " + second;
       }
 
@@ -4084,11 +4291,11 @@ function profileCardHtml() {
             '<div class="door-light"></div>' +
           '</div>' +
           '<div class="epilogue-body">' +
-            '<p class="epilogue-kicker">Bunker eshigi yopildi</p>' +
+            '<p class="epilogue-kicker">Bunker eşigi yopildi</p>' +
             '<h2>Omon qolgan qahramonlar</h2>' +
             (survivorChips
               ? '<div class="survivors">' + survivorChips + '</div>'
-              : '<p class="muted" style="margin-bottom:14px">Hech kim omon qolmadi.</p>') +
+              : '<p class="muted" style="margin-bottom:14px">Heç kim omon qolmadi.</p>') +
             '<p class="epilogue-text">' + esc(epilogueText(room, survivors)) + '</p>' +
             '<div class="epilogue-stats">' +
               '<span>' + icon("radiation") + ' ' + esc((room.catastrophe && room.catastrophe.name) || "Falokat") + '</span>' +
@@ -4096,17 +4303,17 @@ function profileCardHtml() {
             '</div>' +
           '</div>' +
         '</section>' +
-        '<div class="notice">' + icon("sparkles") + ' Bu o\'yin yakunlandi. Yangi o\'yin ochish uchun guruhda /bunker yuboring.</div>';
+        '<div class="notice">' + icon("sparkles") + ' Bu öyin yakunlandi. Yangi öyin oçiş uçun guruhda /bunker yuboring.</div>';
       }
 
       function joinRoomHtml(room) {
         var needName = !profile.name;
         return '<section class="join-room">' +
-          '<h2>Xonaga qo\'shilish</h2>' +
-          '<p class="muted">Hozir ' + (room.players ? room.players.length : 0) + ' o\'yinchi bor. O\'yin boshlanmaguncha qo\'shilishingiz mumkin.</p>' +
+          '<h2>Xonaga qöşiliş</h2>' +
+          '<p class="muted">Hozir ' + (room.players ? room.players.length : 0) + ' öyinçi bor. Öyin boşlanmagunça qöşilişingiz mumkin.</p>' +
           '<form id="room-join-form">' +
             (needName ? '<input id="guest-name" type="text" maxlength="40" placeholder="Ismingiz" aria-label="Ismingiz" />' : '') +
-            '<button type="submit" class="btn primary block">Xonaga qo\'shilish</button>' +
+            '<button type="submit" class="btn primary block">Xonaga qöşiliş</button>' +
           '</form>' +
         '</section>';
       }
@@ -4116,13 +4323,13 @@ function profileCardHtml() {
           '<div class="flip-inner">' +
             '<div class="flip-face flip-back">' +
               '<span class="lock-big">' + icon("lock") + '</span>' +
-              '<span class="flip-hint">' + esc(meta.label) + ' ochilmoqda</span>' +
+              '<span class="flip-hint">' + esc(meta.label) + ' oçilmoqda</span>' +
             '</div>' +
             '<div class="flip-face flip-front">' +
               '<div class="card-top"><span class="emoji">' + icon(meta.icon) + '</span>' + esc(meta.label) + '</div>' +
               '<h3>' + esc(card.title) + '</h3>' +
               '<p>' + esc(card.description) + '</p>' +
-              '<span class="revealed-stamp">OCHILDI</span>' +
+              '<span class="revealed-stamp">OÇILDI</span>' +
             '</div>' +
           '</div>' +
         '</div>';
@@ -4135,11 +4342,11 @@ function profileCardHtml() {
 
         if (!keys.length) {
           return '<section><div class="block-head"><h2>Mening kartalarim</h2><span>0/0</span></div>' +
-            '<div class="notice">' + icon("card") + ' O\'yin boshlanganda shaxsiy kartalaringiz tarqatiladi.</div></section>';
+            '<div class="notice">' + icon("card") + ' Öyin boşlanganda şaxsiy kartalaringiz tarqatiladi.</div></section>';
         }
 
         return '<section><div class="block-head"><h2>Mening kartalarim</h2>' +
-          '<span>' + revealed + '/' + keys.length + ' ochilgan</span></div>' +
+          '<span>' + revealed + '/' + keys.length + ' oçilgan</span></div>' +
           '<div class="cards-grid">' + keys.map(function (key) {
             var card = cards[key];
             var meta = cardMeta(key);
@@ -4151,7 +4358,7 @@ function profileCardHtml() {
                 '<div class="card-top"><span class="emoji">' + icon(meta.icon) + '</span>' + esc(meta.label) + '</div>' +
                 '<h3>' + esc(card.title) + '</h3>' +
                 '<p>' + esc(card.description) + '</p>' +
-                '<span class="revealed-stamp">OCHILDI</span>' +
+                '<span class="revealed-stamp">OÇILDI</span>' +
               '</article>';
             }
             var canReveal = status === "PLAYING" || status === "VOTING";
@@ -4159,8 +4366,8 @@ function profileCardHtml() {
               '<div class="card-top"><span class="emoji">' + icon(meta.icon) + '</span>' + esc(meta.label) + '</div>' +
               '<div class="card-lock">' + icon("lock") + '<small>Yopiq</small></div>' +
               (canReveal
-                ? '<button class="btn small" data-act="reveal" data-card="' + esc(key) + '">Ochish</button>'
-                : '<p class="muted tiny" style="text-align:center">O\'yin boshlanishini kuting</p>') +
+                ? '<button class="btn small" data-act="reveal" data-card="' + esc(key) + '">Oçiş</button>'
+                : '<p class="muted tiny" style="text-align:center">Öyin boşlanişini kuting</p>') +
             '</article>';
           }).join("") + '</div></section>';
       }
@@ -4181,7 +4388,7 @@ function profileCardHtml() {
         });
 
         return '<section><div class="block-head"><h2>Bunker stoli</h2>' +
-          '<span>' + (room.players || []).length + ' o\'yinchi</span></div>' +
+          '<span>' + (room.players || []).length + ' öyinçi</span></div>' +
           '<div class="players">' + players.map(function (player) {
             var badges = "";
             if (player.is_host) badges += '<span class="badge host">HOST</span>';
@@ -4224,13 +4431,13 @@ function profileCardHtml() {
         }).join("");
         var rerollDisabled = options ? "" : " disabled";
         return '<section class="booster-panel">' +
-          '<h2>' + icon("bolt") + ' Kuchlar</h2>' +
-          '<p class="lede">Tangalar bilan joriy o‘yinda ustunlik oling.</p>' +
+          '<h2>' + icon("bolt") + ' Kuçlar</h2>' +
+          '<p class="lede">Tangalar bilan joriy öyinda ustunlik oling.</p>' +
           '<div class="booster-list">' +
             '<button class="booster-btn" data-act="booster" data-booster="double_vote"' + (me.double_vote ? " disabled" : "") + '>' +
               '<span>' + icon("check") + ' ' + (me.double_vote ? "2 karra ovoz faol" : "2 karra ovoz") + '</span><span class="cost">15 ' + icon("coin") + '</span></button>' +
             '<div class="reroll-row">' +
-              '<select id="reroll-card" aria-label="Almashtiriladigan karta"' + rerollDisabled + '>' + (options || '<option value="">Yopiq karta yo‘q</option>') + '</select>' +
+              '<select id="reroll-card" aria-label="Almaştiriladigan karta"' + rerollDisabled + '>' + (options || '<option value="">Yopiq karta yöq</option>') + '</select>' +
               '<button class="btn small" data-act="reroll"' + rerollDisabled + '>' + icon("refresh") + ' 20 ' + icon("coin") + '</button>' +
             '</div>' +
           '</div>' +
@@ -4247,14 +4454,14 @@ function profileCardHtml() {
             var canShield = Number(profile.balance) >= 50;
             parts += '<section class="shield-offer">' +
               '<div class="shield-icon">' + icon("shield") + '</div>' +
-              '<h2>Sizni haydashmoqchi!</h2>' +
-              '<p>Eng ko‘p ovoz sizga berildi. <b>50 tanga</b> evaziga Bunker Qalqonini faollashtirib, omon qolasizmi? Qalqon har bir xonada bir marta ishlaydi.</p>' +
-              '<button class="btn primary block" data-act="shield-accept"' + (canShield ? "" : " disabled") + '>' + icon("shield") + ' Bunker Qalqonini ishlatish (50 ' + icon("coin") + ')</button>' +
-              (canShield ? '' : '<p class="shop-note">Balansda 50 tanga yetarli emas. Do‘kondan tanga xarid qilishingiz mumkin.</p>') +
-              '<button class="btn block" data-act="shield-decline">Rad etish</button>' +
+              '<h2>Sizni haydaşmoqçi!</h2>' +
+              '<p>Eng köp ovoz sizga berildi. <b>50 tanga</b> evaziga Bunker Qalqonini faollaştirib, omon qolasizmi? Qalqon har bir xonada bir marta işlaydi.</p>' +
+              '<button class="btn primary block" data-act="shield-accept"' + (canShield ? "" : " disabled") + '>' + icon("shield") + ' Bunker Qalqonini işlatiş (50 ' + icon("coin") + ')</button>' +
+              (canShield ? '' : '<p class="shop-note">Balansda 50 tanga yetarli emas. Dökondan tanga xarid qilişingiz mumkin.</p>') +
+              '<button class="btn block" data-act="shield-decline">Rad etiş</button>' +
             '</section>';
           } else {
-            parts += '<div class="notice">' + icon("shield") + ' O‘yinchi qalqon taklifini ko‘rib chiqmoqda. Qaror qabul qilingach raund davom etadi.</div>';
+            parts += '<div class="notice">' + icon("shield") + ' Öyinçi qalqon taklifini körib çiqmoqda. Qaror qabul qilingaç raund davom etadi.</div>';
           }
           return parts;
         }
@@ -4272,15 +4479,15 @@ function profileCardHtml() {
           parts += '<section class="panel">' +
             '<h2>Xona egasi paneli</h2>' +
             '<p class="muted tiny" style="margin-bottom:12px">' +
-              (enough ? 'Hamma yig\'ildimi? Kartalarni tarqatib, o\'yinni boshlang.' : 'Boshlash uchun kamida 2 o\'yinchi kerak.') +
+              (enough ? 'Hamma yiğildimi? Kartalarni tarqatib, öyinni boşlang.' : 'Boşlaş uçun kamida 2 öyinçi kerak.') +
             '</p>' +
-            '<button class="btn primary block" data-act="start"' + (enough ? "" : " disabled") + '>' + icon("play") + ' O\'yinni boshlash</button>' +
+            '<button class="btn primary block" data-act="start"' + (enough ? "" : " disabled") + '>' + icon("play") + ' Öyinni boşlaş</button>' +
           '</section>';
         }
 
         if (status === "PLAYING" || status === "VOTING") {
           if (!me.is_alive) {
-            parts += '<div class="notice">Siz haydalgansiz. O\'yinni kuzatishingiz mumkin.</div>';
+            parts += '<div class="notice">Siz haydalgansiz. Öyinni kuzatişingiz mumkin.</div>';
           } else {
             var others = (alive || []).filter(function (player) { return player.user_id !== me.user_id; });
             var totalVotes = (room.players || []).reduce(function (sum, player) {
@@ -4288,8 +4495,8 @@ function profileCardHtml() {
             }, 0);
 
             parts += '<section class="vote-panel">' +
-              '<h2>' + icon("ballot") + ' Ovoz berish</h2>' +
-              '<p class="muted">Bunkerga tushmasligi kerak deb hisoblagan o\'yinchini tanlang.</p>' +
+              '<h2>' + icon("ballot") + ' Ovoz beriş</h2>' +
+              '<p class="muted">Bunkerga tuşmasligi kerak deb hisoblagan öyinçini tanlang.</p>' +
               '<div class="vote-list">' + others.map(function (player) {
                 var selected = view.selected === player.user_id;
                 return '<button class="vote-target ' + (selected ? "sel" : "") + '" data-act="select" data-target="' + player.user_id + '">' +
@@ -4298,10 +4505,10 @@ function profileCardHtml() {
                   '<span class="count">' + (player.votes_against || 0) + ' ovoz</span>' +
                 '</button>';
               }).join("") + '</div>' +
-              '<button class="btn danger block" data-act="vote"' + (view.selected == null ? " disabled" : "") + '>Ovoz berish</button>' +
+              '<button class="btn danger block" data-act="vote"' + (view.selected == null ? " disabled" : "") + '>Ovoz beriş</button>' +
               (me.is_host
                 ? '<button class="btn block" style="margin-top:8px" data-act="tally"' +
-                    (totalVotes > 0 ? "" : " disabled") + '>Ovozlarni sanash · ' + totalVotes + '</button>'
+                    (totalVotes > 0 ? "" : " disabled") + '>Ovozlarni sanaş · ' + totalVotes + '</button>'
                 : '<p class="muted tiny" style="margin-top:10px;text-align:center">Ovozlarni xona egasi sanaydi.</p>') +
             '</section>';
             parts += boosterPanelHtml(me);
@@ -4309,7 +4516,7 @@ function profileCardHtml() {
         }
 
         if (status === "LOBBY") {
-          parts += '<div class="notice">⏳ O\'yin boshlanishini kuting. Do\'stlaringizni xona kodini ulashib taklif qiling: <b>' + esc(room.code) + '</b></div>';
+          parts += '<div class="notice">⏳ Öyin boşlanişini kuting. Döstlaringizni xona kodini ulaşib taklif qiling: <b>' + esc(room.code) + '</b></div>';
         }
 
         return parts;
@@ -4446,7 +4653,7 @@ function profileCardHtml() {
           }
 
           if (data.result && data.result.tie) {
-            toast("Ovozlar teng — hech kim haydalmadi");
+            toast("Ovozlar teng — heç kim haydalmadi");
           } else if (data.result && data.result.eliminated && !announced) {
             toast(data.result.eliminated.full_name + " haydaldi", "error");
           } else if (successMessage) {
@@ -4475,7 +4682,7 @@ function profileCardHtml() {
           profile.name = name;
           window.sessionStorage.setItem("rg_guest_name", name);
         }
-        await sendAction({ action: "join", full_name: name, username: profile.username }, "Xonaga qo'shildingiz!");
+        await sendAction({ action: "join", full_name: name, username: profile.username }, "Xonaga qöşildingiz!");
       }
 
       function handleClick(event) {
@@ -4512,13 +4719,13 @@ function profileCardHtml() {
         } else if (act === "spy-create") {
           createSpyRoom();
         } else if (act === "spy-start") {
-          spyPost("start", {}, "O'yin boshlandi!");
+          spyPost("start", {}, "Öyin boşlandi!");
         } else if (act === "spy-flip") {
           var spyCard = app.querySelector(".tarot-card");
           if (spyCard) spyCard.classList.add("flipped");
           view.spyOpen = true;
           button.disabled = true;
-          button.textContent = "Karta ochildi";
+          button.textContent = "Karta oçildi";
           haptic("success");
         } else if (act === "open-mafia") {
           var mafiaInput = document.getElementById("room-code");
@@ -4531,7 +4738,7 @@ function profileCardHtml() {
             mafiaInput.focus();
             mafiaInput.scrollIntoView({ behavior: "smooth", block: "center" });
           }
-          toast("Guruhdagi Mafiya havolasini oching yoki MAF kodini kiriting");
+          toast("Guruhdagi Mafiya havolasini oçing yoki MAF kodini kiriting");
         } else if (act === "spy-pick") {
           view.spyGuessKey = button.getAttribute("data-key");
           renderSpy();
@@ -4548,13 +4755,13 @@ function profileCardHtml() {
           }
           spyPost("guess", { location: view.spyGuessKey });
         } else if (act === "spy-hint") {
-          spyPost("hint", {}, "Radar yoqildi: 3 ta noto'g'ri joy o'chirildi");
+          spyPost("hint", {}, "Radar yoqildi: 3 ta notöğri joy öçirildi");
         } else if (act === "spy-vote-select") {
           view.spyVoteTarget = Number(button.getAttribute("data-target"));
           renderSpy();
         } else if (act === "spy-vote-submit") {
           if (view.spyVoteTarget == null) {
-            toast("Avval o'yinchini tanlang", "error");
+            toast("Avval öyinçini tanlang", "error");
             return;
           }
           spyPost("vote", { target_id: Number(view.spyVoteTarget) });
@@ -4566,7 +4773,7 @@ function profileCardHtml() {
           var reveal = app.querySelector("[data-reveal]");
           if (reveal) reveal.hidden = false;
           button.disabled = true;
-          button.textContent = "Karta ochildi";
+          button.textContent = "Karta oçildi";
           view.mafiaOpen = true;
           haptic("success");
         } else if (act === "mafia-booster") {
@@ -4575,7 +4782,7 @@ function profileCardHtml() {
           var nightKind = document.getElementById("mafia-night-kind");
           var nightTarget = document.getElementById("mafia-night-target");
           if (!nightTarget || !nightTarget.value) {
-            toast("Nishonni tanlang", "error");
+            toast("Nişonni tanlang", "error");
             return;
           }
           submitMafiaAction("night-action", {
@@ -4589,7 +4796,7 @@ function profileCardHtml() {
           renderMafia();
         } else if (act === "mafia-vote-submit") {
           if (view.mafiaVoteTarget == null) {
-            toast("Avval o‘yinchini tanlang", "error");
+            toast("Avval öyinçini tanlang", "error");
             return;
           }
           submitMafiaAction("vote", { target_id: Number(view.mafiaVoteTarget) });
@@ -4601,7 +4808,7 @@ function profileCardHtml() {
               : null
           });
         } else if (act === "reveal") {
-          sendAction({ action: "reveal", card_type: button.getAttribute("data-card") }, "Karta ochildi");
+          sendAction({ action: "reveal", card_type: button.getAttribute("data-card") }, "Karta oçildi");
         } else if (act === "select") {
           view.selected = Number(button.getAttribute("data-target"));
           var targets = app.querySelectorAll(".vote-target");
@@ -4612,14 +4819,14 @@ function profileCardHtml() {
           if (voteButton) voteButton.disabled = false;
         } else if (act === "vote") {
           if (view.selected == null) {
-            toast("Avval o'yinchini tanlang", "error");
+            toast("Avval öyinçini tanlang", "error");
             return;
           }
           sendAction({ action: "vote", target_id: view.selected }, "Ovoz berildi");
         } else if (act === "tally") {
           sendAction({ action: "tally" }, "Ovozlar sanaldi");
         } else if (act === "start") {
-          sendAction({ action: "start" }, "O'yin boshlandi!");
+          sendAction({ action: "start" }, "Öyin boşlandi!");
         } else if (act === "shop") {
           openShop();
         } else if (act === "shop-close") {
@@ -4644,19 +4851,19 @@ function profileCardHtml() {
         } else if (act === "promo") {
           redeemPromo();
         } else if (act === "shield-accept") {
-          sendAction({ action: "booster", booster: "shield" }, "Qalqon faollashtirildi!");
+          sendAction({ action: "booster", booster: "shield" }, "Qalqon faollaştirildi!");
         } else if (act === "shield-decline") {
           sendAction({ action: "shield_decline" }, "Qalqon rad etildi");
         } else if (act === "booster") {
-          sendAction({ action: "booster", booster: button.getAttribute("data-booster") }, "Booster faollashtirildi");
+          sendAction({ action: "booster", booster: button.getAttribute("data-booster") }, "Booster faollaştirildi");
         } else if (act === "reroll") {
           var select = document.getElementById("reroll-card");
           var cardType = select ? select.value : "";
           if (!cardType) {
-            toast("Almashtirish uchun karta tanlang", "error");
+            toast("Almaştiriş uçun karta tanlang", "error");
             return;
           }
-          sendAction({ action: "booster", booster: "reroll", card_type: cardType }, "Karta almashtirildi");
+          sendAction({ action: "booster", booster: "reroll", card_type: cardType }, "Karta almaştirildi");
         }
       }
 
@@ -4672,7 +4879,7 @@ function profileCardHtml() {
           var spyInput = document.getElementById("spy-entry-code");
           var spyValue = spyStartCode(spyInput ? spyInput.value : "");
           if (!spyValue) {
-            toast("Kod SPY123 ko'rinishida bo'lishi kerak", "error");
+            toast("Kod SPY123 körinişida bölişi kerak", "error");
             return;
           }
           enterSpy(spyValue);
@@ -4683,7 +4890,7 @@ function profileCardHtml() {
           var input = document.getElementById("room-code");
           var code = normalizeCode(input ? input.value : "");
           if (!/^[A-Z0-9]{6}$/.test(code)) {
-            toast("Xona kodi 6 belgidan iborat bo'lishi kerak", "error");
+            toast("Xona kodi 6 belgidan iborat bölişi kerak", "error");
             return;
           }
           if (/^MAF\d{3}$/.test(code)) {

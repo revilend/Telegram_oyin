@@ -147,7 +147,7 @@ class MenuHandlerTest(MenuTestCase):
         ]
         self.assertEqual(
             callbacks,
-            ["shop_pack_500", "shop_pack_1500", "shop_pack_4000", "shop_cancel"],
+            ["shopsection_pay", "shopsection_items"],
         )
 
     def test_profile_button_shows_profile_card(self) -> None:

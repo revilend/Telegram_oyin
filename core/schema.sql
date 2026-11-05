@@ -68,7 +68,8 @@ create table if not exists public.users (
     referral_count   integer not null default 0,
     role             text not null default 'user',
     created_at       timestamptz not null default now(),
-    updated_at       timestamptz not null default now()
+    updated_at       timestamptz not null default now(),
+    last_free_spin_at timestamptz null default null
 );
 
 -- Eski jadvallar uchun migratsiya: rol ustuni keyin qo'shilgan bo'lsa ham ishlaydi.
@@ -91,6 +92,23 @@ create table if not exists public.referrals (
 );
 
 create index if not exists referrals_inviter_idx
+\n-- Inventory: sotib olingan upgrading va xususiy xususiyatlar
+create table if not exists public.user_inventory (
+    user_id         bigint not null references public.users(telegram_id) on delete cascade,
+    item_slug       text not null,
+    quantity        integer not null default 1,
+    is_equipped     boolean not null default false,
+    primary key (user_id, item_slug)
+);\
+-- Transactions: xarid va oylab chiqarish tarixini saqlash
+create table if not exists public.transactions (
+    id               bigserial primary key,
+    user_id          bigint not null references public.users(telegram_id) on delete cascade,
+    item_slug        text not null default "",
+    kind             text not null default "buy",
+    amount           integer not null default 0,
+    created_at       timestamptz not null default now()
+);
     on public.referrals (inviter_id);
 
 create table if not exists public.payment_requests (

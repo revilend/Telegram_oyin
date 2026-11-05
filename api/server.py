@@ -57,6 +57,13 @@ from core.economy import (
     player_rating,
 )
 from core.login_codes import verify_login_code
+from core.shop import (
+    ShopError,
+    ShopInsufficientCoinsError,
+    SpinUnavailableError,
+    UnknownItemError,
+    get_shop_store,
+)
 from core.leaderboard import build_leaderboard, normalize_period
 from core.metrics import metrics
 from engine.chat import ChatAccess, ChatError, ChatHub
@@ -517,6 +524,32 @@ async def economy_error_handler(request: Any, exc: EconomyError) -> JSONResponse
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.exception_handler(ShopInsufficientCoinsError)
+async def shop_coins_handler(
+    request: Any, exc: ShopInsufficientCoinsError
+) -> JSONResponse:
+    return JSONResponse(status_code=402, content={"detail": str(exc)})
+
+
+@app.exception_handler(SpinUnavailableError)
+async def spin_unavailable_handler(
+    request: Any, exc: SpinUnavailableError
+) -> JSONResponse:
+    return JSONResponse(status_code=402, content={"detail": str(exc)})
+
+
+@app.exception_handler(UnknownItemError)
+async def unknown_item_handler(
+    request: Any, exc: UnknownItemError
+) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(ShopError)
+async def shop_error_handler(request: Any, exc: ShopError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
 @app.exception_handler(GameError)
 async def game_error_handler(request: Any, exc: GameError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
@@ -868,6 +901,86 @@ async def get_shop() -> dict[str, Any]:
     return {"shop": shop_meta(), "boosters": boosters_payload()}
 
 
+class ShopBuyRequest(BaseModel):
+    """Do'kondan buyum sotib olish so'rovi."""
+
+    item_slug: str
+    quantity: int = 1
+    user_id: int | None = None
+
+
+class SpinRequest(BaseModel):
+    """Omad ğildiragini aylantiriş so'rovi."""
+
+    user_id: int | None = None
+
+
+class EquipRequest(BaseModel):
+    """Ramka yoki unvonni taqiş/yeçiş so'rovi."""
+
+    item_slug: str
+    equip: bool = True
+    user_id: int | None = None
+
+
+@app.get("/api/shop/items")
+async def shop_items(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Bölumlar bo'yicha buyumlar, inventar va ğildirak sektorlari."""
+    viewer_id = user.id if user is not None else user_id
+    payload = get_shop_store().items_payload(viewer_id)
+    payload["shop"] = shop_meta()
+    payload["boosters"] = boosters_payload()
+    return payload
+
+
+@app.post("/api/shop/buy")
+async def shop_buy(
+    payload: ShopBuyRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Buyumni tangalarga sotib oladi va inventarga qo'shadi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    metrics.user(resolved_id)
+    result = get_shop_store().buy(resolved_id, payload.item_slug, payload.quantity)
+    data = result.as_dict()
+    data["inventory"] = [entry.as_dict() for entry in get_shop_store().inventory(resolved_id)]
+    data["equipped"] = get_shop_store().equipped(resolved_id)
+    return data
+
+
+@app.post("/api/spin/wheel")
+async def spin_wheel(
+    payload: SpinRequest | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Omad ğildiragini aylantiradi (kuniga bir bepul)."""
+    resolved_id = resolve_user_id(user, payload.user_id if payload else None)
+    metrics.user(resolved_id)
+    store = get_shop_store()
+    result = store.spin(resolved_id)
+    data = result.as_dict()
+    data["spin"] = store.spin_status(resolved_id)
+    data["inventory"] = [entry.as_dict() for entry in store.inventory(resolved_id)]
+    return data
+
+
+@app.post("/api/profile/equip")
+async def equip_item(
+    payload: EquipRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Sotib olingan ramka yoki unvonni profilga taqadi yoki yeçadi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    result = get_shop_store().equip(resolved_id, payload.item_slug, payload.equip)
+    result["inventory"] = [
+        entry.as_dict() for entry in get_shop_store().inventory(resolved_id)
+    ]
+    return result
+
+
 def profile_identity(
     user: TelegramUser | None,
     user_id: int | None,
@@ -910,10 +1023,17 @@ async def my_profile(
         resolved_id, resolved_username, resolved_name
     )
     metrics.user(resolved_id)
+    shop_store = get_shop_store()
     return {
         "user": asdict(account),
         "shop": shop_meta(),
         "boosters": boosters_payload(),
+        # Mega Store: taqilgan ramka/unvon, inventar va ğildirak holati.
+        "equipped": shop_store.equipped(resolved_id),
+        "inventory": [
+            entry.as_dict() for entry in shop_store.inventory(resolved_id)
+        ],
+        "spin": shop_store.spin_status(resolved_id),
         # Profilda oxirgi 5 o'yin natijasi ko'rsatiladi.
         "history": economy.history_for_user(resolved_id, 5),
     }

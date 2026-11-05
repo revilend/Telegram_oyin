@@ -12,6 +12,7 @@ from bot.config import get_config
 from bot.handlers import admin, shop
 from core.economy import START_COINS, EconomyStore, get_economy
 from core.settings import SettingsStore
+from core.shop import ShopStore
 
 
 def make_settings() -> SettingsStore:
@@ -56,7 +57,13 @@ class ShopPresentationTest(unittest.TestCase):
         callbacks = [row[0].callback_data for row in keyboard.inline_keyboard]
         self.assertEqual(
             callbacks,
-            ["shop_pack_500", "shop_pack_1500", "shop_pack_4000", "shop_cancel"],
+            [
+                "shop_pack_500",
+                "shop_pack_1500",
+                "shop_pack_4000",
+                "shop_home",
+                "shop_cancel",
+            ],
         )
         self.assertIn("10 000 söm", keyboard.inline_keyboard[0][0].text)
         self.assertIn("25 000 söm", keyboard.inline_keyboard[1][0].text)
@@ -174,6 +181,119 @@ class AdminHandlerTest(unittest.TestCase):
         self.assertEqual(message.bot.messages[0][0], 88002)
         self.assertIn("Yangi yangilik", message.bot.messages[0][1])
         self.assertIn("<b>1</b> ta yuborildi", message.answers[-1])
+
+
+class FakeCallback:
+    """Inline tugma bosilishini imitatsiya qiladi."""
+
+    def __init__(self, data: str, user_id: int = 88001) -> None:
+        self.data = data
+        self.from_user = SimpleNamespace(id=user_id, username="player")
+        self.message = None
+        self.bot = FakeBot()
+        self.answers: list[str] = []
+
+    async def answer(self, text: str | None = None, **kwargs) -> None:
+        self.answers.append(text or "")
+
+
+class MegaStoreTest(unittest.TestCase):
+    """Ikki bölumli do'kon, xarid va omad ğildiragi."""
+
+    def setUp(self) -> None:
+        self.env = patch.dict(
+            os.environ,
+            {
+                "BOT_TOKEN": "123456:TEST",
+                "ADMIN_ID": "424242",
+                "SUPABASE_URL": "",
+                "SUPABASE_KEY": "",
+            },
+        )
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.economy = get_economy()
+        self.store = ShopStore(economy=self.economy)
+        store_patch = patch.object(shop, "get_shop_store", return_value=self.store)
+        store_patch.start()
+        self.addCleanup(store_patch.stop)
+
+    def test_home_menu_has_two_sections(self) -> None:
+        keyboard = shop.shop_keyboard()
+        self.assertEqual(len(keyboard.inline_keyboard), 2)
+        self.assertIn("Tangalar xarid qiliş", keyboard.inline_keyboard[0][0].text)
+        self.assertIn("Buyumlar", keyboard.inline_keyboard[1][0].text)
+        self.assertEqual(keyboard.inline_keyboard[0][0].callback_data, "shopsection_pay")
+        self.assertEqual(keyboard.inline_keyboard[1][0].callback_data, "shopsection_items")
+        self.assertIn("Kerakli bölumni tanlang", shop.shop_text())
+
+    def test_items_menu_lists_every_section(self) -> None:
+        callbacks = [row[0].callback_data for row in shop.items_keyboard().inline_keyboard]
+        self.assertEqual(
+            callbacks,
+            [
+                "shopsec_SPIN",
+                "shopsec_COSMETIC",
+                "shopsec_BOOSTER",
+                "shopsec_CLAN",
+                "shopsec_TICKET",
+                "shop_home",
+            ],
+        )
+
+    def test_section_view_lists_prices_and_buy_buttons(self) -> None:
+        text = shop.section_text(88003, "COSMETIC")
+        self.assertIn("Kosmetika", text)
+        self.assertIn("Oltin ramka", text)
+        self.assertIn("150 tanga", text)
+        self.assertIn("«Don Krestniy» unvoni", text)
+        callbacks = [
+            row[0].callback_data for row in shop.section_keyboard("COSMETIC").inline_keyboard
+        ]
+        self.assertIn("shopbuy_frame_gold", callbacks)
+        self.assertIn("shopbuy_title_don", callbacks)
+        self.assertEqual(callbacks[-1], "shopsection_items")
+
+    def test_spin_section_has_wheel_button(self) -> None:
+        callbacks = [
+            row[0].callback_data for row in shop.section_keyboard("SPIN").inline_keyboard
+        ]
+        self.assertIn("shopbuy_spin_extra", callbacks)
+        self.assertIn("shop_spin_wheel", callbacks)
+
+    def test_buy_button_spends_coins_and_adds_inventory(self) -> None:
+        self.economy.add_coins(88001, 400)
+        before = self.economy.get_user(88001).coins
+        callback = FakeCallback("shopbuy_frame_gold")
+
+        asyncio.run(shop.shop_buy_item(callback))
+
+        self.assertEqual(self.economy.get_user(88001).coins, before - 150)
+        self.assertEqual(self.store.entry(88001, "frame_gold").quantity, 1)
+        self.assertIn("sotib olindi", callback.answers[-1])
+        self.assertIn("tanga", callback.bot.messages[-1][1])
+        self.assertIn("Oltin ramka", callback.bot.messages[-1][1])
+
+    def test_buy_without_coins_shows_warning(self) -> None:
+        self.economy.spend_coins(88004, self.economy.get_user(88004).coins)
+        callback = FakeCallback("shopbuy_frame_neon", user_id=88004)
+
+        asyncio.run(shop.shop_buy_item(callback))
+
+        self.assertIn("yetarli tanga yöq", callback.answers[-1])
+        self.assertEqual(self.store.entry(88004, "frame_neon").quantity, 0)
+
+    def test_free_spin_reward_and_second_spin_costs_coins(self) -> None:
+        callback = FakeCallback("shop_spin_wheel", user_id=88005)
+        asyncio.run(shop.shop_spin_wheel(callback))
+        self.assertIn("🎰", callback.answers[-1])
+        self.assertIn("bepul aylantiriş", callback.answers[-1])
+
+        after_free = self.economy.get_user(88005).coins
+        asyncio.run(shop.shop_spin_wheel(callback))
+        # Ikkinchi aylantiriş bepul emas: 20 tanga yechiladi yoki çipta ketadi.
+        self.assertLessEqual(self.economy.get_user(88005).coins, after_free + 500)
+        self.assertFalse(self.store.spin_status(88005)["free"])
 
 
 if __name__ == "__main__":
