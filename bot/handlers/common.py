@@ -452,7 +452,7 @@ MAFIA_HELP_TEXT = (
     "çalgitadi.\n"
     "• 🕶 <b>Şantajçi</b> — bir öyinçini şantaj qiladi; u ertasi kuni ovoz "
     "bera olmaydi.\n\n"
-    "<b>Yolgizlar (2 ta rol):</b>\n"
+    "<b>Yolğizlar (2 ta rol):</b>\n"
     "• 🔪 <b>Maniak</b> — yolğiz qotil; tunda öldiradi va faqat özi "
     "ğalaba qozonişni istaydi.\n"
     "• 🃏 <b>Masxaraboz</b> — kunduzi ovoz bilan haydalsa öyinda ğalaba "
