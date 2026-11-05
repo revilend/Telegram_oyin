@@ -58,16 +58,16 @@ class ShopPresentationTest(unittest.TestCase):
             callbacks,
             ["shop_pack_500", "shop_pack_1500", "shop_pack_4000", "shop_cancel"],
         )
-        self.assertIn("10 000 so'm", keyboard.inline_keyboard[0][0].text)
-        self.assertIn("25 000 so'm", keyboard.inline_keyboard[1][0].text)
-        self.assertIn("60 000 so'm", keyboard.inline_keyboard[2][0].text)
+        self.assertIn("10 000 söm", keyboard.inline_keyboard[0][0].text)
+        self.assertIn("25 000 söm", keyboard.inline_keyboard[1][0].text)
+        self.assertIn("60 000 söm", keyboard.inline_keyboard[2][0].text)
 
     def test_payment_text_contains_card_and_price(self) -> None:
         text = shop.payment_text(1500, 25000)
         self.assertIn("9860 0000 0000 0000", text)
         self.assertIn("Falonchi Pistonchiyev", text)
-        self.assertIn("25 000 so'm", text)
-        self.assertIn("chek", text.lower())
+        self.assertIn("25 000 söm", text)
+        self.assertIn("çek", text.lower())
 
     def test_receipt_caption_and_review_buttons(self) -> None:
         payment = SimpleNamespace(

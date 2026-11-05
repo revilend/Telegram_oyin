@@ -36,21 +36,21 @@ logger = logging.getLogger(__name__)
 
 BOT_COMMANDS = [
     BotCommand(command="start", description="Revilend Games haqida"),
-    BotCommand(command="bunker", description="Yangi Bunker o'yini (guruhda)"),
-    BotCommand(command="newgame", description="Yangi Bunker o'yini (guruhda)"),
-    BotCommand(command="mafia", description="Yangi Mafiya o'yini (guruhda)"),
-    BotCommand(command="spy", description="Yangi Josus o'yini (guruhda)"),
-    BotCommand(command="alias", description="Yangi Alias o'yini (guruhda)"),
-    BotCommand(command="krokodil", description="Alias: so'zni toping (guruhda)"),
-    BotCommand(command="matchmaking", description="Global o'yin qidiruvi"),
-    BotCommand(command="games", description="O'yinlar ro'yxati"),
+    BotCommand(command="bunker", description="Yangi Bunker öyini (guruhda)"),
+    BotCommand(command="newgame", description="Yangi Bunker öyini (guruhda)"),
+    BotCommand(command="mafia", description="Yangi Mafiya öyini (guruhda)"),
+    BotCommand(command="spy", description="Yangi Josus öyini (guruhda)"),
+    BotCommand(command="alias", description="Yangi Alias öyini (guruhda)"),
+    BotCommand(command="krokodil", description="Alias: sözni toping (guruhda)"),
+    BotCommand(command="matchmaking", description="Global öyin qidiruvi"),
+    BotCommand(command="games", description="Öyinlar röyxati"),
     BotCommand(command="missions", description="Missiyalar va mukofotlar"),
-    BotCommand(command="rules", description="Barcha o'yinlar qoidalari"),
-    BotCommand(command="login", description="Mini App kirish kodi"),
-    BotCommand(command="shop", description="Tangalar xarid qilish"),
+    BotCommand(command="rules", description="Barça öyinlar qoidalari"),
+    BotCommand(command="login", description="Mini App kiriş kodi"),
+    BotCommand(command="shop", description="Tangalar xarid qiliş"),
     BotCommand(command="profile", description="Mening profilim"),
     BotCommand(command="top", description="Reyting va Top"),
-    BotCommand(command="cancel", description="Jarayonni bekor qilish"),
+    BotCommand(command="cancel", description="Jarayonni bekor qiliş"),
 ]
 
 
@@ -89,7 +89,7 @@ async def set_commands(bot: Bot) -> None:
     try:
         await bot.set_my_commands(BOT_COMMANDS)
     except Exception:  # tarmoq xatosi bot ishga tushishiga to'sqinlik qilmasin
-        logger.exception("Buyruqlar menyusini o'rnatib bo'lmadi")
+        logger.exception("Buyruqlar menyusini örnatib bölmadi")
 
 
 async def main() -> None:
@@ -108,7 +108,7 @@ async def main() -> None:
 
     try:
         await set_commands(bot)
-        logger.info("Bot @%s sifatida ishga tushmoqda", config.bot_username)
+        logger.info("Bot @%s sifatida işga tuşmoqda", config.bot_username)
         await dispatcher.start_polling(bot)
     finally:
         await bot.session.close()
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logger.info("Bot to'xtatildi")
+        logger.info("Bot töxtatildi")
     except RuntimeError as exc:
         print(f"Konfiguratsiya xatosi: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc

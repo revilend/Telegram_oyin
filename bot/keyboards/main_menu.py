@@ -17,15 +17,15 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from bot.config import get_config
 
 GAMES_BUTTON = "🎮 Mini App (Portal)"
-GAME_LIST_BUTTON = "🎲 O'yinlar ro'yxati"
-MATCHMAKING_BUTTON = "🌐 O'yin qidirish (Matchmaking)"
+GAME_LIST_BUTTON = "🎲 Öyinlar röyxati"
+MATCHMAKING_BUTTON = "🌐 Öyin qidiriş (Matchmaking)"
 MISSIONS_BUTTON = "🎯 Missiyalar"
-SHOP_BUTTON = "🪙 Tangalar do'koni"
+SHOP_BUTTON = "🪙 Tangalar dökoni"
 NEW_GAME_BUTTON = GAME_LIST_BUTTON
 PROFILE_BUTTON = "👤 Mening profilim"
 LEADERBOARD_BUTTON = "🏆 Reyting va Top"
 RULES_BUTTON = "ℹ️ Qoidalar / Yordam"
-INVITE_BUTTON = "👥 Do'stlarni taklif qilish"
+INVITE_BUTTON = "👥 Döstlarni taklif qiliş"
 BONUS_BUTTON = "🎁 Kunlik bonus"
 PROMO_BUTTON = "🎟 Promo kod"
 ADMIN_BUTTON = "👑 Admin panel"

@@ -82,14 +82,14 @@ class MainMenuKeyboardTest(MenuTestCase):
         markup = main_menu.build_main_menu()
         rows = [[button.text for button in row] for row in markup.keyboard]
         self.assertEqual(
-            rows[0], ["🎮 Mini App (Portal)", "🎲 O'yinlar ro'yxati"]
+            rows[0], ["🎮 Mini App (Portal)", "🎲 Öyinlar röyxati"]
         )
-        self.assertEqual(rows[1], ["🌐 O'yin qidirish (Matchmaking)"])
-        self.assertEqual(rows[2], ["🎯 Missiyalar", "🪙 Tangalar do'koni"])
+        self.assertEqual(rows[1], ["🌐 Öyin qidiriş (Matchmaking)"])
+        self.assertEqual(rows[2], ["🎯 Missiyalar", "🪙 Tangalar dökoni"])
         self.assertEqual(rows[3], ["🎁 Kunlik bonus", "🎟 Promo kod"])
         self.assertEqual(rows[4], ["👤 Mening profilim", "🏆 Reyting va Top"])
         self.assertEqual(
-            rows[5], ["ℹ️ Qoidalar / Yordam", "👥 Do'stlarni taklif qilish"]
+            rows[5], ["ℹ️ Qoidalar / Yordam", "👥 Döstlarni taklif qiliş"]
         )
         self.assertEqual(len(rows), 6)
         self.assertTrue(markup.resize_keyboard)
@@ -193,7 +193,7 @@ class MenuHandlerTest(MenuTestCase):
         with patch.object(leaderboard, "get_economy", return_value=store):
             asyncio.run(leaderboard.show_leaderboard(message))
         answer = message.answers[-1]
-        self.assertIn("Hozircha reyting bo'sh", answer)
+        self.assertIn("Hozirça reyting böş", answer)
 
     def test_game_list_button_shows_every_game(self) -> None:
         message = FakeMessage(text=main_menu.GAME_LIST_BUTTON)
@@ -217,18 +217,35 @@ class MenuHandlerTest(MenuTestCase):
 
     def test_rules_sections_cover_all_games(self) -> None:
         message = FakeMessage(text=main_menu.RULES_BUTTON)
-        asyncio.run(menu.menu_rules(message))
+        asyncio.run(common.menu_rules(message))
         text = message.answers[-1]
         keyboard = message.markups[-1].inline_keyboard
         buttons = [button.text for row in keyboard for button in row]
         self.assertTrue(any("Bunker" in item for item in buttons))
         self.assertTrue(any("Mafiya" in item for item in buttons))
         self.assertTrue(any("Josus" in item for item in buttons))
+        self.assertTrue(any("Alias" in item for item in buttons))
+        self.assertTrue(any("Tangalar" in item for item in buttons))
+        self.assertEqual(
+            [button.callback_data for row in keyboard for button in row],
+            [
+                common.RULES_BUNKER,
+                common.RULES_MAFIA,
+                common.RULES_SPY,
+                common.RULES_ALIAS,
+                common.RULES_ECONOMY,
+            ],
+        )
         self.assertIn("Qoidalar", text)
 
     def test_rules_button_shows_rules(self) -> None:
         message = FakeMessage(text=main_menu.RULES_BUTTON)
-        asyncio.run(menu.menu_rules(message))
+        asyncio.run(common.menu_rules(message))
+        self.assertIn("Qoidalar", message.answers[-1])
+
+    def test_help_command_shows_rules_menu(self) -> None:
+        message = FakeMessage(text="/help")
+        asyncio.run(common.menu_rules(message))
         self.assertIn("Qoidalar", message.answers[-1])
 
     def test_start_falls_back_when_web_app_button_is_rejected(self) -> None:
@@ -256,12 +273,12 @@ class MenuHandlerTest(MenuTestCase):
             asyncio.run(menu.menu_games(message))
         markup = message.markups[-2]
         button = markup.inline_keyboard[0][0]
-        self.assertEqual(button.text, "🚀 O'yinlar portaliga kirish")
+        self.assertEqual(button.text, "🚀 Öyinlar portaliga kiriş")
         self.assertIn("uid=424242", button.web_app.url)
         # Mini App initData'siz ochilsa ham kiradigan kod yuboriladi.
-        self.assertIn("Kirish kodingiz", message.answers[-1])
+        self.assertIn("Kiriş kodingiz", message.answers[-1])
         login_button = message.markups[-1].inline_keyboard[0][0]
-        self.assertEqual(login_button.text, "🎮 Profilingiz bilan kirish")
+        self.assertEqual(login_button.text, "🎮 Profilingiz bilan kiriş")
         self.assertIn("uid=424242", login_button.web_app.url)
 
     def test_start_login_sends_code_and_automatic_button(self) -> None:
@@ -279,10 +296,10 @@ class MenuHandlerTest(MenuTestCase):
                 common.start_command(message, SimpleNamespace(args="login"))
             )
         answer = message.answers[-1]
-        self.assertIn("Profilingizga kirish tayyor", answer)
-        self.assertIn("Kirish kodingiz", answer)
+        self.assertIn("Profilingizga kiriş tayyor", answer)
+        self.assertIn("Kiriş kodingiz", answer)
         button = message.markups[-1].inline_keyboard[0][0]
-        self.assertEqual(button.text, "🎮 Profilingiz bilan kirish")
+        self.assertEqual(button.text, "🎮 Profilingiz bilan kiriş")
         self.assertIn("uid=424250", button.web_app.url)
         self.assertTrue(store.has_user(424250))
 
@@ -298,9 +315,9 @@ class MenuHandlerTest(MenuTestCase):
             common, "get_economy", return_value=store
         ), patch.object(main_menu, "get_config", return_value=config):
             asyncio.run(common.login_command(message))
-        self.assertIn("Kirish kodingiz", message.answers[-1])
+        self.assertIn("Kiriş kodingiz", message.answers[-1])
         button = message.markups[-1].inline_keyboard[0][0]
-        self.assertEqual(button.text, "🎮 Profilingiz bilan kirish")
+        self.assertEqual(button.text, "🎮 Profilingiz bilan kiriş")
         self.assertIn("uid=424251", button.web_app.url)
 
     def test_admin_button_opens_panel_for_admin(self) -> None:

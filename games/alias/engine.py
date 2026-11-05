@@ -27,6 +27,13 @@ MAX_PLAYERS = 20
 ROUND_SECONDS = 60
 GUESS_REWARD = 10
 EXPLAINER_REWARD = 5
+WINNER_REWARD = 25
+
+# Har bir ishtirokchi necha marta so'z tushuntiradi: o'yin cheksiz aylanmaydi.
+ROUNDS_PER_PLAYER = 2
+
+# Ketma-ket shuncha raundda hech kim so'zni topmasa, o'yin avtomatik to'xtaydi.
+INACTIVE_ROUNDS_LIMIT = 2
 
 CODE_PREFIX = "ALS"
 CODE_DIGITS = 3
@@ -256,6 +263,26 @@ class AliasRoom:
     last_explainer_id: int | None = None
     created_at: float = field(default_factory=time.time)
     lobby_message_id: int | None = None
+    # Har bir o'yinchi necha marta tushuntirgani va ketma-ket o'tkazib
+    # yuborilgan (hech kim topmagan) raundlar soni.
+    explainer_counts: dict[int, int] = field(default_factory=dict)
+    consecutive_misses: int = 0
+    stop_reason: str = ""
+
+    @property
+    def total_rounds(self) -> int:
+        """O'yin uchun rejalashtirilgan raundlar soni."""
+        return max(1, len(self.players)) * ROUNDS_PER_PLAYER
+
+    @property
+    def rounds_left(self) -> int:
+        """Qolgan raundlar soni."""
+        return max(0, self.total_rounds - self.rounds_played)
+
+    @property
+    def is_complete(self) -> bool:
+        """Barcha rejalashtirilgan raundlar o'ynaldimi?"""
+        return self.rounds_played >= self.total_rounds
 
     # ------------------------------------------------------------------
     # O'yinchilar
@@ -292,14 +319,20 @@ class AliasRoom:
     # Raundlar
     # ------------------------------------------------------------------
     def choose_explainer(self, rng: random.Random) -> int:
-        """Tasodifiy tushuntiruvchini tanlaydi (ketma-ket takrorlamaydi)."""
-        candidates = [
-            uid
-            for uid in self.players
-            if len(self.players) == 1 or uid != self.last_explainer_id
-        ]
+        """Eng kam tushuntirgan o'yinchini tanlaydi.
+
+        Har bir ishtirokchi teng (2 martadan) tushuntirishi uchun avval
+        eng kam tushuntirganlar orasidan tanlanadi; iloji bo'lsa oldingi
+        tushuntiruvchi ketma-ket takrorlanmaydi.
+        """
+        counts = {uid: self.explainer_counts.get(uid, 0) for uid in self.players}
+        minimum = min(counts.values())
+        candidates = [uid for uid, count in counts.items() if count == minimum]
+        if len(candidates) > 1 and self.last_explainer_id in candidates:
+            candidates = [uid for uid in candidates if uid != self.last_explainer_id]
         explainer = rng.choice(candidates or list(self.players))
         self.last_explainer_id = explainer
+        self.explainer_counts[explainer] = counts.get(explainer, 0) + 1
         return explainer
 
     def start_round(
@@ -318,6 +351,8 @@ class AliasRoom:
             )
         if self.status is AliasStatus.FINISHED:
             raise AliasError("Bu xonada o'yin tugagan")
+        if self.is_complete:
+            raise AliasError("Barcha raundlar o'ynaldi")
         moment = time.time() if now is None else now
         word = wordbook.pick(rng, self.used_words)
         self.used_words.add(normalize_word(word.word))
@@ -364,6 +399,7 @@ class AliasRoom:
             return None
         current.finished = True
         current.winner_id = uid
+        self.consecutive_misses = 0
         self.player(uid).score += 1
         return AliasGuessResult(
             correct=True,
@@ -382,6 +418,7 @@ class AliasRoom:
             return False
         current.finished = True
         current.timed_out = True
+        self.consecutive_misses += 1
         return True
 
     def abort_round(self) -> None:
@@ -391,12 +428,29 @@ class AliasRoom:
             return
         current.finished = True
         current.timed_out = True
+        self.consecutive_misses += 1
 
-    def finish(self) -> None:
+    def should_stop_for_inactivity(self) -> bool:
+        """Ketma-ket raundlarda faollik bo'lmaganini bildiradi."""
+        return self.consecutive_misses >= INACTIVE_ROUNDS_LIMIT
+
+    def finish(self, reason: str = "completed") -> None:
         """O'yinni yakunlaydi."""
         self.status = AliasStatus.FINISHED
+        self.stop_reason = reason
         if self.current_round is not None:
             self.current_round.finished = True
+
+    def winners(self) -> list[AliasPlayer]:
+        """Eng ko'p ochko to'plagan g'olib(lar); ochko bo'lmasa — bo'sh."""
+        if not self.players:
+            return []
+        best = max(player.score for player in self.players.values())
+        if best <= 0:
+            return []
+        return [
+            player for player in self.leaderboard() if player.score == best
+        ]
 
     def leaderboard(self) -> list[AliasPlayer]:
         """Ochkolar bo'yicha saralangan o'yinchilar."""

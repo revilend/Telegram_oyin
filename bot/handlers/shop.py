@@ -52,24 +52,24 @@ def packages_keyboard() -> InlineKeyboardMarkup:
     rows = [
         [
             InlineKeyboardButton(
-                text=f"{format_price(coins)} tanga — {format_price(price)} so'm",
+                text=f"{format_price(coins)} tanga — {format_price(price)} söm",
                 callback_data=f"{PACK_PREFIX}{coins}",
             )
         ]
         for coins, price in COIN_PACKAGES.items()
     ]
-    rows.append([InlineKeyboardButton(text="❌ Bekor qilish", callback_data=CANCEL_CALLBACK)])
+    rows.append([InlineKeyboardButton(text="❌ Bekor qiliş", callback_data=CANCEL_CALLBACK)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def shop_text() -> str:
     """Do'konning birinchi xabari."""
     return (
-        "🪙 <b>Tangalar do'koni</b>\n\n"
-        "Tangalar Mini App'da boosterlar uchun ishlatiladi.\n"
+        "🪙 <b>Tangalar dökoni</b>\n\n"
+        "Tangalar Mini App'da boosterlar uçun işlatiladi.\n"
         "Kerakli paketni tanlang:\n\n"
         + "\n".join(
-            f"• <b>{format_price(coins)} tanga</b> — {format_price(price)} so'm"
+            f"• <b>{format_price(coins)} tanga</b> — {format_price(price)} söm"
             for coins, price in COIN_PACKAGES.items()
         )
     )
@@ -79,24 +79,24 @@ def payment_text(coins: int, price: int) -> str:
     """Karta ma'lumotlari (``system_settings``dan) va chek yuborish ko'rsatmasi."""
     number, holder = get_settings_store().payment_card()
     return (
-        "💳 <b>To'lov uchun karta</b>\n"
+        "💳 <b>Tölov uçun karta</b>\n"
         f"<code>{escape(format_card_number(number) or 'Karta kiritilmagan')}</code>"
         f" ({escape(holder or 'Karta egasi kiritilmagan')})\n"
-        f"Summa: <b>{format_price(price)} so'm</b>\n\n"
-        "To'lovni amalga oshirgach, chek (skrinshot) rasmini shu yerga yuboring!"
+        f"Summa: <b>{format_price(price)} söm</b>\n\n"
+        "Tölovni amalga oşirgaç, çek (skrinşot) rasmini şu yerga yuboring!"
     )
 
 
 def receipt_caption(payment, username: str, full_name: str) -> str:
     """Admin ko'radigan chek izohi."""
     return (
-        "🧾 <b>Yangi to'lov cheki</b>\n\n"
+        "🧾 <b>Yangi tölov çeki</b>\n\n"
         f"👤 {escape(full_name or 'Ismsiz')}"
-        f" (@{escape(username) if username else 'username yo‘q'})\n"
+        f" (@{escape(username) if username else 'username yöq'})\n"
         f"🆔 <code>{payment.user_id}</code>\n"
         f"🪙 {format_price(payment.package_coins)} tanga\n"
-        f"💵 {format_price(payment.price_uzs)} so'm\n"
-        f"🔖 Chek: <code>{payment.id}</code>"
+        f"💵 {format_price(payment.price_uzs)} söm\n"
+        f"🔖 Çek: <code>{payment.id}</code>"
     )
 
 
@@ -105,10 +105,10 @@ def review_keyboard(request_id: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✅ Tasdiqlash", callback_data=f"{PAY_OK_PREFIX}{request_id}"
+                    text="✅ Tasdiqlaş", callback_data=f"{PAY_OK_PREFIX}{request_id}"
                 ),
                 InlineKeyboardButton(
-                    text="❌ Rad etish", callback_data=f"{PAY_NO_PREFIX}{request_id}"
+                    text="❌ Rad etiş", callback_data=f"{PAY_NO_PREFIX}{request_id}"
                 ),
             ]
         ]
@@ -135,8 +135,8 @@ async def _begin_payment(event: Message | CallbackQuery, state: FSMContext, coin
 
     if not _shop_ready():
         text = (
-            "⚠️ To'lov hozircha sozlanmagan. Administrator «👑 Admin panel» → "
-            "«💳 Karta raqamini sozlash» orqali kartani kiritishi kerak."
+            "⚠️ Tölov hozirça sozlanmagan. Administrator «👑 Admin panel» → "
+            "«💳 Karta raqamini sozlaş» orqali kartani kiritişi kerak."
         )
         if isinstance(event, CallbackQuery):
             await event.answer(text, show_alert=True)
@@ -179,7 +179,7 @@ async def shop_command(message: Message, state: FSMContext) -> None:
 async def shop_group(message: Message) -> None:
     """Guruhda /shop — shaxsiy chatga yo'naltirish."""
     await message.answer(
-        "🪙 Tangalar do'koni shaxsiy chatda ishlaydi. Botga o'tib /shop yuboring."
+        "🪙 Tangalar dökoni şaxsiy çatda işlaydi. Botga ötib /shop yuboring."
     )
 
 
@@ -201,7 +201,7 @@ async def select_package(callback: CallbackQuery, state: FSMContext) -> None:
     try:
         coins = int(raw)
     except ValueError:
-        await callback.answer("Noto'g'ri paket.", show_alert=True)
+        await callback.answer("Notöğri paket.", show_alert=True)
         return
     await _begin_payment(callback, state, coins)
 
@@ -212,7 +212,7 @@ async def cancel_payment(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer("Bekor qilindi")
     if isinstance(callback.message, Message):
         try:
-            await callback.message.edit_text("❌ To'lov bekor qilindi.")
+            await callback.message.edit_text("❌ Tölov bekor qilindi.")
         except TelegramAPIError:
             pass
 
@@ -249,7 +249,7 @@ async def _send_receipt_to_admin(message: Message, payment) -> None:
             return
         except TelegramAPIError:
             logger.exception(
-                "Chekni rasm sifatida yuborib bo'lmadi: %s", payment.id
+                "Çekni rasm sifatida yuborib bölmadi: %s", payment.id
             )
     try:
         await message.bot.send_document(
@@ -261,7 +261,7 @@ async def _send_receipt_to_admin(message: Message, payment) -> None:
         return
     except TelegramAPIError:
         logger.exception(
-            "Chekni hujjat sifatida yuborib bo'lmadi: %s", payment.id
+            "Çekni hujjat sifatida yuborib bölmadi: %s", payment.id
         )
     # Oxirgi chora: fayl yuborilmasa ham chek matni va tasdiqlash tugmalari
     # adminga yetib boradi — chek hech qachon yo'qolmaydi.
@@ -282,13 +282,13 @@ async def receipt_file(message: Message, state: FSMContext) -> None:
         user = message.from_user
         if not coins or not file_id or user is None:
             await message.answer(
-                "⚠️ Paket aniqlanmadi. /shop orqali qaytadan boshlang."
+                "⚠️ Paket aniqlanmadi. /shop orqali qaytadan boşlang."
             )
             await state.clear()
             return
 
         if not get_config().admin_id:
-            await message.answer("⚠️ ADMIN_ID sozlanmagan, chekni yuborib bo'lmaydi.")
+            await message.answer("⚠️ ADMIN_ID sozlanmagan, çekni yuborib bölmaydi.")
             return
 
         payment = get_economy().create_payment(
@@ -299,26 +299,26 @@ async def receipt_file(message: Message, state: FSMContext) -> None:
             receipt_file_id=file_id,
         )
     except Exception:  # foydalanuvchi jim qolmasligi kerak
-        logger.exception("Chekni qayta ishlashda xatolik")
+        logger.exception("Çekni qayta işlaşda xatolik")
         # Texnik tafsilot (PGRST204 va h.k.) foydalanuvchiga ko'rsatilmaydi.
         await message.answer(
-            "⚠️ Chekni qabul qilishda vaqtincha xatolik yuz berdi. "
+            "⚠️ Çekni qabul qilişda vaqtinça xatolik yuz berdi. "
             "Iltimos, qayta yuboring yoki administratorga yozing."
         )
         return
 
     await state.clear()
     await message.answer(
-        "✅ Chekingiz qabul qilindi! Administrator tasdiqlashini kuting."
+        "✅ Çekingiz qabul qilindi! Administrator tasdiqlaşini kuting."
     )
 
     try:
         await _send_receipt_to_admin(message, payment)
     except Exception:
-        logger.exception("Chekni adminga yuborib bo'lmadi: %s", payment.id)
+        logger.exception("Çekni adminga yuborib bölmadi: %s", payment.id)
         await message.answer(
-            "⚠️ Chek saqlandi, ammo adminga yuborishda vaqtincha xatolik yuz berdi. "
-            "Administrator tez orada ko'rib chiqadi."
+            "⚠️ Çek saqlandi, ammo adminga yuborişda vaqtinça xatolik yuz berdi. "
+            "Administrator tez orada körib çiqadi."
         )
 
 
@@ -326,14 +326,14 @@ async def receipt_file(message: Message, state: FSMContext) -> None:
 async def receipt_expected(message: Message) -> None:
     """Matn kelsa, chekni rasm yoki fayl sifatida so'raydi."""
     await message.answer(
-        "📸 Iltimos, chekni rasm (skrinshot) yoki PDF fayl ko'rinishida "
-        "yuboring. Bekor qilish uchun /cancel yuboring."
+        "📸 Iltimos, çekni rasm (skrinşot) yoki PDF fayl körinişida "
+        "yuboring. Bekor qiliş uçun /cancel yuboring."
     )
 
 
 async def _review(callback: CallbackQuery, approve: bool) -> None:
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
         return
 
     prefix = PAY_OK_PREFIX if approve else PAY_NO_PREFIX
@@ -351,20 +351,20 @@ async def _review(callback: CallbackQuery, approve: bool) -> None:
 
     if approve:
         user_text = (
-            f"✅ To'lovingiz tasdiqlandi! Hisobingizga "
-            f"+{format_price(payment.package_coins)} tanga qo'shildi 🎉"
+            f"✅ Tölovingiz tasdiqlandi! Hisobingizga "
+            f"+{format_price(payment.package_coins)} tanga qöşildi 🎉"
         )
         admin_note = "✅ Tasdiqlandi"
     else:
         user_text = (
-            "❌ To'lovingiz rad etildi. Savollar bo'lsa administrator bilan "
-            "bog'laning."
+            "❌ Tölovingiz rad etildi. Savollar bölsa administrator bilan "
+            "boğlaning."
         )
         admin_note = "❌ Rad etildi"
 
     await callback.answer("Bajarildi")
     if isinstance(callback.message, Message):
-        old_caption = callback.message.caption or "🧾 To'lov cheki"
+        old_caption = callback.message.caption or "🧾 Tölov çeki"
         try:
             await callback.message.edit_caption(
                 caption=f"{old_caption}\n\n{admin_note}",
@@ -375,7 +375,7 @@ async def _review(callback: CallbackQuery, approve: bool) -> None:
     try:
         await callback.bot.send_message(payment.user_id, user_text)
     except TelegramAPIError:
-        logger.exception("To'lov natijasini o'yinchiga yuborib bo'lmadi: %s", payment.user_id)
+        logger.exception("Tölov natijasini öyinçiga yuborib bölmadi: %s", payment.user_id)
 
 
 @router.callback_query(F.data.startswith(PAY_OK_PREFIX))

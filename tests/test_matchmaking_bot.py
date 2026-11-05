@@ -80,7 +80,7 @@ class MatchmakingHandlerTest(unittest.TestCase):
         message = FakeMessage(text=matchmaking.MATCHMAKING_BUTTON)
         asyncio.run(matchmaking.matchmaking_menu(message))
         text, keyboard = message.answers[-1]
-        self.assertIn("Global o'yin qidiruvi", text)
+        self.assertIn("Global öyin qidiruvi", text)
         self.assertEqual(
             callback_data(keyboard),
             ["mm_game_bunker", "mm_game_mafia", "mm_game_alias"],
@@ -95,14 +95,14 @@ class MatchmakingHandlerTest(unittest.TestCase):
         join.assert_called_once_with(
             601, "bunker", name="Ali Valiyev", username="ali"
         )
-        self.assertEqual(callback.answered, ["Navbatga qo'shildingiz!"])
+        self.assertEqual(callback.answered, ["Navbatga qöşildingiz!"])
         text, keyboard = callback.bot.messages[-1][1:]
-        self.assertIn("Hozir navbatda: 1 kishi", text)
-        self.assertIn("Yana 4 kishi kerak", text)
+        self.assertIn("Hozir navbatda: 1 kişi", text)
+        self.assertIn("Yana 4 kişi kerak", text)
         data = callback_data(keyboard)
         self.assertIn("mm_leave_bunker", data)
         labels = [button.text for row in keyboard.inline_keyboard for button in row]
-        self.assertIn("❌ Qidiruvni bekor qilish", labels)
+        self.assertIn("❌ Qidiruvni bekor qiliş", labels)
 
     def test_choose_game_reports_ready_room_with_mini_app_url(self) -> None:
         callback = FakeCallback("mm_game_alias")
@@ -115,7 +115,7 @@ class MatchmakingHandlerTest(unittest.TestCase):
         text, keyboard = callback.bot.messages[-1][1:]
         self.assertIn("MAT7", text)
         button = keyboard.inline_keyboard[0][0]
-        self.assertEqual(button.text, "🎮 Xonaga kirish")
+        self.assertEqual(button.text, "🎮 Xonaga kiriş")
         self.assertEqual(button.url, "https://revilend.games?room=MAT7")
 
     def test_cancel_removes_player_from_queue(self) -> None:

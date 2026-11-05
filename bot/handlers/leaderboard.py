@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = Router(name="leaderboard")
 
 TOP_LIMIT = 10
-EMPTY_TEXT = "Hozircha reyting bo'sh. Birinchi bo'lib o'yin boshlang!"
+EMPTY_TEXT = "Hozirça reyting böş. Birinçi bölib öyin boşlang!"
 TITLE = "🏆 <b>Reyting va Top</b>"
 MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
 
@@ -41,14 +41,14 @@ def leaderboard_text(
         lines.append(
             f"{prefix} {escape(display_name(account))} — "
             f"<b>{format_price(player_rating(account))}</b> reyting · "
-            f"{safe_int(account.wins)} g'alaba"
+            f"{safe_int(account.wins)} ğalaba"
         )
 
     if me is not None:
         lines.append("")
         lines.append(
             f"📊 Sizning reytingingiz: <b>{format_price(player_rating(me))}</b> "
-            f"({me.wins} g'alaba, {me.games_played} o'yin)"
+            f"({me.wins} ğalaba, {me.games_played} öyin)"
         )
     return "\n".join(lines)
 

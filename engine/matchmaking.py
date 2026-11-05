@@ -35,10 +35,10 @@ GAME_TITLES = {
 
 # Navbat yig'ilganda o'yin boshlanishi uchun minimal o'yinchi soni.
 MIN_PLAYERS = {
-    "bunker": 4,
-    "mafia": 4,
+    "bunker": 5,
+    "mafia": 6,
     "spyfall": 3,
-    "alias": 2,
+    "alias": 3,
 }
 
 # Bitta navbatdan umumiy xonaga olinadigan maksimal o'yinchi soni.

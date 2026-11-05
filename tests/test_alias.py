@@ -161,6 +161,42 @@ class AliasEngineTest(unittest.TestCase):
         self.assertIsNotNone(third)
         self.assertFalse(third[1].correct)
 
+    def test_each_player_explains_twice_and_game_completes(self) -> None:
+        room = self._room(players=3)
+        self.manager.start_game(room.code, 1)
+        self.assertEqual(room.total_rounds, 6)
+        for _ in range(room.total_rounds - 1):
+            room = self.manager.next_round(room.code)
+        self.assertTrue(room.is_complete)
+        self.assertEqual(room.rounds_played, 6)
+        self.assertEqual(sorted(room.explainer_counts.values()), [2, 2, 2])
+        with self.assertRaises(AliasError):
+            self.manager.next_round(room.code)
+
+    def test_two_consecutive_misses_stop_the_game(self) -> None:
+        room = self._room(players=3)
+        self.manager.start_game(room.code, 1, now=1000.0)
+        current = room.current_round
+        self.assertIsNotNone(current)
+        room.expire_round(now=1000.0 + current.duration + 1)
+        self.assertFalse(room.should_stop_for_inactivity())
+        room = self.manager.next_round(room.code, now=1100.0)
+        room.abort_round()
+        self.assertTrue(room.should_stop_for_inactivity())
+
+    def test_correct_guess_resets_miss_counter(self) -> None:
+        room = self._room(players=3)
+        self.manager.start_game(room.code, 1, now=1000.0)
+        current = room.current_round
+        self.assertIsNotNone(current)
+        room.expire_round(now=1000.0 + current.duration + 1)
+        room = self.manager.next_round(room.code, now=1100.0)
+        current = room.current_round
+        self.assertIsNotNone(current)
+        guesser = next(uid for uid in room.players if uid != current.explainer_id)
+        room.submit_guess(guesser, current.word.word, now=1101.0)
+        self.assertEqual(room.consecutive_misses, 0)
+
     def test_round_expires_after_duration(self) -> None:
         room = self._room()
         self.manager.start_game(room.code, 1, now=1000.0)
@@ -301,7 +337,7 @@ class AliasHandlerTest(unittest.TestCase):
         asyncio.run(alias_group.start_alias_game(start))
         self.assertIs(start.message.bot.messages and True, True)
         texts = [text for _chat, text in start.bot.messages]
-        self.assertTrue(any("ALIAS O'YINI BOSHLANDI" in text for text in texts))
+        self.assertTrue(any("ALIAS ÖYINI BOŞLANDI" in text for text in texts))
         current = room.current_round
         self.assertIsNotNone(current)
         private = [
@@ -342,7 +378,7 @@ class AliasHandlerTest(unittest.TestCase):
         guess = FakeMessage(user_id=guesser, text=current.word.word)
         asyncio.run(alias_group.alias_guess_watcher(guess))
         self.assertTrue(guess.answers)
-        self.assertIn("To'g'ri javob", guess.answers[-1][0])
+        self.assertIn("Töğri javob", guess.answers[-1][0])
         self.assertEqual(self.economy.get_user(guesser).coins, 100 + 10)
         self.assertEqual(
             self.economy.get_user(current.explainer_id).coins, 100 + 5
@@ -357,6 +393,87 @@ class AliasHandlerTest(unittest.TestCase):
         message = FakeMessage(chat_id=-100999, text="Kitob")
         asyncio.run(alias_group.alias_guess_watcher(message))
         self.assertFalse(message.answers)
+
+    def _three_player_game(self):
+        room, _message = self._lobby()
+        for user_id, name in ((702, "Vali"), (703, "Zilola")):
+            asyncio.run(
+                alias_group.join_alias_game(
+                    FakeCallback(
+                        f"alias_join_{room.code}", user_id=user_id, name=name
+                    )
+                )
+            )
+        self.manager.start_game(room.code, 701)
+        return room
+
+    def test_completed_game_awards_winner_and_closes_room(self) -> None:
+        room = self._three_player_game()
+        room.players[702].score = 3
+        bot = FakeBot()
+
+        asyncio.run(alias_group._stop_game(bot, room, reason="completed"))
+
+        self.assertEqual(room.status.value, "FINISHED")
+        self.assertEqual(
+            self.economy.get_user(702).coins,
+            100 + alias_group.WINNER_REWARD,
+        )
+        self.assertEqual(self.economy.get_user(703).coins, 100)
+        self.assertIsNone(self.manager.room_by_chat(room.chat_id))
+        self.assertTrue(
+            any("Ğolib" in text for _chat_id, text in bot.messages), bot.messages
+        )
+
+    def test_inactive_game_closes_room_with_message(self) -> None:
+        room = self._three_player_game()
+        room.consecutive_misses = 2
+        bot = FakeBot()
+
+        asyncio.run(alias_group._stop_game(bot, room, reason="inactive"))
+
+        self.assertEqual(room.status.value, "FINISHED")
+        self.assertEqual(bot.messages[-1][1], alias_group.INACTIVE_TEXT)
+        self.assertIn("Guruhda faollik bölmagani sababli", bot.messages[-1][1])
+        self.assertIsNone(self.manager.room_by_chat(room.chat_id))
+
+    def test_host_stop_command_ends_game(self) -> None:
+        room = self._three_player_game()
+        message = FakeMessage(text="/stop")
+
+        with patch.object(alias_group, "is_admin", return_value=False):
+            asyncio.run(alias_group.stop_alias_command(message))
+
+        self.assertEqual(room.status.value, "FINISHED")
+        self.assertIsNone(self.manager.room_by_chat(room.chat_id))
+        self.assertTrue(message.bot.messages)
+
+    def test_non_host_stop_command_is_rejected(self) -> None:
+        room = self._three_player_game()
+        message = FakeMessage(user_id=702, text="/stopalias")
+
+        with patch.object(alias_group, "is_admin", return_value=False):
+            asyncio.run(alias_group.stop_alias_command(message))
+
+        self.assertEqual(room.status.value, "PLAYING")
+        self.assertTrue(
+            any("faqat xona egasi" in text for _chat_id, text in message.bot.messages)
+        )
+
+    def test_cancel_in_group_stops_active_alias(self) -> None:
+        from bot.handlers import common
+
+        room = self._three_player_game()
+
+        class State:
+            async def clear(self) -> None:
+                return None
+
+        message = FakeMessage(text="/cancel")
+        asyncio.run(common.cancel_process(message, State()))
+
+        self.assertEqual(room.status.value, "FINISHED")
+        self.assertIsNone(self.manager.room_by_chat(room.chat_id))
 
     def test_catalog_has_alias_button(self) -> None:
         markup = games_catalog.catalog_keyboard()

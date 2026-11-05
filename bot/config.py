@@ -48,19 +48,19 @@ def get_config() -> Config:
     token = (os.getenv("BOT_TOKEN") or "").strip()
     if not token:
         raise RuntimeError(
-            "BOT_TOKEN topilmadi. Uni .env faylga qo'shing: BOT_TOKEN=123456:ABC..."
+            "BOT_TOKEN topilmadi. Uni .env faylga qöşing: BOT_TOKEN=123456:ABC..."
         )
 
     username = (os.getenv("BOT_USERNAME") or DEFAULT_BOT_USERNAME).strip().lstrip("@")
     mini_app_url = (os.getenv("MINI_APP_URL") or DEFAULT_MINI_APP_URL).strip().rstrip("/")
     if not mini_app_url.startswith(("https://", "http://")):
-        raise RuntimeError("MINI_APP_URL http:// yoki https:// bilan boshlanishi kerak")
+        raise RuntimeError("MINI_APP_URL http:// yoki https:// bilan boşlanişi kerak")
 
     raw_admin_id = (os.getenv("ADMIN_ID") or "0").strip()
     try:
         admin_id = int(raw_admin_id or 0)
     except ValueError as exc:
-        raise RuntimeError("ADMIN_ID butun son bo'lishi kerak") from exc
+        raise RuntimeError("ADMIN_ID butun son bölişi kerak") from exc
 
     return Config(
         bot_token=token,

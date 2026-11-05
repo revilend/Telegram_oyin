@@ -342,10 +342,10 @@ class ReceiptHandlerTest(unittest.TestCase):
         photo = message.bot.photos[0]
         self.assertEqual(photo["chat_id"], 424242)
         self.assertEqual(photo["photo"], "receipt-photo")
-        self.assertIn("Yangi to'lov cheki", photo["caption"])
+        self.assertIn("Yangi tölov çeki", photo["caption"])
         buttons = photo["reply_markup"].inline_keyboard[0]
-        self.assertEqual(buttons[0].text, "✅ Tasdiqlash")
-        self.assertEqual(buttons[1].text, "❌ Rad etish")
+        self.assertEqual(buttons[0].text, "✅ Tasdiqlaş")
+        self.assertEqual(buttons[1].text, "❌ Rad etiş")
         self.assertTrue(buttons[0].callback_data.startswith("pay_ok_"))
 
     def test_receipt_is_saved_when_payment_table_write_fails(self) -> None:
@@ -381,7 +381,7 @@ class ReceiptHandlerTest(unittest.TestCase):
         answer = message.answers[0]
         self.assertNotIn("PGRST204", answer)
         self.assertNotIn("updated_at", answer)
-        self.assertIn("vaqtincha xatolik", answer)
+        self.assertIn("vaqtinça xatolik", answer)
 
 
 if __name__ == "__main__":

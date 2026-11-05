@@ -74,7 +74,7 @@ class SettingsStoreTest(unittest.TestCase):
             text = shop.payment_text(500, 10_000)
         self.assertIn("9860 1234 5678 9012", text)
         self.assertIn("Ali Valiyev", text)
-        self.assertIn("10 000 so'm", text)
+        self.assertIn("10 000 söm", text)
 
 
 if __name__ == "__main__":

@@ -235,15 +235,15 @@ class GroupCommandTest(unittest.IsolatedAsyncioTestCase):
             "join_mafia_"
         )
         self.assertRegex(code, r"^MAF\d{3}$")
-        self.assertIn("MAFIYA O'YINI BOSHLANMOQDA", text)
-        self.assertIn("jami 1 kishi", text)
+        self.assertIn("MAFIYA ÖYINI BOŞLANMOQDA", text)
+        self.assertIn("jami 1 kişi", text)
         self.assertIn("Ali Valiyev", text)
 
         self.assertEqual(len(message.photos), 1)
         self.assertTrue(message.photos[0][0].endswith("cover.png"))
         self.assertEqual(len(keyboard.inline_keyboard), 3)
         join_button = keyboard.inline_keyboard[0][0]
-        self.assertEqual(join_button.text, "🚪 Mafiyaga kirish")
+        self.assertEqual(join_button.text, "🚪 Mafiyaga kiriş")
         self.assertEqual(
             join_button.url,
             f"https://t.me/{BOT_USERNAME}?startapp=mafia_{code}",
@@ -264,7 +264,7 @@ class GroupCommandTest(unittest.IsolatedAsyncioTestCase):
         text, keyboard = message.answers[0]
         self.assertIn("faqat guruhda", text)
         self.assertIn("/mafia", text)
-        self.assertIn(f"{MIN_PLAYERS} kishi", text)
+        self.assertIn(f"{MIN_PLAYERS} kişi", text)
         self.assertIn("startgroup=true", keyboard.inline_keyboard[0][0].url)
 
     async def test_join_updates_announcement(self) -> None:
@@ -276,9 +276,9 @@ class GroupCommandTest(unittest.IsolatedAsyncioTestCase):
         await mafia_group.join_mafia_game(callback)
 
         self.assertIn(502, game.room.players)
-        self.assertEqual(callback.answers[-1][0], "Mafiyaga qo'shildingiz!")
+        self.assertEqual(callback.answers[-1][0], "Mafiyaga qöşildingiz!")
         self.assertTrue(message.edits)
-        self.assertIn("(jami 2 kishi)", message.edits[-1][0])
+        self.assertIn("(jami 2 kişi)", message.edits[-1][0])
         self.assertEqual(len(message.edits[-1][1].inline_keyboard), 3)
 
     async def test_join_errors_are_shown_as_alerts(self) -> None:
@@ -319,15 +319,15 @@ class StartGameHandlerTest(unittest.IsolatedAsyncioTestCase):
         await mafia_group.start_mafia_game(callback)
 
         self.assertIs(game.room.phase, GamePhase.NIGHT)
-        self.assertEqual(callback.answers[-1][0], "O'yin boshlandi!")
+        self.assertEqual(callback.answers[-1][0], "Öyin boşlandi!")
         self.assertTrue(message.edits)
-        self.assertIn("BOSHLANDI", message.edits[0][0])
+        self.assertIn("BOŞLANDI", message.edits[0][0])
         self.assertIsNotNone(game.phase_deadline)
         self.assertGreater(game.phase_seconds_left(), 50)
 
         group_texts = message.bot.texts_for(game.chat_id)
         self.assertTrue(
-            any("SHAHARGA TUN CHO'KDI" in text for text in group_texts)
+            any("ŞAHARGA TUN ÇÖKDI" in text for text in group_texts)
         )
         role_dms = {
             chat_id
@@ -339,12 +339,12 @@ class StartGameHandlerTest(unittest.IsolatedAsyncioTestCase):
         night_message = next(
             item
             for item in message.bot.messages
-            if "SHAHARGA TUN CHO'KDI" in item[1]
+            if "ŞAHARGA TUN ÇÖKDI" in item[1]
         )
         night_photo = next(
             item
             for item in message.bot.photos
-            if "SHAHARGA TUN CHO'KDI" in item[2]
+            if "ŞAHARGA TUN ÇÖKDI" in item[2]
         )
         self.assertTrue(night_photo[1].endswith("night.png"))
         keyboard = night_message[2]
@@ -385,7 +385,7 @@ class StartGameHandlerTest(unittest.IsolatedAsyncioTestCase):
         await mafia_group.start_mafia_game(callback)
 
         group_texts = bot.texts_for(game.chat_id)
-        self.assertTrue(any("shaxsiy" in text for text in group_texts))
+        self.assertTrue(any("şaxsiy" in text for text in group_texts))
         self.assertTrue(any("P504" in text for text in group_texts))
 
 
@@ -402,12 +402,12 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
         )
 
         lobby = mafia_group.lobby_text(game)
-        self.assertIn("MAFIYA O'YINI BOSHLANMOQDA", lobby)
+        self.assertIn("MAFIYA ÖYINI BOŞLANMOQDA", lobby)
         self.assertIn("@ali", lobby)
-        self.assertIn("jami 4 kishi", lobby)
+        self.assertIn("jami 4 kişi", lobby)
 
         night = mafia_group.night_text(game)
-        self.assertIn("SHAHARGA TUN CHO'KDI", night)
+        self.assertIn("ŞAHARGA TUN ÇÖKDI", night)
 
         execution = mafia_group.execution_text(game, game.room.get_player(1))
         self.assertIn("@ali", execution)
@@ -432,7 +432,7 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
         )
         resolve_night(peaceful.room)
         self.assertIn(
-            "Tunda hech kim halok bo'lmadi.",
+            "Tunda heç kim halok bölmadi.",
             mafia_group.day_text(peaceful),
         )
 
@@ -447,7 +447,7 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
         deadly.room.submit_night_action(1, 3)
         resolve_night(deadly.room)
         text = mafia_group.day_text(deadly)
-        self.assertIn("Tunda halok bo'ldilar: P3.", text)
+        self.assertIn("Tunda halok böldilar: P3.", text)
         self.assertIn("TONG OTDI", text)
 
     async def test_day_announcement_includes_finish_when_game_is_over(self) -> None:
@@ -469,24 +469,24 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
         texts = bot.texts_for(game.chat_id)
         self.assertEqual(len(texts), 2)
         self.assertIn("TONG OTDI", texts[0])
-        self.assertIn("MAFIYA g'alaba qozondi", texts[1])
+        self.assertIn("MAFIYA ğalaba qozondi", texts[1])
         self.assertTrue(bot.photos[0][1].endswith("day.png"))
         self.assertTrue(bot.photos[1][1].endswith("mafia_victory.png"))
 
         vote_button = bot.messages[0][2].inline_keyboard[0][0]
-        self.assertEqual(vote_button.text, "🗳 Ovoz berish")
+        self.assertEqual(vote_button.text, "🗳 Ovoz beriş")
         self.assertIn(f"startapp=mafia_{game.code}", vote_button.url)
 
     async def test_finish_labels(self) -> None:
         expected = {
-            Winner.TOWN: "SHAHAR",
+            Winner.TOWN: "ŞAHAR",
             Winner.MAFIA: "MAFIYA",
             Winner.MANIAC: "MANIAK",
             Winner.JESTER: "JESTER",
         }
         for winner, label in expected.items():
             text = mafia_group.finish_text(winner)
-            self.assertIn("O'YIN YAKUNLANDI", text)
+            self.assertIn("ÖYIN YAKUNLANDI", text)
             self.assertIn(label, text)
 
     async def test_role_card_contains_role_and_action(self) -> None:
@@ -500,7 +500,7 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
         )
         text = mafia_group.role_text(game, game.room.get_player(1))
         self.assertIn("Sherif", text)
-        self.assertIn("Shahar aholisi", text)
+        self.assertIn("Şahar aholisi", text)
         self.assertIn("Tunda harakat qilasiz", text)
         self.assertIn(game.code, text)
 
@@ -651,11 +651,11 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_games_button_opens_catalog(self) -> None:
-        message = FakeMessage(text="🎲 O'yinlar ro'yxati")
+        message = FakeMessage(text="🎲 Öyinlar röyxati")
 
         await games_catalog.games_command(message)
 
-        self.assertIn("O'yinlar", message.answers[0][0])
+        self.assertIn("Öyinlar", message.answers[0][0])
 
     async def test_bunker_and_mafia_details_show_group_instructions(self) -> None:
         bunker_callback = FakeCallback(1, games_catalog.BUNKER_CALLBACK)
@@ -671,7 +671,7 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
         await games_catalog.show_mafia(mafia_callback)
         mafia_text = mafia_callback.message.edits[0][0]
         self.assertIn("/mafia", mafia_text)
-        self.assertIn("4 kishi", mafia_text)
+        self.assertIn("4 kişi", mafia_text)
 
     async def test_back_returns_to_catalog(self) -> None:
         callback = FakeCallback(1, games_catalog.BACK_CALLBACK)
@@ -679,7 +679,7 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
         await games_catalog.back_to_catalog(callback)
 
         text, keyboard = callback.message.edits[0]
-        self.assertIn("O'yinlar ro'yxati", text)
+        self.assertIn("Öyinlar röyxati", text)
         self.assertEqual(len(keyboard.inline_keyboard), 5)
         labels = [row[0].text for row in keyboard.inline_keyboard]
         self.assertTrue(any("Alias" in label for label in labels))

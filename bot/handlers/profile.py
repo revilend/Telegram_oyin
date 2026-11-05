@@ -63,10 +63,10 @@ def profile_text(account: UserAccount) -> str:
         f"🔗 Username: {username}\n"
         f"🆔 ID: <code>{account.user_id}</code>\n"
         f"🪙 Tangalar: <b>{format_price(coins)}</b>\n"
-        f"🎮 O'ynalgan o'yinlar: <b>{games}</b> | "
-        f"🥇 G'alabalar: <b>{wins}</b>\n"
-        f"🛡️ Bunker: <b>{bunker_wins}</b> g'alaba | "
-        f"🕵️ Mafiya: <b>{mafia_wins}</b> g'alaba\n"
+        f"🎮 Öynalgan öyinlar: <b>{games}</b> | "
+        f"🥇 Ğalabalar: <b>{wins}</b>\n"
+        f"🛡️ Bunker: <b>{bunker_wins}</b> ğalaba | "
+        f"🕵️ Mafiya: <b>{mafia_wins}</b> ğalaba\n"
         f"🏆 Reyting: <b>{format_price(player_rating(account))}</b>"
     )
 
@@ -97,7 +97,7 @@ async def show_profile(message: Message) -> None:
     text = profile_text(account)
     if account.coins == START_COINS and account.games_played == 0:
         text += (
-            f"\n\n🎁 Ro'yxatdan o'tganingiz uchun <b>{START_COINS}</b> bepul "
+            f"\n\n🎁 Röyxatdan ötganingiz uçun <b>{START_COINS}</b> bepul "
             "tanga berildi!"
         )
     await message.answer(text)

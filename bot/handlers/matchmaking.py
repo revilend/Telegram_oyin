@@ -44,9 +44,9 @@ CANCEL_CALLBACK = "mm_leave"
 HOME_CALLBACK = "mm_home"
 
 CHOOSE_TEXT = (
-    "🌐 <b>Global o'yin qidiruvi</b>\n\n"
-    "Qaysi o'yin uchun sherik qidirasiz? Navbat to'lishi bilan barcha "
-    "ishtirokchilarga xona havolasi yuboriladi."
+    "🌐 <b>Global öyin qidiruvi</b>\n\n"
+    "Qaysi öyin uçun şerik qidirasiz? Navbat tölişi bilan barça "
+    "iştirokçilarga xona havolasi yuboriladi."
 )
 
 GAME_LABELS = {
@@ -75,13 +75,13 @@ def cancel_keyboard(kind: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="❌ Qidiruvni bekor qilish",
+                    text="❌ Qidiruvni bekor qiliş",
                     callback_data=f"{CANCEL_CALLBACK}_{kind}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="◀️ Boshqa o'yin", callback_data=HOME_CALLBACK
+                    text="◀️ Boşqa öyin", callback_data=HOME_CALLBACK
                 )
             ],
         ]
@@ -93,7 +93,7 @@ def mini_app_room_url(code: str) -> str:
     try:
         return get_config().mini_app_link(code)
     except Exception:  # token yo'q muhitda ham havola kerak bo'ladi
-        logger.debug("MINI_APP_URL konfiguratsiyasini olib bo'lmadi", exc_info=True)
+        logger.debug("MINI_APP_URL konfiguratsiyasini olib bölmadi", exc_info=True)
         return ""
 
 
@@ -101,37 +101,37 @@ def match_keyboard(match: dict[str, Any]) -> InlineKeyboardMarkup:
     """Tayyor xonaga kirish tugmasi."""
     code = str(match.get("code") or "")
     url = mini_app_room_url(code) or str(match.get("join_url") or "")
-    row = [InlineKeyboardButton(text="🎮 Xonaga kirish", url=url)]
+    row = [InlineKeyboardButton(text="🎮 Xonaga kiriş", url=url)]
     return InlineKeyboardMarkup(inline_keyboard=[row])
 
 
 def match_text(match: dict[str, Any]) -> str:
     """Navbat to'lganda yuboriladigan xabar matni."""
-    title = GAME_TITLES.get(str(match.get("game_type") or ""), "O'yin")
+    title = GAME_TITLES.get(str(match.get("game_type") or ""), "Öyin")
     code = str(match.get("code") or "")
     players = int(match.get("players") or 0)
     return (
-        f"✅ <b>{title}: jamoa yig'ildi!</b>\n\n"
+        f"✅ <b>{title}: jamoa yiğildi!</b>\n\n"
         f"Xona kodi: <code>{code}</code>\n"
-        f"O'yinchilar: {players} kishi\n\n"
-        "Havola orqali darhol qo'shiling."
+        f"Öyinçilar: {players} kişi\n\n"
+        "Havola orqali darhol qöşiling."
     )
 
 
 def queue_text(kind: str, result: dict[str, Any]) -> str:
     """Navbatga qo'shilgan foydalanuvchiga ko'rsatiladigan holat."""
-    title = GAME_TITLES.get(kind, "O'yin")
+    title = GAME_TITLES.get(kind, "Öyin")
     count = int(result.get("count") or 0)
     need = int(result.get("need") or 0)
     minimum = int(MIN_PLAYERS.get(kind, 0))
     text = (
-        f"⏳ Navbatga qo'shildingiz! Odamlar yig'ilishi bilan xabar beramiz "
-        f"(Hozir navbatda: {count} kishi)...\n\n"
-        f"🎮 O'yin: <b>{title}</b>\n"
-        f"Kerakli o'yinchi: {minimum} kishi"
+        f"⏳ Navbatga qöşildingiz! Odamlar yiğilişi bilan xabar beramiz "
+        f"(Hozir navbatda: {count} kişi)...\n\n"
+        f"🎮 Öyin: <b>{title}</b>\n"
+        f"Kerakli öyinçi: {minimum} kişi"
     )
     if need > 0:
-        text += f"\nYana {need} kishi kerak."
+        text += f"\nYana {need} kişi kerak."
     return text
 
 
@@ -163,7 +163,7 @@ async def send_match_notices(
         try:
             await bot.send_message(user_id, text, reply_markup=keyboard)
         except Exception:
-            logger.info("Navbat xabarini yuborib bo'lmadi: %s", user_id)
+            logger.info("Navbat xabarini yuborib bölmadi: %s", user_id)
 
 
 @router.message(Command("matchmaking", "qidiruv"))
@@ -180,7 +180,7 @@ async def choose_game(callback: CallbackQuery) -> None:
     try:
         kind = normalize_game_type(raw)
     except Exception:
-        await callback.answer("Noma'lum o'yin turi", show_alert=True)
+        await callback.answer("Noma'lum öyin turi", show_alert=True)
         return
 
     user = callback.from_user
@@ -192,11 +192,11 @@ async def choose_game(callback: CallbackQuery) -> None:
             username=user.username or "",
         )
     except Exception:
-        logger.exception("Navbatga qo'shib bo'lmadi: %s", user.id)
-        await callback.answer("Navbatga qo'shilib bo'lmadi", show_alert=True)
+        logger.exception("Navbatga qöşib bölmadi: %s", user.id)
+        await callback.answer("Navbatga qöşilib bölmadi", show_alert=True)
         return
 
-    await callback.answer("Navbatga qo'shildingiz!")
+    await callback.answer("Navbatga qöşildingiz!")
     match = result.get("match")
     if match:
         await _edit_or_send(callback, match_text(match), match_keyboard(match))
@@ -217,7 +217,7 @@ async def cancel_search(callback: CallbackQuery) -> None:
     try:
         result = leave_global_queue(callback.from_user.id, kind)
     except Exception:
-        logger.exception("Navbatdan chiqarib bo'lmadi: %s", callback.from_user.id)
+        logger.exception("Navbatdan çiqarib bölmadi: %s", callback.from_user.id)
         await callback.answer("Xatolik yuz berdi", show_alert=True)
         return
 

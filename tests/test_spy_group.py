@@ -73,7 +73,7 @@ class SpyGroupLobbyTest(unittest.TestCase):
         asyncio.run(spy_group.create_spy_game(message))
         text, markup = message.answers[-1]
         self.assertIn("JOSUS (SPYFALL)", text)
-        self.assertIn("kishi", text)
+        self.assertIn("kişi", text)
 
         buttons = [row[0] for row in markup.inline_keyboard]
         self.assertEqual(len(buttons), 3)
@@ -97,7 +97,7 @@ class SpyGroupLobbyTest(unittest.TestCase):
         callback = FakeCallback(f"{spy_group.JOIN_PREFIX}{room.code}", user_id=702, name="Vali")
         asyncio.run(spy_group.join_spy_game(callback))
 
-        self.assertIn("qo'shildingiz", callback.answered[-1])
+        self.assertIn("qöşildingiz", callback.answered[-1])
         updated = manager.get_room(room.code)
         self.assertIn(702, updated.players)
         sent = callback.bot.messages[-1][1]
@@ -124,7 +124,7 @@ class SpyGroupLobbyTest(unittest.TestCase):
 
         self.assertEqual(manager.get_room(room.code).phase.value, "PLAYING")
         texts = [text for _chat, text, _markup in callback.bot.messages]
-        self.assertTrue(any("O'YINI BOSHLANDI" in text for text in texts), texts)
+        self.assertTrue(any("ÖYINI BOŞLANDI" in text for text in texts), texts)
 
     def test_finish_announcement_shows_location_and_reward(self) -> None:
         manager = SpyfallManager(seed=5)
@@ -142,7 +142,7 @@ class SpyGroupLobbyTest(unittest.TestCase):
         asyncio.run(spy_group.announce_room(bot, manager.get_room(room.code), "finish"))
         chat_id, text, _markup = bot.messages[-1]
         self.assertEqual(chat_id, -100777)
-        self.assertIn("TINCH AHOLI", text)
+        self.assertIn("TINÇ AHOLI", text)
         self.assertIn(started.location.name, text)
         self.assertIn("+25", text)
         self.assertIn(started.players[spy_id].display_name(), text)

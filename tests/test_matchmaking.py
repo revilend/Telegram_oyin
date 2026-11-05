@@ -196,7 +196,7 @@ class ApiFeatureTest(unittest.TestCase):
         self.assertEqual(joined.status_code, 200, joined.text)
         payload = joined.json()
         self.assertEqual(payload["count"], 1)
-        self.assertEqual(payload["min"], 4)
+        self.assertEqual(payload["min"], 6)
         self.assertFalse(payload["match"])
 
         status = self.client.get(
@@ -312,15 +312,23 @@ class GlobalQueueTest(unittest.TestCase):
         self.assertTrue(left["left"])
         self.assertNotIn(102, self.store.rows)
 
-    def test_alias_queue_starts_with_two_players(self) -> None:
+    def test_alias_queue_starts_with_three_players(self) -> None:
         first = matchmaking.join_global_queue(1, "alias", name="Ali")
         self.assertIsNone(first["match"])
-        self.assertEqual(first["need"], 1)
+        self.assertEqual(first["need"], 2)
         second = matchmaking.join_global_queue(2, "alias", name="Vali")
-        self.assertIsNotNone(second["match"])
-        self.assertEqual(second["match"]["game_type"], "alias")
-        self.assertEqual(second["match"]["players"], 2)
+        self.assertIsNone(second["match"])
+        self.assertEqual(second["need"], 1)
+        third = matchmaking.join_global_queue(3, "alias", name="Zilola")
+        self.assertIsNotNone(third["match"])
+        self.assertEqual(third["match"]["game_type"], "alias")
+        self.assertEqual(third["match"]["players"], 3)
         self.assertEqual(self.store.rows, {}, "Xona ochilgach navbat tozalanadi")
+
+    def test_bunker_and_mafia_queue_thresholds(self) -> None:
+        self.assertEqual(matchmaking.MIN_PLAYERS["bunker"], 5)
+        self.assertEqual(matchmaking.MIN_PLAYERS["mafia"], 6)
+        self.assertEqual(matchmaking.MIN_PLAYERS["alias"], 3)
 
     def test_check_and_create_matches_reads_queue_table(self) -> None:
         now = time.time()

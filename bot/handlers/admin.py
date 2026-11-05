@@ -49,19 +49,19 @@ BROADCAST_CALLBACK = "admin_broadcast"
 BACK_CALLBACK = "admin_back"
 
 CARD_PROMPT = (
-    "💳 <b>Karta raqamini sozlash</b>\n\n"
+    "💳 <b>Karta raqamini sozlaş</b>\n\n"
     "Karta raqami va egasining ismini yuboring "
     "(Masalan: <code>9860123456789012 Ali Valiyev</code>):"
 )
 GIVE_PROMPT = (
-    "➕ <b>Foydalanuvchiga tanga berish</b>\n\n"
-    "O'yinchi ID raqami va tanga miqdorini yuboring "
+    "➕ <b>Foydalanuvçiga tanga beriş</b>\n\n"
+    "Öyinçi ID raqami va tanga miqdorini yuboring "
     "(Masalan: <code>123456789 500</code>):"
 )
 PROMO_PROMPT = (
-    "🎟 <b>Promo kod yaratish</b>\n\n"
-    "Format: <code>KOD TANGA [ISHLATISHLAR]</code>\n"
-    "Masalan: <code>YANGIYIL 500 20</code> — 500 tanga, 20 marta ishlatiladi."
+    "🎟 <b>Promo kod yaratiş</b>\n\n"
+    "Format: <code>KOD TANGA [IŞLATIŞLAR]</code>\n"
+    "Masalan: <code>YANGIYIL 500 20</code> — 500 tanga, 20 marta işlatiladi."
 )
 BROADCAST_PROMPT = (
     "📢 <b>Hammaga xabar</b>\n\n"
@@ -86,12 +86,12 @@ def is_admin(user_id: int) -> bool:
     try:
         return get_economy().is_admin_user(int(user_id))
     except Exception:
-        logger.exception("`users` jadvalida rolni tekshirib bo'lmadi: %s", user_id)
+        logger.exception("`users` jadvalida rolni tekşirib bölmadi: %s", user_id)
         return False
 
 
 async def _reply_denied(message: Message) -> None:
-    await message.answer("⛔ Bu buyruq faqat administrator uchun.")
+    await message.answer("⛔ Bu buyruq faqat administrator uçun.")
 
 
 def panel_keyboard() -> InlineKeyboardMarkup:
@@ -100,25 +100,25 @@ def panel_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="💳 Karta raqamini sozlash",
+                    text="💳 Karta raqamini sozlaş",
                     callback_data=CARD_CALLBACK,
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="📥 Kutilayotgan to'lovlar (Cheklar)",
+                    text="📥 Kutilayotgan tölovlar (Çeklar)",
                     callback_data=PENDING_CALLBACK,
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="➕ Foydalanuvchiga tanga berish",
+                    text="➕ Foydalanuvçiga tanga beriş",
                     callback_data=GIVE_CALLBACK,
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🎟 Promo kod yaratish",
+                    text="🎟 Promo kod yaratiş",
                     callback_data=PROMO_CALLBACK,
                 )
             ],
@@ -163,13 +163,13 @@ def panel_text() -> str:
     live = metrics.snapshot()
     return (
         "🛠 <b>Admin panel</b>\n\n"
-        f"👥 Jami o'yinchilar: <b>{stats['users']}</b>\n"
+        f"👥 Jami öyinçilar: <b>{stats['users']}</b>\n"
         f"🪙 Umumiy xarid qilingan tangalar: <b>{format_price(stats['coins_purchased'])}</b>\n"
         f"💰 Balanslardagi tangalar: <b>{format_price(stats['coins_in_balance'])}</b>\n"
         f"🏠 Faol xonalar: <b>{stats['active_rooms']}</b>\n"
         f"🗂 Jami xonalar: <b>{stats['total_rooms']}</b>\n"
-        f"📈 So'rovlar: <b>{live.requests}</b> · xatolar: <b>{live.errors}</b>\n"
-        f"🎮 Tugagan o'yinlar: <b>{live.games_finished}</b> · "
+        f"📈 Sörovlar: <b>{live.requests}</b> · xatolar: <b>{live.errors}</b>\n"
+        f"🎮 Tugagan öyinlar: <b>{live.games_finished}</b> · "
         f"tanga: <b>{format_price(live.coins_awarded)}</b>\n\n"
         f"{card_status_text()}\n\n"
         "Quyidagi tugmalardan birini tanlang:"
@@ -193,7 +193,7 @@ async def admin_panel(message: Message, state: FSMContext | None = None) -> None
         text = panel_text()
     except Exception:
         logger.exception("Admin statistikasida xatolik")
-        await message.answer("⚠️ Statistikani yuklab bo'lmadi.")
+        await message.answer("⚠️ Statistikani yuklab bölmadi.")
         return
     await message.answer(text, reply_markup=panel_keyboard())
 
@@ -202,7 +202,7 @@ async def admin_panel(message: Message, state: FSMContext | None = None) -> None
 async def back_to_panel(callback: CallbackQuery, state: FSMContext) -> None:
     """«⬅️ Orqaga» — holatni tozalab, panelni qaytaradi."""
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
         return
     await state.clear()
     await callback.answer()
@@ -218,7 +218,7 @@ async def back_to_panel(callback: CallbackQuery, state: FSMContext) -> None:
 async def ask_card(callback: CallbackQuery, state: FSMContext) -> None:
     """Karta ma'lumotlarini so'raydi."""
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
         return
     await state.set_state(AdminStates.waiting_card)
     await callback.answer()
@@ -243,9 +243,9 @@ async def save_card(message: Message, state: FSMContext) -> None:
         await message.answer(f"⚠️ {escape(str(exc))}", reply_markup=back_keyboard())
         return
     except Exception:
-        logger.exception("Karta ma'lumotlarini saqlab bo'lmadi")
+        logger.exception("Karta ma'lumotlarini saqlab bölmadi")
         await message.answer(
-            "⚠️ Karta saqlanmadi. Birozdan keyin qayta urinib ko'ring.",
+            "⚠️ Karta saqlanmadi. Birozdan keyin qayta urinib köring.",
             reply_markup=back_keyboard(),
         )
         return
@@ -255,7 +255,7 @@ async def save_card(message: Message, state: FSMContext) -> None:
         "✅ <b>Karta saqlandi!</b>\n\n"
         f"💳 <code>{escape(format_card_number(stored_number))}</code>\n"
         f"👤 {escape(stored_holder)}\n\n"
-        "Endi do'kon (/shop) xaridorlarga shu kartani ko'rsatadi.",
+        "Endi dökon (/shop) xaridorlarga şu kartani körsatadi.",
         reply_markup=panel_keyboard(),
     )
 
@@ -267,7 +267,7 @@ async def save_card(message: Message, state: FSMContext) -> None:
 async def show_pending_payments(callback: CallbackQuery) -> None:
     """Barcha tasdiqlanmagan cheklarni navbat bilan ko'rsatadi."""
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
         return
     await callback.answer()
 
@@ -278,20 +278,20 @@ async def show_pending_payments(callback: CallbackQuery) -> None:
     try:
         payments = get_economy().list_pending_payments()
     except Exception:
-        logger.exception("Kutilayotgan cheklarni yuklab bo'lmadi")
+        logger.exception("Kutilayotgan çeklarni yuklab bölmadi")
         await callback.bot.send_message(
-            chat_id, "⚠️ Cheklarni yuklab bo'lmadi. Qayta urinib ko'ring."
+            chat_id, "⚠️ Çeklarni yuklab bölmadi. Qayta urinib köring."
         )
         return
 
     if not payments:
         await callback.bot.send_message(
-            chat_id, "📥 Hozircha kutilayotgan to'lovlar yo'q."
+            chat_id, "📥 Hozirça kutilayotgan tölovlar yöq."
         )
         return
 
     await callback.bot.send_message(
-        chat_id, f"📥 <b>Kutilayotgan to'lovlar:</b> {len(payments)} ta"
+        chat_id, f"📥 <b>Kutilayotgan tölovlar:</b> {len(payments)} ta"
     )
     for payment in payments:
         caption = shop.receipt_caption(payment, payment.username, payment.full_name)
@@ -317,7 +317,7 @@ async def show_pending_payments(callback: CallbackQuery) -> None:
 async def ask_give_coins(callback: CallbackQuery, state: FSMContext) -> None:
     """Tanga berish uchun ID va miqdorni so'raydi."""
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
         return
     await state.set_state(AdminStates.waiting_give)
     await callback.answer()
@@ -346,7 +346,7 @@ async def give_coins_from_panel(message: Message, state: FSMContext) -> None:
             raise ValueError
     except ValueError:
         await message.answer(
-            "user_id va miqdor musbat butun son bo'lishi kerak.",
+            "user_id va miqdor musbat butun son bölişi kerak.",
             reply_markup=back_keyboard(),
         )
         return
@@ -364,10 +364,10 @@ async def _credit_coins(user_id: int, amount: int) -> str:
     except EconomyError as exc:
         return f"⚠️ {escape(str(exc))}"
     except Exception:
-        logger.exception("Tanga qo'shib bo'lmadi: %s", user_id)
-        return "⚠️ Tanga qo'shilmadi. Qayta urinib ko'ring."
+        logger.exception("Tanga qöşib bölmadi: %s", user_id)
+        return "⚠️ Tanga qöşilmadi. Qayta urinib köring."
     return (
-        f"✅ <code>{user_id}</code>ga <b>+{format_price(amount)}</b> tanga qo'shildi.\n"
+        f"✅ <code>{user_id}</code>ga <b>+{format_price(amount)}</b> tanga qöşildi.\n"
         f"Yangi balans: <b>{format_price(account.coins)}</b> tanga."
     )
 
@@ -379,7 +379,7 @@ async def _credit_coins(user_id: int, amount: int) -> str:
 async def ask_promo(callback: CallbackQuery, state: FSMContext) -> None:
     """Promo kod parametrlarini so'raydi."""
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
         return
     await state.set_state(AdminStates.waiting_promo)
     await callback.answer()
@@ -399,7 +399,7 @@ async def save_promo(message: Message, state: FSMContext) -> None:
     if len(tokens) not in (2, 3):
         await message.answer(
             "Format: <code>KOD 500 10</code> — kod, tanga miqdori va "
-            "(ixtiyoriy) ishlatishlar soni.",
+            "(ixtiyoriy) işlatişlar soni.",
             reply_markup=back_keyboard(),
         )
         return
@@ -408,7 +408,7 @@ async def save_promo(message: Message, state: FSMContext) -> None:
         max_uses = int(tokens[2]) if len(tokens) == 3 else 1
     except ValueError:
         await message.answer(
-            "Tanga miqdori va ishlatishlar soni butun son bo'lishi kerak.",
+            "Tanga miqdori va işlatişlar soni butun son bölişi kerak.",
             reply_markup=back_keyboard(),
         )
         return
@@ -423,9 +423,9 @@ async def save_promo(message: Message, state: FSMContext) -> None:
     except Exception:
         # Baza xatosi promokod yaratishni to'xtatmasligi kerak: economy kodi
         # avval xotirada saqlaydi. Bu yerga faqat kutilmagan holat tushadi.
-        logger.exception("Promo kod yaratishda kutilmagan xatolik")
+        logger.exception("Promo kod yaratişda kutilmagan xatolik")
         await message.answer(
-            "⚠️ Promo kodni saqlashda vaqtincha xatolik. Qayta urinib ko'ring.",
+            "⚠️ Promo kodni saqlaşda vaqtinça xatolik. Qayta urinib köring.",
             reply_markup=back_keyboard(),
         )
         return
@@ -436,7 +436,7 @@ async def save_promo(message: Message, state: FSMContext) -> None:
         f"🎟 Kod: <code>{escape(promo.code)}</code>\n"
         f"🪙 Mukofot: {format_price(promo.coins)} tanga\n"
         f"👥 Limit: {promo.max_uses} marta\n\n"
-        "O'yinchilar kodni botdagi «🎟 Promo kod» tugmasi orqali kiritadi.",
+        "Öyinçilar kodni botdagi «🎟 Promo kod» tugmasi orqali kiritadi.",
         reply_markup=panel_keyboard(),
     )
 
@@ -448,7 +448,7 @@ async def save_promo(message: Message, state: FSMContext) -> None:
 async def ask_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
     """Broadcast matnini so'raydi."""
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Bu amal faqat admin uchun.", show_alert=True)
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
         return
     await state.set_state(AdminStates.waiting_broadcast)
     await callback.answer()
@@ -481,10 +481,10 @@ async def _broadcast_text(message: Message, text: str) -> str:
     try:
         user_ids = get_economy().list_user_ids()
     except Exception:
-        logger.exception("Foydalanuvchilar ro'yxatini olib bo'lmadi")
-        return "⚠️ Foydalanuvchilar ro'yxatini olib bo'lmadi."
+        logger.exception("Foydalanuvçilar röyxatini olib bölmadi")
+        return "⚠️ Foydalanuvçilar röyxatini olib bölmadi."
     if not user_ids:
-        return "ℹ️ Hali ro'yxatdan o'tgan o'yinchilar yo'q."
+        return "ℹ️ Hali röyxatdan ötgan öyinçilar yöq."
 
     sent = 0
     failed = 0
@@ -496,7 +496,7 @@ async def _broadcast_text(message: Message, text: str) -> str:
             failed += 1
         except Exception:
             failed += 1
-            logger.exception("Broadcast yuborishda xatolik: %s", user_id)
+            logger.exception("Broadcast yuborişda xatolik: %s", user_id)
         await asyncio.sleep(0.04)
 
     return (
@@ -524,7 +524,7 @@ async def give_coins(message: Message, command: CommandObject) -> None:
         if amount <= 0:
             raise ValueError
     except ValueError:
-        await message.answer("user_id va miqdor musbat butun son bo'lishi kerak.")
+        await message.answer("user_id va miqdor musbat butun son bölişi kerak.")
         return
     await message.answer(await _credit_coins(user_id, amount))
 
@@ -548,14 +548,14 @@ async def user_info(message: Message, command: CommandObject) -> None:
         return
     name = account.full_name or account.username or "Ismsiz"
     await message.answer(
-        "👤 <b>O'yinchi</b>\n"
+        "👤 <b>Öyinçi</b>\n"
         f"Ism: {escape(name)}\n"
         f"Username: {'@' + escape(account.username) if account.username else '—'}\n"
         f"🆔 <code>{account.user_id}</code>\n"
         f"🪙 Balans: <b>{format_price(account.coins)}</b> tanga\n"
         f"🛒 Xarid qilingan: <b>{format_price(account.total_purchased)}</b> tanga\n"
-        f"🎮 O'ynagan o'yinlari: <b>{account.games_played}</b>\n"
-        f"🏆 G'alabalari: <b>{account.wins}</b>"
+        f"🎮 Öynagan öyinlari: <b>{account.games_played}</b>\n"
+        f"🏆 Ğalabalari: <b>{account.wins}</b>"
     )
 
 

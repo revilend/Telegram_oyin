@@ -89,10 +89,10 @@ class CreateGameHandlerTest(unittest.IsolatedAsyncioTestCase):
         text, keyboard = message.answers[0]
         code_match = re.search(r"BNK\d{3}", text)
         self.assertIsNotNone(code_match)
-        self.assertIn("Yangi Bunker o'yini", text)
+        self.assertIn("Yangi Bunker öyini", text)
         self.assertEqual(len(keyboard.inline_keyboard), 3)
         first_button = keyboard.inline_keyboard[0][0]
-        self.assertEqual(first_button.text, "🚪 Bunkerga kirish")
+        self.assertEqual(first_button.text, "🚪 Bunkerga kiriş")
         self.assertIsNone(first_button.web_app)
         self.assertEqual(
             first_button.url,

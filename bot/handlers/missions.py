@@ -42,7 +42,7 @@ def missions_text(statuses: list[MissionStatus]) -> str:
     lines = [
         "🎯 <b>Missiyalar</b>",
         "",
-        "Topshiriqlarni bajaring va tanga ishlang!",
+        "Topşiriqlarni bajaring va tanga işlang!",
         "",
     ]
     for index, status in enumerate(statuses, start=1):
@@ -62,9 +62,9 @@ def missions_text(statuses: list[MissionStatus]) -> str:
     ready = sum(1 for status in statuses if status.claimable)
     lines.append("")
     lines.append(
-        f"🎁 Olinishi mumkin: <b>{ready}</b> ta mukofot"
+        f"🎁 Olinişi mumkin: <b>{ready}</b> ta mukofot"
         if ready
-        else "Hozircha tayyor mukofot yo'q — o'ynab davom eting!"
+        else "Hozirça tayyor mukofot yöq — öynab davom eting!"
     )
     return "\n".join(lines)
 
@@ -74,7 +74,7 @@ def missions_keyboard(statuses: list[MissionStatus]) -> InlineKeyboardMarkup:
     rows = [
         [
             InlineKeyboardButton(
-                text=f"🎁 +{format_price(status.mission.reward)} tangani olish",
+                text=f"🎁 +{format_price(status.mission.reward)} tangani oliş",
                 callback_data=f"{MISSION_CLAIM_PREFIX}{status.mission.key}",
             )
         ]
@@ -96,9 +96,9 @@ async def show_missions(message: Message) -> None:
     try:
         statuses = _statuses(user.id)
     except Exception:
-        logger.exception("Missiyalarni yuklab bo'lmadi: %s", user.id)
+        logger.exception("Missiyalarni yuklab bölmadi: %s", user.id)
         await message.answer(
-            "⚠️ Missiyalarni yuklab bo'lmadi. Birozdan keyin urinib ko'ring."
+            "⚠️ Missiyalarni yuklab bölmadi. Birozdan keyin urinib köring."
         )
         return
     await message.answer(
@@ -124,9 +124,9 @@ async def claim_mission_reward(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
     except Exception:
-        logger.exception("Missiya mukofotini berib bo'lmadi: %s", user.id)
+        logger.exception("Missiya mukofotini berib bölmadi: %s", user.id)
         await callback.answer(
-            "⚠️ Mukofotni hozircha olib bo'lmadi. Qayta urinib ko'ring.",
+            "⚠️ Mukofotni hozirça olib bölmadi. Qayta urinib köring.",
             show_alert=True,
         )
         return
@@ -139,7 +139,7 @@ async def claim_mission_reward(callback: CallbackQuery) -> None:
     try:
         statuses = _statuses(user.id)
     except Exception:
-        logger.exception("Missiyalarni yangilab bo'lmadi: %s", user.id)
+        logger.exception("Missiyalarni yangilab bölmadi: %s", user.id)
         return
     text = missions_text(statuses)
     keyboard = missions_keyboard(statuses)
@@ -149,7 +149,7 @@ async def claim_mission_reward(callback: CallbackQuery) -> None:
             await message.edit_text(text, reply_markup=keyboard)
             return
         except TelegramBadRequest:
-            logger.debug("Missiya xabarini tahrirlab bo'lmadi, yangi xabar yuboriladi")
+            logger.debug("Missiya xabarini tahrirlab bölmadi, yangi xabar yuboriladi")
     await callback.bot.send_message(
         callback.from_user.id, text, reply_markup=keyboard
     )

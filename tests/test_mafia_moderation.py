@@ -143,7 +143,7 @@ class MafiaModeratorGhostModeTest(unittest.IsolatedAsyncioTestCase):
         last_word = await self._send(ModeratorMessage(2, "Men begunoh edim!"))
         self.assertEqual(last_word.deleted, 0)
         self.assertEqual(len(last_word.replies), 1)
-        self.assertIn("so'nggi so'z", last_word.replies[0])
+        self.assertIn("sönggi söz", last_word.replies[0])
 
         ghost = await self._send(ModeratorMessage(2, "Yana gapiraman"))
         self.assertEqual(ghost.deleted, 1)

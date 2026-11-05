@@ -41,7 +41,7 @@ def _room_text(room: GameRoom, *, started: bool = False) -> str:
     )
 
     lines = [
-        "🎬 <b>O'yin boshlandi!</b>" if started else "🆘 <b>Yangi Bunker o'yini</b>",
+        "🎬 <b>Öyin boşlandi!</b>" if started else "🆘 <b>Yangi Bunker öyini</b>",
         "",
         f"☢️ <b>{escape(str(catastrophe.get('name', 'Falokat')))}</b>",
         "",
@@ -50,12 +50,12 @@ def _room_text(room: GameRoom, *, started: bool = False) -> str:
         "📦 <b>Bunkerdagi zaxiralar:</b>",
         supplies or "• —",
         "",
-        "✅ <b>Omon qolish talablari:</b>",
+        "✅ <b>Omon qoliş talablari:</b>",
         requirements or "• —",
         "",
         f"🔑 <b>Xona kodi:</b> <code>{room.code}</code>",
-        f"👥 <b>O'yinchilar:</b> {len(room.players)}/{room.max_players}",
-        f"🏠 <b>Bunker sig'imi:</b> {room.bunker_capacity} kishi",
+        f"👥 <b>Öyinçilar:</b> {len(room.players)}/{room.max_players}",
+        f"🏠 <b>Bunker siğimi:</b> {room.bunker_capacity} kişi",
     ]
     if started or room.current_round:
         lines.append(f"🔄 <b>Raund:</b> {room.current_round}")
@@ -73,7 +73,7 @@ def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMa
     rows = [
         [
             InlineKeyboardButton(
-                text="🚪 Bunkerga kirish",
+                text="🚪 Bunkerga kiriş",
                 url=f"https://t.me/{config.bot_username}?startapp={room.code}",
             )
         ]
@@ -82,7 +82,7 @@ def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMa
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="➕ Guruh orqali qo'shilish",
+                    text="➕ Guruh orqali qöşiliş",
                     callback_data=f"{JOIN_PREFIX}{room.code}",
                 )
             ]
@@ -90,7 +90,7 @@ def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMa
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="▶️ O'yinni boshlash",
+                    text="▶️ Öyinni boşlaş",
                     callback_data=f"{START_PREFIX}{room.code}",
                 )
             ]
@@ -140,10 +140,10 @@ async def create_game(message: Message) -> None:
     try:
         user = message.from_user
         if user is None:
-            raise ValueError("Buyruq yuborgan foydalanuvchi aniqlanmadi")
+            raise ValueError("Buyruq yuborgan foydalanuvçi aniqlanmadi")
 
         logger.info(
-            "Guruhda yangi Bunker xonasi: chat=%s user=%s",
+            "Guruhda yangi Bunker xonasi: çat=%s user=%s",
             message.chat.id,
             user.id,
         )
@@ -154,7 +154,7 @@ async def create_game(message: Message) -> None:
         )
         await message.answer(_room_text(room), reply_markup=_room_keyboard(room))
     except Exception as exc:  # bitta xato butun buyruqni jim yutmasligi kerak
-        logger.exception("Guruhda /bunker buyrug'ini bajarishda xatolik: %s", exc)
+        logger.exception("Guruhda /bunker buyruğini bajarişda xatolik: %s", exc)
         await message.reply(f"⚠️ Xatolik yuz berdi: {escape(str(exc))}")
 
 
@@ -162,8 +162,8 @@ async def create_game(message: Message) -> None:
 async def create_game_private(message: Message) -> None:
     """Shaxsiy chatda /bunker — guruhga yo'naltirish."""
     await message.answer(
-        "Bunker o'yinini faqat guruhda ochish mumkin.\n"
-        "Guruhga o'tib /bunker buyrug'ini yuboring."
+        "Bunker öyinini faqat guruhda oçiş mumkin.\n"
+        "Guruhga ötib /bunker buyruğini yuboring."
     )
 
 
@@ -172,7 +172,7 @@ async def join_game(callback: CallbackQuery) -> None:
     """«Guruh orqali qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
 
     user = callback.from_user
@@ -189,11 +189,11 @@ async def join_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Xonaga qo'shildingiz!")
+    await callback.answer("Xonaga qöşildingiz!")
     await callback.bot.send_message(
         _chat_id(callback),
-        f"➕ <b>{escape(player.full_name)}</b> qo'shildi "
-        f"(jami: {len(room.players)} kishi).",
+        f"➕ <b>{escape(player.full_name)}</b> qöşildi "
+        f"(jami: {len(room.players)} kişi).",
     )
     await _refresh_room_message(callback, room)
 
@@ -203,7 +203,7 @@ async def start_game_callback(callback: CallbackQuery) -> None:
     """«O'yinni boshlash» tugmasi — faqat host uchun."""
     code = _callback_code(callback.data, START_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
 
     user = callback.from_user
@@ -212,7 +212,7 @@ async def start_game_callback(callback: CallbackQuery) -> None:
         room = manager.get_room(code)
         if user.id != room.host_id:
             await callback.answer(
-                "O'yinni faqat xona egasi boshlashi mumkin.",
+                "Öyinni faqat xona egasi boşlaşi mumkin.",
                 show_alert=True,
             )
             return
@@ -221,14 +221,14 @@ async def start_game_callback(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("O'yin boshlandi!")
+    await callback.answer("Öyin boşlandi!")
     announcement = (
-        "🎬 <b>O'yin boshlandi!</b>\n\n"
+        "🎬 <b>Öyin boşlandi!</b>\n\n"
         f"🔑 Xona kodi: <code>{room.code}</code>\n"
-        f"👥 O'yinchilar: {len(room.players)} kishi\n"
-        f"🏠 Bunker sig'imi: {room.bunker_capacity} kishi\n\n"
-        "Har bir o'yinchi pastdagi tugma orqali Mini App'ga kirib, "
-        "o'z kartalarini ko'rsin. Omad! 🍀"
+        f"👥 Öyinçilar: {len(room.players)} kişi\n"
+        f"🏠 Bunker siğimi: {room.bunker_capacity} kişi\n\n"
+        "Har bir öyinçi pastdagi tugma orqali Mini App'ga kirib, "
+        "öz kartalarini körsin. Omad! 🍀"
     )
     await callback.bot.send_message(
         _chat_id(callback),

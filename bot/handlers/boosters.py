@@ -34,13 +34,13 @@ def shield_keyboard(code: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"🛡️ Bunker Qalqonini ishlatish ({SHIELD.price} 🪙)",
+                    text=f"🛡️ Bunker Qalqonini işlatiş ({SHIELD.price} 🪙)",
                     callback_data=f"{SHIELD_YES_PREFIX}{code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="❌ Rad etish",
+                    text="❌ Rad etiş",
                     callback_data=f"{SHIELD_NO_PREFIX}{code}",
                 )
             ],
@@ -50,11 +50,11 @@ def shield_keyboard(code: str) -> InlineKeyboardMarkup:
 
 def shield_text(room: GameRoom) -> str:
     return (
-        "🛡️ <b>Sizni bunkerdan haydashmoqchi!</b>\n\n"
+        "🛡️ <b>Sizni bunkerdan haydaşmoqçi!</b>\n\n"
         f"Xona: <code>{escape(room.code)}</code>\n"
-        f"Eng ko'p ovoz sizga berildi. <b>{SHIELD.price} tanga</b> evaziga "
-        "«Bunker Qalqoni»ni faollashtirib, omon qolasizmi?\n\n"
-        "Qalqon har bir xonada faqat bir marta ishlaydi."
+        f"Eng köp ovoz sizga berildi. <b>{SHIELD.price} tanga</b> evaziga "
+        "«Bunker Qalqoni»ni faollaştirib, omon qolasizmi?\n\n"
+        "Qalqon har bir xonada faqat bir marta işlaydi."
     )
 
 
@@ -71,7 +71,7 @@ async def send_shield_offer(bot, room: GameRoom) -> bool:
         )
         return True
     except TelegramAPIError:
-        logger.exception("Qalqon taklifini yuborib bo'lmadi: %s", offer.user_id)
+        logger.exception("Qalqon taklifini yuborib bölmadi: %s", offer.user_id)
         return False
 
 
@@ -93,7 +93,7 @@ def _edit_text(callback: CallbackQuery, text: str) -> None:
 async def activate_shield(callback: CallbackQuery) -> None:
     code = _code(callback.data or "", SHIELD_YES_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
     manager = get_default_manager()
     economy = get_economy()
@@ -101,7 +101,7 @@ async def activate_shield(callback: CallbackQuery) -> None:
         room = manager.get_room(code)
         offer = room.pending_shield
         if offer is None or offer.user_id != callback.from_user.id:
-            await callback.answer("Bu qalqon taklifi sizga tegishli emas.", show_alert=True)
+            await callback.answer("Bu qalqon taklifi sizga tegişli emas.", show_alert=True)
             return
         result = buy_booster(
             manager, economy, code, callback.from_user.id, SHIELD.key
@@ -113,10 +113,10 @@ async def activate_shield(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Qalqon faollashtirildi!")
+    await callback.answer("Qalqon faollaştirildi!")
     text = (
-        "🛡️ <b>Bunker Qalqoni faollashtirildi!</b>\n\n"
-        f"Balansdan <b>{format_price(SHIELD.price)}</b> tanga yechildi.\n"
+        "🛡️ <b>Bunker Qalqoni faollaştirildi!</b>\n\n"
+        f"Balansdan <b>{format_price(SHIELD.price)}</b> tanga yeçildi.\n"
         f"Qolgan balans: <b>{format_price(result.account_coins)}</b> tanga."
     )
     if result.eliminated is not None:
@@ -125,7 +125,7 @@ async def activate_shield(callback: CallbackQuery) -> None:
             "bunkerdan haydaldi."
         )
     else:
-        text += "\n\nOvozlar teng bo'lgani uchun bu raundda boshqa hech kim haydalmadi."
+        text += "\n\nOvozlar teng bölgani uçun bu raundda boşqa heç kim haydalmadi."
     _edit_text(callback, text)
 
 
@@ -133,14 +133,14 @@ async def activate_shield(callback: CallbackQuery) -> None:
 async def reject_shield(callback: CallbackQuery) -> None:
     code = _code(callback.data or "", SHIELD_NO_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
     manager = get_default_manager()
     try:
         room = manager.get_room(code)
         offer = room.pending_shield
         if offer is None or offer.user_id != callback.from_user.id:
-            await callback.answer("Bu qalqon taklifi sizga tegishli emas.", show_alert=True)
+            await callback.answer("Bu qalqon taklifi sizga tegişli emas.", show_alert=True)
             return
         _, player = decline_shield(manager, code, callback.from_user.id)
     except GameError as exc:
@@ -150,6 +150,6 @@ async def reject_shield(callback: CallbackQuery) -> None:
     await callback.answer("Qalqon rad etildi")
     _edit_text(
         callback,
-        "❌ Qalqon ishlatilmadi.\n\n"
+        "❌ Qalqon işlatilmadi.\n\n"
         f"<b>{escape(player.full_name)}</b> bunkerdan haydaldi.",
     )

@@ -75,12 +75,12 @@ class ReferralLinkTest(unittest.TestCase):
             "https://t.me/revilend_gamesbot?start=ref_12345", text
         )
         self.assertIn("+50 tanga", text)
-        self.assertIn("taklif qilganlar: <b>1</b> kishi", text)
-        self.assertIn("Ishlangan tangalar: <b>50</b> tanga", text)
+        self.assertIn("taklif qilganlar: <b>1</b> kişi", text)
+        self.assertIn("Işlangan tangalar: <b>50</b> tanga", text)
 
         keyboard = common.invite_keyboard(account, "revilend_gamesbot")
         button = keyboard.inline_keyboard[0][0]
-        self.assertIn("Do'stlarga yuborish", button.text)
+        self.assertIn("Döstlarga yuboriş", button.text)
         self.assertIn("t.me/share/url", button.url)
         self.assertIn("ref_12345", button.url)
 

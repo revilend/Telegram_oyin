@@ -30,7 +30,7 @@ PRIVATE = F.chat.type == "private"
 PROMO_PROMPT = (
     "🎟 <b>Promo kod</b>\n\n"
     "Admin bergan kodni yuboring (masalan <code>YANGIYIL</code>).\n"
-    "Har bir foydalanuvchi kodni bir marta ishlatadi."
+    "Har bir foydalanuvçi kodni bir marta işlatadi."
 )
 
 
@@ -60,7 +60,7 @@ def bonus_text(claim: DailyBonusClaim) -> str:
         f"💰 Balans: <b>{format_price(claim.account.coins)}</b> tanga\n\n"
         f"{bonus_table_text(claim.streak)}\n\n"
         f"«Ertaga kirsangiz sizni <b>+{format_price(next_amount)}</b> tanga "
-        "kutmoqda! Seriyani uzib qo'ymang!»"
+        "kutmoqda! Seriyani uzib qöymang!»"
     )
 
 
@@ -73,7 +73,7 @@ def bonus_wait_text(reason: str, status: DailyBonusStatus) -> str:
         f"⏳ {escape(reason)}\n\n"
         f"📅 Keyingi bonus: <b>+{format_price(next_amount)}</b> tanga\n\n"
         f"{bonus_table_text(status.streak)}\n\n"
-        "Seriyani uzmaslik uchun ertaga ham kirib oling!"
+        "Seriyani uzmaslik uçun ertaga ham kirib oling!"
     )
 
 
@@ -92,14 +92,14 @@ async def claim_bonus(message: Message) -> None:
             status = economy.daily_bonus_status(user.id)
             wait_text = bonus_wait_text(str(exc), status)
         except Exception:
-            logger.exception("Bonus holatini o'qib bo'lmadi: %s", user.id)
+            logger.exception("Bonus holatini öqib bölmadi: %s", user.id)
             wait_text = f"⏳ {escape(str(exc))}"
         await message.answer(wait_text)
         return
     except Exception:
-        logger.exception("Kunlik bonusni berib bo'lmadi: %s", user.id)
+        logger.exception("Kunlik bonusni berib bölmadi: %s", user.id)
         await message.answer(
-            "⚠️ Bonusni hozircha olib bo'lmadi. Birozdan keyin urinib ko'ring."
+            "⚠️ Bonusni hozirça olib bölmadi. Birozdan keyin urinib köring."
         )
         return
     await message.answer(bonus_text(claim))
@@ -122,20 +122,20 @@ async def save_promo(message: Message, state: FSMContext) -> None:
         return
     if not code:
         await message.answer(
-            "Promo kodni matn ko'rinishida yuboring yoki /cancel yozing."
+            "Promo kodni matn körinişida yuboring yoki /cancel yozing."
         )
         return
     try:
         result = get_economy().redeem_promo_code(user.id, code)
     except EconomyError as exc:
         await message.answer(
-            f"⚠️ {escape(str(exc))}\n\nBoshqa kodni yuboring yoki /cancel yozing."
+            f"⚠️ {escape(str(exc))}\n\nBoşqa kodni yuboring yoki /cancel yozing."
         )
         return
     except Exception:
-        logger.exception("Promo kodni ishlatib bo'lmadi: %s", user.id)
+        logger.exception("Promo kodni işlatib bölmadi: %s", user.id)
         await message.answer(
-            "⚠️ Kodni tekshirib bo'lmadi. Birozdan keyin urinib ko'ring."
+            "⚠️ Kodni tekşirib bölmadi. Birozdan keyin urinib köring."
         )
         return
     await state.clear()

@@ -158,7 +158,7 @@ class ReceiptTest(BotTestCase):
         state = self._state()
         asyncio.run(shop.receipt_file(message, state))
 
-        self.assertIn("Chekingiz qabul qilindi", message.answers[-1])
+        self.assertIn("Çekingiz qabul qilindi", message.answers[-1])
         self.assertIsNone(state.state)
         self.assertEqual(len(message.bot.photos), 1)
         chat_id, file_id, caption, keyboard = message.bot.photos[0]
@@ -177,7 +177,7 @@ class ReceiptTest(BotTestCase):
         state = self._state()
         asyncio.run(shop.receipt_file(message, state))
 
-        self.assertIn("Chekingiz qabul qilindi", message.answers[-1])
+        self.assertIn("Çekingiz qabul qilindi", message.answers[-1])
         self.assertEqual(message.bot.photos, [])
         self.assertEqual(len(message.bot.documents), 1)
         chat_id, file_id, _, keyboard = message.bot.documents[0]
@@ -194,7 +194,7 @@ class ReceiptTest(BotTestCase):
             message = FakeMessage(photo=[SimpleNamespace(file_id="photo-2")])
             asyncio.run(shop.receipt_file(message, self._state()))
         answer = message.answers[-1]
-        self.assertIn("vaqtincha xatolik", answer)
+        self.assertIn("vaqtinça xatolik", answer)
         self.assertNotIn("baza ishlamayapti", answer)
 
     def test_receipt_without_package_asks_to_restart(self) -> None:

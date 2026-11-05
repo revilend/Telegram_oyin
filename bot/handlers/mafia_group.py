@@ -64,16 +64,16 @@ END_NIGHT_PREFIX = "end_night_mafia_"
 MAX_PLAYERS = 20
 
 WINNER_LABELS: dict[Winner, str] = {
-    Winner.TOWN: "SHAHAR",
+    Winner.TOWN: "ŞAHAR",
     Winner.MAFIA: "MAFIYA",
     Winner.MANIAC: "MANIAK",
     Winner.JESTER: "JESTER",
 }
 
 FACTION_LABELS: dict[Faction, str] = {
-    Faction.TOWN: "Shahar aholisi",
+    Faction.TOWN: "Şahar aholisi",
     Faction.MAFIA: "Mafiya",
-    Faction.NEUTRAL: "Yolg'iz",
+    Faction.NEUTRAL: "Yolğiz",
 }
 
 
@@ -198,7 +198,7 @@ class MafiaLobbyManager:
                     finished += 1
         if expired or finished:
             logger.info(
-                "Mafiya xonalari tozalandi: %s ta muddati o'tgan, %s ta yopilgan",
+                "Mafiya xonalari tozalandi: %s ta muddati ötgan, %s ta yopilgan",
                 expired,
                 finished,
             )
@@ -230,7 +230,7 @@ class MafiaLobbyManager:
         with self._lock:
             game = self.get_game(code)
             if len(game.room.players) >= MAX_PLAYERS:
-                raise MafiaGameError("Xona to'lgan")
+                raise MafiaGameError("Xona tölgan")
             try:
                 player = game.room.add_player(
                     MafiaPlayer(int(user_id), full_name)
@@ -246,7 +246,7 @@ class MafiaLobbyManager:
             game = self.get_game(code)
             if int(host_id) != game.host_id:
                 raise MafiaGameError(
-                    "O'yinni faqat xona egasi boshlashi mumkin"
+                    "Öyinni faqat xona egasi boşlaşi mumkin"
                 )
             try:
                 game.room.start(rng=self._rng)
@@ -261,7 +261,7 @@ class MafiaLobbyManager:
             if code not in self._games:
                 return code
         raise MafiaGameError(
-            "Bo'sh xona kodi topilmadi, keyinroq qayta urinib ko'ring"
+            "Böş xona kodi topilmadi, keyinroq qayta urinib köring"
         )
 
 
@@ -309,10 +309,10 @@ def players_list(game: MafiaGame) -> str:
 def lobby_text(game: MafiaGame) -> str:
     """Guruhdagi xona e'loni."""
     return (
-        "🕵️‍♂️ <b>MAFIYA O'YINI BOSHLANMOQDA!</b>\n"
-        "Shahar mafiyalar changalida qoldi. Kim omon qoladi?\n\n"
-        f"👥 Qatnashuvchilar: {players_list(game)} "
-        f"(jami {len(game.room.players)} kishi)"
+        "🕵️‍♂️ <b>MAFIYA ÖYINI BOŞLANMOQDA!</b>\n"
+        "Şahar mafiyalar çangalida qoldi. Kim omon qoladi?\n\n"
+        f"👥 Qatnaşuvçilar: {players_list(game)} "
+        f"(jami {len(game.room.players)} kişi)"
     )
 
 
@@ -322,19 +322,19 @@ def lobby_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚪 Mafiyaga kirish",
+                    text="🚪 Mafiyaga kiriş",
                     url=_startapp(game.code),
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="➕ Qo'shilish",
+                    text="➕ Qöşiliş",
                     callback_data=f"{JOIN_PREFIX}{game.code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="▶️ O'yinni boshlash",
+                    text="▶️ Öyinni boşlaş",
                     callback_data=f"{START_PREFIX}{game.code}",
                 )
             ],
@@ -345,8 +345,8 @@ def lobby_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
 def night_text(game: MafiaGame) -> str:
     """Tun boshlanganidagi guruh xabari."""
     return (
-        "🌃 <b>SHAHARGA TUN CHO'KDI!</b>\n"
-        "Hamma uxladi. O'z vazifangizni bajarish uchun pastdagi "
+        "🌃 <b>ŞAHARGA TUN ÇÖKDI!</b>\n"
+        "Hamma uxladi. Öz vazifangizni bajariş uçun pastdagi "
         "tugmani bosing:"
     )
 
@@ -357,13 +357,13 @@ def night_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚪 Tungi harakatni tanlash",
+                    text="🚪 Tungi harakatni tanlaş",
                     url=_startapp(game.code),
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⏭ Tunni yakunlash (egasi)",
+                    text="⏭ Tunni yakunlaş (egasi)",
                     callback_data=f"{END_NIGHT_PREFIX}{game.code}",
                 )
             ],
@@ -375,19 +375,19 @@ def day_text(game: MafiaGame) -> str:
     """Tonggi hisobot matni."""
     report = game.room.last_report
     if report is None or not report.deaths:
-        result = "Tunda hech kim halok bo'lmadi."
+        result = "Tunda heç kim halok bölmadi."
     else:
         names = ", ".join(
             _player_label(game, game.room.players[user_id])
             for user_id in report.deaths
             if user_id in game.room.players
         )
-        result = f"Tunda halok bo'ldilar: {names}."
+        result = f"Tunda halok böldilar: {names}."
     return (
         "🌅 <b>TONG OTDI!</b>\n"
-        "Shahar uyg'ondi. Tungi natijalar:\n"
+        "Şahar uyğondi. Tungi natijalar:\n"
         f"{result}\n\n"
-        "⚖️ Guruhda muhokama boshlandi!"
+        "⚖️ Guruhda muhokama boşlandi!"
     )
 
 
@@ -397,7 +397,7 @@ def day_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🗳 Ovoz berish",
+                    text="🗳 Ovoz beriş",
                     url=_startapp(game.code),
                 )
             ]
@@ -418,7 +418,7 @@ def execution_text(game: MafiaGame, player: MafiaPlayer) -> str:
         else "Noma'lum"
     )
     return (
-        "⚰️ Shahar aholisi qaroriga ko'ra "
+        "⚰️ Şahar aholisi qaroriga köra "
         f"{who} qatl qilindi! Uning roli: <b>{role_name}</b> edi!"
     )
 
@@ -426,8 +426,8 @@ def execution_text(game: MafiaGame, player: MafiaPlayer) -> str:
 def finish_text(winner: Winner) -> str:
     """G'alaba e'loni."""
     return (
-        "🏆 <b>O'YIN YAKUNLANDI!</b>\n"
-        f"{WINNER_LABELS.get(winner, winner.value.upper())} g'alaba qozondi!"
+        "🏆 <b>ÖYIN YAKUNLANDI!</b>\n"
+        f"{WINNER_LABELS.get(winner, winner.value.upper())} ğalaba qozondi!"
     )
 
 
@@ -439,7 +439,7 @@ def role_text(game: MafiaGame, player: MafiaPlayer) -> str:
     action = (
         "Tunda harakat qilasiz."
         if profile.has_night_action
-        else "Tunda maxsus harakatingiz yo'q."
+        else "Tunda maxsus harakatingiz yöq."
     )
     return (
         f"🕵️ <b>Sizning rolingiz: {profile.name_uz}</b>\n\n"
@@ -471,7 +471,7 @@ async def send_kevlar_offers(bot: Bot, game: MafiaGame) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"🦺 Kevlar olish ({KEVLAR.price} tanga)",
+                    text=f"🦺 Kevlar oliş ({KEVLAR.price} tanga)",
                     url=_startapp(game.code),
                 )
             ]
@@ -480,8 +480,8 @@ async def send_kevlar_offers(bot: Bot, game: MafiaGame) -> None:
     text = (
         "🦺 <b>Kevlar Jilet</b>\n"
         f"{KEVLAR.price} tanga evaziga Kevlar jilet kiyib, omon qolasizmi?\n\n"
-        "Tunda mafiya yoki maniak nishoniga tushsangiz, jilet sizni bir "
-        "marta o'limdan saqlaydi. Faqat shu o'yinda bir marta ishlatiladi."
+        "Tunda mafiya yoki maniak nişoniga tuşsangiz, jilet sizni bir "
+        "marta ölimdan saqlaydi. Faqat şu öyinda bir marta işlatiladi."
     )
     for player in game.room.players.values():
         if not player.is_alive or player.kevlar_used or player.kevlar_active:
@@ -494,7 +494,7 @@ async def send_kevlar_offers(bot: Bot, game: MafiaGame) -> None:
             )
         except Exception:
             logger.info(
-                "Kevlar taklifini yuborib bo'lmadi: %s", player.user_id
+                "Kevlar taklifini yuborib bölmadi: %s", player.user_id
             )
 
 
@@ -507,11 +507,11 @@ async def notify_kevlar_saved(bot: Bot, game: MafiaGame) -> None:
         try:
             await bot.send_message(
                 user_id,
-                "🦺 <b>Kevlar jilet sizni o'limdan saqlab qoldi!</b>\n"
-                "Bu kecha mafiya yoki maniak hujumi sizga yetib bormadi.",
+                "🦺 <b>Kevlar jilet sizni ölimdan saqlab qoldi!</b>\n"
+                "Bu keça mafiya yoki maniak hujumi sizga yetib bormadi.",
             )
         except Exception:
-            logger.info("Kevlar natijasini yuborib bo'lmadi: %s", user_id)
+            logger.info("Kevlar natijasini yuborib bölmadi: %s", user_id)
 
 
 async def announce_day(bot: Bot, game: MafiaGame) -> None:
@@ -551,10 +551,10 @@ async def announce_finish(bot: Bot, game: MafiaGame) -> None:
         )
         if rewarded:
             caption += (
-                f"\n\n🪙 G'oliblar: +{MAFIA_WIN_REWARD} tanga"
+                f"\n\n🪙 Ğoliblar: +{MAFIA_WIN_REWARD} tanga"
             )
     except Exception:
-        logger.exception("Mafiya mukofotini yozib bo'lmadi: %s", game.code)
+        logger.exception("Mafiya mukofotini yozib bölmadi: %s", game.code)
     await bot.send_photo(
         game.chat_id,
         FSInputFile(victory_image_path(game.room.winner)),
@@ -570,7 +570,7 @@ async def send_role_cards(bot: Bot, game: MafiaGame) -> list[int]:
             await bot.send_message(player.user_id, role_text(game, player))
         except Exception:
             logger.exception(
-                "Rol xabarini yuborib bo'lmadi: %s", player.user_id
+                "Rol xabarini yuborib bölmadi: %s", player.user_id
             )
             failed.append(player.user_id)
     return failed
@@ -632,9 +632,9 @@ async def create_mafia_game(message: Message) -> None:
     try:
         user = message.from_user
         if user is None:
-            raise ValueError("Buyruq yuborgan foydalanuvchi aniqlanmadi")
+            raise ValueError("Buyruq yuborgan foydalanuvçi aniqlanmadi")
         logger.info(
-            "Guruhda yangi Mafiya xonasi: chat=%s user=%s",
+            "Guruhda yangi Mafiya xonasi: çat=%s user=%s",
             message.chat.id,
             user.id,
         )
@@ -651,7 +651,7 @@ async def create_mafia_game(message: Message) -> None:
         )
         game.lobby_message_id = getattr(sent, "message_id", None)
     except Exception as exc:
-        logger.exception("Guruhda /mafia buyrug'ida xatolik: %s", exc)
+        logger.exception("Guruhda /mafia buyruğida xatolik: %s", exc)
         await message.reply(f"⚠️ Xatolik yuz berdi: {escape(str(exc))}")
 
 
@@ -663,18 +663,18 @@ async def create_mafia_game_private(message: Message) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Guruhga qo'shish",
+                    text="➕ Guruhga qöşiş",
                     url=f"https://t.me/{config.bot_username}?startgroup=true",
                 )
             ]
         ]
     )
     await message.answer(
-        "🕵️ <b>Mafiya</b> faqat guruhda o'ynaladi.\n\n"
-        "1. Botni guruhingizga qo'shing.\n"
-        "2. Guruhda <code>/mafia</code> buyrug'ini yuboring.\n"
-        "3. Do'stlar «Mafiyaga kirish» yoki «Qo'shilish»ni bosadi.\n"
-        f"4. Kamida {MIN_PLAYERS} kishi bo'lgach xona egasi o'yinni boshlaydi.",
+        "🕵️ <b>Mafiya</b> faqat guruhda öynaladi.\n\n"
+        "1. Botni guruhingizga qöşing.\n"
+        "2. Guruhda <code>/mafia</code> buyruğini yuboring.\n"
+        "3. Döstlar «Mafiyaga kiriş» yoki «Qöşiliş»ni bosadi.\n"
+        f"4. Kamida {MIN_PLAYERS} kişi bölgaç xona egasi öyinni boşlaydi.",
         reply_markup=keyboard,
     )
 
@@ -684,7 +684,7 @@ async def join_mafia_game(callback: CallbackQuery) -> None:
     """«➕ Qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
 
     user = callback.from_user
@@ -701,7 +701,7 @@ async def join_mafia_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Mafiyaga qo'shildingiz!")
+    await callback.answer("Mafiyaga qöşildingiz!")
     await _edit_lobby(callback, lobby_text(game), lobby_keyboard(game))
 
 
@@ -710,7 +710,7 @@ async def start_mafia_game(callback: CallbackQuery) -> None:
     """«▶️ O'yinni boshlash» — faqat xona egasi uchun."""
     code = _callback_code(callback.data, START_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
 
     manager = get_default_manager()
@@ -720,13 +720,13 @@ async def start_mafia_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("O'yin boshlandi!")
+    await callback.answer("Öyin boşlandi!")
     await _edit_lobby(
         callback,
-        "🕵️‍♂️ <b>MAFIYA O'YINI BOSHLANDI!</b>\n\n"
-        f"👥 O'yinchilar: {len(game.room.players)} kishi\n"
+        "🕵️‍♂️ <b>MAFIYA ÖYINI BOŞLANDI!</b>\n\n"
+        f"👥 Öyinçilar: {len(game.room.players)} kişi\n"
         f"🔑 Xona kodi: <code>{game.code}</code>\n"
-        "🎭 Rollaringiz shaxsiy xabar orqali yuborildi.",
+        "🎭 Rollaringiz şaxsiy xabar orqali yuborildi.",
         None,
     )
 
@@ -740,8 +740,8 @@ async def start_mafia_game(callback: CallbackQuery) -> None:
         )
         await callback.bot.send_message(
             game.chat_id,
-            f"⚠️ {names} botga shaxsiy yozmagan, shuning uchun rol "
-            "kartasini olmadi. Ular botga /start yuborishi kerak.",
+            f"⚠️ {names} botga şaxsiy yozmagan, şuning uçun rol "
+            "kartasini olmadi. Ular botga /start yuborişi kerak.",
         )
 
 
@@ -750,7 +750,7 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
     """«⏭ Tunni yakunlash» — xona egasi tungi harakatlarni hal qiladi."""
     code = _callback_code(callback.data, END_NIGHT_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
 
     manager = get_default_manager()
@@ -758,7 +758,7 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
         game = manager.get_game(code)
         if callback.from_user.id != game.host_id:
             await callback.answer(
-                "Tunni faqat xona egasi yakunlashi mumkin.",
+                "Tunni faqat xona egasi yakunlaşi mumkin.",
                 show_alert=True,
             )
             return
@@ -824,7 +824,7 @@ async def mafia_chat_moderator(message: Message) -> None:
         try:
             await message.delete()
         except Exception:
-            logger.debug("O'yinchi bo'lmagan xabarni o'chirib bo'lmadi")
+            logger.debug("Öyinçi bölmagan xabarni öçirib bölmadi")
         return
 
     # Halok bo'lgan o'yinchiga har bir o'yinda bir marta so'nggi so'z beriladi.
@@ -834,14 +834,14 @@ async def mafia_chat_moderator(message: Message) -> None:
             _last_words_spoken.add(marker)
             try:
                 await message.reply(
-                    "⚰️ Bu sizning so'nggi so'zingiz edi. "
-                    "Endi o'yin tugaguncha arvoh kabi jim turing!"
+                    "⚰️ Bu sizning sönggi sözingiz edi. "
+                    "Endi öyin tugagunça arvoh kabi jim turing!"
                 )
             except Exception:
-                logger.debug("So'nggi so'z xabarini yuborib bo'lmadi")
+                logger.debug("Sönggi söz xabarini yuborib bölmadi")
             return
 
         try:
             await message.delete()
         except Exception:
-            logger.debug("Arvoh xabarini o'chirib bo'lmadi")
+            logger.debug("Arvoh xabarini öçirib bölmadi")

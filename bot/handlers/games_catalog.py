@@ -32,68 +32,68 @@ ALIAS_CALLBACK = "catalog_alias"
 BACK_CALLBACK = "catalog_back"
 
 CATALOG_TEXT = (
-    "🎲 <b>O'yinlar ro'yxati</b>\n\n"
-    "Platformadagi barcha o'yinlar. Har biri guruhda o'ynaladi:\n\n"
-    "🛡️ <b>Bunker</b> — <code>/bunker</code> bilan boshlanadi. Falokatdan "
-    "keyin omon qolish uchun kartalar bo'yicha bahslashasiz.\n"
-    "🕵️ <b>Mafiya</b> — <code>/mafia</code> bilan boshlanadi. Tunda yashirin "
-    "rollar, kunduzi ovoz berish.\n"
-    "🔍 <b>Josus</b> — <code>/spy</code> bilan boshlanadi. Hamma joyni "
+    "🎲 <b>Öyinlar röyxati</b>\n\n"
+    "Platformadagi barça öyinlar. Har biri guruhda öynaladi:\n\n"
+    "🛡️ <b>Bunker</b> — <code>/bunker</code> bilan boşlanadi. Falokatdan "
+    "keyin omon qoliş uçun kartalar böyiça bahslaşasiz.\n"
+    "🕵️ <b>Mafiya</b> — <code>/mafia</code> bilan boşlanadi. Tunda yaşirin "
+    "rollar, kunduzi ovoz beriş.\n"
+    "🔍 <b>Josus</b> — <code>/spy</code> bilan boşlanadi. Hamma joyni "
     "biladi, bitta josus bilmaydi. Savol-javob orqali uni toping.\n"
-    "🐊 <b>Alias</b> — <code>/alias</code> bilan boshlanadi. So'zni "
-    "aytmasdan, taqiqlangan so'zlarsiz tushuntirasiz.\n\n"
-    "👇 O'yinni tanlang — guruhda boshlash bo'yicha qo'llanma chiqadi."
+    "🐊 <b>Alias</b> — <code>/alias</code> bilan boşlanadi. Sözni "
+    "aytmasdan, taqiqlangan sözlarsiz tuşuntirasiz.\n\n"
+    "👇 Öyinni tanlang — guruhda boşlaş böyiça qöllanma çiqadi."
 )
 
 BUNKER_TEXT = (
     "🛡️ <b>Bunker</b>\n\n"
-    "Falokatdan keyin faqat bir necha kishi bunkerga sig'adi. Har bir "
-    "o'yinchining kasbi, sog'lig'i, qiziqishi va yuki bo'yicha kim omon "
-    "qolishga loyiqligini birgalikda hal qilasiz.\n\n"
-    "🎮 <b>Guruhda boshlash:</b>\n"
-    "1. Botni guruhingizga qo'shing.\n"
+    "Falokatdan keyin faqat bir neça kişi bunkerga siğadi. Har bir "
+    "öyinçining kasbi, soğliği, qiziqişi va yuki böyiça kim omon "
+    "qolişga loyiqligini birgalikda hal qilasiz.\n\n"
+    "🎮 <b>Guruhda boşlaş:</b>\n"
+    "1. Botni guruhingizga qöşing.\n"
     "2. Guruhda <code>/bunker</code> yuboring.\n"
-    "3. Do'stlar «Guruh orqali qo'shilish»ni bosadi.\n"
-    "4. Xona egasi «O'yinni boshlash»ni bosadi."
+    "3. Döstlar «Guruh orqali qöşiliş»ni bosadi.\n"
+    "4. Xona egasi «Öyinni boşlaş»ni bosadi."
 )
 
 SPY_TEXT = (
     "🔍 <b>Josus (Spyfall)</b>\n\n"
-    "Hamma bitta joyda — masalan, to'yxonada yoki kosmik stantsiyada. "
+    "Hamma bitta joyda — masalan, töyxonada yoki kosmik stantsiyada. "
     "Faqat bitta (yoki ikkita) josus qayerda ekanligini bilmaydi. "
-    "Savol-javob orqali josusni toping, josus esa joyni taxmin qilishga "
+    "Savol-javob orqali josusni toping, josus esa joyni taxmin qilişga "
     "harakat qiladi.\n\n"
-    "🎮 <b>Guruhda boshlash:</b>\n"
-    "1. Botni guruhingizga qo'shing.\n"
+    "🎮 <b>Guruhda boşlaş:</b>\n"
+    "1. Botni guruhingizga qöşing.\n"
     "2. Guruhda <code>/spy</code> yoki <code>/josus</code> yuboring.\n"
-    "3. Kamida 3 kishi «Qo'shilish»ni bosadi.\n"
-    "4. Xona egasi o'yinni boshlaydi — kartalar Mini App'da ochiladi.\n\n"
-    "🏆 G'olibga: tinch aholi +25, josus +35 tanga."
+    "3. Kamida 3 kişi «Qöşiliş»ni bosadi.\n"
+    "4. Xona egasi öyinni boşlaydi — kartalar Mini App'da oçiladi.\n\n"
+    "🏆 Ğolibga: tinç aholi +25, josus +35 tanga."
 )
 
 ALIAS_TEXT = (
     "🐊 <b>Alias / Krokodil</b>\n\n"
-    "Har raundda bitta o'yinchi tushuntiruvchi bo'ladi. U so'zni aytmasdan, "
-    "uchta taqiqlangan so'zni ishlatmasdan tushuntiradi. Qolganlar 60 soniya "
-    "ichida so'zni topishga harakat qiladi.\n\n"
-    "🎮 <b>Guruhda boshlash:</b>\n"
-    "1. Botni guruhingizga qo'shing.\n"
+    "Har raundda bitta öyinçi tuşuntiruvçi böladi. U sözni aytmasdan, "
+    "uçta taqiqlangan sözni işlatmasdan tuşuntiradi. Qolganlar 60 soniya "
+    "içida sözni topişga harakat qiladi.\n\n"
+    "🎮 <b>Guruhda boşlaş:</b>\n"
+    "1. Botni guruhingizga qöşing.\n"
     "2. Guruhda <code>/alias</code> yoki <code>/krokodil</code> yuboring.\n"
-    "3. Kamida 2 kishi «➕ Qo'shilish»ni bosadi.\n"
-    "4. Xona egasi «▶️ Boshlash»ni bosadi — so'z tushuntiruvchiga "
-    "shaxsiy xabar bilan keladi.\n\n"
-    "🏆 Topgan o'yinchiga +10, tushuntiruvchiga +5 tanga."
+    "3. Kamida 2 kişi «➕ Qöşiliş»ni bosadi.\n"
+    "4. Xona egasi «▶️ Boşlaş»ni bosadi — söz tuşuntiruvçiga "
+    "şaxsiy xabar bilan keladi.\n\n"
+    "🏆 Topgan öyinçiga +10, tuşuntiruvçiga +5 tanga."
 )
 
 MAFIA_TEXT = (
     "🕵️ <b>Mafiya</b>\n\n"
-    "Shahar mafiyalar changalida. Tunda yashirin rollar harakat qiladi, "
-    "kunduzi shahar aholisi ovoz berib mafiyani topishga harakat qiladi.\n\n"
-    "🎮 <b>Guruhda boshlash:</b>\n"
-    "1. Botni guruhingizga qo'shing.\n"
+    "Şahar mafiyalar çangalida. Tunda yaşirin rollar harakat qiladi, "
+    "kunduzi şahar aholisi ovoz berib mafiyani topişga harakat qiladi.\n\n"
+    "🎮 <b>Guruhda boşlaş:</b>\n"
+    "1. Botni guruhingizga qöşing.\n"
     "2. Guruhda <code>/mafia</code> yuboring.\n"
-    "3. Kamida 4 kishi «Qo'shilish»ni bosadi.\n"
-    "4. Xona egasi o'yinni boshlaydi — rollar shaxsiy xabarda keladi."
+    "3. Kamida 4 kişi «Qöşiliş»ni bosadi.\n"
+    "4. Xona egasi öyinni boşlaydi — rollar şaxsiy xabarda keladi."
 )
 
 
@@ -125,7 +125,7 @@ def catalog_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="➕ Botni guruhga qo'shish",
+                    text="➕ Botni guruhga qöşiş",
                     url=f"https://t.me/{config.bot_username}?startgroup=true",
                 )
             ],
@@ -140,7 +140,7 @@ def detail_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Guruhga qo'shish",
+                    text="➕ Guruhga qöşiş",
                     url=f"https://t.me/{config.bot_username}?startgroup=true",
                 )
             ],

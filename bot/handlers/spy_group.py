@@ -38,7 +38,7 @@ JOIN_PREFIX = "spy_join_"
 START_PREFIX = "spy_start_"
 
 WINNER_LABELS: dict[Winner, str] = {
-    Winner.PLAYERS: "TINCH AHOLI",
+    Winner.PLAYERS: "TINÇ AHOLI",
     Winner.SPIES: "JOSUS",
 }
 
@@ -65,13 +65,13 @@ def lobby_text(room: SpyfallRoom) -> str:
     count = len(room.players)
     spies = spy_count_for(count)
     return (
-        "🕶️ <b>JOSUS (SPYFALL) O'YINI!</b>\n"
+        "🕶️ <b>JOSUS (SPYFALL) ÖYINI!</b>\n"
         "Hamma joyni biladi — faqat Josus bilmaydi. Savol-javob orqali uni toping!\n\n"
-        f"👥 Qatnashuvchilar: {_players_list(room)}\n"
-        f"🔢 Jami: {count}/{MAX_PLAYERS} kishi\n"
+        f"👥 Qatnaşuvçilar: {_players_list(room)}\n"
+        f"🔢 Jami: {count}/{MAX_PLAYERS} kişi\n"
         f"🕵️ Josuslar: {spies} ta\n"
         f"🔑 Xona kodi: <code>{room.code}</code>\n\n"
-        f"ℹ️ {MIN_PLAYERS}–6 kishida 1 ta, {DOUBLE_SPY_MIN_PLAYERS}+ kishida 2 ta Josus bo'ladi."
+        f"ℹ️ {MIN_PLAYERS}–6 kişida 1 ta, {DOUBLE_SPY_MIN_PLAYERS}+ kişida 2 ta Josus böladi."
     )
 
 
@@ -81,19 +81,19 @@ def lobby_keyboard(room: SpyfallRoom) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚪 Josusga kirish",
+                    text="🚪 Josusga kiriş",
                     url=_startapp(room.code),
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="➕ Qo'shilish",
+                    text="➕ Qöşiliş",
                     callback_data=f"{JOIN_PREFIX}{room.code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="▶️ O'yinni boshlash",
+                    text="▶️ Öyinni boşlaş",
                     callback_data=f"{START_PREFIX}{room.code}",
                 )
             ],
@@ -107,7 +107,7 @@ def playing_keyboard(room: SpyfallRoom) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🃏 Kartani ochish / ovoz berish",
+                    text="🃏 Kartani oçiş / ovoz beriş",
                     url=_startapp(room.code),
                 )
             ]
@@ -151,26 +151,26 @@ async def announce_room(bot: Bot, room: SpyfallRoom, event: str) -> None:
     state = room.public_state()
     if event == "start":
         text = (
-            "🎬 <b>JOSUS O'YINI BOSHLANDI!</b>\n\n"
+            "🎬 <b>JOSUS ÖYINI BOŞLANDI!</b>\n\n"
             f"🔑 Xona kodi: <code>{room.code}</code>\n"
-            f"👥 O'yinchilar: {len(room.players)} kishi\n"
+            f"👥 Öyinçilar: {len(room.players)} kişi\n"
             f"🕵️ Josuslar: {len(room.spy_ids)} ta\n\n"
-            "🃏 Har kim pastdagi tugma orqali Mini App'ga kirib, o'z kartasini "
-            "ochsin: tinch aholi joyni va rolni ko'radi, Josus esa faqat "
-            "ogohlantirishni oladi.\n\n"
+            "🃏 Har kim pastdagi tugma orqali Mini App'ga kirib, öz kartasini "
+            "oçsin: tinç aholi joyni va rolni köradi, Josus esa faqat "
+            "ogohlantirişni oladi.\n\n"
             "🗣 Guruhda savol-javob qiling: «Sen bu yerda nima qilasan?» kabi "
-            "savollarga javob bering. Savollarga javob bermaslik yoki ortiqcha "
-            "aniqlik Josusni fosh qiladi!\n\n"
-            f"⏱ Muhokama uchun {room.round_seconds // 60} daqiqa. Keyin Josus deb "
+            "savollarga javob bering. Savollarga javob bermaslik yoki ortiqça "
+            "aniqlik Josusni foş qiladi!\n\n"
+            f"⏱ Muhokama uçun {room.round_seconds // 60} daqiqa. Keyin Josus deb "
             "ovoz bering."
         )
         keyboard = playing_keyboard(room)
     else:
         winner = room.winner.value if room.winner else ""
         title = (
-            "🕵️ <b>JOSUS G'ALABA QOZONDI!</b>"
+            "🕵️ <b>JOSUS ĞALABA QOZONDI!</b>"
             if winner == Winner.SPIES.value
-            else "🎉 <b>TINCH AHOLI G'ALABA QOZONDI!</b>"
+            else "🎉 <b>TINÇ AHOLI ĞALABA QOZONDI!</b>"
         )
         location = state.get("location") or {}
         spies = [
@@ -187,15 +187,15 @@ async def announce_room(bot: Bot, room: SpyfallRoom, event: str) -> None:
         text += f"🕵️ <b>Josus:</b> {', '.join(spies) or '—'}\n"
         text += (
             f"🪙 <b>Mukofot:</b> {'+35' if winner == Winner.SPIES.value else '+25'} "
-            "tanga (g'oliblarga)\n\n"
-            "Yangi o'yin uchun guruhda <code>/spy</code> yuboring."
+            "tanga (ğoliblarga)\n\n"
+            "Yangi öyin uçun guruhda <code>/spy</code> yuboring."
         )
         keyboard = None
 
     try:
         await bot.send_message(room.chat_id, text, reply_markup=keyboard)
     except Exception:  # e'lon yuborilmasa o'yin holati buzilmasin
-        logger.exception("Josus e'lonini guruhga yuborib bo'lmadi: %s", room.chat_id)
+        logger.exception("Josus e'lonini guruhga yuborib bölmadi: %s", room.chat_id)
 
 
 # ----------------------------------------------------------------------
@@ -219,16 +219,16 @@ async def create_spy_game(message: Message) -> None:
     except SpyfallRoomError as exc:
         await message.reply(f"⚠️ {escape(str(exc))}")
     except Exception:
-        logger.exception("Guruhda /spy buyrug'ida xatolik")
-        await message.reply("⚠️ Xatolik yuz berdi, keyinroq qayta urinib ko'ring.")
+        logger.exception("Guruhda /spy buyruğida xatolik")
+        await message.reply("⚠️ Xatolik yuz berdi, keyinroq qayta urinib köring.")
 
 
 @router.message(F.chat.type == "private", Command("spy", "josus", "spyfall"))
 async def create_spy_game_private(message: Message) -> None:
     """Shaxsiy chatda /spy — guruhga yo'naltirish."""
     await message.answer(
-        "🕶️ Josus o'yinini guruhda ochish kerak.\n"
-        "Botni guruhga qo'shib, u yerda /spy yoki /josus yuboring."
+        "🕶️ Josus öyinini guruhda oçiş kerak.\n"
+        "Botni guruhga qöşib, u yerda /spy yoki /josus yuboring."
     )
 
 
@@ -237,7 +237,7 @@ async def join_spy_game(callback: CallbackQuery) -> None:
     """«➕ Qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
 
     user = callback.from_user
@@ -247,7 +247,7 @@ async def join_spy_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Josusga qo'shildingiz!")
+    await callback.answer("Josusga qöşildingiz!")
     await _edit_or_send(callback, lobby_text(room), lobby_keyboard(room))
 
 
@@ -256,7 +256,7 @@ async def start_spy_game(callback: CallbackQuery) -> None:
     """«▶️ O'yinni boshlash» — faqat xona egasi uchun."""
     code = _callback_code(callback.data, START_PREFIX)
     if code is None:
-        await callback.answer("Noto'g'ri tugma.", show_alert=True)
+        await callback.answer("Notöğri tugma.", show_alert=True)
         return
 
     try:
@@ -265,14 +265,14 @@ async def start_spy_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("O'yin boshlandi!")
+    await callback.answer("Öyin boşlandi!")
     await announce_room(callback.bot, room, "start")
     await _edit_or_send(
         callback,
-        "🎬 <b>O'yin boshlandi!</b>\n\n"
+        "🎬 <b>Öyin boşlandi!</b>\n\n"
         f"🔑 Xona kodi: <code>{room.code}</code>\n"
         f"🕵️ Josuslar: {len(room.spy_ids)} ta\n\n"
-        "Kartangizni pastdagi tugma orqali Mini App'da oching.",
+        "Kartangizni pastdagi tugma orqali Mini App'da oçing.",
         playing_keyboard(room),
     )
 

@@ -267,8 +267,8 @@ class ProfileSplitTest(unittest.TestCase):
             mafia_wins=1,
         )
         text = profile_text(account)
-        self.assertIn("🛡️ Bunker: <b>2</b> g'alaba", text)
-        self.assertIn("🕵️ Mafiya: <b>1</b> g'alaba", text)
+        self.assertIn("🛡️ Bunker: <b>2</b> ğalaba", text)
+        self.assertIn("🕵️ Mafiya: <b>1</b> ğalaba", text)
 
 
 class PhaseTimerTest(unittest.TestCase):

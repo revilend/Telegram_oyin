@@ -114,10 +114,10 @@ class AdminPanelTest(unittest.TestCase):
         self.assertEqual(
             rows,
             [
-                ["💳 Karta raqamini sozlash"],
-                ["📥 Kutilayotgan to'lovlar (Cheklar)"],
-                ["➕ Foydalanuvchiga tanga berish"],
-                ["🎟 Promo kod yaratish"],
+                ["💳 Karta raqamini sozlaş"],
+                ["📥 Kutilayotgan tölovlar (Çeklar)"],
+                ["➕ Foydalanuvçiga tanga beriş"],
+                ["🎟 Promo kod yaratiş"],
                 ["📢 Hammaga xabar (Broadcast)"],
             ],
         )
@@ -207,7 +207,7 @@ class AdminPanelTest(unittest.TestCase):
             asyncio.run(admin.show_pending_payments(callback))
         self.assertEqual(callback.bot.photos, [])
         self.assertIn(
-            "Hozircha kutilayotgan to'lovlar yo'q", callback.bot.messages[-1][1]
+            "Hozirça kutilayotgan tölovlar yöq", callback.bot.messages[-1][1]
         )
 
     def test_pending_payments_denied_for_players(self) -> None:
@@ -254,7 +254,7 @@ class AdminPanelTest(unittest.TestCase):
         with patch.object(admin, "get_economy", return_value=store):
             asyncio.run(admin.ask_promo(callback, state))
             self.assertIs(state.state, admin.AdminStates.waiting_promo)
-            self.assertIn("Promo kod yaratish", callback.bot.messages[-1][1])
+            self.assertIn("Promo kod yaratiş", callback.bot.messages[-1][1])
 
             message = FakeMessage(text="YANGIYIL 500 20")
             asyncio.run(admin.save_promo(message, state))
