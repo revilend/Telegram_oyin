@@ -47,7 +47,7 @@
     #app {
       max-width: 620px;
       margin: 0 auto;
-      padding: calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+      padding: 8px 16px calc(28px + env(safe-area-inset-bottom));
       min-height: 100vh;
     }
 
@@ -62,7 +62,14 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 26px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+      background: var(--bg);
+      box-shadow: 0 12px 18px -16px rgba(0, 0, 0, 0.75);
     }
 
     .brand-left { display: flex; align-items: center; gap: 10px; }
@@ -116,6 +123,14 @@
       background: linear-gradient(135deg, #6366f1, #a855f7);
     }
 
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+
     .avatar.sm { width: 40px; height: 40px; min-width: 40px; font-size: 13px; }
 
     /* ---------- Hub ---------- */
@@ -151,8 +166,8 @@
     .game-card {
       position: relative;
       display: flex;
-      gap: 14px;
-      align-items: center;
+      gap: 12px;
+      align-items: flex-start;
       padding: 16px;
       border-radius: var(--radius);
       background: linear-gradient(150deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
@@ -346,8 +361,8 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 10px 0 14px;
-      background: linear-gradient(180deg, var(--bg) 55%, rgba(7, 11, 22, 0.85) 100%);
+      padding: calc(env(safe-area-inset-top, 0px) + 8px) 0 14px;
+      background: var(--bg);
       backdrop-filter: blur(12px);
     }
 
@@ -935,7 +950,8 @@
     body.theme-light .vote-panel,
     body.theme-light .join-room,
     body.theme-light .notice { background: rgba(15, 23, 42, 0.04); border-color: rgba(15, 23, 42, 0.11); }
-    body.theme-light .topbar { background: linear-gradient(180deg, var(--bg) 55%, rgba(244, 245, 251, 0.86) 100%); }
+    body.theme-light .topbar { background: var(--bg); }
+    body.theme-light .brand { background: var(--bg); box-shadow: 0 12px 18px -16px rgba(15, 23, 42, 0.35); }
     body.theme-light .catastrophe { background:
       radial-gradient(500px 220px at 100% 0%, rgba(248, 113, 113, 0.16), transparent 60%),
       linear-gradient(155deg, rgba(139, 92, 246, 0.14), rgba(15, 23, 42, 0.03)); border-color: rgba(15, 23, 42, 0.12); }
@@ -1239,6 +1255,109 @@
     .rank-badge.rank-2 { background: #cbd5e1; }
     .rank-badge.rank-3 { background: #d97706; color: #fff; }
 
+    /* ---------- Jonli chat ---------- */
+    .rules-list { margin: 12px 0 16px; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.7; }
+    .rules-list code { background: rgba(255, 255, 255, 0.08); padding: 1px 6px; border-radius: 6px; font-size: 12px; }
+
+    .chat-fab {
+      position: fixed;
+      right: 14px;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      z-index: 60;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid rgba(139, 92, 246, 0.45);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(34, 211, 238, 0.85));
+      color: #0b1020;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 11px 14px;
+      border-radius: 999px;
+      box-shadow: 0 14px 30px rgba(88, 51, 189, 0.35);
+      cursor: pointer;
+    }
+    .chat-sheet {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 70;
+      height: min(74vh, 560px);
+      display: flex;
+      flex-direction: column;
+      background: #0b1020;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.55);
+      transform: translateY(100%);
+      transition: transform 0.22s ease;
+    }
+    .chat-sheet.open { transform: translateY(0); }
+    body.theme-light .chat-sheet { background: #ffffff; border-color: rgba(15, 23, 42, 0.12); }
+    .chat-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    body.theme-light .chat-head { border-color: rgba(15, 23, 42, 0.08); }
+    .chat-head b { font-size: 14px; flex: 1; }
+    .chat-online { font-size: 10px; color: var(--success); letter-spacing: 0.4px; }
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      scroll-behavior: smooth;
+    }
+    .chat-sys { align-self: center; text-align: center; font-size: 11px; color: var(--muted); padding: 2px 8px; }
+    .chat-msg { display: flex; flex-direction: column; gap: 2px; max-width: 82%; }
+    .chat-msg.own { align-self: flex-end; align-items: flex-end; }
+    .chat-author { font-size: 10.5px; font-weight: 700; padding-left: 4px; }
+    .chat-bubble {
+      padding: 9px 12px;
+      border-radius: 14px 14px 14px 4px;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 13px;
+      line-height: 1.42;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    body.theme-light .chat-bubble { background: rgba(15, 23, 42, 0.06); }
+    .chat-msg.own .chat-bubble {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(34, 211, 238, 0.8));
+      color: #08101f;
+      border-radius: 14px 14px 4px 14px;
+    }
+    .chat-msg.secret .chat-bubble { background: rgba(248, 113, 113, 0.16); border: 1px solid rgba(248, 113, 113, 0.45); color: #fecaca; }
+    .chat-msg.ghost .chat-bubble { opacity: 0.65; font-style: italic; }
+    .chat-time { font-size: 9.5px; color: var(--muted); padding: 0 4px; }
+    .chat-form {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    body.theme-light .chat-form { border-color: rgba(15, 23, 42, 0.08); }
+    .chat-form input {
+      flex: 1;
+      min-width: 0;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      padding: 11px 12px;
+      font-size: 14px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    body.theme-light .chat-form input { background: rgba(15, 23, 42, 0.05); border-color: rgba(15, 23, 42, 0.12); }
+    .chat-lock { padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px)); margin: 0; font-size: 11.5px; color: var(--muted); text-align: center; }
+
     @media (max-width: 390px) {
       .status-pill { display: none; }
       .room-code { font-size: 15px; }
@@ -1254,11 +1373,48 @@
       .cat-grid { grid-template-columns: 1fr 1fr; }
     }
     /* ---------- Navbat, liga vkladkalari, o'yin tarixi ---------- */
-    .game-actions { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; }
+    .game-body { flex: 1 1 auto; min-width: 0; }
+    .game-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      flex: 0 0 auto;
+      max-width: 44%;
+      min-width: 0;
+    }
+    .game-actions .play-btn,
+    .game-actions .match-btn { white-space: nowrap; text-align: center; justify-content: center; }
     .match-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-    .match-status { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .match-status {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      width: 100%;
+      min-width: 0;
+    }
     .match-status:empty { display: none; }
-    .match-text { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--accent-2); }
+    .match-text {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: 5px;
+      font-size: 10.5px;
+      line-height: 1.35;
+      color: var(--accent-2);
+      white-space: normal;
+      word-break: break-word;
+    }
+    .match-text svg { flex: 0 0 auto; margin-top: 2px; }
+    .match-status .link-btn { align-self: flex-start; font-size: 10.5px; }
+    @media (max-width: 430px) {
+      .game-card { gap: 10px; padding: 13px; }
+      .game-icon { width: 44px; height: 44px; min-width: 44px; font-size: 21px; }
+      .game-name { font-size: 14px; }
+      .game-desc { font-size: 11px; -webkit-line-clamp: 3; }
+      .game-actions { max-width: 42%; }
+      .play-btn, .match-btn { padding: 9px 10px; font-size: 11px; }
+    }
     .link-btn {
       border: 0; background: transparent; color: var(--muted); cursor: pointer;
       font-size: 11px; font-weight: 600; text-decoration: underline; padding: 0;
@@ -1381,7 +1537,7 @@
       };
       var GAMES = [
         {
-          slug: "bunker", name: "Bunker", icon: "radiation", status: "active", players: "2–12",
+          slug: "bunker", name: "Bunker", icon: "radiation", status: "active", players: "4–16",
           description: "Falokatdan keyin omon qolish uchun kartalaringizni oching, bahslashing va bunkerga kim tushishini hal qiling."
         },
         {
@@ -1391,6 +1547,10 @@
         {
           slug: "spyfall", name: "Josus", icon: "glasses", status: "active", players: "3–12",
           description: "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob orqali uni toping."
+        },
+        {
+          slug: "alias", name: "Alias / Krokodil", icon: "sparkles", status: "active", players: "2–20",
+          description: "Tezkor so'z tushuntirish va topish poygasi. Guruhda /alias bilan boshlang."
         }
       ];
 
@@ -1431,6 +1591,7 @@
         spyRuled: {},
         spyLocations: [],
         spyEntry: false,
+        aliasEntry: false,
         mafia: null,
         mafiaState: null,
         mafiaLoading: false,
@@ -2324,6 +2485,178 @@ function profileCardHtml() {
         else window.open(link, "_blank", "noopener");
       }
 
+      // ----------------------------------------------------------------
+      // Jonli guruh chati (WebSocket /ws/{code}, xabarlar faqat RAMda
+      // saqlanadi - baza ga yozilmaydi)
+      // ----------------------------------------------------------------
+      var chatState = {
+        messages: [],
+        locked: false,
+        input: null,
+        list: null,
+        mount: null,
+        outbox: []
+      };
+
+      function chatBoot() {
+        var dock = document.getElementById("chat-dock");
+        if (!dock) return null;
+        chatState.input = dock.querySelector("#chat-input");
+        chatState.list = dock.querySelector("#chat-list");
+        dock.querySelector("[data-chat=\"close\"]").addEventListener("click", function () { closeChat(); });
+        dock.querySelector("[data-chat=\"toggle\"]").addEventListener("click", function () { toggleChat(); });
+        dock.querySelector("#chat-form").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var input = chatState.input;
+          if (!input.value.trim()) return;
+          sendChat(input.value.trim());
+          input.value = "";
+        });
+        return dock;
+      }
+
+      function mountChat() {
+        if (chatState.mount) return;
+        chatState.outbox = [];
+        var dock = document.createElement("div");
+        dock.id = "chat-dock";
+        dock.innerHTML =
+          '<button class="chat-fab" data-chat="toggle" aria-label="Guruh suhbatini ochish">' + icon("send") + "💬 Guruh suhbati</button>" +
+          '<section class="chat-sheet" id="chat-sheet">' +
+            '<header class="chat-head"><b>💬 Guruh suhbati</b><span class="chat-online">online</span>' +
+              '<button class="icon-btn" data-chat="close" aria-label="Yopish">' + icon("close") + "</button></header>" +
+            '<div class="chat-list" id="chat-list"></div>' +
+            '<div class="chat-lock" id="chat-lock" hidden>Siz o\'yindan chiqqansiz (arvohsiz). Yozish uchun iltimos guruhga qaylang.</div>' +
+            '<form id="chat-form"><input id="chat-input" placeholder="Xabar yozing..." maxlength="300" autocomplete="off" />' +
+              '<button type="submit" class="play-btn">Yuborish</button></form>' +
+          "</section>";
+        document.body.appendChild(dock);
+        chatState.mount = chatBoot();
+      }
+
+      function unmountChat() {
+        if (!chatState.mount) return;
+        var dock = chatState.mount;
+        chatState.mount = null;
+        chatState.input = null;
+        chatState.list = null;
+        if (dock.parentNode) dock.parentNode.removeChild(dock);
+      }
+
+      function toggleChat() {
+        var dock = chatState.mount;
+        if (!dock) return;
+        var sheet = document.getElementById("chat-sheet");
+        if (sheet.classList.contains("open")) {
+          closeChat();
+        } else {
+          openChat();
+        }
+      }
+
+      function openChat() {
+        var sheet = document.getElementById("chat-sheet");
+        if (!sheet) return;
+        sheet.classList.add("open");
+        chatState.locked = false;
+        document.getElementById("chat-lock").hidden = true;
+        if (chatState.input) chatState.input.focus();
+      }
+
+      function closeChat() {
+        var sheet = document.getElementById("chat-sheet");
+        if (sheet) sheet.classList.remove("open");
+      }
+
+      function chatMessageHtml(m) {
+        if (m.kind === "system") {
+          return '<div class="chat-sys">' + esc(m.text) + "</div>";
+        }
+        var viewerId = (view.me && view.me.id) || (profile && profile.id) || 0;
+        var own = Number(m.user_id) === Number(viewerId);
+        var cls = "chat-msg" + (own ? " own" : "") + (m.kind === "mafia" ? " secret" : "") + (m.ghost ? " ghost" : "");
+        var time = new Date(Number(m.ts) * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        var bubble = '<div class="chat-bubble">' + esc(m.text) + '</div><div class="chat-time">' + time +
+          (m.kind === "mafia" ? ' <span style="color:#fca5a5">· maxfiy</span>' : "") + "</div>";
+        if (own) return '<div class="chat-msg own">' + bubble + "</div>";
+        var author = m.name ? esc(m.name) : "O'yinchi";
+        return '<div class="chat-msg" style="color:hsl(' + (Math.abs(Number(m.user_id)) % 360) + ', 70%, 60%)">' +
+          '<div class="chat-author">' + author + "</div>" + bubble + "</div>";
+      }
+
+      function renderChatMessages() {
+        var list = chatState.list;
+        if (!list) return;
+        var html = chatState.messages.map(chatMessageHtml).join("");
+        list.innerHTML = html;
+        var scroll = list.scrollHeight - list.clientHeight;
+        if (scroll > 0) list.scrollTop = scroll;
+      }
+
+      function appendChat(message) {
+        chatState.messages.push(message);
+        if (chatState.messages.length > 1000) chatState.messages = chatState.messages.slice(-500);
+        renderChatMessages();
+      }
+
+      function clearChat() {
+        chatState.messages = [];
+        renderChatMessages();
+      }
+
+      function sendChat(text) {
+        var ws = view.ws;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          // Ustun hali ochilmagan bo'lsa navbatga qo'yamiz: onopen yuboradi.
+          chatState.outbox.push(text);
+          toast("Suhbat ulanmoqda, xabar navbatda turadi", "info");
+          return;
+        }
+        ws.send(JSON.stringify({ type: "chat", text: text }));
+      }
+
+      function flushChatOutbox() {
+        var ws = view.ws;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        while (chatState.outbox.length) {
+          ws.send(JSON.stringify({ type: "chat", text: chatState.outbox.shift() }));
+        }
+      }
+
+      function onChatMessage(message) {
+        if (message.kind === "system" && /arvohsiz/i.test(message.text)) {
+          chatState.locked = true;
+          document.getElementById("chat-lock").hidden = false;
+          return;
+        }
+        appendChat(message);
+      }
+
+      function onChatHistory(messages) {
+        chatState.messages = messages || [];
+        renderChatMessages();
+      }
+
+      function applyChatLock(locked) {
+        chatState.locked = !!locked;
+        var lock = document.getElementById("chat-lock");
+        if (lock) lock.hidden = !chatState.locked;
+      }
+
+      function chatError(payload) {
+        var text = payload && payload.message ? String(payload.message) : "";
+        if (payload && payload.locked) {
+          chatState.locked = true;
+          var lock = document.getElementById("chat-lock");
+          if (lock) lock.hidden = false;
+        }
+        if (text && !chatState.locked) toast(text, "error");
+      }
+
+      // ----------------------------------------------------------------
+      // Chat uchun so'rov API: /ws/{code} bor, xabar boshqacha ishlaydi
+      // ----------------------------------------------------------------
+
       function announceTransitions(previous, next) {
         if (!previous || !next) return 0;
         var announced = 0;
@@ -2557,7 +2890,10 @@ function profileCardHtml() {
         var requestOptions = Object.assign({}, options || {});
         var headers = Object.assign({}, (options && options.headers) || {});
         var initData = getTgInitData();
-        if (initData) headers["X-Telegram-Init-Data"] = initData;
+        if (initData) {
+          headers["X-Telegram-Init-Data"] = initData;
+          headers["Authorization"] = "tma " + initData;
+        }
         requestOptions.headers = headers;
         var response = await fetch(path, requestOptions);
         var data = null;
@@ -3481,10 +3817,11 @@ function profileCardHtml() {
               '</form>' +
               '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya» yoki «Josus» xabaridan oling. Kod turiga qarab kerakli o\'yin ochiladi.</p>' +
             '</section>' +
-            '<div class="footer">Revilend Games · Bunker · Mafiya · Josus</div>' +
+            '<div class="footer">Revilend Games · Bunker · Mafiya · Josus · Alias</div>' +
           '</main>' +
           shopModalHtml() +
-          spyEntryHtml();
+          spyEntryHtml() +
+          aliasEntryHtml();
         loadMatchmaking();
       }
 
@@ -3503,10 +3840,43 @@ function profileCardHtml() {
         '</section></div>';
       }
 
+      function aliasEntryHtml() {
+        if (!view.aliasEntry) return "";
+        var botUser = String((view.shop && view.shop.bot_username) || "revilend_gamesbot").replace(/^@/, "");
+        var groupUrl = "https://t.me/" + encodeURIComponent(botUser) + "?startgroup=true";
+        return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Alias yo\'riqnomasi">' +
+          '<div class="shop-head"><div><h2>' + icon("sparkles") + ' Alias / Krokodil</h2>' +
+            '<p class="shop-lede">Tezkor so\'z tushuntirish va topish poygasi. 2–20 o\'yinchi.</p></div>' +
+            '<button class="shop-close" data-act="alias-entry-close" aria-label="Yopish">' + icon("close") + '</button></div>' +
+          '<ol class="rules-list">' +
+            '<li>Botni guruhingizga qo\'shing.</li>' +
+            '<li>Guruhda <code>/alias</code> yoki <code>/krokodil</code> yuboring.</li>' +
+            '<li>Do\'stlar «Qo\'shilish» tugmasini bosadi.</li>' +
+            '<li>Kamida 2 kishi bo\'lgach xona egasi o\'yinni boshlaydi.</li>' +
+            '<li>Tushuntiruvchi so\'zni tavsiflaydi, qolganlar topadi.</li>' +
+          '</ol>' +
+          '<a class="btn primary block" href="' + groupUrl + '" target="_blank" rel="noopener">' + icon("plus") + ' Guruhga qo\'shish</a>' +
+          '<button class="btn block" data-act="alias-entry-close" style="margin-top:8px">Yopish</button>' +
+        '</section></div>';
+      }
+
       function gameCardHtml(game) {
         var active = game.status === "active";
         var isMafia = game.slug === "mafia";
         var isSpy = game.slug === "spyfall";
+        var isAlias = game.slug === "alias";
+        var playAction = isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : (isAlias ? "open-alias" : "open-bunker"));
+        var actions = active
+          ? '<div class="game-actions">' +
+              '<button class="play-btn" data-act="' + playAction + '">O\'ynash</button>' +
+              (isAlias
+                ? ''
+                : '<button class="btn small match-btn" data-act="match-join" data-game="' + esc(game.slug) + '">' +
+                    icon("users") + ' Odam qidirish</button>') +
+              '<div class="match-status" data-match-status="' + esc(game.slug) + '">' +
+                matchStatusHtml(game.slug) + '</div>' +
+            '</div>'
+          : '<button class="play-btn" disabled>Tez kunda</button>';
         return '<article class="game-card ' + (active ? "active" : "") + '">' +
           '<div class="game-icon">' + icon(game.icon || "gamepad") + '</div>' +
           '<div class="game-body">' +
@@ -3515,16 +3885,7 @@ function profileCardHtml() {
             '<p class="game-desc">' + esc(game.description) + '</p>' +
             '<div class="game-meta">' + esc(game.players) + ' o\'yinchi</div>' +
           '</div>' +
-          (active
-            ? '<div class="game-actions">' +
-                '<button class="play-btn" data-act="' + (isMafia ? "open-mafia" : (isSpy ? "open-spyfall" : "open-bunker")) + '">' +
-                  "O'ynash" + '</button>' +
-                '<button class="btn small match-btn" data-act="match-join" data-game="' + esc(game.slug) + '">' +
-                  icon("users") + ' Odam qidirish</button>' +
-              '</div>' +
-              '<div class="match-status" data-match-status="' + esc(game.slug) + '">' +
-                matchStatusHtml(game.slug) + '</div>'
-            : '<button class="play-btn" disabled>Tez kunda</button>') +
+          actions +
         '</article>';
       }
 
@@ -3547,11 +3908,13 @@ function profileCardHtml() {
         setBackButton(true);
         renderLoading();
         loadRoomData(false);
+        mountChat();
         connectSocket();
         startPolling();
       }
 
       function goHome() {
+        unmountChat();
         stopLive();
         stopTimer();
         if (view.flipTimer) {
@@ -3961,7 +4324,10 @@ function profileCardHtml() {
         var protocol = window.location.protocol === "https:" ? "wss" : "ws";
         var socket;
         try {
-          socket = new WebSocket(protocol + "://" + window.location.host + "/ws/" + encodeURIComponent(view.code));
+          var wsUrl = protocol + "://" + window.location.host + "/ws/" + encodeURIComponent(view.code);
+          var chatUserId = (view.me && view.me.id) || (profile && profile.id);
+          if (chatUserId) wsUrl += "?user_id=" + encodeURIComponent(String(chatUserId));
+          socket = new WebSocket(wsUrl);
         } catch (err) {
           view.wsTimer = setTimeout(connectSocket, 4000);
           return;
@@ -3971,9 +4337,25 @@ function profileCardHtml() {
         socket.onmessage = function (event) {
           var message;
           try { message = JSON.parse(event.data); } catch (err) { return; }
+          if (message.type === "chat-history") {
+            onChatHistory(message.messages);
+            applyChatLock(message.locked);
+            return;
+          }
+          if (message.type === "chat") {
+            onChatMessage(message.message || message);
+            return;
+          }
+          if (message.type === "chat-error") {
+            chatError(message);
+            return;
+          }
           if (message.type === "state" && message.state) {
             applyRemoteRoom(message.state);
           }
+        };
+        socket.onopen = function () {
+          flushChatOutbox();
         };
         socket.onclose = function () {
           if (view.ws === socket) view.ws = null;
@@ -4117,6 +4499,12 @@ function profileCardHtml() {
           }
         } else if (act === "open-spyfall") {
           view.spyEntry = true;
+          renderHub();
+        } else if (act === "open-alias") {
+          view.aliasEntry = true;
+          renderHub();
+        } else if (act === "alias-entry-close") {
+          view.aliasEntry = false;
           renderHub();
         } else if (act === "spy-entry-close") {
           view.spyEntry = false;
@@ -4447,7 +4835,5 @@ function profileCardHtml() {
       boot();
     })();
   </script>
-</body>
-</html>
 </body>
 </html>

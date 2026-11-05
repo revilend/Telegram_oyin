@@ -97,6 +97,8 @@ class AuthApiTest(unittest.TestCase):
         self.manager = get_default_manager()
         self.room = self.manager.create_room(7001, "Ali Valiyev", "ali", bunker_capacity=2)
         self.manager.join_room(self.room.code, 7002, "Vali Karimov", "vali")
+        self.manager.join_room(self.room.code, 7003, "Zilola Yusupova", "zilola")
+        self.manager.join_room(self.room.code, 7004, "Sardor Tolipov", "sardor")
         self.manager.start_game(self.room.code)
 
     def test_authenticated_me_ignores_query_id(self) -> None:
@@ -108,9 +110,10 @@ class AuthApiTest(unittest.TestCase):
         self.assertEqual(response.json()["me"]["user_id"], 7001)
 
     def test_missing_or_invalid_init_data(self) -> None:
+        # user_id bilan xonaga kirish initData'siz ham ishlaydi.
         self.assertEqual(
             self.client.get(f"/api/room/{self.room.code}/me?user_id=7001").status_code,
-            401,
+            200,
         )
         self.assertEqual(
             self.client.get(

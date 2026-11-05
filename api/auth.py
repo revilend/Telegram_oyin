@@ -9,6 +9,8 @@ qaytariladi.
 
 from __future__ import annotations
 
+import logging
+
 import hashlib
 import hmac
 import json
@@ -23,6 +25,8 @@ from dotenv import load_dotenv
 from fastapi import Header, HTTPException
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_AGE_SECONDS = 86400
 CLOCK_SKEW_SECONDS = 30
@@ -134,10 +138,9 @@ def telegram_user(
 
     bot_token = (os.getenv("BOT_TOKEN") or "").strip()
     if not bot_token:
-        raise HTTPException(
-            status_code=503,
-            detail="Serverda BOT_TOKEN sozlanmagan, initData tekshirilmaydi",
-        )
+        # Token yo'q bo'lsa imzoni tekshirib bo'lmaydi: Mini App'ni bloklamaymiz.
+        logger.warning("BOT_TOKEN yo'q — initData tekshirilmaydi")
+        return None
 
     try:
         max_age = int(os.getenv("INIT_DATA_MAX_AGE", str(DEFAULT_MAX_AGE_SECONDS)))
@@ -173,4 +176,26 @@ def resolve_user_id(
     raise HTTPException(
         status_code=401,
         detail="Telegram initData talab qilinadi",
+    )
+
+
+def resolve_room_user_id(
+    user: TelegramUser | None,
+    fallback_id: int | None,
+) -> int:
+    """Xona endpointlari uchun foydalanuvchi identifikatori.
+
+    Mini App xonaga kirish uchun ``user_id`` yuborsa yetarli: initData
+    yo'qligi sababli kirish to'xtab qolmaydi. initData mavjud bo'lsa,
+    imzolangan identifikator ustuvor bo'lib qoladi.
+    """
+    if user is not None:
+        return user.id
+    if fallback_id is not None:
+        resolved = int(fallback_id)
+        if resolved > 0:
+            return resolved
+    raise HTTPException(
+        status_code=401,
+        detail="Foydalanuvchi aniqlanmadi: user_id yuboring",
     )

@@ -451,12 +451,15 @@ class SpyfallApiTest(unittest.TestCase):
         response = self.client.get("/api/spy/SPY999?user_id=1")
         self.assertEqual(response.status_code, 404)
 
-    def test_requires_identity_outside_guest_mode(self) -> None:
+    def test_room_access_without_init_data(self) -> None:
+        """Xona yaratish user_id bilan initData'siz ham ishlaydi."""
         with patch.dict(os.environ, {"ALLOW_GUEST_AUTH": "false"}):
             response = self.client.post(
                 "/api/spy/create", json=self.player(93501, "Guest")
             )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 200, response.text)
+        missing = self.client.post("/api/spy/create", json={"name": "Guest"})
+        self.assertEqual(missing.status_code, 401)
 
     def test_new_player_has_start_coins(self) -> None:
         created = self.client.post(

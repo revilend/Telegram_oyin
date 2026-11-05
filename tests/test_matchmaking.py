@@ -15,6 +15,7 @@ from core.economy import EconomyStore
 from core.leaderboard import build_leaderboard, medal_for, week_bounds
 from engine.cleaner import RoomCleaner
 from engine.game_manager import GameManager
+from engine import matchmaking
 from engine.matchmaking import Matchmaker, get_matchmaker
 from models.game import RoomStatus
 
@@ -195,7 +196,7 @@ class ApiFeatureTest(unittest.TestCase):
         self.assertEqual(joined.status_code, 200, joined.text)
         payload = joined.json()
         self.assertEqual(payload["count"], 1)
-        self.assertEqual(payload["min"], 6)
+        self.assertEqual(payload["min"], 4)
         self.assertFalse(payload["match"])
 
         status = self.client.get(
@@ -238,3 +239,109 @@ class ApiFeatureTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeQueueStore:
+    """Supabase ``matchmaking_queue`` jadvalining xotiradagi nusxasi."""
+
+    def __init__(self) -> None:
+        self.rows: dict[int, dict[str, object]] = {}
+
+    def load(self) -> list[dict[str, object]]:
+        return [dict(row) for row in self.rows.values()]
+
+    def add(self, entry: dict[str, object]) -> None:
+        user_id = int(entry.get("user_id") or 0)
+        self.rows[user_id] = {
+            "user_id": user_id,
+            "game_type": str(entry.get("game_type") or ""),
+            "name": str(entry.get("name") or ""),
+            "username": str(entry.get("username") or ""),
+            "joined_at": float(entry.get("joined_at") or time.time()),
+        }
+
+    def remove(self, user_id: int, game_type: str | None = None) -> None:
+        row = self.rows.get(int(user_id))
+        if row and (game_type is None or row["game_type"] == game_type):
+            self.rows.pop(int(user_id), None)
+
+    def remove_users(self, user_ids: object) -> None:
+        for user_id in user_ids:
+            self.rows.pop(int(user_id), None)
+
+
+class GlobalQueueTest(unittest.TestCase):
+    """``join_global_queue`` / ``leave_global_queue`` / ``check_and_create_matches``."""
+
+    def setUp(self) -> None:
+        self.store = FakeQueueStore()
+        self.matches: list[dict[str, object]] = []
+
+        def factory(game_type: str, players: list[dict[str, object]]):
+            match = {
+                "game_type": game_type,
+                "code": f"MAT{len(self.matches)}",
+                "join_url": f"https://mini.test/?room=MAT{len(self.matches)}",
+                "players": len(players),
+            }
+            self.matches.append(match)
+            return match
+
+        self.matchmaker = Matchmaker(store=self.store)
+        self.matchmaker.set_room_factory(factory)
+        self.patcher = patch(
+            "engine.matchmaking.get_matchmaker", lambda: self.matchmaker
+        )
+        self.patcher.start()
+        self.addCleanup(self.patcher.stop)
+
+    def test_join_persists_player_in_queue_table(self) -> None:
+        result = matchmaking.join_global_queue(101, "bunker", name="Ali", username="ali")
+        self.assertEqual(result["count"], 1)
+        self.assertIn(101, self.store.rows)
+        self.assertEqual(self.store.rows[101]["game_type"], "bunker")
+        self.assertEqual(self.store.rows[101]["name"], "Ali")
+
+        again = matchmaking.join_global_queue(101, "bunker", name="Ali")
+        self.assertEqual(again["count"], 1)
+        self.assertEqual(len(self.store.rows), 1, "Takroriy yozuv qo'shilmasin")
+
+    def test_leave_removes_player_from_queue_table(self) -> None:
+        matchmaking.join_global_queue(102, "mafia", name="Vali")
+        left = matchmaking.leave_global_queue(102)
+        self.assertTrue(left["left"])
+        self.assertNotIn(102, self.store.rows)
+
+    def test_alias_queue_starts_with_two_players(self) -> None:
+        first = matchmaking.join_global_queue(1, "alias", name="Ali")
+        self.assertIsNone(first["match"])
+        self.assertEqual(first["need"], 1)
+        second = matchmaking.join_global_queue(2, "alias", name="Vali")
+        self.assertIsNotNone(second["match"])
+        self.assertEqual(second["match"]["game_type"], "alias")
+        self.assertEqual(second["match"]["players"], 2)
+        self.assertEqual(self.store.rows, {}, "Xona ochilgach navbat tozalanadi")
+
+    def test_check_and_create_matches_reads_queue_table(self) -> None:
+        now = time.time()
+        for user_id in (201, 202, 203, 204, 205):
+            self.store.rows[user_id] = {
+                "user_id": user_id,
+                "game_type": "bunker",
+                "name": f"P{user_id}",
+                "username": "",
+                "joined_at": now,
+            }
+        matches = matchmaking.check_and_create_matches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["code"], "MAT0")
+        self.assertEqual(matches[0]["players"], 5)
+        self.assertEqual(self.store.rows, {})
+        self.assertEqual(matchmaking.check_and_create_matches(), [])
+
+    def test_check_matches_keeps_short_queue(self) -> None:
+        matchmaking.join_global_queue(301, "mafia", name="Ali")
+        self.assertEqual(matchmaking.check_and_create_matches(), [])
+        self.assertEqual(
+            matchmaking.get_matchmaker().stats()["queued"]["mafia"], 1
+        )

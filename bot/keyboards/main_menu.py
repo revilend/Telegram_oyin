@@ -18,6 +18,7 @@ from bot.config import get_config
 
 GAMES_BUTTON = "🎮 Mini App (Portal)"
 GAME_LIST_BUTTON = "🎲 O'yinlar ro'yxati"
+MATCHMAKING_BUTTON = "🌐 O'yin qidirish (Matchmaking)"
 MISSIONS_BUTTON = "🎯 Missiyalar"
 SHOP_BUTTON = "🪙 Tangalar do'koni"
 NEW_GAME_BUTTON = GAME_LIST_BUTTON
@@ -34,6 +35,7 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
     {
         GAMES_BUTTON,
         GAME_LIST_BUTTON,
+        MATCHMAKING_BUTTON,
         MISSIONS_BUTTON,
         SHOP_BUTTON,
         PROFILE_BUTTON,
@@ -118,6 +120,7 @@ def build_main_menu(
             games_button,
             KeyboardButton(text=GAME_LIST_BUTTON),
         ],
+        [KeyboardButton(text=MATCHMAKING_BUTTON)],
         [
             KeyboardButton(text=MISSIONS_BUTTON),
             KeyboardButton(text=SHOP_BUTTON),

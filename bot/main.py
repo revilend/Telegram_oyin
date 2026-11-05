@@ -23,6 +23,7 @@ from bot.handlers import (
     games_catalog,
     leaderboard,
     mafia_group,
+    matchmaking,
     menu,
     missions,
     profile,
@@ -41,6 +42,7 @@ BOT_COMMANDS = [
     BotCommand(command="spy", description="Yangi Josus o'yini (guruhda)"),
     BotCommand(command="alias", description="Yangi Alias o'yini (guruhda)"),
     BotCommand(command="krokodil", description="Alias: so'zni toping (guruhda)"),
+    BotCommand(command="matchmaking", description="Global o'yin qidiruvi"),
     BotCommand(command="games", description="O'yinlar ro'yxati"),
     BotCommand(command="missions", description="Missiyalar va mukofotlar"),
     BotCommand(command="rules", description="Barcha o'yinlar qoidalari"),
@@ -73,6 +75,7 @@ def build_dispatcher() -> Dispatcher:
     # Josus callbacklari ``spy_join_``/``spy_start_`` prefiksi bilan keladi.
     dispatcher.include_router(spy_group.router)
     dispatcher.include_router(games_catalog.router)
+    dispatcher.include_router(matchmaking.router)
     dispatcher.include_router(profile.router)
     dispatcher.include_router(leaderboard.router)
     # Doimiy pastki menyu tugmalari /start va boshqa buyruqlardan keyin keladi.

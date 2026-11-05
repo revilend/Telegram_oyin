@@ -181,7 +181,7 @@ class FullGameScenarioTest(unittest.TestCase):
         with self.assertRaises(GameError):
             self.manager.create_room(301, "A", "a", bunker_capacity=1)
         with self.assertRaises(GameError):
-            self.manager.create_room(302, "B", "b", bunker_capacity=13)
+            self.manager.create_room(302, "B", "b", bunker_capacity=17)
 
 
 class VoteRulesTest(unittest.TestCase):
@@ -222,6 +222,8 @@ class ModuleLevelApiTest(unittest.TestCase):
     def test_module_functions(self) -> None:
         room = game_manager.create_room(901, "Modul", "modul", bunker_capacity=2)
         game_manager.join_room(room.code, 902, "Ikkinchi", "ikkinchi")
+        game_manager.join_room(room.code, 903, "Uchinchi", "uchinchi")
+        game_manager.join_room(room.code, 904, "To'rtinchi", "tortinchi")
         game_manager.start_game(room.code)
         card = game_manager.reveal_card(room.code, 901, "hobby")
         self.assertTrue(card.is_revealed)

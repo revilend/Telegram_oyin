@@ -27,8 +27,12 @@ class ProtectedApiAuthTest(unittest.TestCase):
         self.addCleanup(self.client.close)
 
     def test_private_reads_reject_forged_user_id(self) -> None:
+        response = self.client.get("/api/missions?user_id=7001")
+        self.assertEqual(response.status_code, 401, response.text)
+
+    def test_room_reads_accept_user_id_without_init_data(self) -> None:
+        """Xona endpointlari user_id bilan initData'siz ham javob beradi."""
         urls = (
-            "/api/missions?user_id=7001",
             "/api/room/BNK000/me?user_id=7001",
             "/api/mafia/MAF000/me?user_id=7001",
             "/api/spy/SPY000?user_id=7001",
@@ -36,7 +40,7 @@ class ProtectedApiAuthTest(unittest.TestCase):
         for url in urls:
             with self.subTest(url=url):
                 response = self.client.get(url)
-                self.assertEqual(response.status_code, 401, response.text)
+                self.assertNotEqual(response.status_code, 401, response.text)
 
     def test_profile_reads_accept_user_id_without_init_data(self) -> None:
         """Pastki klaviaturasidan ochilgan Mini App initData'siz ishlaydi."""
@@ -60,8 +64,12 @@ class ProtectedApiAuthTest(unittest.TestCase):
         self.assertIn("mafia_wins", profile)
 
     def test_write_endpoints_reject_forged_user_id(self) -> None:
+        response = self.client.post("/api/bonus", json={"user_id": 7001})
+        self.assertEqual(response.status_code, 401, response.text)
+
+    def test_room_writes_accept_user_id_without_init_data(self) -> None:
+        """Xonaga qo'shilish va xona amallari initData'siz ishlaydi."""
         requests = (
-            ("POST", "/api/bonus", {"user_id": 7001}),
             ("POST", "/api/spy/create", {"user_id": 7001, "name": "Guest"}),
             (
                 "POST",
@@ -77,7 +85,7 @@ class ProtectedApiAuthTest(unittest.TestCase):
         for method, url, payload in requests:
             with self.subTest(url=url):
                 response = self.client.request(method, url, json=payload)
-                self.assertEqual(response.status_code, 401, response.text)
+                self.assertNotEqual(response.status_code, 401, response.text)
 
     def test_invalid_telegram_init_data_is_rejected(self) -> None:
         response = self.client.get(

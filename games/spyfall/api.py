@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.auth import TelegramUser, resolve_user_id, telegram_user
+from api.auth import TelegramUser, resolve_room_user_id, telegram_user
 from bot.handlers import spy_group as spy_bot
 from core.economy import get_economy
 from games.spyfall.engine import HINT_PRICE, GuessOutcome, SpyfallRoom, VoteOutcome
@@ -60,7 +60,7 @@ def manager() -> SpyfallManager:
 
 def _identity(payload: PlayerIn, user: TelegramUser | None) -> tuple[int, str]:
     """Tasdiqlangan Telegram ID va server ishonadigan ism."""
-    user_id = resolve_user_id(user, payload.user_id)
+    user_id = resolve_room_user_id(user, payload.user_id)
     name = (user.full_name or user.username) if user is not None else payload.name
     return user_id, (name or "O'yinchi").strip()[:64]
 
@@ -147,7 +147,7 @@ def state(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Xona holati va o'z kartasi."""
-    viewer_id = resolve_user_id(user, user_id)
+    viewer_id = resolve_room_user_id(user, user_id)
     room = manager().get_room(code)
     room.ensure_phase()
     if viewer_id not in room.players:

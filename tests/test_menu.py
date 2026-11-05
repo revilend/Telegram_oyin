@@ -84,16 +84,17 @@ class MainMenuKeyboardTest(MenuTestCase):
         self.assertEqual(
             rows[0], ["🎮 Mini App (Portal)", "🎲 O'yinlar ro'yxati"]
         )
-        self.assertEqual(rows[1], ["🎯 Missiyalar", "🪙 Tangalar do'koni"])
-        self.assertEqual(rows[2], ["🎁 Kunlik bonus", "🎟 Promo kod"])
-        self.assertEqual(rows[3], ["👤 Mening profilim", "🏆 Reyting va Top"])
+        self.assertEqual(rows[1], ["🌐 O'yin qidirish (Matchmaking)"])
+        self.assertEqual(rows[2], ["🎯 Missiyalar", "🪙 Tangalar do'koni"])
+        self.assertEqual(rows[3], ["🎁 Kunlik bonus", "🎟 Promo kod"])
+        self.assertEqual(rows[4], ["👤 Mening profilim", "🏆 Reyting va Top"])
         self.assertEqual(
-            rows[4], ["ℹ️ Qoidalar / Yordam", "👥 Do'stlarni taklif qilish"]
+            rows[5], ["ℹ️ Qoidalar / Yordam", "👥 Do'stlarni taklif qilish"]
         )
-        self.assertEqual(len(rows), 5)
+        self.assertEqual(len(rows), 6)
         self.assertTrue(markup.resize_keyboard)
         self.assertTrue(markup.is_persistent)
-        for row in markup.keyboard:
+        for row in markup.keyboard[2:]:
             self.assertEqual(len(row), 2)
 
     def test_games_button_opens_mini_app(self) -> None:
@@ -110,9 +111,9 @@ class MainMenuKeyboardTest(MenuTestCase):
 
     def test_admin_button_is_only_for_admins(self) -> None:
         for_admin = main_menu.build_main_menu(is_admin=True)
-        texts = [button.text for button in for_admin.keyboard[5]]
+        texts = [button.text for button in for_admin.keyboard[6]]
         self.assertEqual(texts, ["👑 Admin panel"])
-        self.assertEqual(len(for_admin.keyboard), 6)
+        self.assertEqual(len(for_admin.keyboard), 7)
 
         for_player = main_menu.build_main_menu(is_admin=False)
         self.assertNotIn(

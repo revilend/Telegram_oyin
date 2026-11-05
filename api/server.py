@@ -13,6 +13,7 @@ bitta Web Service yetarli::
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -30,13 +31,19 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api.auth import TelegramUser, resolve_user_id, telegram_user
+from api.auth import (
+    TelegramUser,
+    resolve_room_user_id,
+    resolve_user_id,
+    telegram_user,
+)
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
 from games.spyfall.engine import SpyfallError
 from games.spyfall.manager import SpyfallNotFoundError, get_default_manager as get_spyfall_manager
 from bot.config import get_config
 from bot.handlers import mafia_group as mafia_bot
+from bot.handlers import matchmaking as matchmaking_bot
 from bot.handlers.boosters import send_shield_offer
 from bot.localized import LocalizedBot
 from bot.main import build_dispatcher, set_commands
@@ -52,12 +59,16 @@ from core.economy import (
 from core.login_codes import verify_login_code
 from core.leaderboard import build_leaderboard, normalize_period
 from core.metrics import metrics
+from engine.chat import ChatAccess, ChatError, ChatHub
 from engine.cleaner import get_cleaner
 from engine.matchmaking import (
     MatchmakingError,
+    check_and_create_matches,
     get_matchmaker,
+    get_queue_store,
     normalize_game_type,
 )
+from games.alias.engine import get_default_manager as get_alias_manager
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -101,7 +112,7 @@ GAMES: list[dict[str, Any]] = [
         "name": "Bunker",
         "emoji": "☢️",
         "status": "active",
-        "players": "2–12",
+        "players": "4–16",
         "description": "Falokatdan keyin omon qolish uchun guruh bo'lib kartalaringizni "
         "oching, bahslashing va bunkerga kim tushishini hal qiling.",
     },
@@ -119,9 +130,18 @@ GAMES: list[dict[str, Any]] = [
         "name": "Josus",
         "emoji": "🕶️",
         "status": "active",
-        "players": "3–10",
+        "players": "3–12",
         "description": "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob "
         "orqali uni toping.",
+    },
+    {
+        "slug": "alias",
+        "name": "Alias / Krokodil",
+        "emoji": "🐊",
+        "status": "active",
+        "players": "2–20",
+        "description": "Tezkor so'z tushuntirish va topish poygasi. Guruhda /alias "
+        "bilan boshlang.",
     },
 ]
 
@@ -391,15 +411,21 @@ async def lifespan(app: FastAPI):
     matchmaker = get_matchmaker()
     matchmaker.set_room_factory(_create_match_room)
     matchmaker.set_notifier(_notify_match)
+    # Navbat Supabase'da saqlanadi: jarayon qayta ishga tushsa ham yo'qolmaydi.
+    matchmaker.set_store(get_queue_store())
     cleaner = get_cleaner()
     cleaner.start()
+    watcher = asyncio.create_task(_matchmaking_watch())
 
     try:
         yield
     finally:
+        watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
         await get_cleaner().stop()
         matchmaker.set_room_factory(None)
         matchmaker.set_notifier(None)
+        matchmaker.set_store(None)
         matchmaker.reset()
         if bot is not None:
             await bot.session.close()
@@ -577,6 +603,129 @@ def _startapp_url(game_type: str, code: str) -> str:
     return f"https://t.me/{bot_username}?startapp={game_type}_{code}"
 
 
+def _bunker_room_or_none(code: str) -> Any:
+    """Bunker xonasini xavfsiz qaytaradi (boshqa o'yinlar uchun ``None``)."""
+    try:
+        return manager().get_room(code)
+    except Exception:
+        return None
+
+
+def _chat_access(code: str, user_id: int) -> ChatAccess | None:
+    """Xona turini aniqlab, chat qoidalari uchun kontekst qaytaradi."""
+    normalized = (code or "").strip().upper()
+    if not normalized:
+        return None
+    uid = int(user_id or 0)
+
+    room = _bunker_room_or_none(normalized)
+    if room is not None:
+        player = room.players.get(uid) if uid else None
+        return ChatAccess(
+            game_type="bunker",
+            name=getattr(player, "full_name", "") if player else "",
+            is_member=player is not None,
+            is_alive=bool(player is not None and player.is_alive),
+            is_host=bool(player is not None and player.is_host),
+        )
+
+    try:
+        game = mafia_bot.get_default_manager().get_game(normalized)
+    except Exception:
+        game = None
+    if game is not None:
+        player = game.room.players.get(uid) if uid else None
+        is_mafia = bool(
+            player is not None
+            and player.role in (MafiaRole.DON, MafiaRole.MAFIA)
+        )
+        return ChatAccess(
+            game_type="mafia",
+            name=getattr(player, "name", "") if player else "",
+            is_member=player is not None,
+            is_alive=bool(player is not None and player.is_alive),
+            is_mafia=is_mafia,
+            is_night=game.room.phase is GamePhase.NIGHT,
+            is_host=game.host_id == uid,
+        )
+
+    try:
+        spy_room = get_spyfall_manager().get_room(normalized)
+    except Exception:
+        spy_room = None
+    if spy_room is not None:
+        player = spy_room.players.get(uid) if uid else None
+        name = getattr(player, "name", "") if player else ""
+        return ChatAccess(
+            game_type="spyfall",
+            name=name or "",
+            is_member=player is not None,
+            is_alive=player is not None,
+            is_host=spy_room.host_id == uid,
+        )
+
+    try:
+        alias_room = get_alias_manager().get_room(normalized)
+    except Exception:
+        alias_room = None
+    if alias_room is not None:
+        player = alias_room.players.get(uid) if uid else None
+        name = getattr(player, "name", "") if player else ""
+        return ChatAccess(
+            game_type="alias",
+            name=name or "",
+            is_member=player is not None,
+            is_alive=player is not None,
+            is_host=alias_room.host_id == uid,
+        )
+    return None
+
+
+chat_hub = ChatHub(_chat_access)
+
+
+async def _handle_socket_payload(
+    websocket: WebSocket, code: str, user_id: int | None, raw: str
+) -> None:
+    """WebSocket'dan kelgan chat xabarini qayta ishlaydi."""
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError):
+        return
+    if not isinstance(payload, dict) or payload.get("type") != "chat":
+        return
+    if user_id is None:
+        await websocket.send_json(
+            {
+                "type": "chat-error",
+                "message": "Xabarni yuborish uchun user_id kerak",
+                "locked": True,
+            }
+        )
+        return
+    try:
+        await chat_hub.post(code, int(user_id), str(payload.get("text") or ""))
+    except ChatError as exc:
+        access = _chat_access(code, int(user_id))
+        locked = bool(access is None or chat_hub.locked(code, int(user_id), access))
+        await websocket.send_json(
+            {"type": "chat-error", "message": str(exc), "locked": locked}
+        )
+
+
+MATCH_CHECK_INTERVAL = 20.0
+
+
+async def _matchmaking_watch() -> None:
+    """Bazadagi navbatni muntazam tekshiradi (qayta ishga tushishdan keyin ham)."""
+    while True:
+        try:
+            await asyncio.to_thread(check_and_create_matches)
+        except Exception:
+            logger.exception("Navbatni tekshirib bo'lmadi")
+        await asyncio.sleep(MATCH_CHECK_INTERVAL)
+
+
 def _create_match_room(
     game_type: str, players: list[dict[str, Any]]
 ) -> dict[str, Any] | None:
@@ -622,6 +771,19 @@ def _create_match_room(
                 lobby.join(code, int(entry.get("user_id") or 0), str(entry.get("name") or ""))
             except Exception:
                 logger.exception("Navbat o'yinchisini Josus xonasiga qo'shib bo'lmadi")
+    elif game_type == "alias":
+        lobby = get_alias_manager()
+        code = lobby.create_room(0, host_id, host_name, host_username).code
+        for entry in players[1:]:
+            try:
+                lobby.join(
+                    code,
+                    int(entry.get("user_id") or 0),
+                    str(entry.get("name") or ""),
+                    str(entry.get("username") or ""),
+                )
+            except Exception:
+                logger.exception("Navbat o'yinchisini Alias xonasiga qo'shib bo'lmadi")
     else:  # pragma: no cover - normalize_game_type buni to'sadi
         raise MatchmakingError(f"Noma'lum o'yin turi: {game_type}")
 
@@ -636,27 +798,11 @@ def _create_match_room(
 async def _send_match_messages(
     players: list[dict[str, Any]], match: dict[str, Any]
 ) -> None:
-    """Navbatdagi o'yinchilarga shaxsiy xabarda xona havolasini yuboradi."""
+    """Navbatdagi o'yinchilarga Mini App havolasini shaxsiy xabarda yuboradi."""
     bot = _runtime_bot
     if bot is None:
         return
-    title = MATCH_TITLES.get(match.get("game_type", ""), "O'yin")
-    code = match.get("code", "")
-    text_parts = [
-        f"<b>{title}: jamoa yig'ildi!</b>\n",
-        f"Xona kodi: <code>{code}</code>\n",
-        "Havola orqali darhol qo'shiling:",
-        match.get("join_url", ""),
-    ]
-    text = "\n".join(text_parts)
-    for entry in players:
-        user_id = int(entry.get("user_id") or 0)
-        if user_id <= 0:
-            continue
-        try:
-            await bot.send_message(user_id, text)
-        except Exception:
-            logger.info("Navbat xabarini yuborib bo'lmadi: %s", user_id)
+    await matchmaking_bot.send_match_notices(bot, players, match)
 
 
 def _notify_match(players: list[dict[str, Any]], match: dict[str, Any]) -> None:
@@ -674,7 +820,12 @@ def _notify_match(players: list[dict[str, Any]], match: dict[str, Any]) -> None:
     )
 
 
-MATCH_TITLES = {"bunker": "Bunker", "mafia": "Mafiya", "spyfall": "Josus"}
+MATCH_TITLES = {
+    "bunker": "Bunker",
+    "mafia": "Mafiya",
+    "spyfall": "Josus",
+    "alias": "Alias",
+}
 
 
 @app.get("/api/health")
@@ -1232,7 +1383,7 @@ async def join_mafia_lobby(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Global qidiruvdan Mafiya lobby'siga qo'shilish."""
-    resolved_id = resolve_user_id(user, payload.user_id)
+    resolved_id = resolve_room_user_id(user, payload.user_id)
     full_name = (
         (user.full_name if user is not None else "") or payload.full_name or ""
     ).strip()
@@ -1251,6 +1402,7 @@ async def join_mafia_lobby(
     except mafia_bot.MafiaGameError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     metrics.user(resolved_id)
+    await chat_hub.system(code, f"{full_name} xonaga qo'shildi")
     return {"ok": True, "me": mafia_me_payload(game, player, economy=economy)}
 
 
@@ -1261,7 +1413,7 @@ async def get_mafia_role(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Guruh Mafiya o'yinidagi o'yinchining roli va karta ma'lumoti."""
-    resolved_id = resolve_user_id(user, user_id)
+    resolved_id = resolve_room_user_id(user, user_id)
     game = _mafia_game_for(code)
     player = game.room.players.get(resolved_id)
     if player is None:
@@ -1278,7 +1430,7 @@ async def buy_mafia_booster(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Mafiya boosterini sotib oladi (Kevlar, Reroll yoki 2x ovoz)."""
-    resolved_id = resolve_user_id(user, payload.user_id)
+    resolved_id = resolve_room_user_id(user, payload.user_id)
     game = _mafia_game_for(code)
     player = game.room.players.get(resolved_id)
     if player is None:
@@ -1311,10 +1463,11 @@ async def buy_mafia_booster(
 @app.get("/api/mafia/{code}/state")
 async def get_mafia_public_state(
     code: str,
+    user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Mafiya Mini App uchun maxfiy rollarsiz umumiy holat."""
-    resolved_id = resolve_user_id(user, None)
+    resolved_id = resolve_room_user_id(user, user_id)
     game = _mafia_game_for(code)
     room = game.room
     viewer = room.players.get(resolved_id)
@@ -1415,10 +1568,11 @@ async def submit_mafia_night_action(
 @app.post("/api/mafia/{code}/begin-voting")
 async def begin_mafia_voting(
     code: str,
+    user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Tonggi hisobotdan keyin ovoz berishni xona egasi boshlaydi."""
-    resolved_id = resolve_user_id(user, None)
+    resolved_id = resolve_room_user_id(user, user_id)
     game = _mafia_game_for(code)
     if resolved_id != game.host_id:
         raise HTTPException(status_code=403, detail="Ovoz berishni faqat xona egasi boshlaydi")
@@ -1437,7 +1591,7 @@ async def cast_mafia_vote(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Kunduzgi ovozni yuboradi; qoidalarni dvigatel tekshiradi."""
-    resolved_id = resolve_user_id(user, payload.user_id)
+    resolved_id = resolve_room_user_id(user, payload.user_id)
     game = _mafia_game_for(code)
     try:
         game.room.cast_vote(resolved_id, payload.target_id)
@@ -1453,7 +1607,7 @@ async def tally_mafia_votes(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Ovozlarni xona egasi sanaydi va dvigatel keyingi fazani boshlaydi."""
-    resolved_id = resolve_user_id(user, payload.user_id)
+    resolved_id = resolve_room_user_id(user, payload.user_id)
     game = _mafia_game_for(code)
     if resolved_id != game.host_id:
         raise HTTPException(status_code=403, detail="Ovozlarni faqat xona egasi sanaydi")
@@ -1515,7 +1669,7 @@ async def get_my_cards(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """O'yinchining shaxsiy yashirin kartalari."""
-    resolved_id = resolve_user_id(user, user_id)
+    resolved_id = resolve_room_user_id(user, user_id)
     room = manager().get_room(code)
     return {"me": private_state(room, resolved_id)}
 
@@ -1527,7 +1681,7 @@ async def room_action(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Umumiy o'yin harakatlari: qo'shilish, boshlash, ochish, ovoz, sanash."""
-    actor_id = resolve_user_id(user, payload.user_id)
+    actor_id = resolve_room_user_id(user, payload.user_id)
     full_name = (
         (user.full_name if user is not None else "")
         or payload.full_name
@@ -1546,7 +1700,10 @@ async def room_action(
         if not full_name:
             raise HTTPException(status_code=400, detail="full_name majburiy")
         get_economy().ensure_user(actor_id, username, full_name)
+        already_inside = actor_id in game_manager.get_room(code).players
         game_manager.join_room(code, actor_id, full_name, username)
+        if not already_inside:
+            await chat_hub.system(code, f"{full_name} xonaga qo'shildi")
     elif payload.action == "start":
         room = game_manager.get_room(code)
         if room.host_id != actor_id:
@@ -1555,6 +1712,7 @@ async def room_action(
                 detail="O'yinni faqat xona egasi boshlashi mumkin",
             )
         game_manager.start_game(code)
+        await chat_hub.system(code, "O'yin boshlandi. Omad!")
     elif payload.action == "reveal":
         if not payload.card_type:
             raise HTTPException(status_code=400, detail="card_type majburiy")
@@ -1572,6 +1730,10 @@ async def room_action(
             )
         eliminated = game_manager.tally_votes(code)
         current = game_manager.get_room(code)
+        if eliminated is not None:
+            await chat_hub.system(
+                code, f"{eliminated.full_name} o'yindan chiqarildi"
+            )
         result = {
             "eliminated": (
                 {
@@ -1647,33 +1809,48 @@ async def room_action(
 
 
 @app.websocket("/ws/{code}")
-async def room_socket(websocket: WebSocket, code: str) -> None:
-    """Xona uchun real-vaqt kanali: har bir o'zgarishda yangi holat."""
+async def room_socket(
+    websocket: WebSocket,
+    code: str,
+    user_id: int | None = None,
+) -> None:
+    """Xona uchun real-vaqt kanali: holat va jonli chat."""
     normalized = (code or "").strip().upper()
-    try:
-        room = manager().get_room(normalized)
-    except GameError:
+    bunker_room = _bunker_room_or_none(normalized)
+    if bunker_room is None and _chat_access(normalized, 0) is None:
         await websocket.close(code=4404)
         return
 
-    await hub.connect(normalized, websocket)
+    bunker_connected = bunker_room is not None
+    if bunker_connected:
+        await hub.connect(normalized, websocket)
+    if user_id is not None:
+        await chat_hub.connect(normalized, websocket, int(user_id))
     try:
-        await websocket.send_json(
-            {"type": "state", "state": public_state(room)}
-        )
+        if bunker_connected:
+            await websocket.send_json(
+                {"type": "state", "state": public_state(bunker_room)}
+            )
         while True:
             message = await websocket.receive_text()
-            if message.strip() == "ping":
+            stripped = message.strip()
+            if stripped == "ping":
                 await websocket.send_json({"type": "pong"})
-            elif message.strip() == "sync":
-                current = manager().get_room(normalized)
-                await websocket.send_json(
-                    {"type": "state", "state": public_state(current)}
+            elif stripped == "sync":
+                current = _bunker_room_or_none(normalized)
+                if current is not None:
+                    await websocket.send_json(
+                        {"type": "state", "state": public_state(current)}
+                    )
+            else:
+                await _handle_socket_payload(
+                    websocket, normalized, user_id, stripped
                 )
     except WebSocketDisconnect:
         pass
     finally:
         await hub.disconnect(normalized, websocket)
+        await chat_hub.disconnect(normalized, websocket)
 
 
 # Statik Mini App: avval rasm/fontlar, keyin index.html.

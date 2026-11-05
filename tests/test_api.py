@@ -34,6 +34,7 @@ class ApiTestCase(unittest.TestCase):
         self.code = self.room.code
         self.manager.join_room(self.code, 1002, "Vali Karimov", "vali")
         self.manager.join_room(self.code, 1003, "Zilola Yusupova", "zilola")
+        self.manager.join_room(self.code, 1004, "Sardor Tolipov", "sardor")
         self.manager.start_game(self.code)
 
     def tearDown(self) -> None:
@@ -57,7 +58,10 @@ class GamesApiTest(unittest.TestCase):
         response = self.client.get("/api/games")
         self.assertEqual(response.status_code, 200)
         games = response.json()["games"]
-        self.assertEqual([game["slug"] for game in games], ["bunker", "mafia", "spyfall"])
+        self.assertEqual(
+            [game["slug"] for game in games],
+            ["bunker", "mafia", "spyfall", "alias"],
+        )
         self.assertEqual(games[0]["status"], "active")
         self.assertEqual(games[1]["status"], "active")
 
@@ -219,8 +223,8 @@ class RoomApiTest(ApiTestCase):
         self.assertEqual(state["game_type"], "bunker")
         self.assertEqual(state["status"], "PLAYING")
         self.assertEqual(state["current_round"], 1)
-        self.assertEqual(len(state["players"]), 3)
-        self.assertEqual(state["alive_count"], 3)
+        self.assertEqual(len(state["players"]), 4)
+        self.assertEqual(state["alive_count"], 4)
         self.assertIn("name", state["catastrophe"])
         for player in state["players"]:
             self.assertEqual(player["revealed_cards"], {})
@@ -296,7 +300,7 @@ class RoomApiTest(ApiTestCase):
         self.assertEqual(tally.status_code, 200)
         result = tally.json()["result"]
         self.assertEqual(result["eliminated"]["user_id"], 1002)
-        self.assertEqual(tally.json()["state"]["status"], "FINISHED")
+        self.assertEqual(tally.json()["state"]["status"], "PLAYING")
         self.assertEqual(tally.json()["state"]["eliminated_players"], [1002])
 
     def test_vote_rules(self) -> None:
@@ -326,6 +330,19 @@ class RoomApiTest(ApiTestCase):
         self.assertEqual(join.status_code, 200)
         self.assertEqual(join.json()["state"]["status"], "LOBBY")
         self.assertEqual(len(join.json()["state"]["players"]), 2)
+
+        for user_id, name in ((2003, "Uchinchi"), (2004, "To'rtinchi")):
+            extra = self.client.post(
+                f"/api/room/{code}/action",
+                json={
+                    "user_id": user_id,
+                    "action": "join",
+                    "full_name": name,
+                    "username": f"p{user_id}",
+                },
+            )
+            self.assertEqual(extra.status_code, 200)
+        self.assertEqual(len(extra.json()["state"]["players"]), 4)
 
         not_host = self.client.post(
             f"/api/room/{code}/action",

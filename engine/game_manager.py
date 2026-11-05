@@ -32,8 +32,8 @@ from models.game import CardType, GameRoom, Player, PlayerCard, RoomStatus, Shie
 GAME_CODE_PREFIX = "BNK"
 GAME_CODE_LENGTH = 6
 GAME_CODE_ATTEMPTS = 1000
-DEFAULT_MAX_PLAYERS = 12
-MIN_PLAYERS_TO_START = 2
+DEFAULT_MAX_PLAYERS = 16
+MIN_PLAYERS_TO_START = 4
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +100,9 @@ class GameManager:
         Kod 6 belgidan iborat (masalan ``BNK482``) va xonalar orasida
         takrorlanmaydi. Falokat katalogdan tasodifiy tanlanadi.
         """
-        if not MIN_PLAYERS_TO_START <= bunker_capacity <= DEFAULT_MAX_PLAYERS:
+        if not 2 <= bunker_capacity <= DEFAULT_MAX_PLAYERS:
             raise GameError(
-                "Bunker sig'imi 2 dan 12 gacha bo'lishi kerak "
+                f"Bunker sig'imi 2 dan {DEFAULT_MAX_PLAYERS} gacha bo'lishi kerak "
                 f"(berildi: {bunker_capacity})"
             )
 

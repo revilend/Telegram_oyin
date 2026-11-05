@@ -60,6 +60,7 @@ class EconomyApiTest(unittest.TestCase):
         room = self.manager.create_room(99101, "Ali", "ali", bunker_capacity=2)
         self.manager.join_room(room.code, 99102, "Vali", "vali")
         self.manager.join_room(room.code, 99103, "Zilola", "zilola")
+        self.manager.join_room(room.code, 99104, "Sardor", "sardor")
         self.manager.start_game(room.code)
         self._drain(99101)
         get_economy().add_coins(99101, 15)
@@ -86,6 +87,8 @@ class EconomyApiTest(unittest.TestCase):
     def test_insufficient_coins_returns_402(self) -> None:
         room = self.manager.create_room(99201, "Ali", "ali", bunker_capacity=2)
         self.manager.join_room(room.code, 99202, "Vali", "vali")
+        self.manager.join_room(room.code, 99203, "Zilola", "zilola")
+        self.manager.join_room(room.code, 99204, "Sardor", "sardor")
         self.manager.start_game(room.code)
         self._drain(99201)
         response = self.client.post(
@@ -98,7 +101,7 @@ class EconomyApiTest(unittest.TestCase):
     def test_shield_offer_and_accept_via_api(self) -> None:
         economy = get_economy()
         room = self.manager.create_room(99300, "Host", "host", bunker_capacity=2)
-        for user_id in (99301, 99302, 99303):
+        for user_id in (99301, 99302, 99303, 99304):
             self.manager.join_room(room.code, user_id, f"P{user_id}", f"p{user_id}")
         self.manager.start_game(room.code)
         self._drain(99301)

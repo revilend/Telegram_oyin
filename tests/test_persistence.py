@@ -20,6 +20,8 @@ class ManagerPersistenceTest(unittest.TestCase):
 
         room = manager.create_room(1, "Ali", "ali", bunker_capacity=2)
         manager.join_room(room.code, 2, "Vali", "vali")
+        manager.join_room(room.code, 3, "Zilola", "zilola")
+        manager.join_room(room.code, 4, "Sardor", "sardor")
         manager.start_game(room.code)
         manager.reveal_card(room.code, 1, "profession")
         manager.cast_vote(room.code, 1, 2)
@@ -27,15 +29,26 @@ class ManagerPersistenceTest(unittest.TestCase):
 
         self.assertEqual(
             [status for _, status, _ in events],
-            ["LOBBY", "LOBBY", "PLAYING", "PLAYING", "VOTING", "FINISHED"],
+            [
+                "LOBBY",
+                "LOBBY",
+                "LOBBY",
+                "LOBBY",
+                "PLAYING",
+                "PLAYING",
+                "VOTING",
+                "PLAYING",
+            ],
         )
-        self.assertEqual(events[4][2], {1: 2})
-        self.assertEqual(events[5][2], {})
+        self.assertEqual(events[6][2], {1: 2})
+        self.assertEqual(events[7][2], {})
 
     def test_loader_restores_room_and_votes(self) -> None:
         source = GameManager(seed=7)
         room = source.create_room(11, "Ali", "ali", bunker_capacity=2)
         source.join_room(room.code, 12, "Vali", "vali")
+        source.join_room(room.code, 13, "Zilola", "zilola")
+        source.join_room(room.code, 14, "Sardor", "sardor")
         source.start_game(room.code)
         source.reveal_card(room.code, 11, "health")
         source.cast_vote(room.code, 11, 12)
@@ -144,6 +157,8 @@ class SupabaseMappingTest(unittest.TestCase):
         manager = GameManager(seed=21)
         room = manager.create_room(31, "Ali", "ali", bunker_capacity=2)
         manager.join_room(room.code, 32, "Vali", "vali")
+        manager.join_room(room.code, 33, "Zilola", "zilola")
+        manager.join_room(room.code, 34, "Sardor", "sardor")
         manager.start_game(room.code)
         manager.reveal_card(room.code, 31, "luggage")
         manager.cast_vote(room.code, 31, 32)
@@ -164,7 +179,7 @@ class SupabaseMappingTest(unittest.TestCase):
         self.assertEqual(loaded_room.code, room.code)
         self.assertEqual(loaded_room.status.value, "VOTING")
         self.assertEqual(loaded_room.bunker_capacity, 2)
-        self.assertEqual(len(loaded_room.players), 2)
+        self.assertEqual(len(loaded_room.players), 4)
         self.assertTrue(loaded_room.players[31].cards["luggage"].is_revealed)
         self.assertEqual(loaded_room.players[32].votes_against, 1)
         self.assertEqual(votes, {31: 32})
@@ -174,6 +189,7 @@ class SupabaseMappingTest(unittest.TestCase):
         room = manager.create_room(41, "Ali", "ali", bunker_capacity=2)
         manager.join_room(room.code, 42, "Vali", "vali")
         manager.join_room(room.code, 43, "Zilola", "zilola")
+        manager.join_room(room.code, 44, "Sardor", "sardor")
         manager.start_game(room.code)
         room.players[41].double_vote = True
         room.players[42].shield_used = True

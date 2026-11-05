@@ -255,3 +255,17 @@ insert into public.alias_words (word, forbidden, category) values
     ('Köprik',  '["daryo", "yo''l", "ustun"]'::jsonb,       'joy'),
     ('Poyezd',  '["relis", "vokzal", "çipta"]'::jsonb,      'transport')
 on conflict (word) do nothing;
+
+-- ---------------------------------------------------------------------
+-- Global o'yin qidiruvi (matchmaking): umumiy navbat
+-- ---------------------------------------------------------------------
+create table if not exists public.matchmaking_queue (
+    user_id     bigint primary key,
+    game_type   text not null check (game_type in ('bunker', 'mafia', 'spyfall', 'alias')),
+    name        text not null default '',
+    username    text not null default '',
+    created_at  timestamptz not null default now()
+);
+
+create index if not exists matchmaking_queue_game_idx
+    on public.matchmaking_queue (game_type, created_at);
