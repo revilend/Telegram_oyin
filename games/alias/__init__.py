@@ -1,0 +1,43 @@
+"""«Alias / Krokodil» o'yini: dvigatel va so'zlar ombori."""
+
+from games.alias.engine import (
+    ALIAS_WORDS_TABLE,
+    DEFAULT_WORDS,
+    EXPLAINER_REWARD,
+    GUESS_REWARD,
+    MAX_PLAYERS,
+    MIN_PLAYERS,
+    ROUND_SECONDS,
+    AliasError,
+    AliasGuessResult,
+    AliasManager,
+    AliasPlayer,
+    AliasRoom,
+    AliasRound,
+    AliasStatus,
+    AliasWord,
+    WordBook,
+    get_default_manager,
+    normalize_word,
+)
+
+__all__ = [
+    "ALIAS_WORDS_TABLE",
+    "DEFAULT_WORDS",
+    "EXPLAINER_REWARD",
+    "GUESS_REWARD",
+    "MAX_PLAYERS",
+    "MIN_PLAYERS",
+    "ROUND_SECONDS",
+    "AliasError",
+    "AliasGuessResult",
+    "AliasManager",
+    "AliasPlayer",
+    "AliasRoom",
+    "AliasRound",
+    "AliasStatus",
+    "AliasWord",
+    "WordBook",
+    "get_default_manager",
+    "normalize_word",
+]

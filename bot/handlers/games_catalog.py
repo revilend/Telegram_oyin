@@ -28,6 +28,7 @@ router = Router(name="games_catalog")
 BUNKER_CALLBACK = "catalog_bunker"
 MAFIA_CALLBACK = "catalog_mafia"
 SPY_CALLBACK = "catalog_spy"
+ALIAS_CALLBACK = "catalog_alias"
 BACK_CALLBACK = "catalog_back"
 
 CATALOG_TEXT = (
@@ -38,7 +39,9 @@ CATALOG_TEXT = (
     "🕵️ <b>Mafiya</b> — <code>/mafia</code> bilan boshlanadi. Tunda yashirin "
     "rollar, kunduzi ovoz berish.\n"
     "🔍 <b>Josus</b> — <code>/spy</code> bilan boshlanadi. Hamma joyni "
-    "biladi, bitta josus bilmaydi. Savol-javob orqali uni toping.\n\n"
+    "biladi, bitta josus bilmaydi. Savol-javob orqali uni toping.\n"
+    "🐊 <b>Alias</b> — <code>/alias</code> bilan boshlanadi. So'zni "
+    "aytmasdan, taqiqlangan so'zlarsiz tushuntirasiz.\n\n"
     "👇 O'yinni tanlang — guruhda boshlash bo'yicha qo'llanma chiqadi."
 )
 
@@ -66,6 +69,20 @@ SPY_TEXT = (
     "3. Kamida 3 kishi «Qo'shilish»ni bosadi.\n"
     "4. Xona egasi o'yinni boshlaydi — kartalar Mini App'da ochiladi.\n\n"
     "🏆 G'olibga: tinch aholi +25, josus +35 tanga."
+)
+
+ALIAS_TEXT = (
+    "🐊 <b>Alias / Krokodil</b>\n\n"
+    "Har raundda bitta o'yinchi tushuntiruvchi bo'ladi. U so'zni aytmasdan, "
+    "uchta taqiqlangan so'zni ishlatmasdan tushuntiradi. Qolganlar 60 soniya "
+    "ichida so'zni topishga harakat qiladi.\n\n"
+    "🎮 <b>Guruhda boshlash:</b>\n"
+    "1. Botni guruhingizga qo'shing.\n"
+    "2. Guruhda <code>/alias</code> yoki <code>/krokodil</code> yuboring.\n"
+    "3. Kamida 2 kishi «➕ Qo'shilish»ni bosadi.\n"
+    "4. Xona egasi «▶️ Boshlash»ni bosadi — so'z tushuntiruvchiga "
+    "shaxsiy xabar bilan keladi.\n\n"
+    "🏆 Topgan o'yinchiga +10, tushuntiruvchiga +5 tanga."
 )
 
 MAFIA_TEXT = (
@@ -98,6 +115,12 @@ def catalog_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="🔍 Josus (Spyfall) — /spy", callback_data=SPY_CALLBACK
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🐊 Alias / Krokodil — /alias",
+                    callback_data=ALIAS_CALLBACK,
                 )
             ],
             [
@@ -177,6 +200,13 @@ async def show_spy(callback: CallbackQuery) -> None:
     """Josus qoidalari va guruhda boshlash yo'riqnomasi."""
     await callback.answer()
     await _edit_or_send(callback, SPY_TEXT, detail_keyboard())
+
+
+@router.callback_query(F.data == ALIAS_CALLBACK)
+async def show_alias(callback: CallbackQuery) -> None:
+    """Alias qoidalari va guruhda boshlash yo'riqnomasi."""
+    await callback.answer()
+    await _edit_or_send(callback, ALIAS_TEXT, detail_keyboard())
 
 
 @router.callback_query(F.data == BACK_CALLBACK)

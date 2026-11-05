@@ -208,3 +208,50 @@ create index if not exists game_history_user_created_idx
     on public.game_history (user_id, created_at desc);
 create index if not exists game_history_created_idx
     on public.game_history (created_at desc);
+
+-- ---------------------------------------------------------------------
+-- Alias / Krokodil: yashirin so'zlar va taqiqlangan so'zlar
+-- ---------------------------------------------------------------------
+create table if not exists public.alias_words (
+    id          bigserial primary key,
+    word        text not null unique,
+    forbidden   jsonb not null default '[]'::jsonb,
+    category    text not null default 'umumiy',
+    is_active   boolean not null default true,
+    created_at  timestamptz not null default now()
+);
+
+create index if not exists alias_words_active_idx
+    on public.alias_words (is_active, category);
+
+insert into public.alias_words (word, forbidden, category) values
+    ('Kitob',   '["varaq", "o''qish", "muqova"]'::jsonb,    'buyum'),
+    ('Şahar',   '["ko''cha", "uy", "aholi"]'::jsonb,        'joy'),
+    ('Çoy',     '["piyola", "qaynoq", "damlama"]'::jsonb,   'ichimlik'),
+    ('Ğalaba',  '["musobaqa", "sovrin", "birinchi"]'::jsonb,'tushuncha'),
+    ('Quyosh',  '["osmon", "issiq", "yorug''lik"]'::jsonb,  'tabiat'),
+    ('Telefon', '["qo''ng''iroq", "ekran", "batareya"]'::jsonb, 'texnika'),
+    ('Maktab',  '["o''qituvchi", "sinf", "dars"]'::jsonb,   'joy'),
+    ('Yomğir',  '["bulut", "suv", "soyabon"]'::jsonb,       'tabiat'),
+    ('Öyin',    '["qoida", "g''alaba", "jamoa"]'::jsonb,    'tushuncha'),
+    ('Şifokor', '["kasalxona", "dori", "bemor"]'::jsonb,    'kasb'),
+    ('Özbekiston', '["mamlakat", "Toshkent", "bayroq"]'::jsonb, 'joy'),
+    ('Muzqaymoq', '["sovuq", "şirin", "muz"]'::jsonb,       'taom'),
+    ('Sayohat', '["çamadon", "poyezd", "yo''l"]'::jsonb,    'tushuncha'),
+    ('Kompyuter', '["klaviatura", "ekran", "dastur"]'::jsonb, 'texnika'),
+    ('Bog',     '["daraxt", "meva", "barg"]'::jsonb,        'tabiat'),
+    ('Non',     '["o''choq", "un", "tandir"]'::jsonb,       'taom'),
+    ('Kino',    '["ekran", "aktyor", "süjet"]'::jsonb,      'san''at'),
+    ('Sport',   '["mashq", "g''alaba", "maydon"]'::jsonb,   'tushuncha'),
+    ('Tong',    '["quyosh", "uyqu", "xo''roz"]'::jsonb,     'vaqt'),
+    ('Sovğa',   '["tug''ilgan kun", "quti", "quvonch"]'::jsonb, 'tushuncha'),
+    ('Sut',     '["oq", "sigir", "ichimlik"]'::jsonb,       'ichimlik'),
+    ('Çoyxona', '["stol", "çoy", "suhbat"]'::jsonb,         'joy'),
+    ('Bayram',  '["sovğa", "mehmon", "dasturxon"]'::jsonb,  'tushuncha'),
+    ('Tog',     '["baland", "cho''qqi", "qor"]'::jsonb,     'tabiat'),
+    ('Baliq',   '["suv", "qanot", "taroq"]'::jsonb,         'hayvon'),
+    ('Robot',   '["mexanizm", "dastur", "metall"]'::jsonb,  'texnika'),
+    ('Şam',     '["olov", "mum", "qorong''i"]'::jsonb,      'buyum'),
+    ('Köprik',  '["daryo", "yo''l", "ustun"]'::jsonb,       'joy'),
+    ('Poyezd',  '["relis", "vokzal", "çipta"]'::jsonb,      'transport')
+on conflict (word) do nothing;

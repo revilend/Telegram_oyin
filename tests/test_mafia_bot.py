@@ -680,7 +680,9 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
 
         text, keyboard = callback.message.edits[0]
         self.assertIn("O'yinlar ro'yxati", text)
-        self.assertEqual(len(keyboard.inline_keyboard), 4)
+        self.assertEqual(len(keyboard.inline_keyboard), 5)
+        labels = [row[0].text for row in keyboard.inline_keyboard]
+        self.assertTrue(any("Alias" in label for label in labels))
 
 
 class MafiaImageTest(unittest.TestCase):

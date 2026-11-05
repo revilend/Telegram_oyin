@@ -52,10 +52,22 @@ def _spyfall_sweep(
     )
 
 
+def _alias_sweep(
+    lobby_idle_seconds: float, game_idle_seconds: float
+) -> dict[str, int]:
+    from games.alias.engine import get_default_manager
+
+    return get_default_manager().expire_stale(
+        lobby_idle_seconds=lobby_idle_seconds,
+        game_idle_seconds=game_idle_seconds,
+    )
+
+
 DEFAULT_SWEEPERS: dict[str, Callable[[float, float], dict[str, int]]] = {
     "bunker": _bunker_sweep,
     "mafia": _mafia_sweep,
     "spyfall": _spyfall_sweep,
+    "alias": _alias_sweep,
 }
 
 

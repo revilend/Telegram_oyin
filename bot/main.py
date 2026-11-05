@@ -16,6 +16,7 @@ from aiogram.types import BotCommand
 from bot.config import get_config
 from bot.handlers import (
     admin,
+    alias_group,
     boosters,
     bunker_group,
     common,
@@ -38,6 +39,8 @@ BOT_COMMANDS = [
     BotCommand(command="newgame", description="Yangi Bunker o'yini (guruhda)"),
     BotCommand(command="mafia", description="Yangi Mafiya o'yini (guruhda)"),
     BotCommand(command="spy", description="Yangi Josus o'yini (guruhda)"),
+    BotCommand(command="alias", description="Yangi Alias o'yini (guruhda)"),
+    BotCommand(command="krokodil", description="Alias: so'zni toping (guruhda)"),
     BotCommand(command="games", description="O'yinlar ro'yxati"),
     BotCommand(command="missions", description="Missiyalar va mukofotlar"),
     BotCommand(command="rules", description="Barcha o'yinlar qoidalari"),
@@ -63,6 +66,8 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(admin.router)
     # Mafiya callbacklari ``join_mafia_``/``start_mafia_`` bilan boshlanadi,
     # shuning uchun Bunker'dan oldin ulanadi.
+    # Alias javoblarini kuzatuvchi handler Mafiya moderatoridan oldin turadi.
+    dispatcher.include_router(alias_group.router)
     dispatcher.include_router(mafia_group.router)
     dispatcher.include_router(bunker_group.router)
     # Josus callbacklari ``spy_join_``/``spy_start_`` prefiksi bilan keladi.

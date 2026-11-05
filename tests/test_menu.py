@@ -198,11 +198,11 @@ class MenuHandlerTest(MenuTestCase):
         message = FakeMessage(text=main_menu.GAME_LIST_BUTTON)
         asyncio.run(menu.menu_game_list(message))
         answer = message.answers[-1]
-        for command in ("/bunker", "/mafia", "/spy"):
+        for command in ("/bunker", "/mafia", "/spy", "/alias"):
             self.assertIn(command, answer)
         self.assertIn("guruh", answer.lower())
         keyboard = message.markups[-1].inline_keyboard
-        self.assertEqual(len(keyboard), 4)
+        self.assertEqual(len(keyboard), 5)
         self.assertIn("startgroup=true", keyboard[-1][0].url)
 
     def test_missions_button_shows_tasks(self) -> None:
