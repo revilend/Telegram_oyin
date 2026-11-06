@@ -8,6 +8,7 @@ from games.bomb.cards import (
     card_ability,
     card_info,
     card_name,
+    card_payload,
     card_symbol,
 )
 from games.bomb.engine import (
@@ -26,13 +27,23 @@ from games.bomb.engine import (
     reset_rooms,
 )
 from games.bomb.generator import BombDeck, build_bomb_deck
+from games.bomb.manager import (
+    BombManager,
+    BombNotFoundError,
+    BombRoomError,
+    get_default_manager,
+    set_default_manager,
+)
 
 __all__ = [
     "ACTION_CARD_TYPES",
     "ActionResult",
     "BombDeck",
     "BombError",
+    "BombManager",
+    "BombNotFoundError",
     "BombPlayer",
+    "BombRoomError",
     "BombRoom",
     "BombStatus",
     "CARD_INFO",
@@ -43,12 +54,15 @@ __all__ = [
     "card_ability",
     "card_info",
     "card_name",
+    "card_payload",
     "card_symbol",
     "check_winner",
     "create_room",
     "draw_card",
     "drop_room",
+    "get_default_manager",
     "get_room",
     "play_action_card",
     "reset_rooms",
+    "set_default_manager",
 ]

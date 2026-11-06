@@ -57,13 +57,13 @@ class CardMetadataTest(unittest.TestCase):
                 self.assertTrue(info.ability.strip())
 
     def test_card_names_use_the_new_alphabet(self) -> None:
-        self.assertEqual(card_info(CardType.BOMB).name, "Portlovchi Bomba")
-        self.assertEqual(card_info(CardType.DEFUSE).name, "Zararsizlantirish")
+        self.assertEqual(card_info(CardType.BOMB).name, "Portlovçi Bomba")
+        self.assertEqual(card_info(CardType.DEFUSE).name, "Zararsizlantiriş")
         self.assertEqual(card_info(CardType.ATTACK).name, "Hujum")
         self.assertEqual(card_info(CardType.SKIP).name, "Ötkäzib yuborish")
         self.assertEqual(card_info(CardType.FUTURE).name, "Kelajak")
-        self.assertEqual(card_info(CardType.SHUFFLE).name, "Aralashtirish")
-        self.assertEqual(card_info(CardType.STEAL).name, "Öğirlash")
+        self.assertEqual(card_info(CardType.SHUFFLE).name, "Aralaştiriş")
+        self.assertEqual(card_info(CardType.STEAL).name, "Öğirlaş")
 
 
 class BombDeckTest(unittest.TestCase):

@@ -680,7 +680,7 @@ class GamesCatalogTest(unittest.IsolatedAsyncioTestCase):
 
         text, keyboard = callback.message.edits[0]
         self.assertIn("Öyinlar röyxati", text)
-        self.assertEqual(len(keyboard.inline_keyboard), 6)
+        self.assertEqual(len(keyboard.inline_keyboard), 7)
         labels = [row[0].text for row in keyboard.inline_keyboard]
         self.assertTrue(any("Alias" in label for label in labels))
         self.assertTrue(any("turnirlar" in label.lower() for label in labels))

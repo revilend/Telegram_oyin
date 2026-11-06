@@ -60,7 +60,7 @@ class GamesApiTest(unittest.TestCase):
         games = response.json()["games"]
         self.assertEqual(
             [game["slug"] for game in games],
-            ["bunker", "mafia", "spyfall", "alias"],
+            ["bunker", "mafia", "spyfall", "alias", "bomb"],
         )
         self.assertEqual(games[0]["status"], "active")
         self.assertEqual(games[1]["status"], "active")

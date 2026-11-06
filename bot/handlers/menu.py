@@ -74,7 +74,7 @@ async def menu_games(message: Message) -> None:
     )
     await message.answer(
         "🎮 <b>Öyinlar portali</b>\n\n"
-        "Bunker, Mafiya va Josus öyinlarini şu yerda oçing. "
+        "Bunker, Mafiya, Josus, Alias va Portlovçi Bomba öyinlarini şu yerda oçing. "
         "Balansingiz va statistikangiz Mini App'da körinadi.",
         reply_markup=keyboard,
     )

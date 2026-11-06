@@ -118,6 +118,7 @@ class BotOrthographyTest(unittest.TestCase):
             "MAFIA_TEXT",
             "SPY_TEXT",
             "ALIAS_TEXT",
+            "BOMB_TEXT",
         ):
             with self.subTest(text=name):
                 self.assertEqual(old_words(getattr(games_catalog, name)), set())

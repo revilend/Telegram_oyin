@@ -37,18 +37,18 @@ class CardInfo:
 
 CARD_INFO: dict[CardType, CardInfo] = {
     CardType.BOMB: CardInfo(
-        name="Portlovchi Bomba",
+        name="Portlovçi Bomba",
         symbol="💥",
         ability=(
-            "Tortilganda portlaydi. Qölingizda Zararsizlantirish bölsa, "
+            "Tortilganda portlaydi. Qölingizda Zararsizlantiriş bölsa, "
             "uni sarflab qutqarasiz; bölsa — öyindan çiqasiz."
         ),
     ),
     CardType.DEFUSE: CardInfo(
-        name="Zararsizlantirish",
+        name="Zararsizlantiriş",
         symbol="🛡️",
         ability=(
-            "Portlovchi Bombani zararsizlantirib, uni dastaga tasodifiy "
+            "Portlovçi Bombani zararsizlantirib, uni dastaga tasodifiy "
             "joyga qaytaradi."
         ),
     ),
@@ -71,12 +71,12 @@ CARD_INFO: dict[CardType, CardInfo] = {
         ability="Dastadagi eng yuqori 3 kartani faqat sizga körsätadi.",
     ),
     CardType.SHUFFLE: CardInfo(
-        name="Aralashtirish",
+        name="Aralaştiriş",
         symbol="🔀",
-        ability="Tortiş dastasini tasodifiy tartibda aralashtiradi.",
+        ability="Tortiş dastasini tasodifiy tartibda aralaştiradi.",
     ),
     CardType.STEAL: CardInfo(
-        name="Öğirlash",
+        name="Öğirlaş",
         symbol="🖐️",
         ability=(
             "Raqib qölidan 1 ta tasodifiy kartani öz qölingizga oladi."
@@ -84,7 +84,7 @@ CARD_INFO: dict[CardType, CardInfo] = {
     ),
 }
 
-# Boshlang'ich qo'llarga va dastaga tarqatiladigan harakat kartalari.
+# Boshlang'ich qöllarga va dastaga tarqatiladigan harakat kartalari.
 ACTION_CARD_TYPES: tuple[CardType, ...] = (
     CardType.ATTACK,
     CardType.SKIP,
@@ -112,3 +112,14 @@ def card_symbol(card: CardType) -> str:
 def card_ability(card: CardType) -> str:
     """Kartaning qobiliyat matnini qaytaradi."""
     return card_info(card).ability
+
+
+def card_payload(card: CardType) -> dict[str, str]:
+    """API/Mini App uchun kartaning JSON tavsifi."""
+    info = card_info(card)
+    return {
+        "type": card.value,
+        "name": info.name,
+        "symbol": info.symbol,
+        "ability": info.ability,
+    }

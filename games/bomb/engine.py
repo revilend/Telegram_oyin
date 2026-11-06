@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable
 
-from games.bomb.cards import CardType
+from games.bomb.cards import CardType, card_info
 from games.bomb.generator import MAX_PLAYERS, MIN_PLAYERS, build_bomb_deck
 
 logger = logging.getLogger(__name__)
@@ -137,14 +137,19 @@ class BombRoom:
         rng: random.Random | None = None,
         coin_award: CoinAward | None = None,
         winner_reward: int = WINNER_REWARD,
+        chat_id: int = 0,
     ) -> None:
         self.code = _normalize_code(code)
+        self.chat_id = int(chat_id or 0)
+        self.host_id: int | None = None
         self.players: dict[int, BombPlayer] = {}
         self.order: list[int] = []
         self.deck: list[CardType] = []
+        self.discard: list[CardType] = []
         self.status = BombStatus.LOBBY
         self.turn_index = 0
         self.winner_id: int | None = None
+        self.last_eliminated_id: int | None = None
         self.last_future_owner: int | None = None
         self.last_future_cards: tuple[CardType, ...] = ()
         self.winner_reward = max(0, int(winner_reward))
@@ -156,7 +161,9 @@ class BombRoom:
     # ------------------------------------------------------------------
     # O'yinchilar
     # ------------------------------------------------------------------
-    def add_player(self, user_id: int, name: str = "") -> BombPlayer:
+    def add_player(
+        self, user_id: int, name: str = "", *, is_host: bool = False
+    ) -> BombPlayer:
         """O'yinchini xonaga qo'shadi (faqat lobbida)."""
         with self._lock:
             if self.status is not BombStatus.LOBBY:
@@ -164,6 +171,8 @@ class BombRoom:
             uid = int(user_id)
             if uid <= 0:
                 raise BombError("Foydalanuvchi id musbat bo'lishi kerak")
+            if self.host_id is None or is_host:
+                self.host_id = uid
             existing = self.players.get(uid)
             if existing is not None:
                 if name:
@@ -226,9 +235,11 @@ class BombRoom:
                 player.is_alive = True
                 player.draws_left = 1
             self.deck = list(deal)
+            self.discard = []
             self.status = BombStatus.PLAYING
             self.turn_index = 0
             self.winner_id = None
+            self.last_eliminated_id = None
             self.last_future_owner = None
             self.last_future_cards = ()
             self._reward_paid = False
@@ -275,6 +286,15 @@ class BombRoom:
             self.players[uid].draws_left = 0
         self._advance_turn()
 
+    def _consume_draw(self, player: BombPlayer) -> None:
+        """Bitta tortishni hisoblaydi; navbat tugasa keyingisiga o'tadi."""
+        player.draws_left = max(0, player.draws_left - 1)
+        if player.draws_left == 0:
+            self._advance_turn()
+
+    def _discard(self, card: CardType) -> None:
+        self.discard.append(card)
+
     # ------------------------------------------------------------------
     # Karta tortish
     # ------------------------------------------------------------------
@@ -297,26 +317,28 @@ class BombRoom:
             exploded = defused = False
             eliminated_id: int | None = None
             returned_index: int | None = None
+            self.last_eliminated_id = None
 
             if card is CardType.BOMB:
                 if player.has(CardType.DEFUSE):
                     player.take(CardType.DEFUSE)
+                    self._discard(CardType.DEFUSE)
                     returned_index = self._rng.randint(0, len(self.deck))
                     self.deck.insert(returned_index, card)
                     defused = True
-                    self._end_turn()
+                    self._consume_draw(player)
                 else:
                     player.is_alive = False
                     player.hand.clear()
                     player.draws_left = 0
                     exploded = True
                     eliminated_id = player.user_id
+                    self.last_eliminated_id = eliminated_id
+                    self._discard(card)
                     self._advance_turn()
             else:
                 player.hand.append(card)
-                player.draws_left = max(0, player.draws_left - 1)
-                if player.draws_left == 0:
-                    self._advance_turn()
+                self._consume_draw(player)
 
             winner_id = self.check_winner()
             return DrawResult(
@@ -366,6 +388,7 @@ class BombRoom:
                 target = self._steal_target(player, target_id)
 
             player.take(card)
+            self._discard(card)
             stolen: CardType | None = None
             future_cards: tuple[CardType, ...] = ()
 
@@ -458,25 +481,68 @@ class BombRoom:
     # ------------------------------------------------------------------
     # Ko'rinish
     # ------------------------------------------------------------------
-    def snapshot(self) -> dict[str, object]:
-        """Bot/API uchun xavfsiz xona ko'rinishi (qo'llar yashirin)."""
+    def public_state(self) -> dict[str, object]:
+        """Hamma ko'radigan xona holati (qo'llar va future yashirin)."""
+        current_id = self.current_player_id
         return {
             "code": self.code,
             "status": self.status.value,
+            "host_id": self.host_id,
             "players": [
                 {
                     "user_id": player.user_id,
                     "name": player.label(),
                     "is_alive": player.is_alive,
-                    "hand_size": len(player.hand),
+                    "hand_count": len(player.hand),
                     "draw_turns_left": player.draw_turns_left,
+                    "is_host": player.user_id == self.host_id,
+                    "is_current": player.user_id == current_id,
                 }
                 for player in self.players.values()
             ],
+            "current_player_id": current_id,
             "deck_size": len(self.deck),
-            "current_player_id": self.current_player_id,
+            "discard": [card.value for card in self.discard[-20:]],
             "winner_id": self.winner_id,
+            "winner_reward": self.winner_reward,
+            "last_eliminated_id": self.last_eliminated_id,
+            "cards": {
+                card.value: {
+                    "name": card_info(card).name,
+                    "symbol": card_info(card).symbol,
+                    "ability": card_info(card).ability,
+                }
+                for card in CardType
+            },
         }
+
+    def player_view(self, user_id: int) -> dict[str, object] | None:
+        """Bitta o'yinchiga ko'rinadigan shaxsiy qo'l va future."""
+        player = self.players.get(int(user_id))
+        if player is None:
+            return None
+        future: list[str] = []
+        if self.last_future_owner == player.user_id:
+            future = [card.value for card in self.last_future_cards]
+        return {
+            "user_id": player.user_id,
+            "hand": [card.value for card in player.hand],
+            "is_alive": player.is_alive,
+            "draw_turns_left": player.draw_turns_left,
+            "future_cards": future,
+        }
+
+    def snapshot(self) -> dict[str, object]:
+        """Eski API bilan moslik uchun umumiy xona ko'rinishi."""
+        state = self.public_state()
+        state["players"] = [
+            {
+                **player,  # type: ignore[dict-item]
+                "hand_size": player["hand_count"],  # type: ignore[index]
+            }
+            for player in state["players"]  # type: ignore[union-attr]
+        ]
+        return state
 
 
 # ----------------------------------------------------------------------

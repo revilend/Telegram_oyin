@@ -17,6 +17,7 @@ from bot.config import get_config
 from bot.handlers import (
     admin,
     alias_group,
+    bomb_group,
     boosters,
     bunker_group,
     common,
@@ -42,6 +43,7 @@ BOT_COMMANDS = [
     BotCommand(command="mafia", description="Yangi Mafiya öyini (guruhda)"),
     BotCommand(command="spy", description="Yangi Josus öyini (guruhda)"),
     BotCommand(command="alias", description="Yangi Alias öyini (guruhda)"),
+    BotCommand(command="bomb", description="Yangi Portlovçi Bomba öyini (guruhda)"),
     BotCommand(command="krokodil", description="Alias: sözni toping (guruhda)"),
     BotCommand(command="matchmaking", description="Global öyin qidiruvi"),
     BotCommand(command="games", description="Öyinlar röyxati"),
@@ -76,6 +78,8 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(bunker_group.router)
     # Josus callbacklari ``spy_join_``/``spy_start_`` prefiksi bilan keladi.
     dispatcher.include_router(spy_group.router)
+    # Bomb callbacklari ``bomb_join_``/``bomb_start_`` prefiksi bilan keladi.
+    dispatcher.include_router(bomb_group.router)
     dispatcher.include_router(games_catalog.router)
     dispatcher.include_router(matchmaking.router)
     dispatcher.include_router(tournaments.router)

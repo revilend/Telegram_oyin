@@ -37,6 +37,8 @@ from api.auth import (
     resolve_user_id,
     telegram_user,
 )
+from games.bomb.api import router as bomb_router
+from games.bomb.api import set_runtime_bot as set_bomb_bot
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
 from games.spyfall.engine import SpyfallError
@@ -159,6 +161,16 @@ GAMES: list[dict[str, Any]] = [
         "players": "2–20",
         "description": "Tezkor so'z tushuntirish va topish poygasi. Guruhda /alias "
         "bilan boshlang.",
+    },
+    {
+        "slug": "bomb",
+        "name": "Portlovçi Bomba",
+        "emoji": "💣",
+        "status": "active",
+        "players": "2–8",
+        "description": "Karta öyini: bombani zararsizlantir, raqiblarga hujum qil "
+        "va oxirgi tirik qol. Guruhda /bomb bilan boshlang.",
+        "image": "assets/images/bomb/bomb.png",
     },
 ]
 
@@ -411,6 +423,7 @@ async def lifespan(app: FastAPI):
             )
             _runtime_bot = bot
             set_spyfall_bot(bot)
+            set_bomb_bot(bot)
             dispatcher = build_dispatcher()
             await set_commands(bot)
             polling = asyncio.create_task(dispatcher.start_polling(bot))
@@ -420,6 +433,7 @@ async def lifespan(app: FastAPI):
             logger.exception("Botni ishga tushirib bo'lmadi")
             _runtime_bot = None
             set_spyfall_bot(None)
+            set_bomb_bot(None)
             if bot is not None:
                 await bot.session.close()
             bot = None
@@ -450,6 +464,7 @@ async def lifespan(app: FastAPI):
             await bot.session.close()
         _runtime_bot = None
         set_spyfall_bot(None)
+        set_bomb_bot(None)
         if reminders is not None:
             reminders.cancel()
             await asyncio.gather(reminders, return_exceptions=True)
@@ -498,6 +513,7 @@ async def count_requests(request: Request, call_next: Any) -> Any:
 
 
 app.include_router(spyfall_router)
+app.include_router(bomb_router)
 
 
 @app.exception_handler(RoomNotFoundError)

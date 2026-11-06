@@ -50,7 +50,7 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
     }
 )
 
-INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker, /mafia, /spy yozing"
+INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker, /mafia, /spy, /bomb yozing"
 
 
 def mini_app_url_for(

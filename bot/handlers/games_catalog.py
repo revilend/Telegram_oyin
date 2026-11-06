@@ -1,6 +1,6 @@
-"""🎮 O'yinlar vitrinasi: Bunker, Mafiya va Josus qoidalari.
+"""🎮 O'yinlar vitrinasi: beshta faol o'yin qoidalari.
 
-``/games`` yoki «🎲 O'yinlar ro'yxati» tugmasi platformadagi uchta faol
+``/games`` yoki «🎲 O'yinlar ro'yxati» tugmasi platformadagi beshta faol
 o'yinni ko'rsatadi; tanlanganda qisqa qoidalar, guruhda boshlash buyrug'i va
 «➕ Guruhga qo'shish» tugmasi chiqadi.
 """
@@ -29,6 +29,7 @@ BUNKER_CALLBACK = "catalog_bunker"
 MAFIA_CALLBACK = "catalog_mafia"
 SPY_CALLBACK = "catalog_spy"
 ALIAS_CALLBACK = "catalog_alias"
+BOMB_CALLBACK = "catalog_bomb"
 BACK_CALLBACK = "catalog_back"
 
 CATALOG_TEXT = (
@@ -41,7 +42,9 @@ CATALOG_TEXT = (
     "🔍 <b>Josus</b> — <code>/spy</code> bilan boşlanadi. Hamma joyni "
     "biladi, bitta josus bilmaydi. Savol-javob orqali uni toping.\n"
     "🐊 <b>Alias</b> — <code>/alias</code> bilan boşlanadi. Sözni "
-    "aytmasdan, taqiqlangan sözlarsiz tuşuntirasiz.\n\n"
+    "aytmasdan, taqiqlangan sözlarsiz tuşuntirasiz.\n"
+    "💣 <b>Portlovçi Bomba</b> — <code>/bomb</code> bilan boşlanadi. "
+    "Bombani zararsizlantirib, oxirgi tirik qoling.\n\n"
     "👇 Öyinni tanlang — guruhda boşlaş böyiça qöllanma çiqadi."
 )
 
@@ -85,6 +88,19 @@ ALIAS_TEXT = (
     "🏆 Topgan öyinçiga +10, tuşuntiruvçiga +5 tanga."
 )
 
+BOMB_TEXT = (
+    "💣 <b>Portlovçi Bomba</b>\n\n"
+    "Karta öyini: bombani zararsizlantir, raqiblarga hujum qil va tirik qol! "
+    "Har bir öyinçi bitta defuse va törtta harakat kartasi bilan boşlaydi.\n\n"
+    "🎮 <b>Guruhda boşlaş:</b>\n"
+    "1. Botni guruhingizga qöşing.\n"
+    "2. Guruhda <code>/bomb</code> yuboring.\n"
+    "3. Kamida 2 kişi «Qöşiliş»ni bosadi.\n"
+    "4. Xona egasi öyinni boşlaydi — qöllar Mini App'da oçiladi.\n\n"
+    "🏆 Oxirgi tirik qolgan öyinçiga +30 tanga."
+)
+
+
 MAFIA_TEXT = (
     "🕵️ <b>Mafiya</b>\n\n"
     "Şahar mafiyalar çangalida. Tunda yaşirin rollar harakat qiladi, "
@@ -121,6 +137,12 @@ def catalog_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="🐊 Alias / Krokodil — /alias",
                     callback_data=ALIAS_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="💣 Portlovçi Bomba — /bomb",
+                    callback_data=BOMB_CALLBACK,
                 )
             ],
             [
@@ -213,6 +235,13 @@ async def show_alias(callback: CallbackQuery) -> None:
     """Alias qoidalari va guruhda boshlash yo'riqnomasi."""
     await callback.answer()
     await _edit_or_send(callback, ALIAS_TEXT, detail_keyboard())
+
+
+@router.callback_query(F.data == BOMB_CALLBACK)
+async def show_bomb(callback: CallbackQuery) -> None:
+    """Portlovçi Bomba qoidalari va guruhda boshlash yo'riqnomasi."""
+    await callback.answer()
+    await _edit_or_send(callback, BOMB_TEXT, detail_keyboard())
 
 
 @router.callback_query(F.data == BACK_CALLBACK)
