@@ -1038,7 +1038,163 @@
     .shop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
     .shop-head h2 { font-size: 20px; }
     .shop-close { border: 0; background: var(--panel-strong); color: var(--text); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
-    .shop-lede { color: var(--muted); font-size: 13px; margin: 4px 0 16px; line-height: 1.5; }
+
+    /* === Modal yopish tugmalari (✕) === */
+    .modal-x {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 34px;
+      height: 34px;
+      border: 0;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+      z-index: 2;
+    }
+    .modal-x:hover,
+    .modal-x:focus {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      transform: scale(1.08);
+      outline: none;
+    }
+    .modal-x:active {
+      transform: scale(0.94);
+    }
+
+    /* MVP overlay - position card relative for absolute close button */
+    .mvp-overlay {
+      position: fixed;
+    }
+    .mvp-card {
+      position: relative;
+      padding-top: 8px;
+    }
+    .mvp-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .mvp-title-block {
+      flex: 1;
+      min-width: 0;
+    }
+    .mvp-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .mvp-sub {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* Overlay click-to-close visual cue: cursor pointer on overlay backdrop */
+    .shop-overlay {
+      cursor: pointer;
+    }
+    .shop-overlay section.shop-sheet {
+      pointer-events: auto;
+      cursor: default;
+    }
+    .shop-overlay section.shop-sheet * {
+      pointer-events: auto;
+    }
+    .mvp-overlay {
+      cursor: pointer;
+    }
+    .mvp-overlay section.mvp-card {
+      pointer-events: auto;
+      cursor: default;
+    }
+    .mvp-overlay section.mvp-card * {
+      pointer-events: auto;
+    }
+    .bomb-overlays.open .bomb-backdrop {
+      cursor: pointer;
+    }
+    .bomb-overlays.open .bomb-overlay-body {
+      pointer-events: auto;
+    }
+    .bomb-overlays.open .bomb-overlay-body * {
+      pointer-events: auto;
+    }
+
+    /* Bomb sheet close button - make it ✕ style */
+    .bomb-sheet-close {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+    }
+    .bomb-sheet-close:hover,
+    .bomb-sheet-close:focus {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      transform: scale(1.08);
+      outline: none;
+    }
+    .bomb-sheet-close:active {
+      transform: scale(0.94);
+    }
+
+    /* Bomb cancel button with ✕ styling */
+    .bomb-cancel-btn {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+    .bomb-cancel-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    /* Shop close button improvements */
+    .shop-close {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+    }
+    .shop-close:hover,
+    .shop-close:focus {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      transform: scale(1.08);
+      outline: none;
+    }
+    .shop-close:active {
+      transform: scale(0.94);
+    }
+
+        .shop-lede { color: var(--muted); font-size: 13px; margin: 4px 0 16px; line-height: 1.5; }
     .shop-packages { display: flex; flex-direction: column; gap: 9px; }
     .shop-package {
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -5791,10 +5947,11 @@ function profileCardHtml() {
           return '<div class="mvp-row"><span>' + esc(row.label) + '</span><b>' + esc(row.value) + '</b></div>';
         }).join("");
         return '<div class="mvp-overlay"><section class="mvp-card">' +
-          '<div class="mvp-crown">👑</div>' +
-          '<div class="mvp-title">Öyin MVPsi</div>' +
+          '<div class="mvp-card-head"><div class="mvp-crown">👑</div>' +
+            '<div class="mvp-title-block"><div class="mvp-title">Öyin MVPsi</div>' +
+            '<div class="mvp-sub">' + esc(view.mvp.reason) + '</div></div>' +
+            '<button class="modal-x" data-act="mvp-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<div class="mvp-name">' + esc(view.mvp.name) + '</div>' +
-          '<div class="mvp-sub">' + esc(view.mvp.reason) + '</div>' +
           '<div class="mvp-stats">' + rows + '</div>' +
           '<button class="btn primary block" data-act="mvp-share">📤 Natijani guruhga ulashish</button>' +
           '<button class="btn block" data-act="mvp-close" style="margin-top:8px">Yopiş</button>' +
@@ -6546,11 +6703,11 @@ function profileCardHtml() {
         return '<section class="bomb-sheet" role="dialog" aria-modal="true">' +
           '<div class="bomb-sheet-head"><div><h2>' + esc(meta.symbol || "") + ' ' + esc(meta.name) + '</h2>' +
             '<p>Tashlash uçun kartani tasdiqlang</p></div>' +
-            '<button class="bomb-sheet-close" data-act="bomb-preview-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="bomb-sheet-close" data-act="bomb-preview-close" aria-label="Yopiş">✕</button></div>' +
           '<div class="bomb-preview-card">' + bombFaceHtml(type) + '</div>' +
           '<p class="bomb-ability">' + esc(note) + '</p>' + targets +
           '<button class="bomb-play-btn" data-act="bomb-play"' + (playable ? "" : " disabled") + '>🔥 Kartani öynaş</button>' +
-          '<button class="bomb-hold-btn" data-act="bomb-preview-close">✖️ Bekor qiliş</button>' +
+          '<button class="bomb-hold-btn bomb-cancel-btn" data-act="bomb-preview-close">✕ Bekor qiliş</button>' +
         '</section>';
 }
 
@@ -6563,9 +6720,9 @@ function profileCardHtml() {
           : '<div class="notice">Dasta boş.</div>';
         return '<section class="bomb-sheet" role="dialog" aria-modal="true">' +
           '<div class="bomb-sheet-head"><div><h2>🔮 Kelajak</h2><p>Dastadagi keyingi kartalar.</p></div>' +
-            '<button class="bomb-sheet-close" data-act="bomb-future-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="bomb-sheet-close" data-act="bomb-future-close" aria-label="Yopiş">✕</button></div>' +
           body +
-          '<button class="bomb-hold-btn" data-act="bomb-future-close">✖️ Yopiş</button>' +
+          '<button class="bomb-hold-btn bomb-cancel-btn" data-act="bomb-future-close">✕ Yopiş</button>' +
         '</section>';
 }
 
@@ -7683,10 +7840,58 @@ function profileCardHtml() {
           joinRoom();
 }
 
+      
       // ----------------------------------------------------------------
+      // Modal yopish (overlay, klaviatura, Telegram BackButton)
+      // ----------------------------------------------------------------
+      function closeAllOverlays() {
+        if (view.shopOpen) {
+          view.shopOpen = false;
+          view.shopPackage = null;
+        }
+        if (view.wheelOpen) {
+          view.wheelOpen = false;
+          view.wheelResult = null;
+        }
+        if (view.tournamentOpen) {
+          view.tournamentOpen = false;
+          view.tournaments = null;
+        }
+        var mvp = document.querySelector(".mvp-overlay");
+        if (mvp) mvp.remove();
+        view.mvp = null;
+        renderHub();
+      }
+
+      function onOverlayClick(event) {
+        var target = event.target;
+        if (!target) return;
+        if (target.classList && target.classList.contains("shop-overlay")) {
+          closeAllOverlays();
+          return;
+        }
+        if (target.classList && target.classList.contains("mvp-overlay")) {
+          var mvp = document.querySelector(".mvp-overlay");
+          if (mvp) mvp.remove();
+          view.mvp = null;
+        }
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (!event) return;
+        var key = event.key;
+        if (key === "Escape" || key === "Esc") {
+          if (view.shopOpen || view.wheelOpen || view.tournamentOpen || view.mvp || document.querySelector(".mvp-overlay")) {
+            closeAllOverlays();
+          }
+          event.stopPropagation();
+        }
+      });
+// ----------------------------------------------------------------
       // Ishga tushirish
       // ----------------------------------------------------------------
       app.addEventListener("click", handleClick);
+      app.addEventListener("click", onOverlayClick);
       app.addEventListener("submit", handleSubmit);
       app.addEventListener("change", function (event) {
         if (!event.target) return;
@@ -7714,6 +7919,11 @@ function profileCardHtml() {
           if (tg.BackButton) {
             tg.BackButton.onClick(function () {
               haptic("medium");
+              if (view.shopOpen || view.wheelOpen || view.tournamentOpen || view.mvp || document.querySelector(".mvp-overlay")) {
+                closeAllOverlays();
+                return;
+              }
+
               if (!view.code) {
                 setBackButton(false);
                 return;
