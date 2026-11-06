@@ -4520,6 +4520,99 @@ function profileCardHtml() {
         else window.open(url, "_blank", "noopener");
       }
 
+
+      // ---------------- Alias natijasi (bot havolasidan) ----------------
+      function decodeBase64Json(value) {
+        try {
+          var normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+          while (normalized.length % 4) normalized += "=";
+          var binary = atob(normalized);
+          var bytes = new Uint8Array(binary.length);
+          for (var index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+          }
+          return JSON.parse(new TextDecoder("utf-8").decode(bytes));
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function aliasResultFromUrl() {
+        try {
+          var token = new URLSearchParams(window.location.search).get("alias_result");
+          return token ? decodeBase64Json(token) : null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function viewerIdFromContext() {
+        try {
+          if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            return Number(tg.initDataUnsafe.user.id) || 0;
+          }
+        } catch (error) {}
+        try {
+          var uid = Number(new URLSearchParams(window.location.search).get("uid") || 0);
+          if (uid) return uid;
+        } catch (error) {}
+        return Number((profile && profile.id) || 0) || 0;
+      }
+
+      function showAliasResult() {
+        var data = aliasResultFromUrl();
+        if (!data || !Array.isArray(data.players) || !data.players.length) return;
+        var stale = document.querySelector(".mvp-overlay");
+        if (stale) stale.remove();
+
+        var viewerId = viewerIdFromContext();
+        var winners = (data.winners || []).map(Number);
+        var participated = data.players.some(function (player) {
+          return Number(player.id) === viewerId;
+        });
+        var won = winners.indexOf(viewerId) >= 0;
+        if (participated) {
+          if (won) { sfx("victory"); haptic("success"); }
+          else { sfx("eliminated"); haptic("error"); }
+        } else {
+          sfx("victory");
+        }
+
+        var top = data.players[0];
+        var rows = [
+          { label: "Öyin", value: "Alias / Krokodil" },
+          { label: "Ğolib", value: (data.winner_names || []).join(", ") || "Aniqlanmadi" },
+          { label: "Raundlar", value: String(data.rounds || 0) },
+          {
+            label: "Top 3",
+            value: data.players.slice(0, 3).map(function (player) {
+              return player.name + " — " + player.score;
+            }).join(" · ")
+          }
+        ];
+        var mine = data.players.find(function (player) {
+          return Number(player.id) === viewerId;
+        });
+        if (mine) {
+          rows.push({ label: "Sizning natijangiz", value: mine.score + " oçko" });
+        }
+
+        view.mvp = {
+          name: top.name,
+          reason: "Alias MVPsi — " + top.score + " oçko töpladi!",
+          rows: rows,
+          share: "🐊 Alias yakunlandi. MVP: " + top.name + " (" + top.score + " oçko)!"
+        };
+        var host = document.createElement("div");
+        host.innerHTML = mvpOverlayHtml();
+        var overlay = host.firstElementChild;
+        if (overlay) document.body.appendChild(overlay);
+      }
+
+      window.addEventListener("load", function () {
+        setTimeout(showAliasResult, 700);
+      });
+
       function renderHub() {
         stopLive();
         stopTimer();

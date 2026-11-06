@@ -17,6 +17,8 @@ yopiladi.  Xona egasi yoki guruh administratori /stop, /stopalias yoki
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import logging
 from html import escape
 
@@ -29,7 +31,10 @@ from aiogram.types import (
     Message,
 )
 
+from aiogram.types import WebAppInfo
+
 from bot.config import get_config
+from bot.keyboards.main_menu import mini_app_url_for
 from bot.handlers.admin import is_admin
 from core.economy import get_economy
 from games.alias.engine import (
@@ -172,6 +177,58 @@ def explainer_message(room: AliasRoom, current: AliasRound) -> str:
     return "\n".join(lines)
 
 
+
+def _alias_result_payload(room: AliasRoom) -> dict:
+    """Mini App natija kartasi uchun qisqa JSON payload."""
+    leaders = room.leaderboard()[:8]
+    return {
+        "code": room.code,
+        "reason": getattr(room, "stop_reason", "") or "completed",
+        "rounds": int(getattr(room, "total_rounds", 0) or 0),
+        "winners": [int(player.user_id) for player in room.winners()],
+        "winner_names": [player.label() for player in room.winners()],
+        "players": [
+            {
+                "id": int(player.user_id),
+                "name": player.label(),
+                "score": int(player.score),
+            }
+            for player in leaders
+        ],
+    }
+
+
+def alias_result_token(room: AliasRoom) -> str:
+    """Natijani URL-safe base64 tokeniga aylantiradi."""
+    raw = json.dumps(
+        _alias_result_payload(room), ensure_ascii=False, separators=(",", ":"),
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def results_keyboard(room: AliasRoom) -> InlineKeyboardMarkup | None:
+    """Natija va MVPni Mini App'da ochiş tugmasi."""
+    try:
+        base = (get_config().mini_app_url or "").strip()
+    except Exception:  # konfiguratsiya yo'q bo'lsa tugma körsatilmaydi
+        return None
+    if not base.startswith("https://"):
+        return None
+    url = mini_app_url_for(base)
+    separator = "&" if "?" in url else "?"
+    url = f"{url}{separator}alias_result={alias_result_token(room)}"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📊 Natija va MVPni köriş",
+                    web_app=WebAppInfo(url=url),
+                )
+            ]
+        ]
+    )
+
+
 def results_text(room: AliasRoom, *, reason: str = "completed") -> str:
     """O'yin yakunlanganda chiqadigan natijalar jadvali."""
     leaders = room.leaderboard()[:3]
@@ -191,7 +248,18 @@ def results_text(room: AliasRoom, *, reason: str = "completed") -> str:
         headline = "🏆 Bu öyinda ğolib aniqlanmadi."
     else:
         headline = "🏆 Öyin yakunlandi."
-    return f"{title}\n\n🏆 <b>Eng yaxşilar:</b>\n{table}\n\n{headline}"
+    mvp = leaders[0] if leaders else None
+    analysis = []
+    if mvp is not None:
+        analysis.append(f"👑 <b>Öyin MVPsi: {mvp.label()}</b> — {mvp.score} oçko")
+    analysis.append(f"🎯 Öynalgan raundlar: <b>{room.total_rounds}</b>")
+    if room.players:
+        analysis.append(f"👥 Qatnaşçilar: <b>{len(room.players)}</b>")
+    analysis_text = "\n".join(analysis)
+    return (
+        f"{title}\n\n🏆 <b>Eng yaxşilar:</b>\n{table}\n\n"
+        f"{headline}\n\n📊 <b>Tahlil:</b>\n{analysis_text}"
+    )
 
 
 def _award_coins(user_id: int, amount: int) -> None:
@@ -229,7 +297,15 @@ async def _stop_game(bot: Bot, room: AliasRoom, *, reason: str) -> None:
         if reason == "completed":
             for winner in room.winners():
                 _award_coins(winner.user_id, WINNER_REWARD)
-        await bot.send_message(room.chat_id, results_text(room, reason=reason))
+        keyboard = results_keyboard(room)
+        if keyboard is None:
+            await bot.send_message(room.chat_id, results_text(room, reason=reason))
+        else:
+            await bot.send_message(
+                room.chat_id,
+                results_text(room, reason=reason),
+                reply_markup=keyboard,
+            )
     finally:
         manager.drop(room.code)
 
