@@ -591,7 +591,10 @@
     @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
     @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-    .fade { animation: fadein 0.25s ease both; }
+    .fade { animation: none; }
+    /* Kirish animatsiyasi faqat #app tugunida: u qayta yaratilmaydi,
+       shuning uchun poll/WebSocket yangilanishlari uni qayta boshlamaydi. */
+    #app { animation: fadein 0.25s ease both; }
 
     /* Hub: bir martalik silliq fade-in va yuklash paytida zaxira balandlik */
     .hub-main .fade { animation: none; }
@@ -4204,6 +4207,28 @@ function profileCardHtml() {
         }
       }
 
+      // Konteyner ichidagi faqat o'zgargan yuqori darajali bloklarni
+      // almashtiradi. innerHTML faqat birinchi qurish yoki tuzilma
+      // o'zgarganda ishlatiladi; oddiy yangilanishda DOM tegilmaydi.
+      function patchElementChildren(container, html) {
+        var template = document.createElement("template");
+        template.innerHTML = html;
+        var next = Array.prototype.slice.call(template.content.children);
+        var current = Array.prototype.slice.call(container.children);
+        if (next.length !== current.length) {
+          container.innerHTML = html;
+          return true;
+        }
+        var changed = false;
+        for (var i = 0; i < next.length; i += 1) {
+          if (current[i].outerHTML !== next[i].outerHTML) {
+            current[i].replaceWith(next[i]);
+            changed = true;
+          }
+        }
+        return changed;
+      }
+
       // Xona ekranini bo'laklab yangilaydi: faqat o'zgargan yuqori darajali
       // bloklar almashtiriladi, qolgan DOM tugunlari va scroll saqlanadi.
       function paintRoomScreen(key, top, mainClass, mainHtml) {
@@ -5253,7 +5278,7 @@ function profileCardHtml() {
         stopSpyClock();
         setBackButton(false);
         var tab = hubTabName();
-        app.innerHTML =
+        var hubHtml =
           '<header class="brand fade">' +
             '<div class="brand-left">' +
               '<div class="logo">RG</div>' +
@@ -5265,12 +5290,9 @@ function profileCardHtml() {
           '</header>' +
           '<main class="fade hub-main pb-24">' + hubContentHtml(tab) + '</main>' +
           bottomNavHtml() +
-          wheelModalHtml() +
-          tournamentsModalHtml() +
-          spyEntryHtml() +
-          aliasEntryHtml() +
-          bombEntryHtml();
-        refreshLucide();
+          '<div id="hub-overlays">' + wheelModalHtml() + tournamentsModalHtml() +
+            spyEntryHtml() + aliasEntryHtml() + bombEntryHtml() + '</div>';
+        if (patchElementChildren(app, hubHtml)) refreshLucide();
         loadMatchmaking();
         if (tab === "shop" && !view.items && !view.itemsLoading) {
           loadShopItems().then(function () { if (view.hubTab === "shop") renderHub(); });
@@ -6068,13 +6090,19 @@ function profileCardHtml() {
 
         html += '<div class="footer">Revilend Games · Xona ' + esc(room.code) + '</div>';
 
-        var fullHtml = '<main class="fade">' + html + '</main>';
-        if (view.lastRoomHtml === fullHtml) {
+        if (view.lastRoomHtml === html) {
           ensureTimer(room);
           return;
         }
-        view.lastRoomHtml = fullHtml;
-        app.innerHTML = fullHtml;
+        view.lastRoomHtml = html;
+        var shell = app.querySelector('[data-room-shell]');
+        if (!shell) {
+          app.innerHTML = '<main class="fade" data-room-shell></main>';
+          shell = app.querySelector('[data-room-shell]');
+          shell.innerHTML = html;
+        } else {
+          patchElementChildren(shell, html);
+        }
         if (keepScroll) window.scrollTo(0, scrollY);
         ensureTimer(room);
       }
