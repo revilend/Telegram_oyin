@@ -14,6 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from bot.config import get_config
+from core.daily_backup import start_daily_backup, stop_daily_backup
 from bot.handlers import (
     admin,
     alias_group,
@@ -113,12 +114,15 @@ async def main() -> None:
     )
     dispatcher = build_dispatcher()
     reminders = tournaments.start_reminder_loop(bot)
+    # Har kuni 00:00 (Toshkent) da baza zaxirasi adminga yuboriladi.
+    backups = start_daily_backup(bot, config.admin_id)
 
     try:
         await set_commands(bot)
         logger.info("Bot @%s sifatida işga tuşmoqda", config.bot_username)
         await dispatcher.start_polling(bot)
     finally:
+        stop_daily_backup(backups)
         reminders.cancel()
         await bot.session.close()
 

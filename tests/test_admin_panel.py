@@ -119,6 +119,8 @@ class AdminPanelTest(unittest.TestCase):
                 ["➕ Foydalanuvçiga tanga beriş"],
                 ["🎟 Promo kod yaratiş"],
                 ["📢 Hammaga xabar (Broadcast)"],
+                ["📥 Bazadan nusxa oliş (Backup)"],
+                ["📤 Bazani tiklaş (Restore)"],
             ],
         )
         callbacks = [
@@ -132,6 +134,8 @@ class AdminPanelTest(unittest.TestCase):
                 "admin_give",
                 "admin_promo",
                 "admin_broadcast",
+                "admin_backup",
+                "admin_restore",
             ],
         )
 

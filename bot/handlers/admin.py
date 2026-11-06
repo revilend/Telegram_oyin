@@ -11,6 +11,7 @@ Panel to'liq inline tugmalar bilan ishlaydi:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from html import escape
 
@@ -20,6 +21,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
+    BufferedInputFile,
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -27,6 +29,14 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.backup import (
+    BackupError,
+    backup_caption,
+    backup_filename,
+    dumps_backup,
+    get_backup_store,
+    restore_caption,
+)
 from core.economy import EconomyError, format_price, get_economy
 from core.metrics import metrics
 from core.settings import (
@@ -46,7 +56,12 @@ PENDING_CALLBACK = "admin_pending"
 GIVE_CALLBACK = "admin_give"
 PROMO_CALLBACK = "admin_promo"
 BROADCAST_CALLBACK = "admin_broadcast"
+BACKUP_CALLBACK = "admin_backup"
+RESTORE_CALLBACK = "admin_restore"
 BACK_CALLBACK = "admin_back"
+
+# Telegram bot orqali yuklab olinadigan faylning amaliy chegarasi.
+MAX_BACKUP_BYTES = 20 * 1024 * 1024
 
 CARD_PROMPT = (
     "💳 <b>Karta raqamini sozlaş</b>\n\n"
@@ -67,6 +82,12 @@ BROADCAST_PROMPT = (
     "📢 <b>Hammaga xabar</b>\n\n"
     "Yuboriladigan xabar matnini yozing:"
 )
+RESTORE_PROMPT = (
+    "📤 <b>Bazani tiklaş</b>\n\n"
+    "Zaxira JSON faylini hujjat sifatida yuboring.\n"
+    "Mavjud qatorlar yangilanadi, yangilari qöşiladi — heç narsa "
+    "öçirilmaydi."
+)
 
 
 class AdminStates(StatesGroup):
@@ -76,6 +97,7 @@ class AdminStates(StatesGroup):
     waiting_give = State()
     waiting_promo = State()
     waiting_broadcast = State()
+    waiting_restore = State()
 
 
 def is_admin(user_id: int) -> bool:
@@ -88,6 +110,12 @@ def is_admin(user_id: int) -> bool:
     except Exception:
         logger.exception("`users` jadvalida rolni tekşirib bölmadi: %s", user_id)
         return False
+
+
+def is_root_admin(user_id: int) -> bool:
+    """Bazani tiklaş faqat ``ADMIN_ID`` egasiga ochiq."""
+    config = get_config()
+    return bool(config.admin_id) and int(user_id) == int(config.admin_id)
 
 
 async def _reply_denied(message: Message) -> None:
@@ -126,6 +154,18 @@ def panel_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="📢 Hammaga xabar (Broadcast)",
                     callback_data=BROADCAST_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📥 Bazadan nusxa oliş (Backup)",
+                    callback_data=BACKUP_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📤 Bazani tiklaş (Restore)",
+                    callback_data=RESTORE_CALLBACK,
                 )
             ],
         ]
@@ -502,6 +542,132 @@ async def _broadcast_text(message: Message, text: str) -> str:
     return (
         f"📣 Broadcast tugadi: <b>{sent}</b> ta yuborildi, "
         f"<b>{failed}</b> ta yetkazilmadi."
+    )
+
+
+# ----------------------------------------------------------------------
+# 📥 Bazadan nusxa oliş va 📤 tiklaş
+# ----------------------------------------------------------------------
+@router.callback_query(F.data == BACKUP_CALLBACK)
+async def send_backup(callback: CallbackQuery) -> None:
+    """Barcha jadvallardan JSON zaxira olib, adminga hujjat sifatida yuboradi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await callback.answer("Zaxira tayyorlanmoqda...")
+    chat_id = callback.from_user.id
+
+    try:
+        payload = await asyncio.to_thread(get_backup_store().create_backup)
+        filename = backup_filename()
+        document = BufferedInputFile(dumps_backup(payload), filename=filename)
+    except BackupError as exc:
+        await callback.bot.send_message(
+            chat_id, f"⚠️ {escape(str(exc))}", reply_markup=panel_keyboard()
+        )
+        return
+    except Exception:
+        logger.exception("Bazadan nusxa olişda xatolik")
+        await callback.bot.send_message(
+            chat_id,
+            "⚠️ Zaxira yaratilmadi. Qayta urinib köring.",
+            reply_markup=panel_keyboard(),
+        )
+        return
+
+    try:
+        await callback.bot.send_document(
+            chat_id, document, caption=backup_caption(payload, filename=filename)
+        )
+    except TelegramAPIError:
+        logger.exception("Zaxira faylini yuborib bölmadi")
+        await callback.bot.send_message(
+            chat_id,
+            "⚠️ Zaxira tayyor, lekin faylni yuborib bölmadi. Qayta urinib köring.",
+            reply_markup=panel_keyboard(),
+        )
+
+
+@router.callback_query(F.data == RESTORE_CALLBACK)
+async def ask_restore(callback: CallbackQuery, state: FSMContext) -> None:
+    """Bosh admindan zaxira faylini so'raydi."""
+    if not is_root_admin(callback.from_user.id):
+        await callback.answer(
+            "⛔ Bazani tiklaş faqat boş admin uçun.", show_alert=True
+        )
+        return
+    await state.set_state(AdminStates.waiting_restore)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id, RESTORE_PROMPT, reply_markup=back_keyboard()
+    )
+
+
+@router.message(AdminStates.waiting_restore, F.document)
+async def restore_from_file(message: Message, state: FSMContext) -> None:
+    """Yuborilgan JSON faylni öqib, jadvallarni ``upsert`` qiladi."""
+    if message.from_user is None or not is_root_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    document = message.document
+    if document is None:
+        await message.answer(
+            "📤 Iltimos, zaxira JSON faylini hujjat sifatida yuboring.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    name = document.file_name or ""
+    if not name.lower().endswith(".json"):
+        await message.answer(
+            "⚠️ Faqat <code>.json</code> zaxira faylini yuboring.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    if int(document.file_size or 0) > MAX_BACKUP_BYTES:
+        await message.answer(
+            "⚠️ Fayl juda katta (maksimal 20 MB).", reply_markup=back_keyboard()
+        )
+        return
+
+    try:
+        buffer = await message.bot.download(document)
+        payload = json.loads(buffer.read().decode("utf-8"))
+    except Exception:
+        logger.exception("Zaxira faylini öqib bölmadi")
+        await message.answer(
+            "⚠️ Faylni öqib bölmadi: yaroqli JSON fayl kerak.",
+            reply_markup=back_keyboard(),
+        )
+        return
+
+    try:
+        result = await asyncio.to_thread(get_backup_store().restore, payload)
+    except BackupError as exc:
+        await message.answer(f"⚠️ {escape(str(exc))}", reply_markup=back_keyboard())
+        return
+    except Exception:
+        logger.exception("Bazani tiklaşda xatolik")
+        await message.answer(
+            "⚠️ Tiklaşda xatolik yuz berdi. Ma'lumotlar qisman tiklangen "
+            "bölişi mumkin — zaxira faylini tekşirib qayta urinib köring.",
+            reply_markup=back_keyboard(),
+        )
+        return
+
+    await state.clear()
+    await message.answer(restore_caption(result), reply_markup=panel_keyboard())
+
+
+@router.message(AdminStates.waiting_restore)
+async def restore_needs_file(message: Message) -> None:
+    """Fayl o'rniga matn kelganda yo'riqnoma beradi."""
+    if message.from_user is None or not is_root_admin(message.from_user.id):
+        await _reply_denied(message)
+        return
+    await message.answer(
+        "📤 Iltimos, zaxira JSON faylini hujjat sifatida yuboring.",
+        reply_markup=back_keyboard(),
     )
 
 

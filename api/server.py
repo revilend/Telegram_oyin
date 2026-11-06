@@ -52,6 +52,7 @@ from bot.handlers.boosters import send_shield_offer
 from bot.localized import LocalizedBot
 from bot.main import build_dispatcher, set_commands
 from core.billing import buy_booster, decline_shield
+from core.daily_backup import start_daily_backup, stop_daily_backup
 from core.db import get_store
 from core.economy import (
     COIN_PACKAGES,
@@ -414,6 +415,7 @@ async def lifespan(app: FastAPI):
     bot: Bot | None = None
     polling: asyncio.Task[None] | None = None
     reminders: asyncio.Task[None] | None = None
+    backup_job: Any | None = None
     token = (os.getenv("BOT_TOKEN") or "").strip()
 
     if token:
@@ -429,6 +431,10 @@ async def lifespan(app: FastAPI):
             await set_commands(bot)
             polling = asyncio.create_task(dispatcher.start_polling(bot))
             reminders = tournaments_handler.start_reminder_loop(bot)
+            # Har kuni 00:00 (Toshkent) da baza zaxirasi adminga yuboriladi.
+            config = get_config()
+            if config.admin_id:
+                backup_job = start_daily_backup(bot, config.admin_id)
             logger.info("Aiogram polling fonda ishga tushdi")
         except Exception:  # bot xatosi Mini App'ni to'xtatmasligi kerak
             logger.exception("Botni ishga tushirib bo'lmadi")
@@ -469,6 +475,7 @@ async def lifespan(app: FastAPI):
         if reminders is not None:
             reminders.cancel()
             await asyncio.gather(reminders, return_exceptions=True)
+        stop_daily_backup(backup_job)
         if polling is not None:
             polling.cancel()
             await asyncio.gather(polling, return_exceptions=True)

@@ -28,6 +28,20 @@
 
     * { box-sizing: border-box; }
 
+    /* Mobil brauzerlarda ko'k tap-highlight va matn belgilanishini o'chirish. */
+    *, *::before, *::after {
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      user-select: none !important;
+      -webkit-user-select: none !important;
+    }
+
+    /* Kiritish maydonlarida matnni belgilash va nusxa olish ishlashi kerak. */
+    input, textarea {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+
     html, body {
       margin: 0;
       padding: 0;
