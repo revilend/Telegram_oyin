@@ -1822,6 +1822,14 @@
       display: block; text-align: center; letter-spacing: 4px; font-size: 22px;
       font-weight: 800; color: #fdba74; margin: 8px 0;
     }
+    .exit-room-btn {
+      display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+      border: 1px solid rgba(248, 113, 113, 0.35); background: rgba(248, 113, 113, 0.14);
+      color: #fecaca; border-radius: 999px; padding: 8px 12px; font-size: 12px; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    }
+    .exit-room-btn:active { transform: scale(0.96); }
     #bomb-overlays { display: none; }
     #bomb-overlays.open { display: block; }
     #bomb-overlays .bomb-backdrop {
@@ -1831,7 +1839,7 @@
       backdrop-filter: blur(18px) saturate(1.25);
     }
     #bomb-overlays .bomb-overlay-body {
-      position: fixed; inset: 0; z-index: 81; display: flex; align-items: flex-end;
+      position: fixed; inset: 0; z-index: 81; display: flex; align-items: center;
       justify-content: center; padding: 16px;
     }
     #bomb-overlays.open .bomb-overlay-body { animation: sheet-rise 0.2s ease both; }
@@ -1859,7 +1867,7 @@
     .bomb-play-btn {
       width: 100%; border: 0; border-radius: 16px; padding: 15px 18px; cursor: pointer;
       font-size: 15px; font-weight: 800; color: #08111f;
-      background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #22c55e 100%);
+      background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 40%, #f59e0b 100%);
       box-shadow: 0 14px 34px rgba(139, 92, 246, 0.4), 0 0 22px rgba(34, 197, 94, 0.28);
     }
     .bomb-play-btn[disabled] { opacity: 0.4; cursor: default; box-shadow: none; }
@@ -4198,9 +4206,9 @@ function profileCardHtml() {
 
       function renderMafia() {
         var top = '<div class="topbar">' +
-          '<button class="icon-btn" data-act="home" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
+          '<button class="icon-btn" data-act="exit-room" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
           '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span>' +
-          '<span class="status-pill">' + icon("hat") + ' Mafiya</span></div></div>';
+          '<span class="status-pill">' + icon("hat") + ' Mafiya</span></div>' + exitRoomButtonHtml() + '</div>';
 
         if (view.mafiaLoading) {
           stopMafiaClock();
@@ -4636,9 +4644,9 @@ function profileCardHtml() {
 
       function renderSpy() {
         var top = '<div class="topbar">' +
-          '<button class="icon-btn" data-act="home" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
+          '<button class="icon-btn" data-act="exit-room" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
           '<div class="room-id"><span class="room-code">' + esc(view.code) + '</span>' +
-          '<span class="status-pill">' + icon("glasses") + ' Josus</span></div></div>';
+          '<span class="status-pill">' + icon("glasses") + ' Josus</span></div>' + exitRoomButtonHtml() + '</div>';
 
         if (view.spyLoading) {
           stopSpyClock();
@@ -5691,7 +5699,7 @@ function profileCardHtml() {
           '<div class="bomb-preview-card">' + bombFaceHtml(type) + '</div>' +
           '<p class="bomb-ability">' + esc(note) + '</p>' + targets +
           '<button class="bomb-play-btn" data-act="bomb-play"' + (playable ? "" : " disabled") + '>🔥 Kartani öynaş</button>' +
-          '<button class="bomb-hold-btn" data-act="bomb-preview-close">✖️ Qölda saqlaş</button>' +
+          '<button class="bomb-hold-btn" data-act="bomb-preview-close">✖️ Bekor qiliş</button>' +
         '</section>';
       }
 
@@ -5739,8 +5747,9 @@ function profileCardHtml() {
       }
 
       function bombTopbarHtml(code) {
-        return '<div class="topbar"><button class="icon-btn" data-act="home">' + icon("arrow-left") + '</button>' +
-          '<div class="room-id"><span class="room-code">' + esc(code) + '</span></div></div>';
+        return '<div class="topbar"><button class="icon-btn" data-act="exit-room" aria-label="Çiqiş">' + icon("arrow-left") + '</button>' +
+          '<div class="room-id"><span class="room-code">' + esc(code) + '</span></div>' +
+          exitRoomButtonHtml() + '</div>';
       }
 
       function bombSkeleton(layout, code) {
@@ -5832,6 +5841,7 @@ function profileCardHtml() {
       // ----------------------------------------------------------------
       function enterRoom(code) {
         unmountBombOverlays();
+        view.lastRoomHtml = null;
         view.code = normalizeCode(code);
         view.loading = true;
         view.error = null;
@@ -5870,6 +5880,73 @@ function profileCardHtml() {
         try {
           if (visible) tg.BackButton.show(); else tg.BackButton.hide();
         } catch (err) { /* eski Telegram versiyalari */ }
+      }
+
+      function exitRoomButtonHtml() {
+        return '<button class="exit-room-btn" data-act="exit-room" aria-label="Öyinden çiqiş">' +
+          '<span aria-hidden="true">🚪</span> Çiqiş</button>';
+      }
+
+      function askConfirm(message, onOk) {
+        try {
+          if (tg && typeof tg.showConfirm === "function") {
+            tg.showConfirm(message, function (ok) { if (ok) onOk(); });
+            return;
+          }
+        } catch (err) { /* eski Telegram */ }
+        try {
+          if (window.confirm(message)) onOk();
+        } catch (err) { onOk(); }
+      }
+
+      function confirmExitRoom() {
+        if (!view.code) {
+          setBackButton(false);
+          goHome();
+          return;
+        }
+        askConfirm("Haqiqatan ham öyinni tark etmoqchimisiz?", leaveRoomAndGoHome);
+      }
+
+      function leaveRoomAndGoHome() {
+        unmountBombOverlays();
+        stopBombPolling();
+        unmountChat();
+        stopLive();
+        stopTimer();
+        stopMafiaClock();
+        stopSpyClock();
+        if (view.mafiaTimer) { clearTimeout(view.mafiaTimer); view.mafiaTimer = null; }
+        if (view.spyTimer) { clearTimeout(view.spyTimer); view.spyTimer = null; }
+        view.code = "";
+        view.room = null;
+        view.me = null;
+        view.loading = false;
+        view.error = null;
+        view.lastRoomSig = null;
+        view.lastMeSig = null;
+        view.lastRoomHtml = null;
+        view.bombCode = "";
+        view.bombState = null;
+        view.bombMe = null;
+        view.bombPreview = null;
+        view.bombDrawn = null;
+        view.bombBoom = null;
+        view.bombFuture = [];
+        view.bombFutureOpen = false;
+        view.bombError = null;
+        view.bombLoading = false;
+        view.mafia = null;
+        view.mafiaState = null;
+        view.mafiaError = null;
+        view.spy = null;
+        view.spyState = null;
+        view.spyError = null;
+        view.mode = "bunker";
+        setBackButton(false);
+        try { history.replaceState(null, "", window.location.pathname); } catch (err) { /* ignore */ }
+        renderHub();
+        haptic("success");
       }
 
       function renderLoading() {
@@ -5932,11 +6009,12 @@ function profileCardHtml() {
         var myVoteTarget = view.selected;
 
         var html = '<div class="topbar">' +
-          '<button class="icon-btn" data-act="home" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
+          '<button class="icon-btn" data-act="exit-room" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
           '<div class="room-id"><span class="room-code">' + esc(room.code) + '</span>' +
             '<span class="status-pill ' + statusClass(status) + '">' + esc(STATUS_LABELS[status] || status) + '</span></div>' +
           '<div class="round-chip">' + (room.current_round ? "Raund " + room.current_round : "Lobby") + '</div>' +
           timerHtml(room) +
+          exitRoomButtonHtml() +
         '</div>';
 
         html += catastropheHtml(room);
@@ -5966,7 +6044,13 @@ function profileCardHtml() {
 
         html += '<div class="footer">Revilend Games · Xona ' + esc(room.code) + '</div>';
 
-        app.innerHTML = '<main class="fade">' + html + '</main>';
+        var fullHtml = '<main class="fade">' + html + '</main>';
+        if (view.lastRoomHtml === fullHtml) {
+          ensureTimer(room);
+          return;
+        }
+        view.lastRoomHtml = fullHtml;
+        app.innerHTML = fullHtml;
         if (keepScroll) window.scrollTo(0, scrollY);
         ensureTimer(room);
       }
@@ -6431,7 +6515,9 @@ function profileCardHtml() {
         var act = button.getAttribute("data-act");
 
         if (act === "home") {
-          goHome();
+          confirmExitRoom();
+        } else if (act === "exit-room") {
+          confirmExitRoom();
         } else if (act === "logout") {
           logout();
         } else if (act === "login-telegram") {
@@ -6768,7 +6854,11 @@ function profileCardHtml() {
           if (tg.BackButton) {
             tg.BackButton.onClick(function () {
               haptic("medium");
-              goHome();
+              if (!view.code) {
+                setBackButton(false);
+                return;
+              }
+              confirmExitRoom();
             });
           }
           if (tg.onEvent) {
