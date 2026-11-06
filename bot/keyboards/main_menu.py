@@ -21,6 +21,7 @@ GAME_LIST_BUTTON = "🎲 Öyinlar röyxati"
 MATCHMAKING_BUTTON = "🌐 Öyin qidiriş (Matchmaking)"
 MISSIONS_BUTTON = "🎯 Missiyalar"
 SHOP_BUTTON = "🪙 Tangalar dökoni"
+TOURNAMENTS_BUTTON = "🏆 Turnirlar"
 NEW_GAME_BUTTON = GAME_LIST_BUTTON
 PROFILE_BUTTON = "👤 Mening profilim"
 LEADERBOARD_BUTTON = "🏆 Reyting va Top"
@@ -38,6 +39,7 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
         MATCHMAKING_BUTTON,
         MISSIONS_BUTTON,
         SHOP_BUTTON,
+        TOURNAMENTS_BUTTON,
         PROFILE_BUTTON,
         LEADERBOARD_BUTTON,
         RULES_BUTTON,
@@ -120,7 +122,10 @@ def build_main_menu(
             games_button,
             KeyboardButton(text=GAME_LIST_BUTTON),
         ],
-        [KeyboardButton(text=MATCHMAKING_BUTTON)],
+        [
+            KeyboardButton(text=MATCHMAKING_BUTTON),
+            KeyboardButton(text=TOURNAMENTS_BUTTON),
+        ],
         [
             KeyboardButton(text=MISSIONS_BUTTON),
             KeyboardButton(text=SHOP_BUTTON),

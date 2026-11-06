@@ -21,13 +21,14 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
-from bot.handlers import admin, games_catalog, missions, shop
+from bot.handlers import admin, games_catalog, missions, shop, tournaments
 from bot.keyboards.main_menu import (
     ADMIN_BUTTON,
     GAME_LIST_BUTTON,
     GAMES_BUTTON,
     MISSIONS_BUTTON,
     SHOP_BUTTON,
+    TOURNAMENTS_BUTTON,
     mini_app_url_for,
 )
 
@@ -85,6 +86,12 @@ async def menu_games(message: Message) -> None:
 async def menu_shop(message: Message, state: FSMContext) -> None:
     """🪙 Tangalar do'koni — /shop menyusini ochadi."""
     await shop.send_shop(message, state)
+
+
+@router.message(PRIVATE, F.text == TOURNAMENTS_BUTTON)
+async def menu_tournaments(message: Message) -> None:
+    """🏆 Turnirlar — haftalik çempionat afishasi."""
+    await tournaments.show_tournaments(message)
 
 
 @router.message(PRIVATE, F.text == GAME_LIST_BUTTON)

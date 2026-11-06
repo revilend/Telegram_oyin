@@ -84,7 +84,9 @@ class MainMenuKeyboardTest(MenuTestCase):
         self.assertEqual(
             rows[0], ["🎮 Mini App (Portal)", "🎲 Öyinlar röyxati"]
         )
-        self.assertEqual(rows[1], ["🌐 Öyin qidiriş (Matchmaking)"])
+        self.assertEqual(
+            rows[1], ["🌐 Öyin qidiriş (Matchmaking)", "🏆 Turnirlar"]
+        )
         self.assertEqual(rows[2], ["🎯 Missiyalar", "🪙 Tangalar dökoni"])
         self.assertEqual(rows[3], ["🎁 Kunlik bonus", "🎟 Promo kod"])
         self.assertEqual(rows[4], ["👤 Mening profilim", "🏆 Reyting va Top"])
@@ -203,7 +205,7 @@ class MenuHandlerTest(MenuTestCase):
             self.assertIn(command, answer)
         self.assertIn("guruh", answer.lower())
         keyboard = message.markups[-1].inline_keyboard
-        self.assertEqual(len(keyboard), 5)
+        self.assertEqual(len(keyboard), 6)
         self.assertIn("startgroup=true", keyboard[-1][0].url)
 
     def test_missions_button_shows_tasks(self) -> None:

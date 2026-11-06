@@ -287,3 +287,33 @@ create table if not exists public.matchmaking_queue (
 
 create index if not exists matchmaking_queue_game_idx
     on public.matchmaking_queue (game_type, created_at);
+
+
+-- ---------------------------------------------------------------------
+-- Haftalik turnirlar: afisha, qatnaşçilar va eslatmalar
+-- ---------------------------------------------------------------------
+create table if not exists public.tournaments (
+    id          text primary key,
+    game        text not null default 'mixed',
+    title       text not null default '',
+    entry_fee   integer not null default 50,
+    prize_pool  integer not null default 0,
+    starts_at   timestamptz not null,
+    status      text not null default 'OPEN',
+    max_players integer not null default 64,
+    created_by  bigint not null default 0,
+    reminded_at timestamptz,
+    created_at  timestamptz not null default now()
+);
+
+create index if not exists tournaments_starts_idx
+    on public.tournaments (status, starts_at);
+
+create table if not exists public.tournament_participants (
+    tournament_id text not null references public.tournaments(id) on delete cascade,
+    user_id       bigint not null,
+    username      text not null default '',
+    full_name     text not null default '',
+    joined_at     timestamptz not null default now(),
+    primary key (tournament_id, user_id)
+);

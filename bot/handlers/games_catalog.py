@@ -125,6 +125,12 @@ def catalog_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text="🏆 Haftalik turnirlar",
+                    callback_data="tournaments_open",
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="➕ Botni guruhga qöşiş",
                     url=f"https://t.me/{config.bot_username}?startgroup=true",
                 )

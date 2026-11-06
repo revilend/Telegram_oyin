@@ -44,6 +44,7 @@ from games.spyfall.manager import SpyfallNotFoundError, get_default_manager as g
 from bot.config import get_config
 from bot.handlers import mafia_group as mafia_bot
 from bot.handlers import matchmaking as matchmaking_bot
+from bot.handlers import tournaments as tournaments_handler
 from bot.handlers.boosters import send_shield_offer
 from bot.localized import LocalizedBot
 from bot.main import build_dispatcher, set_commands
@@ -65,6 +66,15 @@ from core.shop import (
     get_shop_store,
 )
 from core.leaderboard import build_leaderboard, normalize_period
+from core.tournaments import (
+    AlreadyJoinedError,
+    EntryFeeError,
+    TournamentClosedError,
+    TournamentError,
+    TournamentFullError,
+    TournamentNotFoundError,
+    get_tournament_store,
+)
 from core.metrics import metrics
 from engine.chat import ChatAccess, ChatError, ChatHub
 from engine.cleaner import get_cleaner
@@ -390,6 +400,7 @@ async def lifespan(app: FastAPI):
     global _runtime_bot
     bot: Bot | None = None
     polling: asyncio.Task[None] | None = None
+    reminders: asyncio.Task[None] | None = None
     token = (os.getenv("BOT_TOKEN") or "").strip()
 
     if token:
@@ -403,6 +414,7 @@ async def lifespan(app: FastAPI):
             dispatcher = build_dispatcher()
             await set_commands(bot)
             polling = asyncio.create_task(dispatcher.start_polling(bot))
+            reminders = tournaments_handler.start_reminder_loop(bot)
             logger.info("Aiogram polling fonda ishga tushdi")
         except Exception:  # bot xatosi Mini App'ni to'xtatmasligi kerak
             logger.exception("Botni ishga tushirib bo'lmadi")
@@ -438,6 +450,9 @@ async def lifespan(app: FastAPI):
             await bot.session.close()
         _runtime_bot = None
         set_spyfall_bot(None)
+        if reminders is not None:
+            reminders.cancel()
+            await asyncio.gather(reminders, return_exceptions=True)
         if polling is not None:
             polling.cancel()
             await asyncio.gather(polling, return_exceptions=True)
@@ -861,6 +876,20 @@ MATCH_TITLES = {
 }
 
 
+@app.exception_handler(TournamentError)
+async def tournament_error_handler(
+    request: Any, exc: TournamentError
+) -> JSONResponse:
+    """Turnir xatolarini tegishli HTTP statusga aylantiradi."""
+    if isinstance(exc, TournamentNotFoundError):
+        status = 404
+    elif isinstance(exc, EntryFeeError):
+        status = 402
+    else:
+        status = 400
+    return JSONResponse(status_code=status, content={"detail": str(exc)})
+
+
 @app.get("/api/health")
 async def health() -> dict[str, str]:
     return {
@@ -979,6 +1008,154 @@ async def equip_item(
         entry.as_dict() for entry in get_shop_store().inventory(resolved_id)
     ]
     return result
+
+
+class TournamentJoinRequest(BaseModel):
+    """Turnirga yozilish so'rovi."""
+
+    tournament_id: str
+    user_id: int | None = None
+
+
+@app.get("/api/tournaments/active")
+async def tournaments_active(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Ro'yxatga olish ochiq turnirlar: sovrin, vaqt va qatnaşçilar."""
+    viewer_id = user.id if user is not None else user_id
+    return get_tournament_store().payload(viewer_id)
+
+
+@app.post("/api/tournaments/join")
+async def tournaments_join(
+    payload: TournamentJoinRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Turnirga yoziladi: 50 tanga yoki turnir çiptasi."""
+    resolved_id = resolve_user_id(user, payload.user_id)
+    metrics.user(resolved_id)
+    account = get_economy().ensure_user(
+        resolved_id,
+        user.username if user is not None else "",
+        user.full_name if user is not None else "",
+    )
+    result = get_tournament_store().join(
+        resolved_id,
+        payload.tournament_id,
+        account.username,
+        account.full_name,
+    )
+    data = result.as_dict()
+    data["coins"] = result.account.coins
+    data["tickets"] = get_shop_store().entry(
+        resolved_id, "tournament_ticket"
+    ).quantity
+    return data
+
+
+class AdminBalanceRequest(BaseModel):
+    """Admin tomonidan balansni töğrilash so'rovi."""
+
+    user_id: int
+    coins: int
+    reason: str = ""
+    admin_id: int | None = None
+
+
+class AdminTournamentRequest(BaseModel):
+    """Admin tomonidan yangi turnir oçiş so'rovi."""
+
+    game: str = "mixed"
+    starts_at: str
+    entry_fee: int = 50
+    prize_pool: int = 2_000
+    title: str = ""
+    admin_id: int | None = None
+
+
+def require_admin(user: TelegramUser | None, admin_id: int | None) -> int:
+    """Admin endpointlari uchun identifikatsiya va ruxsatni tekşiradi."""
+    from bot.handlers.admin import is_admin
+
+    identifier = user.id if user is not None else admin_id
+    if identifier is None:
+        raise HTTPException(
+            status_code=401, detail="Admin identifikatsiyasi talab qilinadi"
+        )
+    if not is_admin(int(identifier)):
+        raise HTTPException(
+            status_code=403, detail="Bu amal faqat administrator uçun"
+        )
+    return int(identifier)
+
+
+@app.get("/api/admin/payments/pending")
+async def admin_pending_payments(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Tasdiqlashni kutayotgan tölov çeklari."""
+    require_admin(user, user_id)
+    payments = get_economy().list_pending_payments()
+    return {"payments": [asdict(payment) for payment in payments]}
+
+
+@app.post("/api/admin/payments/{request_id}/approve")
+async def admin_approve_payment(
+    request_id: str,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Çekni tasdiqlaydi va tangalarni hisobga qöşadi."""
+    admin = require_admin(user, user_id)
+    payment = get_economy().approve_payment(request_id, admin)
+    return {"ok": True, "payment": asdict(payment)}
+
+
+@app.post("/api/admin/payments/{request_id}/reject")
+async def admin_reject_payment(
+    request_id: str,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Çekni rad etadi."""
+    admin = require_admin(user, user_id)
+    payment = get_economy().reject_payment(request_id, admin)
+    return {"ok": True, "payment": asdict(payment)}
+
+
+@app.post("/api/admin/balance")
+async def admin_balance(
+    payload: AdminBalanceRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Balansni qölda töğrilaydi (musbat — qöşiş, manfiy — yeçiş)."""
+    require_admin(user, payload.admin_id)
+    economy = get_economy()
+    if payload.coins >= 0:
+        account = economy.add_coins(payload.user_id, int(payload.coins))
+    else:
+        account = economy.spend_coins(payload.user_id, abs(int(payload.coins)))
+    return {"ok": True, "user": asdict(account), "reason": payload.reason}
+
+
+@app.post("/api/admin/tournaments")
+async def admin_create_tournament(
+    payload: AdminTournamentRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Yangi haftalik turnir oçadi."""
+    admin = require_admin(user, payload.admin_id)
+    tournament = get_tournament_store().create(
+        payload.game,
+        payload.starts_at,
+        entry_fee=payload.entry_fee,
+        prize_pool=payload.prize_pool,
+        title=payload.title,
+        created_by=admin,
+    )
+    return {"ok": True, "tournament": tournament.as_dict()}
 
 
 def profile_identity(

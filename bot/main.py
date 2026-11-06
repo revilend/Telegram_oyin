@@ -30,6 +30,7 @@ from bot.handlers import (
     rewards,
     shop,
     spy_group,
+    tournaments,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ BOT_COMMANDS = [
     BotCommand(command="rules", description="Barça öyinlar qoidalari"),
     BotCommand(command="login", description="Mini App kiriş kodi"),
     BotCommand(command="shop", description="Tangalar xarid qiliş"),
+    BotCommand(command="tournaments", description="Haftalik turnirlar"),
     BotCommand(command="profile", description="Mening profilim"),
     BotCommand(command="top", description="Reyting va Top"),
     BotCommand(command="cancel", description="Jarayonni bekor qiliş"),
@@ -76,6 +78,7 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(spy_group.router)
     dispatcher.include_router(games_catalog.router)
     dispatcher.include_router(matchmaking.router)
+    dispatcher.include_router(tournaments.router)
     dispatcher.include_router(profile.router)
     dispatcher.include_router(leaderboard.router)
     # Doimiy pastki menyu tugmalari /start va boshqa buyruqlardan keyin keladi.
@@ -105,12 +108,14 @@ async def main() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dispatcher = build_dispatcher()
+    reminders = tournaments.start_reminder_loop(bot)
 
     try:
         await set_commands(bot)
         logger.info("Bot @%s sifatida işga tuşmoqda", config.bot_username)
         await dispatcher.start_polling(bot)
     finally:
+        reminders.cancel()
         await bot.session.close()
 
 
