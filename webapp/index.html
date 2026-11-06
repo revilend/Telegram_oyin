@@ -4204,6 +4204,32 @@ function profileCardHtml() {
         }
       }
 
+      // Xona ekranini bo'laklab yangilaydi: faqat o'zgargan yuqori darajali
+      // bloklar almashtiriladi, qolgan DOM tugunlari va scroll saqlanadi.
+      function paintRoomScreen(key, top, mainClass, mainHtml) {
+        var shell = app.querySelector('[data-room-screen="' + key + '"]');
+        if (!shell || shell.__top !== top) {
+          app.innerHTML = top + '<main class="fade ' + mainClass + '" data-room-screen="' + key + '"></main>';
+          shell = app.querySelector('[data-room-screen="' + key + '"]');
+          shell.__top = top;
+          shell.innerHTML = mainHtml;
+          return;
+        }
+        var template = document.createElement("template");
+        template.innerHTML = mainHtml;
+        var next = Array.prototype.slice.call(template.content.children);
+        var current = Array.prototype.slice.call(shell.children);
+        if (next.length !== current.length) {
+          shell.innerHTML = mainHtml;
+          return;
+        }
+        for (var i = 0; i < next.length; i++) {
+          if (current[i].outerHTML !== next[i].outerHTML) {
+            current[i].replaceWith(next[i]);
+          }
+        }
+      }
+
       function renderMafia() {
         var top = '<div class="topbar">' +
           '<button class="icon-btn" data-act="exit-room" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
@@ -4254,8 +4280,7 @@ function profileCardHtml() {
               me.boosters.map(mafiaBoosterHtml).join("") + '</section>'
           : '';
 
-        app.innerHTML = top +
-          '<main class="fade mafia-shell">' +
+        paintRoomScreen("mafia", top, "mafia-shell",
             '<section class="mafia-hero">' +
               '<p class="mafia-kicker">Revilend Mafia</p>' +
               '<h1>' + (hasRole ? "Sizning kartangiz" : "Karta tarqatilmoqda") + '</h1>' +
@@ -4296,8 +4321,8 @@ function profileCardHtml() {
                 (me.phase === "NIGHT" ? " Tungi harakatlar şu oynadan yuboriladi." : "") + '</p>' +
             '</section>' +
             shopHtml +
-            '<div class="footer">Revilend Games · Mafiya</div>' +
-          '</main>';
+            '<div class="footer">Revilend Games · Mafiya</div>'
+        );
         var mafiaState = view.mafiaState;
         if (me.phase === "FINISHED") {
           noteGameEnd(
@@ -4749,14 +4774,13 @@ function profileCardHtml() {
           tally = '<button class="btn block" data-act="spy-tally"' + (view.spyActionBusy ? " disabled" : "") + '>' + icon("ballot") + ' Ovozlarni yakunlaş</button>';
         }
 
-        app.innerHTML = top +
-          '<main class="fade spy-shell">' + hero + lobby +
+        paintRoomScreen("spy", top, "spy-shell", hero + lobby +
             (status === "LOBBY" ? "" : spyCardHtml(me, state)) +
             timer + result + booster +
             spyPlayersHtml(me, state) +
             spyLocationsHtml(me, state) + tally +
-            '<div class="footer">Revilend Games \u00b7 Josus</div>' +
-          '</main>';
+            '<div class="footer">Revilend Games \u00b7 Josus</div>'
+        );
         syncSpyClock(state);
       }
 
