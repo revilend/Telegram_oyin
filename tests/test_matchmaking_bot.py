@@ -15,6 +15,8 @@ os.environ.setdefault("BOT_USERNAME", "revilend_gamesbot")
 from bot.config import get_config
 from bot.handlers import matchmaking
 from bot.keyboards import main_menu
+from bot.localized import localize_markup
+from core.orthography import to_new_alphabet
 
 
 class FakeBot:
@@ -68,6 +70,55 @@ class MatchmakingKeyboardTest(unittest.TestCase):
         labels = [button.text for row in markup.keyboard for button in row]
         self.assertIn(matchmaking.MATCHMAKING_BUTTON, labels)
         self.assertIn(matchmaking.MATCHMAKING_BUTTON, main_menu.BUTTON_TEXTS)
+
+
+class MatchmakingAlphabetTest(unittest.TestCase):
+    """Navbat xabarlari va tugmalari yangi alifboda chiqishini tekshiradi."""
+
+    def test_game_menu_uses_new_alphabet(self) -> None:
+        text = to_new_alphabet(matchmaking.CHOOSE_TEXT)
+        self.assertIn("Global öyin qidiruvi", text)
+        self.assertIn("tölişi", text)
+        self.assertIn("iştirokçilarga", text)
+        self.assertNotIn("o'", text.lower())
+
+    def test_queue_text_uses_new_alphabet(self) -> None:
+        text = to_new_alphabet(
+            matchmaking.queue_text("bunker", {"count": 2, "need": 2})
+        )
+        self.assertIn("Navbatga qöşildingiz", text)
+        self.assertIn("Odamlar yiğilişi", text)
+        self.assertIn("Yana 2 kişi kerak", text)
+        self.assertNotIn("sh", text.lower())
+        self.assertNotIn("ch", text.lower())
+        self.assertNotIn("o'", text.lower())
+
+    def test_match_text_keeps_room_code(self) -> None:
+        text = to_new_alphabet(
+            matchmaking.match_text(
+                {"game_type": "alias", "code": "MAT7", "players": 3}
+            )
+        )
+        self.assertIn("yiğildi", text)
+        self.assertIn("<code>MAT7</code>", text)
+        self.assertIn("qöşiling", text)
+
+    def test_keyboard_labels_are_localized_and_stable(self) -> None:
+        # Manba satrlari allaqachon yangi alifboda; qayta o'girish ularni buzmasligi kerak.
+        source = matchmaking.cancel_keyboard("mafia")
+        localized = localize_markup(source)
+        labels = [button.text for row in localized.inline_keyboard for button in row]
+        self.assertIn("❌ Qidiruvni bekor qiliş", labels)
+        self.assertIn("◀️ Boşqa öyin", labels)
+        originals = [button.text for row in source.inline_keyboard for button in row]
+        self.assertEqual(originals, labels)
+
+    def test_game_keyboard_labels_are_localized(self) -> None:
+        localized = localize_markup(matchmaking.game_keyboard())
+        labels = [button.text for row in localized.inline_keyboard for button in row]
+        self.assertIn("🛡️ Bunker", labels)
+        self.assertIn("🕵️ Mafiya", labels)
+        self.assertIn("🐊 Alias", labels)
 
 
 class MatchmakingHandlerTest(unittest.TestCase):
