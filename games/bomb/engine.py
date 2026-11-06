@@ -427,7 +427,7 @@ class BombRoom:
         target_id: int | None,
     ) -> BombPlayer:
         if target_id is None:
-            raise BombError("Öğirlash uchun nishon tanlanishi kerak")
+            raise BombError("Öğirlaş uçun nishon tanlanişi kerak")
         try:
             target = self.players.get(int(target_id))
         except (TypeError, ValueError) as exc:

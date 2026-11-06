@@ -1822,25 +1822,52 @@
       display: block; text-align: center; letter-spacing: 4px; font-size: 22px;
       font-weight: 800; color: #fdba74; margin: 8px 0;
     }
-    .bomb-overlay {
-      position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center;
-      padding: 16px; background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(8px);
-      animation: fadein 0.18s ease both;
+    #bomb-overlays { display: none; }
+    #bomb-overlays.open { display: block; }
+    #bomb-overlays .bomb-backdrop {
+      position: fixed; inset: 0; z-index: 80;
+      background: rgba(2, 6, 23, 0.6);
+      -webkit-backdrop-filter: blur(18px) saturate(1.25);
+      backdrop-filter: blur(18px) saturate(1.25);
     }
+    #bomb-overlays .bomb-overlay-body {
+      position: fixed; inset: 0; z-index: 81; display: flex; align-items: flex-end;
+      justify-content: center; padding: 16px;
+    }
+    #bomb-overlays.open .bomb-overlay-body { animation: sheet-rise 0.2s ease both; }
     .bomb-sheet {
-      width: min(100%, 520px); max-height: 90vh; overflow-y: auto; padding: 18px;
-      border-radius: 24px 24px 18px 18px; border: 1px solid rgba(251, 146, 60, 0.3);
-      background: linear-gradient(160deg, #1f2937, #0f172a);
-      box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.5);
+      width: min(100%, 520px); max-height: 90vh; overflow-y: auto; padding: 20px;
+      border-radius: 26px; border: 1px solid rgba(255, 255, 255, 0.16);
+      background: linear-gradient(160deg, rgba(31, 41, 55, 0.86), rgba(15, 23, 42, 0.92));
+      -webkit-backdrop-filter: blur(26px) saturate(1.35);
+      backdrop-filter: blur(26px) saturate(1.35);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    @keyframes sheet-rise {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); }
+      to { opacity: 1; transform: none; }
     }
     .bomb-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-    .bomb-sheet-head h2 { font-size: 19px; }
-    .bomb-sheet-head p { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+    .bomb-sheet-head h2 { font-size: 20px; color: #fff; }
+    .bomb-sheet-head p { font-size: 13px; color: #f8fafc; font-weight: 600; margin-top: 4px; line-height: 1.45; }
     .bomb-sheet-close { border: 0; width: 34px; height: 34px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: var(--text); cursor: pointer; }
     .bomb-preview-card { display: flex; justify-content: center; padding: 8px 0 14px; }
-    .bomb-preview-card .bomb-face { width: 176px; height: 238px; border-radius: 22px; box-shadow: 0 20px 42px rgba(0, 0, 0, 0.48); }
+    .bomb-preview-card .bomb-face { width: 208px; height: 282px; border-radius: 24px; box-shadow: 0 26px 60px rgba(0, 0, 0, 0.6), 0 0 34px rgba(139, 92, 246, 0.28); }
     .bomb-preview-card .bomb-face-name { font-size: 13px; padding: 26px 8px 10px; }
-    .bomb-ability { font-size: 12px; line-height: 1.55; color: var(--muted); text-align: center; margin-bottom: 14px; }
+    .bomb-ability { font-size: 13px; line-height: 1.55; color: #e2e8f0; text-align: center; margin-bottom: 16px; }
+    .bomb-play-btn {
+      width: 100%; border: 0; border-radius: 16px; padding: 15px 18px; cursor: pointer;
+      font-size: 15px; font-weight: 800; color: #08111f;
+      background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #22c55e 100%);
+      box-shadow: 0 14px 34px rgba(139, 92, 246, 0.4), 0 0 22px rgba(34, 197, 94, 0.28);
+    }
+    .bomb-play-btn[disabled] { opacity: 0.4; cursor: default; box-shadow: none; }
+    .bomb-hold-btn {
+      width: 100%; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.08); color: #fff; border-radius: 16px;
+      padding: 14px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
     .bomb-targets { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 10px; }
     .bomb-target {
       flex: 0 0 auto; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04);
@@ -5376,6 +5403,7 @@ function profileCardHtml() {
         view.bombBoom = null;
         view.bombFuture = [];
         view.bombFutureOpen = false;
+        unmountBombOverlays();
         setBackButton(true);
         renderBomb();
         loadBombState(false);
@@ -5502,7 +5530,7 @@ function profileCardHtml() {
         var payload = { card_type: type };
         if (type === "STEAL") {
           if (view.bombTarget == null) {
-            toast("Öğirlash uçun raqibni tanlang", "error");
+            toast("Öğirlaş uçun raqibni tanlang", "error");
             return;
           }
           payload.target_id = Number(view.bombTarget);
@@ -5588,49 +5616,49 @@ function profileCardHtml() {
         '</section>';
       }
 
-      function bombTableHtml(state, me) {
+      function bombTableParts(state, me) {
         var current = (state.players || []).filter(function (player) { return player.is_current; })[0];
         var myTurn = Number(state.current_player_id) === Number(profile.id) && me && me.is_alive;
         var deck = Number(state.deck_size) || 0;
         var discard = (state.discard || []).slice(-1)[0] || null;
         var myDraws = me ? Number(me.draw_turns_left) || 0 : 0;
-        var drawLabel = myDraws > 1 ? 'Karta tortish (' + myDraws + ' ta qoldi)' : 'Karta tortish va navbatni tugatish';
+        var drawLabel = myDraws > 1 ? 'Karta tortiş (' + myDraws + ' ta qoldi)' : 'Karta tortiş va navbatni tugatiş';
         var controls = "";
         if (state.status === "PLAYING" && me && me.is_alive) {
           controls = myTurn
             ? '<div class="bomb-controls">' +
                 '<button class="bomb-draw-btn" data-act="bomb-draw"' + (view.bombBusy ? " disabled" : "") + '>🂠 ' + drawLabel + '</button>' +
-                '<p class="bomb-hint">Xohlagançа harakat kartasini işlating. Navbatni tugatish uçun bitta karta torting.</p>' +
+                '<p class="bomb-hint">Xohlagançа harakat kartasini işlating. Navbatni tugatiş uçun bitta karta torting.</p>' +
               '</div>'
             : '<div class="bomb-controls"><p class="bomb-hint">Navbat <b>' +
                 esc(current ? current.name : "—") + '</b>da. U karta tortişini kuting.</p></div>';
         }
-        var futureButton = "";
         if (me && me.future_cards && me.future_cards.length) {
-          futureButton = '<button class="btn block" data-act="bomb-future-open" style="margin-top:8px">🔮 Kelajakni körish</button>';
+          controls += '<button class="btn block" data-act="bomb-future-open" style="margin-top:8px">🔮 Kelajakni körish</button>';
         }
-        return '<div class="bomb-room-head">' +
-            '<h1>' + lucideIcon("bomb") + ' Portlovçi Bomba</h1>' +
-            '<p>Bombani zararsizlantir, raqiblarga hujum qil va oxirgi tirik qol.</p>' +
-            '<div class="bomb-turn"><span>Navbat: <strong>' + esc(current ? current.name : "—") + '</strong></span>' +
-              '<span>' + (me && me.is_alive ? myTurn ? 'Sizning navbatingiz' : 'Kuting…' : 'Kuzatuvçi') + '</span></div>' +
-          '</div>' +
-          bombPlayersHtml(state) +
-          '<div class="bomb-table">' +
-            '<div class="bomb-pile"><span class="bomb-pile-label">Koloda</span>' +
-              '<div class="bomb-deck-stack"><img src="assets/images/bomb/bomb.png" alt="Bomba dastasi" /><span class="bomb-deck-count">' + deck + '</span></div>' +
-            '</div>' +
-            '<div class="bomb-pile"><span class="bomb-pile-label">Tashlangan</span>' +
-              (discard ? bombFaceHtml(discard, "bomb-discard-card") : '<div class="bomb-discard-empty">🂠</div>') +
-            '</div>' +
-          '</div>' +
-          bombHandHtml(me, myTurn) +
-          controls +
-          futureButton +
-          (state.status === "PLAYING" && me && !me.is_alive
-            ? '<div class="notice">Siz portladingiz. Öyin tugaganda ğolib e’lon qilinadi.</div>'
-            : '') +
-          (state.status === "FINISHED" ? bombResultHtml(state) : "");
+        if (state.status === "PLAYING" && me && !me.is_alive) {
+          controls += '<div class="notice">Siz portladingiz. Öyin tugaganda ğolib e’lon qilinadi.</div>';
+        }
+        return {
+          head: '<div class="bomb-room-head">' +
+              '<h1>' + lucideIcon("bomb") + ' Portlovçi Bomba</h1>' +
+              '<p>Bombani zararsizlantir, raqiblarga hujum qil va oxirgi tirik qol.</p>' +
+              '<div class="bomb-turn"><span>Navbat: <strong>' + esc(current ? current.name : "—") + '</strong></span>' +
+                '<span>' + (me && me.is_alive ? myTurn ? 'Sizning navbatingiz' : 'Kuting…' : 'Kuzatuvçi') + '</span></div>' +
+            '</div>',
+          players: bombPlayersHtml(state),
+          table: '<div class="bomb-table">' +
+              '<div class="bomb-pile"><span class="bomb-pile-label">Koloda</span>' +
+                '<div class="bomb-deck-stack"><img src="assets/images/bomb/bomb.png" alt="Bomba dastasi" /><span class="bomb-deck-count">' + deck + '</span></div>' +
+              '</div>' +
+              '<div class="bomb-pile"><span class="bomb-pile-label">Tashlangan</span>' +
+                (discard ? bombFaceHtml(discard, "bomb-discard-card") : '<div class="bomb-discard-empty">🂠</div>') +
+              '</div>' +
+            '</div>',
+          hand: bombHandHtml(me, myTurn),
+          controls: controls,
+          result: state.status === "FINISHED" ? bombResultHtml(state) : ""
+        };
       }
 
       function bombPreviewHtml(me) {
@@ -5656,16 +5684,15 @@ function profileCardHtml() {
                 player.user_id + '">' + esc(player.name) + '</button>';
             }).join("") + '</div>';
         }
-        return '<div class="bomb-overlay"><section class="bomb-sheet" role="dialog" aria-modal="true">' +
+        return '<section class="bomb-sheet" role="dialog" aria-modal="true">' +
           '<div class="bomb-sheet-head"><div><h2>' + esc(meta.symbol || "") + ' ' + esc(meta.name) + '</h2>' +
-            '<p>Tashlash uçun kartani tasdiqlang.</p></div>' +
+            '<p>Tashlash uçun kartani tasdiqlang</p></div>' +
             '<button class="bomb-sheet-close" data-act="bomb-preview-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
           '<div class="bomb-preview-card">' + bombFaceHtml(type) + '</div>' +
           '<p class="bomb-ability">' + esc(note) + '</p>' + targets +
-          '<button class="btn primary block" data-act="bomb-play"' + (playable ? "" : " disabled") + '>' +
-            (BOMB_ACTION_TYPES.indexOf(type) >= 0 ? "Tashlash" : "Qölda saqlash") + '</button>' +
-          '<button class="btn block" data-act="bomb-preview-close" style="margin-top:8px">Yopiş</button>' +
-        '</section></div>';
+          '<button class="bomb-play-btn" data-act="bomb-play"' + (playable ? "" : " disabled") + '>🔥 Kartani öynaş</button>' +
+          '<button class="bomb-hold-btn" data-act="bomb-preview-close">✖️ Qölda saqlaş</button>' +
+        '</section>';
       }
 
       function bombFutureHtml() {
@@ -5675,12 +5702,12 @@ function profileCardHtml() {
           ? '<p class="muted tiny" style="text-align:center;margin-bottom:4px">Faqat sizga körinadi. Dastaning yuqori 3 kartasi:</p>' +
             '<div class="bomb-future-grid">' + cards.map(function (type) { return bombFaceHtml(type); }).join("") + '</div>'
           : '<div class="notice">Dasta boş.</div>';
-        return '<div class="bomb-overlay"><section class="bomb-sheet" role="dialog" aria-modal="true">' +
+        return '<section class="bomb-sheet" role="dialog" aria-modal="true">' +
           '<div class="bomb-sheet-head"><div><h2>🔮 Kelajak</h2><p>Dastadagi keyingi kartalar.</p></div>' +
             '<button class="bomb-sheet-close" data-act="bomb-future-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
           body +
-          '<button class="btn block" data-act="bomb-future-close" style="margin-top:8px">Yopiş</button>' +
-        '</section></div>';
+          '<button class="bomb-hold-btn" data-act="bomb-future-close">✖️ Yopiş</button>' +
+        '</section>';
       }
 
       function bombDrawnHtml() {
@@ -5690,13 +5717,13 @@ function profileCardHtml() {
         var note = result.defused
           ? "Bomba chiqdi, lekin Zararsizlantiriş uni qaytardi. Bomba yana dastada!"
           : "Karta qölingizga qöşildi. Navbatni tugatish uçun karta tortishda davom eting.";
-        return '<div class="bomb-overlay"><section class="bomb-sheet" role="dialog" aria-modal="true">' +
+        return '<section class="bomb-sheet" role="dialog" aria-modal="true">' +
           '<div class="bomb-sheet-head"><div><h2>' + esc(card.symbol || "") + ' ' + esc(card.name) + '</h2>' +
             '<p>' + (result.defused ? "Zararsizlantirildi" : "Yangi karta") + '</p></div></div>' +
           '<div class="bomb-preview-card">' + bombFaceHtml(card.type) + '</div>' +
           '<p class="bomb-ability">' + esc(note) + '</p>' +
-          '<button class="btn primary block" data-act="bomb-drawn-close">Davom etiş</button>' +
-        '</section></div>';
+          '<button class="bomb-hold-btn" data-act="bomb-drawn-close">Davom etiş</button>' +
+        '</section>';
       }
 
       function bombBoomHtml() {
@@ -5711,36 +5738,100 @@ function profileCardHtml() {
         '</div>';
       }
 
+      function bombTopbarHtml(code) {
+        return '<div class="topbar"><button class="icon-btn" data-act="home">' + icon("arrow-left") + '</button>' +
+          '<div class="room-id"><span class="room-code">' + esc(code) + '</span></div></div>';
+      }
+
+      function bombSkeleton(layout, code) {
+        var slots = layout === "table"
+          ? '<div data-slot="head"></div><div data-slot="players"></div><div data-slot="table"></div>' +
+            '<div data-slot="hand"></div><div data-slot="controls"></div><div data-slot="result"></div>'
+          : '<div data-slot="body"></div>';
+        return '<main class="fade bomb-room">' + bombTopbarHtml(code) + slots + '</main>';
+      }
+
+      function bombOverlayHost() {
+        if (view.bombOverlayHost && document.body.contains(view.bombOverlayHost)) {
+          return view.bombOverlayHost;
+        }
+        var host = document.createElement("div");
+        host.id = "bomb-overlays";
+        host.innerHTML = '<div class="bomb-backdrop"></div><div class="bomb-overlay-body"></div>';
+        document.body.appendChild(host);
+        view.bombOverlayHost = host;
+        view.bombOverlaySig = "";
+        return host;
+      }
+
+      function unmountBombOverlays() {
+        if (view.bombOverlayHost && view.bombOverlayHost.parentNode) {
+          view.bombOverlayHost.parentNode.removeChild(view.bombOverlayHost);
+        }
+        view.bombOverlayHost = null;
+        view.bombOverlaySig = "";
+        view.bombLayout = null;
+        view.bombPainted = {};
+      }
+
+      function renderBombOverlays() {
+        if (view.mode !== "bomb") return;
+        var host = bombOverlayHost();
+        var html = (view.bombBoom ? bombBoomHtml() : "") +
+          bombPreviewHtml(view.bombMe) + bombFutureHtml() + bombDrawnHtml();
+        if (html !== view.bombOverlaySig) {
+          view.bombOverlaySig = html;
+          host.querySelector(".bomb-overlay-body").innerHTML = html;
+          refreshLucide();
+        }
+        if (html) host.classList.add("open");
+        else host.classList.remove("open");
+      }
+
       function renderBomb() {
         if (view.mode !== "bomb") return;
         var code = view.bombCode || view.code || "";
         var state = view.bombState;
         var me = view.bombMe;
-        var head = '<div class="topbar"><button class="icon-btn" data-act="home">' + icon("arrow-left") + '</button>' +
-          '<div class="room-id"><span class="room-code">' + esc(code) + '</span></div></div>';
-        var content = "";
-        if (view.bombLoading && !state) {
-          content = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
-        } else if (view.bombError && !state) {
-          content = '<section class="state-screen fade"><div class="emoji">💣</div><h2>Xona topilmadi</h2><p>' +
-            esc(view.bombError) + '</p><button class="btn primary" data-act="bomb-reload">Qayta uriniş</button>' +
-            '<button class="btn block" data-act="home" style="margin-top:8px">Hubga qaytiş</button></section>';
-        } else if (!state) {
-          content = '<div class="skeleton"></div>';
-        } else if (state.status === "LOBBY") {
-          content = bombLobbyHtml(state);
-        } else {
-          content = bombTableHtml(state, me);
+        var layout = !state ? "empty" : (state.status === "LOBBY" ? "lobby" : "table");
+        var rebuild = layout !== view.bombLayout;
+        if (rebuild) {
+          view.bombLayout = layout;
+          view.bombPainted = {};
+          app.innerHTML = bombSkeleton(layout, code);
         }
-        app.innerHTML = '<main class="fade bomb-room">' + head + content + '</main>' +
-          bombPreviewHtml(me) + bombFutureHtml() + bombDrawnHtml() + bombBoomHtml();
-        refreshLucide();
+        var parts;
+        if (layout === "table") {
+          parts = bombTableParts(state, me);
+        } else if (layout === "lobby") {
+          parts = { body: bombLobbyHtml(state) };
+        } else if (view.bombError) {
+          parts = { body: '<section class="state-screen fade"><div class="emoji">💣</div><h2>Xona topilmadi</h2><p>' +
+            esc(view.bombError) + '</p><button class="btn primary" data-act="bomb-reload">Qayta uriniş</button>' +
+            '<button class="btn block" data-act="home" style="margin-top:8px">Hubga qaytiş</button></section>' };
+        } else if (view.bombLoading) {
+          parts = { body: '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>' };
+        } else {
+          parts = { body: '<div class="skeleton"></div>' };
+        }
+        var painted = false;
+        Object.keys(parts).forEach(function (slot) {
+          var node = app.querySelector('[data-slot="' + slot + '"]');
+          if (!node) return;
+          if (view.bombPainted[slot] === parts[slot]) return;
+          view.bombPainted[slot] = parts[slot];
+          node.innerHTML = parts[slot];
+          painted = true;
+        });
+        if (painted || rebuild) refreshLucide();
+        renderBombOverlays();
       }
 
       // ----------------------------------------------------------------
       // Xona
       // ----------------------------------------------------------------
       function enterRoom(code) {
+        unmountBombOverlays();
         view.code = normalizeCode(code);
         view.loading = true;
         view.error = null;
@@ -5763,6 +5854,7 @@ function profileCardHtml() {
 
       function goHome() {
         stopBombPolling();
+        unmountBombOverlays();
         unmountChat();
         stopLive();
         stopTimer();
@@ -6375,28 +6467,28 @@ function profileCardHtml() {
         } else if (act === "bomb-preview") {
           view.bombPreview = Number(button.getAttribute("data-index"));
           view.bombTarget = null;
-          renderBomb();
+          renderBombOverlays();
         } else if (act === "bomb-preview-close") {
           view.bombPreview = null;
           view.bombTarget = null;
-          renderBomb();
+          renderBombOverlays();
         } else if (act === "bomb-target") {
           view.bombTarget = Number(button.getAttribute("data-target"));
-          renderBomb();
+          renderBombOverlays();
         } else if (act === "bomb-play") {
           bombPlay();
         } else if (act === "bomb-future-open") {
           view.bombFutureOpen = true;
-          renderBomb();
+          renderBombOverlays();
         } else if (act === "bomb-future-close") {
           view.bombFutureOpen = false;
-          renderBomb();
+          renderBombOverlays();
         } else if (act === "bomb-drawn-close") {
           view.bombDrawn = null;
-          renderBomb();
+          renderBombOverlays();
         } else if (act === "bomb-boom-close") {
           view.bombBoom = null;
-          renderBomb();
+          renderBombOverlays();
         } else if (act === "bomb-home") {
           goHome();
         } else if (act === "alias-entry-close") {

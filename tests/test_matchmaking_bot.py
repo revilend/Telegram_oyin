@@ -172,8 +172,8 @@ class MatchmakingHandlerTest(unittest.TestCase):
         text, keyboard = callback.bot.messages[-1][1:]
         self.assertIn("MAT7", text)
         button = keyboard.inline_keyboard[0][0]
-        self.assertEqual(button.text, "🎮 Xonaga kiriş")
-        self.assertEqual(button.url, "https://revilend.games?room=MAT7")
+        self.assertEqual(button.text, "🎮 Öyinga kiriş")
+        self.assertEqual(button.web_app.url, "https://revilend.games?room=MAT7")
 
     def test_cancel_removes_player_from_queue(self) -> None:
         callback = FakeCallback("mm_leave_bunker")
@@ -205,6 +205,36 @@ class MatchmakingHandlerTest(unittest.TestCase):
         for _chat_id, text, keyboard in bot.messages:
             self.assertIn("GG12", text)
             self.assertEqual(
-                keyboard.inline_keyboard[0][0].url,
+                keyboard.inline_keyboard[0][0].web_app.url,
                 "https://revilend.games?room=GG12",
             )
+
+
+class MatchmakingWebAppFallbackTest(unittest.TestCase):
+    """Guruh chatida web_app tugmasi rad etilsa, oddiy havolaga qaytish."""
+
+    def test_web_app_rejection_falls_back_to_url_button(self) -> None:
+        from aiogram.exceptions import TelegramBadRequest
+
+        bot = FakeBot()
+        failures = {"web_app": 0}
+        original = bot.send_message
+
+        async def send_message(chat_id, text, **kwargs):
+            markup = kwargs.get("reply_markup")
+            button = markup.inline_keyboard[0][0] if markup else None
+            if button is not None and getattr(button, "web_app", None) is not None:
+                failures["web_app"] += 1
+                raise TelegramBadRequest(
+                    method=SimpleNamespace(), message="Bad Request: BUTTON_TYPE_INVALID"
+                )
+            await original(chat_id, text, **kwargs)
+
+        bot.send_message = send_message
+        match = {"game_type": "bunker", "code": "GG12", "players": 4}
+        asyncio.run(matchmaking.send_match_notices(bot, [{"user_id": 77}], match))
+
+        self.assertEqual(failures["web_app"], 1)
+        button = bot.messages[-1][2].inline_keyboard[0][0]
+        self.assertIsNone(getattr(button, "web_app", None))
+        self.assertEqual(button.url, "https://revilend.games?room=GG12")

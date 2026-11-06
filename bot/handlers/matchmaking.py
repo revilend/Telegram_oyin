@@ -22,6 +22,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    WebAppInfo,
 )
 
 from bot.config import get_config
@@ -101,11 +102,24 @@ def mini_app_room_url(code: str) -> str:
         return ""
 
 
-def match_keyboard(match: dict[str, Any]) -> InlineKeyboardMarkup:
-    """Tayyor xonaga kirish tugmasi."""
+def match_keyboard(
+    match: dict[str, Any], *, web_app: bool = True
+) -> InlineKeyboardMarkup:
+    """Tayyor xonaga kirish tugmasi.
+
+    ``web_app=True`` bo'lsa Telegram Mini App to'g'ridan-to'g'ri ochiladi va
+    foydalanuvchi «Havolani ochish» oynasini körmaydi. Guruh chatlarida
+    Telegram web_app inline tugmasini qabul qilmasligi mumkin: chaqiruvchi
+    ``TelegramBadRequest``ni tutib, ``web_app=False`` bilan qayta yuboradi.
+    """
     code = str(match.get("code") or "")
     url = mini_app_room_url(code) or str(match.get("join_url") or "")
-    row = [InlineKeyboardButton(text="🎮 Xonaga kiriş", url=url)]
+    if web_app and url.startswith("https://"):
+        row = [
+            InlineKeyboardButton(text="🎮 Öyinga kiriş", web_app=WebAppInfo(url=url))
+        ]
+    else:
+        row = [InlineKeyboardButton(text="🎮 Öyinga kiriş", url=url)]
     return InlineKeyboardMarkup(inline_keyboard=[row])
 
 
@@ -159,13 +173,20 @@ async def send_match_notices(
 ) -> None:
     """Navbatdagi barcha o'yinchilarga xona havolasini shaxsiy yuboradi."""
     text = match_text(match)
-    keyboard = match_keyboard(match)
     for entry in players:
         user_id = int(entry.get("user_id") or 0)
         if user_id <= 0:
             continue
         try:
-            await bot.send_message(user_id, text, reply_markup=keyboard)
+            await bot.send_message(user_id, text, reply_markup=match_keyboard(match))
+        except TelegramBadRequest:
+            # Guruh/eski mijoz web_app tugmasini qabul qilmadi — oddiy havola.
+            try:
+                await bot.send_message(
+                    user_id, text, reply_markup=match_keyboard(match, web_app=False)
+                )
+            except Exception:
+                logger.info("Navbat xabarini yuborib bölmadi: %s", user_id)
         except Exception:
             logger.info("Navbat xabarini yuborib bölmadi: %s", user_id)
 
@@ -203,7 +224,15 @@ async def choose_game(callback: CallbackQuery) -> None:
     await callback.answer("Navbatga qöşildingiz!")
     match = result.get("match")
     if match:
-        await _edit_or_send(callback, match_text(match), match_keyboard(match))
+        try:
+            await _edit_or_send(callback, match_text(match), match_keyboard(match))
+        except TelegramBadRequest:
+            # Guruh chatlari web_app inline tugmasini qabul qilmaydi.
+            await callback.bot.send_message(
+                callback.from_user.id,
+                match_text(match),
+                reply_markup=match_keyboard(match, web_app=False),
+            )
         return
     await _edit_or_send(callback, queue_text(kind, result), cancel_keyboard(kind))
 
