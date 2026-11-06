@@ -325,10 +325,29 @@ class GlobalQueueTest(unittest.TestCase):
         self.assertEqual(third["match"]["players"], 3)
         self.assertEqual(self.store.rows, {}, "Xona ochilgach navbat tozalanadi")
 
+    def test_bomb_queue_starts_with_two_players(self) -> None:
+        first = matchmaking.join_global_queue(11, "bomba", name="Ali")
+        self.assertIsNone(first["match"])
+        self.assertEqual(first["need"], 1)
+        second = matchmaking.join_global_queue(12, "portlovchi", name="Vali")
+        self.assertIsNotNone(second["match"])
+        self.assertEqual(second["match"]["game_type"], "bomb")
+        self.assertEqual(second["match"]["players"], 2)
+
+    def test_normalize_game_type_supports_all_five(self) -> None:
+        self.assertEqual(matchmaking.normalize_game_type("Bunker"), "bunker")
+        self.assertEqual(matchmaking.normalize_game_type("mafia"), "mafia")
+        self.assertEqual(matchmaking.normalize_game_type("spy"), "spyfall")
+        self.assertEqual(matchmaking.normalize_game_type("krokodil"), "alias")
+        self.assertEqual(matchmaking.normalize_game_type("portlovçi"), "bomb")
+        with self.assertRaises(matchmaking.MatchmakingError):
+            matchmaking.normalize_game_type("noma'lum")
+
     def test_bunker_and_mafia_queue_thresholds(self) -> None:
         self.assertEqual(matchmaking.MIN_PLAYERS["bunker"], 5)
         self.assertEqual(matchmaking.MIN_PLAYERS["mafia"], 6)
         self.assertEqual(matchmaking.MIN_PLAYERS["alias"], 3)
+        self.assertEqual(matchmaking.MIN_PLAYERS["bomb"], 2)
 
     def test_check_and_create_matches_reads_queue_table(self) -> None:
         now = time.time()

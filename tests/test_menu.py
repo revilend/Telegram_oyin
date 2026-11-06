@@ -81,35 +81,30 @@ class MainMenuKeyboardTest(MenuTestCase):
     def test_menu_is_persistent_two_columns(self) -> None:
         markup = main_menu.build_main_menu()
         rows = [[button.text for button in row] for row in markup.keyboard]
-        self.assertEqual(
-            rows[0], ["🎮 Mini App (Portal)", "🎲 Öyinlar röyxati"]
-        )
-        self.assertEqual(
-            rows[1], ["🌐 Öyin qidiriş (Matchmaking)", "🏆 Turnirlar"]
-        )
-        self.assertEqual(rows[2], ["🎯 Missiyalar", "🪙 Tangalar dökoni"])
-        self.assertEqual(rows[3], ["🎁 Kunlik bonus", "🎟 Promo kod"])
-        self.assertEqual(rows[4], ["👤 Mening profilim", "🏆 Reyting va Top"])
-        self.assertEqual(
-            rows[5], ["ℹ️ Qoidalar / Yordam", "👥 Döstlarni taklif qiliş"]
-        )
+        self.assertEqual(rows[0], ["🎮 Tezkor öyın", "📋 Öyınlar"])
+        self.assertEqual(rows[1], ["🎯 Mıssıyalar", "🎁 Kunlık bonus"])
+        self.assertEqual(rows[2], ["🛍️ Dökon", "🏆 Turnırlar"])
+        self.assertEqual(rows[3], ["👤 Profılım", "👑 Reytıng"])
+        self.assertEqual(rows[4], ["🎟️ Promo kod", "👥 Döstlar"])
+        self.assertEqual(rows[5], ["🌐 Mini App (Portal)"])
         self.assertEqual(len(rows), 6)
         self.assertTrue(markup.resize_keyboard)
         self.assertTrue(markup.is_persistent)
-        for row in markup.keyboard[2:]:
+        for row in markup.keyboard[2:5]:
             self.assertEqual(len(row), 2)
+        self.assertEqual(len(markup.keyboard[5]), 1)
 
     def test_games_button_opens_mini_app(self) -> None:
         markup = main_menu.build_main_menu()
-        games = markup.keyboard[0][0]
+        games = markup.keyboard[5][0]
         self.assertIsNotNone(games.web_app)
         self.assertEqual(games.web_app.url, get_config().mini_app_url)
 
     def test_web_app_button_can_be_disabled(self) -> None:
         # Telegram noto'g'ri HTTPS manzilni rad etadi: zaxira menyuda oddiy tugma.
         markup = main_menu.build_main_menu(include_web_app=False)
-        self.assertIsNone(markup.keyboard[0][0].web_app)
-        self.assertEqual(markup.keyboard[0][0].text, "🎮 Mini App (Portal)")
+        self.assertIsNone(markup.keyboard[5][0].web_app)
+        self.assertEqual(markup.keyboard[5][0].text, "🌐 Mini App (Portal)")
 
     def test_admin_button_is_only_for_admins(self) -> None:
         for_admin = main_menu.build_main_menu(is_admin=True)
@@ -255,7 +250,7 @@ class MenuHandlerTest(MenuTestCase):
             async def answer(self, text: str, **kwargs) -> None:
                 markup = kwargs.get("reply_markup")
                 rows = getattr(markup, "keyboard", None)
-                if rows and rows[0][0].web_app is not None:
+                if rows and rows[-1][0].web_app is not None:
                     raise TelegramBadRequest(
                         method=None, message="BUTTON_TYPE_INVALID"
                     )
@@ -264,7 +259,7 @@ class MenuHandlerTest(MenuTestCase):
         message = StrictMessage()
         asyncio.run(common.start_command(message, None))
         self.assertIn("Salom", message.answers[-1])
-        self.assertIsNone(message.markups[-1].keyboard[0][0].web_app)
+        self.assertIsNone(message.markups[-1].keyboard[-1][0].web_app)
 
     def test_games_button_sends_web_app_with_identity(self) -> None:
         config = SimpleNamespace(
@@ -363,7 +358,7 @@ class MiniAppUrlTest(unittest.TestCase):
             markup = main_menu.build_main_menu(
                 user_id=555, username="vali", full_name="Vali Karimov"
             )
-        button = markup.keyboard[0][0]
+        button = markup.keyboard[5][0]
         self.assertIsNotNone(button.web_app)
         self.assertIn("uid=555", button.web_app.url)
         self.assertIn("uname=vali", button.web_app.url)
@@ -375,7 +370,7 @@ class MiniAppUrlTest(unittest.TestCase):
             main_menu, "get_config", return_value=config
         ), patch.object(admin, "get_config", return_value=config):
             asyncio.run(common.start_command(message, None))
-        button = message.markups[-1].keyboard[0][0]
+        button = message.markups[-1].keyboard[-1][0]
         self.assertIn("uid=424242", button.web_app.url)
 
 

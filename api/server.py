@@ -39,6 +39,7 @@ from api.auth import (
 )
 from games.bomb.api import router as bomb_router
 from games.bomb.api import set_runtime_bot as set_bomb_bot
+from games.bomb.manager import get_default_manager as get_bomb_manager
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
 from games.spyfall.engine import SpyfallError
@@ -848,6 +849,14 @@ def _create_match_room(
                 )
             except Exception:
                 logger.exception("Navbat o'yinchisini Alias xonasiga qo'shib bo'lmadi")
+    elif game_type == "bomb":
+        lobby = get_bomb_manager()
+        code = lobby.create_room(host_id, host_name).code
+        for entry in players[1:]:
+            try:
+                lobby.join(code, int(entry.get("user_id") or 0), str(entry.get("name") or ""))
+            except Exception:
+                logger.exception("Navbat o'yinchisini Bomba xonasiga qo'shib bo'lmadi")
     else:  # pragma: no cover - normalize_game_type buni to'sadi
         raise MatchmakingError(f"Noma'lum o'yin turi: {game_type}")
 

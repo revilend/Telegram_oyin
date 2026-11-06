@@ -24,13 +24,14 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-GAME_TYPES = ("bunker", "mafia", "spyfall", "alias")
+GAME_TYPES = ("bunker", "mafia", "spyfall", "alias", "bomb")
 
 GAME_TITLES = {
     "bunker": "Bunker",
     "mafia": "Mafiya",
     "spyfall": "Josus",
     "alias": "Alias",
+    "bomb": "Portlovçi Bomba",
 }
 
 # Navbat yig'ilganda o'yin boshlanishi uchun minimal o'yinchi soni.
@@ -39,6 +40,7 @@ MIN_PLAYERS = {
     "mafia": 6,
     "spyfall": 3,
     "alias": 3,
+    "bomb": 2,
 }
 
 # Bitta navbatdan umumiy xonaga olinadigan maksimal o'yinchi soni.
@@ -47,6 +49,7 @@ MAX_PLAYERS = {
     "mafia": 20,
     "spyfall": 12,
     "alias": 20,
+    "bomb": 8,
 }
 
 # Supabase'dagi global navbat jadvali.
@@ -77,6 +80,8 @@ def normalize_game_type(game_type: str) -> str:
         return "bunker"
     if value in ("alias", "krokodil", "alies"):
         return "alias"
+    if value in ("bomb", "bomba", "portlovchi", "portlovçi"):
+        return "bomb"
     if value not in MIN_PLAYERS:
         raise MatchmakingError(f"Noma'lum o'yin turi: {game_type!r}")
     return value

@@ -52,8 +52,12 @@ CHOOSE_TEXT = (
 GAME_LABELS = {
     "bunker": "🛡️ Bunker",
     "mafia": "🕵️ Mafiya",
+    "spyfall": "🕶️ Josus (Spyfall)",
     "alias": "🐊 Alias",
+    "bomb": "💣 Portlovçi Bomba",
 }
+
+GAME_ORDER = ("bunker", "mafia", "spyfall", "alias", "bomb")
 
 
 def game_keyboard() -> InlineKeyboardMarkup:
@@ -64,7 +68,7 @@ def game_keyboard() -> InlineKeyboardMarkup:
                 text=GAME_LABELS[kind], callback_data=f"{GAME_PREFIX}{kind}"
             )
         ]
-        for kind in ("bunker", "mafia", "alias")
+        for kind in GAME_ORDER
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

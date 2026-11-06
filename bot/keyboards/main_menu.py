@@ -16,19 +16,20 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
 from bot.config import get_config
 
-GAMES_BUTTON = "🎮 Mini App (Portal)"
-GAME_LIST_BUTTON = "🎲 Öyinlar röyxati"
-MATCHMAKING_BUTTON = "🌐 Öyin qidiriş (Matchmaking)"
-MISSIONS_BUTTON = "🎯 Missiyalar"
-SHOP_BUTTON = "🪙 Tangalar dökoni"
-TOURNAMENTS_BUTTON = "🏆 Turnirlar"
+GAMES_BUTTON = "🌐 Mini App (Portal)"
+GAME_LIST_BUTTON = "📋 Öyınlar"
+# «Tezkor öyın» global navbatni ochadi; uzun matchmaking yozuvi yo'q.
+MATCHMAKING_BUTTON = "🎮 Tezkor öyın"
+MISSIONS_BUTTON = "🎯 Mıssıyalar"
+SHOP_BUTTON = "🛍️ Dökon"
+TOURNAMENTS_BUTTON = "🏆 Turnırlar"
 NEW_GAME_BUTTON = GAME_LIST_BUTTON
-PROFILE_BUTTON = "👤 Mening profilim"
-LEADERBOARD_BUTTON = "🏆 Reyting va Top"
+PROFILE_BUTTON = "👤 Profılım"
+LEADERBOARD_BUTTON = "👑 Reytıng"
 RULES_BUTTON = "ℹ️ Qoidalar / Yordam"
-INVITE_BUTTON = "👥 Döstlarni taklif qiliş"
-BONUS_BUTTON = "🎁 Kunlik bonus"
-PROMO_BUTTON = "🎟 Promo kod"
+INVITE_BUTTON = "👥 Döstlar"
+BONUS_BUTTON = "🎁 Kunlık bonus"
+PROMO_BUTTON = "🎟️ Promo kod"
 ADMIN_BUTTON = "👑 Admin panel"
 
 # Handlerlar shu to'plam orqali menyu tugmalarini taniydi.
@@ -50,7 +51,7 @@ BUTTON_TEXTS: frozenset[str] = frozenset(
     }
 )
 
-INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker, /mafia, /spy, /bomb yozing"
+INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker, /mafia, /spy, /alias, /bomb yozing"
 
 
 def mini_app_url_for(
@@ -93,14 +94,14 @@ def build_main_menu(
     username: str = "",
     full_name: str = "",
 ) -> ReplyKeyboardMarkup:
-    """Doimiy 2 ustunli pastki menyuni qaytaradi.
+    """Ixcham, 2 ustunli pastki menyuni qaytaradi.
+
+    Oxirgi qatorda Mini App portali bitta keng tugma sifatida turadi.
 
     Args:
         is_admin: ``True`` bo'lsa oxirgi qatorga «👑 Admin panel» qo'shiladi.
         include_web_app: ``False`` bo'lsa «Mini App (Portal)» oddiy matn
             tugmasi bo'ladi.
-            Telegram ``web_app`` tugmasini faqat to'g'ri HTTPS manzil bilan
-            qabul qiladi, shuning uchun xato bo'lsa shu rejim ishlatiladi.
         user_id, username, full_name: Mini App havolasiga qo'shiladigan
             foydalanuvchi ma'lumotlari (``?uid=...&uname=...&fname=...``).
     """
@@ -111,37 +112,34 @@ def build_main_menu(
         username=username,
         full_name=full_name,
     )
-    games_button = KeyboardButton(text=GAMES_BUTTON)
+    portal_button = KeyboardButton(text=GAMES_BUTTON)
     if include_web_app and mini_app_url.startswith("https://"):
-        games_button = KeyboardButton(
+        portal_button = KeyboardButton(
             text=GAMES_BUTTON,
             web_app=WebAppInfo(url=mini_app_url),
         )
     rows: list[list[KeyboardButton]] = [
         [
-            games_button,
+            KeyboardButton(text=MATCHMAKING_BUTTON),
             KeyboardButton(text=GAME_LIST_BUTTON),
         ],
         [
-            KeyboardButton(text=MATCHMAKING_BUTTON),
-            KeyboardButton(text=TOURNAMENTS_BUTTON),
-        ],
-        [
             KeyboardButton(text=MISSIONS_BUTTON),
-            KeyboardButton(text=SHOP_BUTTON),
+            KeyboardButton(text=BONUS_BUTTON),
         ],
         [
-            KeyboardButton(text=BONUS_BUTTON),
-            KeyboardButton(text=PROMO_BUTTON),
+            KeyboardButton(text=SHOP_BUTTON),
+            KeyboardButton(text=TOURNAMENTS_BUTTON),
         ],
         [
             KeyboardButton(text=PROFILE_BUTTON),
             KeyboardButton(text=LEADERBOARD_BUTTON),
         ],
         [
-            KeyboardButton(text=RULES_BUTTON),
+            KeyboardButton(text=PROMO_BUTTON),
             KeyboardButton(text=INVITE_BUTTON),
         ],
+        [portal_button],
     ]
     if is_admin:
         rows.append([KeyboardButton(text=ADMIN_BUTTON)])

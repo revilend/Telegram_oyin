@@ -76,14 +76,20 @@ class MatchmakingHandlerTest(unittest.TestCase):
         self.addCleanup(get_config.cache_clear)
         matchmaking.router  # modul importi tekshiriladi
 
-    def test_menu_lists_three_game_types(self) -> None:
+    def test_menu_lists_five_game_types(self) -> None:
         message = FakeMessage(text=matchmaking.MATCHMAKING_BUTTON)
         asyncio.run(matchmaking.matchmaking_menu(message))
         text, keyboard = message.answers[-1]
         self.assertIn("Global öyin qidiruvi", text)
         self.assertEqual(
             callback_data(keyboard),
-            ["mm_game_bunker", "mm_game_mafia", "mm_game_alias"],
+            [
+                "mm_game_bunker",
+                "mm_game_mafia",
+                "mm_game_spyfall",
+                "mm_game_alias",
+                "mm_game_bomb",
+            ],
         )
 
     def test_choose_game_queues_player(self) -> None:

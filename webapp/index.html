@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#070b16" />
   <title>Revilend Games</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     :root {
       --bg: #070b16;
@@ -1866,6 +1867,118 @@
       .bomb-face.bomb-discard-card { width: 70px; height: 96px; }
       .bomb-future-grid .bomb-face { height: 132px; }
     }
+
+    /* ---------- Cyberpunk glass hub ---------- */
+    body {
+      background: radial-gradient(circle at 50% 0%, #1e1035 0%, #0d0714 50%, #050208 100%);
+      background-attachment: fixed;
+    }
+    #app {
+      max-width: 680px;
+      padding: 8px 16px calc(112px + env(safe-area-inset-bottom));
+    }
+    .pb-24 { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+    .brand {
+      background: rgba(13, 7, 20, 0.55);
+      backdrop-filter: blur(20px) saturate(1.25);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+    .brand-right { display: flex; align-items: center; gap: 7px; }
+    .glass-pill {
+      display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px;
+      border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06); backdrop-filter: blur(14px);
+      color: #fde68a; font-size: 11px; font-weight: 800; white-space: nowrap;
+    }
+    .glass-pill .lucide-icon { width: 14px; height: 14px; }
+    .lucide-icon, svg.lucide {
+      width: 18px; height: 18px; display: inline-block; vertical-align: -3px;
+      stroke-width: 1.8; flex: 0 0 auto;
+    }
+    .tab-head { margin: 8px 2px 20px; }
+    .tab-head .eyebrow { margin-bottom: 7px; }
+    .tab-head h1 { font-size: 32px; line-height: 1.08; letter-spacing: -0.9px; margin-bottom: 7px; }
+    .tab-head p:last-child { color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .glass-card {
+      position: relative;
+      background: rgba(255, 255, 255, 0.048);
+      border: 1px solid rgba(255, 255, 255, 0.105);
+      border-radius: 22px;
+      backdrop-filter: blur(22px) saturate(1.25);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .panel, .game-card, .profile-card, .bonus-card, .hub-board, .mission,
+    .item-card, .shop-card, .shop-package, .top-row, .tour-banner, .history-row {
+      background: rgba(255, 255, 255, 0.045) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 20px !important;
+      backdrop-filter: blur(20px) saturate(1.2);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
+    .game-card { overflow: hidden; }
+    .game-card.active { box-shadow: 0 16px 42px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important; }
+    .game-banner { border-color: rgba(255, 255, 255, 0.16); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); }
+    .game-name { letter-spacing: -0.2px; }
+    .shop-screen { display: flex; flex-direction: column; gap: 14px; }
+    .shop-wallet { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; }
+    .shop-wallet-balance { display: flex; align-items: center; gap: 9px; }
+    .shop-wallet-balance .lucide-icon { width: 28px; height: 28px; color: #fbbf24; }
+    .shop-wallet-balance b { display: block; font-size: 23px; line-height: 1.05; color: #fef3c7; }
+    .shop-wallet-balance small { display: block; font-size: 10px; letter-spacing: 1.2px; color: var(--muted); text-transform: uppercase; margin-top: 3px; }
+    .wheel-cta {
+      display: flex; align-items: center; gap: 13px; width: 100%; padding: 16px;
+      text-align: left; cursor: pointer; color: var(--text);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.26), rgba(34, 211, 238, 0.1)) !important;
+      border-color: rgba(167, 139, 250, 0.32) !important;
+    }
+    .wheel-orb {
+      width: 46px; height: 46px; border-radius: 16px; display: grid; place-items: center;
+      background: radial-gradient(circle at 35% 25%, #c4b5fd, #7c3aed 60%, #312e81);
+      box-shadow: 0 0 24px rgba(139, 92, 246, 0.5); color: #fff;
+    }
+    .wheel-orb .lucide-icon { width: 23px; height: 23px; }
+    .wheel-cta b { display: block; font-size: 15px; }
+    .wheel-cta small { display: block; color: #c4b5fd; font-size: 11px; margin-top: 3px; }
+    .wheel-cta .arrow { margin-left: auto; color: #c4b5fd; }
+    .shop-block { padding: 16px; }
+    .shop-block .block-head { margin-top: 0; }
+    .shop-screen .shop-chips { padding-bottom: 4px; }
+    .shop-screen .shop-packages { gap: 10px; }
+    .distance-note { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 8px 2px 0; }
+    .bottom-nav {
+      position: fixed; z-index: 70; left: 50%; bottom: calc(9px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(calc(100% - 22px), 640px);
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px; padding: 7px;
+      border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 24px;
+      background: rgba(12, 7, 22, 0.78);
+      backdrop-filter: blur(26px) saturate(1.35);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    .nav-item {
+      border: 0; background: transparent; color: #8d87a4; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; padding: 9px 3px; border-radius: 17px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1px;
+      transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+    .nav-item .lucide-icon { width: 21px; height: 21px; }
+    .nav-item.active {
+      color: #f5f3ff;
+      background: linear-gradient(180deg, rgba(139, 92, 246, 0.32), rgba(34, 211, 238, 0.08));
+      box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.18), 0 6px 18px rgba(76, 29, 149, 0.28);
+    }
+    .nav-item:active { transform: scale(0.96); }
+    @media (max-width: 430px) {
+      .tab-head h1 { font-size: 28px; }
+      .brand-sub { display: none; }
+      .glass-pill { padding: 6px 8px; }
+      .shop-wallet { padding: 13px; }
+      .shop-block { padding: 13px; }
+    }
   </style>
 </head>
 <body>
@@ -1965,7 +2078,7 @@
           description: "Tezkor söz tuşuntiriş va topiş poygasi. Guruhda /alias bilan boşlang."
         },
         {
-          slug: "bomb", name: "💣 Portlovçi Bomba", icon: "bomb", status: "active", players: "2–8",
+          slug: "bomb", name: "Portlovçi Bomba", icon: "bomb", status: "active", players: "2–8",
           image: "assets/images/bomb/bomb.png", tag: "2-8 öyinçi • Yangi",
           description: "Karta öyini: Bombani zararsizlantir, raqiblarga hujum qil va tirik qol!"
         }
@@ -1973,6 +2086,13 @@
 
       var app = document.getElementById("app");
       var toastEl = document.getElementById("toast");
+      var lucideTimer = null;
+      if (window.MutationObserver) {
+        new MutationObserver(function () {
+          if (lucideTimer) clearTimeout(lucideTimer);
+          lucideTimer = setTimeout(refreshLucide, 24);
+        }).observe(app, { childList: true, subtree: true });
+      }
       var params = new URLSearchParams(window.location.search);
       var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
         params.get("startapp") || params.get("tgWebAppStartParam") || "";
@@ -2051,8 +2171,15 @@
         notified: {},
         flipKey: null,
         flipTimer: null,
+        hubTab: "games",
         shopOpen: false,
         shopLoading: false,
+        shopSection: "BOOSTER",
+        items: null,
+        itemsLoading: false,
+        wheelOpen: false,
+        wheelBusy: false,
+        wheelResult: null,
         shop: null,
         shopPackage: null,
         tournaments: null,
@@ -2082,6 +2209,23 @@
 
       function icon(name, cls) {
         return '<span class="ui-ico ' + (cls || "") + '"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-' + esc(name) + '"></use></svg></span>';
+      }
+
+      function lucideIcon(name, cls) {
+        return '<i data-lucide="' + esc(name) + '" class="lucide-icon ' + (cls || "") + '" aria-hidden="true"></i>';
+      }
+
+      function refreshLucide() {
+        if (window.lucide && typeof window.lucide.createIcons === "function") {
+          try { window.lucide.createIcons(); } catch (error) { /* CDN yo'q bo'lsa jim o'tadi */ }
+        }
+      }
+
+      function plain(value) {
+        return String(value == null ? "" : value)
+          .replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu, "")
+          .replace(/\s+/g, " ")
+          .trim();
       }
 
       function rankHtml(rank) {
@@ -2588,7 +2732,7 @@ function profileCardHtml() {
         })[0] || data.sections[0];
         var chips = data.sections.map(function (section) {
           return '<button class="chip' + (section.key === current.key ? " sel" : "") + '" data-act="shop-section" data-section="' + esc(section.key) + '">' +
-            esc(section.title) + '</button>';
+            esc(plain(section.title)) + '</button>';
         }).join("");
         var cards = current.items.map(function (item) {
           var entry = owned[item.slug];
@@ -2603,7 +2747,7 @@ function profileCardHtml() {
               esc(money(item.price)) + ' ' + icon("coin") + '</button>';
           }
           return '<div class="item-card' + (count > 0 ? " owned" : "") + '">' +
-            '<span class="item-emoji">' + esc(item.emoji) + '</span>' +
+            '<span class="item-emoji">' + lucideIcon(shopItemIcon(item)) + '</span>' +
             '<span class="item-main"><b>' + esc(item.title) + '</b>' +
               (count > 0 ? '<span class="item-owned">' + (count > 1 ? "×" + count : "✓") + '</span>' : '') +
               '<small>' + esc(item.description) + '</small></span>' +
@@ -2612,11 +2756,34 @@ function profileCardHtml() {
         }).join("");
         var wheel = "";
         if (current.key === "SPIN") {
-          wheel = '<button class="btn primary block" data-act="wheel-open" style="margin-top:10px">🎰 Omad ğildiragini aylantiriş</button>';
+          wheel = '<button class="btn primary block" data-act="wheel-open" style="margin-top:10px">' + lucideIcon("sparkles") + ' Omad ğildiragini aylantiriş</button>';
         }
         return '<div class="shop-chips">' + chips + '</div>' +
           wheel +
           '<div class="item-list">' + cards + '</div>';
+      }
+
+      function wheelIcon(segment) {
+        var key = String((segment && segment.key) || "");
+        if (key.indexOf("shield") >= 0) return "shield";
+        if (key.indexOf("kevlar") >= 0) return "vest";
+        if (key.indexOf("spy") >= 0) return "radar";
+        if (key.indexOf("vote") >= 0) return "zap";
+        if (key.indexOf("frame") >= 0) return "sparkles";
+        if (key.indexOf("title") >= 0) return "crown";
+        return "coins";
+      }
+
+      function shopItemIcon(item) {
+        var slug = String((item && item.slug) || "");
+        if (slug.indexOf("shield") >= 0) return "shield";
+        if (slug.indexOf("kevlar") >= 0) return "vest";
+        if (slug.indexOf("spy") >= 0) return "radar";
+        if (slug.indexOf("double_vote") >= 0) return "zap";
+        if (slug.indexOf("spin") >= 0) return "sparkles";
+        if (slug.indexOf("title") >= 0) return "crown";
+        if (slug.indexOf("frame") >= 0) return "sparkles";
+        return "package";
       }
 
       function shopModalHtml() {
@@ -2647,7 +2814,7 @@ function profileCardHtml() {
         }).join(", ");
         var labels = segments.map(function (segment, index) {
           var angle = index * step + step / 2;
-          return '<span class="wheel-label" style="transform: rotate(' + angle + 'deg) translateY(-104px) rotate(-' + angle + 'deg)">' + esc(segment.emoji) + '</span>';
+          return '<span class="wheel-label" style="transform: rotate(' + angle + 'deg) translateY(-104px) rotate(-' + angle + 'deg)">' + lucideIcon(wheelIcon(segment)) + '</span>';
         }).join("");
         var label = spin.free ? "Bepul aylantiriş" : (Number(spin.tickets) > 0 ? "Çipta bilan" : esc(wheel.cost) + ' tanga');
         var result = "";
@@ -2659,14 +2826,14 @@ function profileCardHtml() {
           result = '<div class="wheel-result">' + icon("sparkles") + ' Siz yutdingiz: <b>' + text + '</b></div>';
         }
         return '<div class="shop-overlay"><section class="shop-sheet wheel-sheet" role="dialog" aria-modal="true" aria-label="Omad ğildiragi">' +
-          '<div class="shop-head"><div><h2>🎰 Omad ğildiragi</h2>' +
+          '<div class="shop-head"><div><h2>' + lucideIcon("sparkles") + ' Omad ğildiragi</h2>' +
             '<p class="shop-lede">Kuniga bir marta bepul, keyin 20 tanga yoki çipta.</p></div>' +
             '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
           '<div class="wheel-wrap">' +
             '<div class="wheel-pointer"></div>' +
             '<div class="wheel' + (view.wheelBusy ? " spinning" : "") + '" style="background: conic-gradient(' + stops + ')">' + labels + '</div>' +
           '</div>' + result +
-          '<button class="btn primary block" data-act="wheel-spin"' + (view.wheelBusy ? " disabled" : "") + '>🎰 ' + label + '</button>' +
+          '<button class="btn primary block" data-act="wheel-spin"' + (view.wheelBusy ? " disabled" : "") + '>' + lucideIcon("sparkles") + ' ' + label + '</button>' +
           '</section></div>';
       }
 
@@ -2694,13 +2861,7 @@ function profileCardHtml() {
 
       async function openShop() {
         if (view.code) return;
-        view.shopOpen = true;
-        view.wheelOpen = false;
-        view.shopTab = "items";
-        view.shopPackage = null;
-        renderHub();
-        await loadShopItems();
-        renderHub();
+        await switchHubTab("shop");
       }
 
       async function openWheel() {
@@ -2950,7 +3111,7 @@ function profileCardHtml() {
       // ----------------------------------------------------------------
       // Oxirgi o'yinlar tarixi
       // ----------------------------------------------------------------
-      var HISTORY_TITLES = { bunker: "Bunker", mafia: "Mafiya", spyfall: "Josus" };
+      var HISTORY_TITLES = { bunker: "Bunker", mafia: "Mafiya", spyfall: "Josus", alias: "Alias", bomb: "Portlovçi Bomba" };
 
       function shortDate(value) {
         var text = String(value || "");
@@ -2980,7 +3141,7 @@ function profileCardHtml() {
       // ----------------------------------------------------------------
       // Umumiy navbat (matchmaking)
       // ----------------------------------------------------------------
-      var MATCH_MIN = { bunker: 5, mafia: 6, spyfall: 4 };
+      var MATCH_MIN = { bunker: 5, mafia: 6, spyfall: 3, alias: 3, bomb: 2 };
 
       function matchQueue(slug) {
         var data = view.matchmaking;
@@ -3025,7 +3186,7 @@ function profileCardHtml() {
 
       function syncMatchPolling() {
         var queued = false;
-        var slugs = ["bunker", "mafia", "spyfall"];
+        var slugs = ["bunker", "mafia", "spyfall", "alias", "bomb"];
         for (var i = 0; i < slugs.length; i += 1) {
           if (matchInQueue(slugs[i])) { queued = true; break; }
         }
@@ -3107,6 +3268,7 @@ function profileCardHtml() {
         }
         if (match.game_type === "mafia") enterMafia(match.code);
         else if (match.game_type === "spyfall") enterSpy(match.code);
+        else if (match.game_type === "bomb") enterBomb(match.code);
         else enterRoom(match.code);
       }
 
@@ -4668,11 +4830,11 @@ function profileCardHtml() {
           body = payload.tournaments.map(tournamentCardHtml).join("");
         }
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Turnirlar">' +
-          '<div class="shop-head"><div><h2>🏆 Turnirlar</h2>' +
+          '<div class="shop-head"><div><h2>' + lucideIcon("trophy") + ' Turnirlar</h2>' +
             '<p class="shop-lede">Haftalik çempionatlar: 50 tanga yoki turnir çiptasi bilan qatnaşing.</p></div>' +
             '<button class="shop-close" data-act="tour-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
           body +
-          '<button class="btn block" data-act="tour-refresh"' + (view.tournamentsLoading ? " disabled" : "") + '>🔄 Yangilaş</button>' +
+          '<button class="btn block" data-act="tour-refresh"' + (view.tournamentsLoading ? " disabled" : "") + '>' + lucideIcon("refresh-cw") + ' Yangilaş</button>' +
         '</section></div>';
       }
 
@@ -4848,6 +5010,105 @@ function profileCardHtml() {
         setTimeout(showAliasResult, 700);
       });
 
+      function hubTabName() {
+        var tab = view.hubTab || "games";
+        return ["games", "shop", "rating", "profile"].indexOf(tab) >= 0 ? tab : "games";
+      }
+
+      function tabHeadHtml(kicker, title, text) {
+        return '<section class="tab-head fade"><p class="eyebrow">' + esc(kicker) + '</p>' +
+          '<h1>' + esc(title) + '</h1><p>' + esc(text) + '</p></section>';
+      }
+
+      function gamesTabHtml() {
+        return tabHeadHtml("STOL ÖYINLARI", "Öyınlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
+          '<div class="section-title"><h2>5 ta öyin</h2><span>Faol</span></div>' +
+          GAMES.map(gameCardHtml).join("") +
+          '<section class="glass-card join-card" id="join-panel">' +
+            '<div class="block-head" style="margin-top:0"><h2>Xona kodi bilan kiriş</h2><span>' + lucideIcon("key-round") + '</span></div>' +
+            '<form id="join-form" class="join-form">' +
+              '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123 / SPY123 / BMB123" aria-label="Xona kodi" />' +
+              '<button type="submit" class="btn primary">Kiriş</button>' +
+            '</form>' +
+            '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya», «Josus», «Alias» yoki «Bomba» xabaridan oling.</p>' +
+          '</section>';
+      }
+
+      function shopTabHtml() {
+        var loading = view.itemsLoading && !view.items;
+        var spin = (view.items && view.items.spin) || view.spin || { free: true, tickets: 0 };
+        var spinLabel = spin.free ? "Bepul aylantiriş" : (Number(spin.tickets) > 0 ? "Çipta bilan" : "20 tanga");
+        var boosterBody = loading
+          ? '<div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:120px"></div>'
+          : itemsBody();
+        return tabHeadHtml("MEGA STORE", "Dökon", "Boosterlar, omad ğildiragi va P2P tanga paketlari.") +
+          '<div class="shop-screen">' +
+            '<section class="glass-card shop-wallet">' +
+              '<div class="shop-wallet-balance">' + lucideIcon("coins") +
+                '<span><b>' + money(profile.balance) + '</b><small>tanga balansi</small></span></div>' +
+              '<button class="btn small" data-act="hub-tab" data-tab="games">Öyınlar</button>' +
+            '</section>' +
+            '<button class="glass-card wheel-cta" data-act="wheel-open">' +
+              '<span class="wheel-orb">' + lucideIcon("sparkles") + '</span>' +
+              '<span><b>Omad ğildiragi</b><small>' + esc(spinLabel) + ' · kuniga bir bepul</small></span>' +
+              '<span class="arrow">' + lucideIcon("chevron-right") + '</span>' +
+            '</button>' +
+            '<section class="glass-card shop-block">' +
+              '<div class="block-head"><h2>Boosterlar</h2><span>' + lucideIcon("shield") + ' Öyin kuchi</span></div>' +
+              boosterBody +
+            '</section>' +
+            '<section class="glass-card shop-block">' +
+              '<div class="block-head"><h2>P2P tanga xaridi</h2><span>' + lucideIcon("wallet-cards") + '</span></div>' +
+              packagesBody() +
+            '</section>' +
+          '</div>';
+      }
+
+      function ratingTabHtml() {
+        return tabHeadHtml("LIGA", "Reytıng", "Haftalik liga, top öyinçilar va turnir afishasi.") +
+          tournamentBannerHtml() + leaderboardHtml();
+      }
+
+      function profileTabHtml() {
+        return tabHeadHtml("PROFIL", "Profılım", "Darağa, XP, statistika va döstlarni taklif qiliş.") +
+          profileCardHtml() + bonusHtml() + missionsHtml() + historyHtml();
+      }
+
+      function hubContentHtml(tab) {
+        if (tab === "shop") return shopTabHtml();
+        if (tab === "rating") return ratingTabHtml();
+        if (tab === "profile") return profileTabHtml();
+        return gamesTabHtml();
+      }
+
+      function bottomNavHtml() {
+        var tab = hubTabName();
+        var items = [
+          { key: "games", label: "Öyınlar", icon: "gamepad-2" },
+          { key: "shop", label: "Dökon", icon: "shopping-bag" },
+          { key: "rating", label: "Reytıng", icon: "trophy" },
+          { key: "profile", label: "Profılım", icon: "user" }
+        ];
+        return '<nav class="bottom-nav" aria-label="Asosiy navigatsiya">' + items.map(function (item) {
+          return '<button class="nav-item' + (tab === item.key ? " active" : "") +
+            '" data-act="hub-tab" data-tab="' + item.key + '" aria-current="' + (tab === item.key ? "page" : "false") + '">' +
+            lucideIcon(item.icon) + '<span>' + item.label + '</span></button>';
+        }).join("") + '</nav>';
+      }
+
+      async function switchHubTab(tab) {
+        if (view.code) return;
+        if (["games", "shop", "rating", "profile"].indexOf(tab) < 0) tab = "games";
+        view.hubTab = tab;
+        view.shopOpen = false;
+        haptic("light");
+        renderHub();
+        if (tab === "shop" && !view.items && !view.itemsLoading) {
+          await loadShopItems();
+          if (view.hubTab === "shop") renderHub();
+        }
+      }
+
       function renderHubSkeleton() {
         stopLive();
         stopTimer();
@@ -4918,44 +5179,29 @@ function profileCardHtml() {
         }
         stopSpyClock();
         setBackButton(false);
+        var tab = hubTabName();
         app.innerHTML =
           '<header class="brand fade">' +
             '<div class="brand-left">' +
               '<div class="logo">RG</div>' +
               '<div><div class="brand-name">Revilend Games</div>' +
-              '<div class="brand-sub">Telegram Mini App</div></div>' +
+              '<div class="brand-sub">' + esc(tab === "games" ? "STOL ÖYINLARI" : tab === "shop" ? "MEGA STORE" : tab === "rating" ? "HAFTALIK LIGA" : "PROFIL") + '</div></div>' +
             '</div>' +
-            '<span class="badge live">ONLINE</span>' +
+            '<div class="brand-right"><span class="glass-pill">' + lucideIcon("coins") + ' ' + money(profile.balance) + '</span>' +
+              '<span class="badge live">ONLINE</span></div>' +
           '</header>' +
-          '<main class="fade hub-main">' +
-            '<section class="hero">' +
-              '<p class="eyebrow">STOL ÖYINLARI</p>' +
-              '<h1>Keçqurun nima öynaymiz?</h1>' +
-              '<p>Guruh bilan birga öynaladigan öyinlar. Xona kodini kiriting yoki guruhda /bunker, /mafia, /spy yoki /bomb yuboring.</p>' +
-            '</section>' +
-            profileCardHtml() +
-            tournamentBannerHtml() +
-            historyHtml() +
-            bonusHtml() +
-            '<div class="section-title"><h2>Öyinlar</h2><span>' + GAMES.length + ' ta</span></div>' +
-            GAMES.map(gameCardHtml).join("") +
-            missionsHtml() +
-            leaderboardHtml() +
-            '<section class="panel" id="join-panel">' +
-              '<h2>Xonaga kod orqali qöşiliş</h2>' +
-              '<form id="join-form" class="join-form">' +
-                '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123 / SPY123 / BMB123" aria-label="Xona kodi" />' +
-                '<button type="submit" class="btn primary">Kiriş</button>' +
-              '</form>' +
-              '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya», «Josus» yoki «Bomba» xabaridan oling. Kod turiga qarab kerakli öyin oçiladi.</p>' +
-            '</section>' +
-            '<div class="footer">Revilend Games · Bunker · Mafiya · Josus · Alias · Bomba</div>' +
-          '</main>' +
-          shopModalHtml() +
+          '<main class="fade hub-main pb-24">' + hubContentHtml(tab) + '</main>' +
+          bottomNavHtml() +
+          wheelModalHtml() +
+          tournamentsModalHtml() +
           spyEntryHtml() +
           aliasEntryHtml() +
           bombEntryHtml();
+        refreshLucide();
         loadMatchmaking();
+        if (tab === "shop" && !view.items && !view.itemsLoading) {
+          loadShopItems().then(function () { if (view.hubTab === "shop") renderHub(); });
+        }
       }
 
       function spyEntryHtml() {
@@ -4996,7 +5242,7 @@ function profileCardHtml() {
       function bombEntryHtml() {
         if (!view.bombEntry) return "";
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Portlovçi Bomba xonasi">' +
-          '<div class="shop-head"><div><h2>💣 Portlovçi Bomba</h2>' +
+          '<div class="shop-head"><div><h2>' + lucideIcon("bomb") + ' Portlovçi Bomba</h2>' +
             '<p class="shop-lede">Guruhdan olingan <b>BMB123</b> kodini kiriting yoki yangi xona oçing.</p></div>' +
             '<button class="shop-close" data-act="bomb-entry-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
           '<form id="bomb-entry-form" class="join-form">' +
@@ -5018,10 +5264,8 @@ function profileCardHtml() {
         var actions = active
           ? '<div class="game-actions">' +
               '<button class="play-btn" data-act="' + playAction + '">Öynaş</button>' +
-              ((isAlias || isBomb)
-                ? ''
-                : '<button class="btn small match-btn" data-act="match-join" data-game="' + esc(game.slug) + '">' +
-                    icon("users") + ' Odam qidiriş</button>') +
+              '<button class="btn small match-btn" data-act="match-join" data-game="' + esc(game.slug) + '">' +
+                icon("users") + ' Odam qidiriş</button>' +
               '<div class="match-status" data-match-status="' + esc(game.slug) + '">' +
                 matchStatusHtml(game.slug) + '</div>' +
             '</div>'
@@ -5265,7 +5509,7 @@ function profileCardHtml() {
           '</div>';
         }).join("");
         return '<section class="panel bomb-lobby">' +
-          '<h2>💣 Portlovçi Bomba lobbisi</h2>' +
+          '<h2>' + lucideIcon("bomb") + ' Portlovçi Bomba lobbisi</h2>' +
           '<p class="muted tiny">2–8 öyinçi. Guruhdagi havola orqali döstlaringiz qöşiladi.</p>' +
           '<span class="bomb-code">' + esc(state.code) + '</span>' +
           '<div class="bomb-lobby-players">' + rows + '</div>' +
@@ -5352,7 +5596,7 @@ function profileCardHtml() {
           futureButton = '<button class="btn block" data-act="bomb-future-open" style="margin-top:8px">🔮 Kelajakni körish</button>';
         }
         return '<div class="bomb-room-head">' +
-            '<h1>💣 Portlovçi Bomba</h1>' +
+            '<h1>' + lucideIcon("bomb") + ' Portlovçi Bomba</h1>' +
             '<p>Bombani zararsizlantir, raqiblarga hujum qil va oxirgi tirik qol.</p>' +
             '<div class="bomb-turn"><span>Navbat: <strong>' + esc(current ? current.name : "—") + '</strong></span>' +
               '<span>' + (me && me.is_alive ? myTurn ? 'Sizning navbatingiz' : 'Kuting…' : 'Kuzatuvçi') + '</span></div>' +
@@ -5476,6 +5720,7 @@ function profileCardHtml() {
         }
         app.innerHTML = '<main class="fade bomb-room">' + head + content + '</main>' +
           bombPreviewHtml(me) + bombFutureHtml() + bombDrawnHtml() + bombBoomHtml();
+        refreshLucide();
       }
 
       // ----------------------------------------------------------------
@@ -6274,8 +6519,24 @@ function profileCardHtml() {
           view.mvp = null;
         } else if (act === "mvp-share") {
           shareMvp();
+        } else if (act === "hub-tab") {
+          switchHubTab(button.getAttribute("data-tab"));
         } else if (act === "shop") {
-          openShop();
+          switchHubTab("shop");
+        } else if (act === "wheel-open") {
+          openWheel();
+        } else if (act === "wheel-close") {
+          view.wheelOpen = false;
+          renderHub();
+        } else if (act === "wheel-spin") {
+          spinWheel();
+        } else if (act === "shop-section") {
+          view.shopSection = button.getAttribute("data-section") || "BOOSTER";
+          renderHub();
+        } else if (act === "shop-buy") {
+          buyItem(button.getAttribute("data-slug"));
+        } else if (act === "equip-toggle") {
+          toggleEquip(button.getAttribute("data-slug"), button.getAttribute("data-equip") === "1");
         } else if (act === "shop-close") {
           view.shopOpen = false;
           view.shopPackage = null;
