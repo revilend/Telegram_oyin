@@ -5035,7 +5035,7 @@ function profileCardHtml() {
       }
 
       function gamesTabHtml() {
-        return tabHeadHtml("STOL ÖYINLARI", "Öyınlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
+        return tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
           '<div class="section-title"><h2>5 ta öyin</h2><span>Faol</span></div>' +
           GAMES.map(gameCardHtml).join("") +
           '<section class="glass-card join-card" id="join-panel">' +
@@ -5060,7 +5060,7 @@ function profileCardHtml() {
             '<section class="glass-card shop-wallet">' +
               '<div class="shop-wallet-balance">' + lucideIcon("coins") +
                 '<span><b>' + money(profile.balance) + '</b><small>tanga balansi</small></span></div>' +
-              '<button class="btn small" data-act="hub-tab" data-tab="games">Öyınlar</button>' +
+              '<button class="btn small" data-act="hub-tab" data-tab="games">Öyinlar</button>' +
             '</section>' +
             '<button class="glass-card wheel-cta" data-act="wheel-open">' +
               '<span class="wheel-orb">' + lucideIcon("sparkles") + '</span>' +
@@ -5079,12 +5079,12 @@ function profileCardHtml() {
       }
 
       function ratingTabHtml() {
-        return tabHeadHtml("LIGA", "Reytıng", "Haftalik liga, top öyinçilar va turnir afishasi.") +
+        return tabHeadHtml("LIGA", "Reyting", "Haftalik liga, top öyinçilar va turnir afishasi.") +
           tournamentBannerHtml() + leaderboardHtml();
       }
 
       function profileTabHtml() {
-        return tabHeadHtml("PROFIL", "Profılım", "Darağa, XP, statistika va döstlarni taklif qiliş.") +
+        return tabHeadHtml("PROFIL", "Profilim", "Darağa, XP, statistika va döstlarni taklif qiliş.") +
           profileCardHtml() + bonusHtml() + missionsHtml() + historyHtml();
       }
 
@@ -5098,10 +5098,10 @@ function profileCardHtml() {
       function bottomNavHtml() {
         var tab = hubTabName();
         var items = [
-          { key: "games", label: "Öyınlar", icon: "gamepad-2" },
+          { key: "games", label: "Öyinlar", icon: "gamepad-2" },
           { key: "shop", label: "Dökon", icon: "shopping-bag" },
-          { key: "rating", label: "Reytıng", icon: "trophy" },
-          { key: "profile", label: "Profılım", icon: "user" }
+          { key: "rating", label: "Reyting", icon: "trophy" },
+          { key: "profile", label: "Profilim", icon: "user" }
         ];
         return '<nav class="bottom-nav" aria-label="Asosiy navigatsiya">' + items.map(function (item) {
           return '<button class="nav-item' + (tab === item.key ? " active" : "") +

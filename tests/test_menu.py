@@ -81,10 +81,10 @@ class MainMenuKeyboardTest(MenuTestCase):
     def test_menu_is_persistent_two_columns(self) -> None:
         markup = main_menu.build_main_menu()
         rows = [[button.text for button in row] for row in markup.keyboard]
-        self.assertEqual(rows[0], ["🎮 Tezkor öyın", "📋 Öyınlar"])
-        self.assertEqual(rows[1], ["🎯 Mıssıyalar", "🎁 Kunlık bonus"])
-        self.assertEqual(rows[2], ["🛍️ Dökon", "🏆 Turnırlar"])
-        self.assertEqual(rows[3], ["👤 Profılım", "👑 Reytıng"])
+        self.assertEqual(rows[0], ["🎮 Tezkor öyin", "📋 Öyinlar"])
+        self.assertEqual(rows[1], ["🎯 Missiyalar", "🎁 Kunlik bonus"])
+        self.assertEqual(rows[2], ["🛍️ Dökon", "🏆 Turnirlar"])
+        self.assertEqual(rows[3], ["👤 Profilim", "👑 Reyting"])
         self.assertEqual(rows[4], ["🎟️ Promo kod", "👥 Döstlar"])
         self.assertEqual(rows[5], ["🌐 Mini App (Portal)"])
         self.assertEqual(len(rows), 6)

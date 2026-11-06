@@ -171,7 +171,7 @@ DEFAULT_WORDS: tuple[AliasWord, ...] = (
     AliasWord("Çoyxona", ("stol", "çoy", "suhbat"), "joy"),
     AliasWord("Bayram", ("sovğa", "mehmon", "dasturxon"), "tushuncha"),
     AliasWord("Tog'", ("baland", "cho'qqi", "qor"), "tabiat"),
-    AliasWord("Balıq", ("suv", "qanot", "taroq"), "hayvon"),
+    AliasWord("Baliq", ("suv", "qanot", "taroq"), "hayvon"),
     AliasWord("Robot", ("mexanizm", "dastur", "metall"), "texnika"),
     AliasWord("Şam", ("olov", "mum", "qorong'i"), "buyum"),
     AliasWord("Köprik", ("daryo", "yo'l", "ustun"), "joy"),

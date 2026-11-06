@@ -70,7 +70,7 @@ def poster_text(user_id: int | None = None, store: TournamentStore | None = None
         return "\n".join(lines)
 
     lines.append(
-        "Haftalik çempionatlarda qudratingizni sınang — sovrin fondi va "
+        "Haftalik çempionatlarda qudratingizni sinang — sovrin fondi va "
         "şöhrat sizni kutmoqda."
     )
     lines.append("")

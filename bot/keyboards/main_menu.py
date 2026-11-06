@@ -17,18 +17,18 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from bot.config import get_config
 
 GAMES_BUTTON = "🌐 Mini App (Portal)"
-GAME_LIST_BUTTON = "📋 Öyınlar"
-# «Tezkor öyın» global navbatni ochadi; uzun matchmaking yozuvi yo'q.
-MATCHMAKING_BUTTON = "🎮 Tezkor öyın"
-MISSIONS_BUTTON = "🎯 Mıssıyalar"
+GAME_LIST_BUTTON = "📋 Öyinlar"
+# «Tezkor öyin» global navbatni ochadi; uzun matchmaking yozuvi yo'q.
+MATCHMAKING_BUTTON = "🎮 Tezkor öyin"
+MISSIONS_BUTTON = "🎯 Missiyalar"
 SHOP_BUTTON = "🛍️ Dökon"
-TOURNAMENTS_BUTTON = "🏆 Turnırlar"
+TOURNAMENTS_BUTTON = "🏆 Turnirlar"
 NEW_GAME_BUTTON = GAME_LIST_BUTTON
-PROFILE_BUTTON = "👤 Profılım"
-LEADERBOARD_BUTTON = "👑 Reytıng"
+PROFILE_BUTTON = "👤 Profilim"
+LEADERBOARD_BUTTON = "👑 Reyting"
 RULES_BUTTON = "ℹ️ Qoidalar / Yordam"
 INVITE_BUTTON = "👥 Döstlar"
-BONUS_BUTTON = "🎁 Kunlık bonus"
+BONUS_BUTTON = "🎁 Kunlik bonus"
 PROMO_BUTTON = "🎟️ Promo kod"
 ADMIN_BUTTON = "👑 Admin panel"
 

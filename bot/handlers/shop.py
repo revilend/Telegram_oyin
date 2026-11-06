@@ -106,7 +106,7 @@ def shop_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="🛍️ Buyumlar va İmkoniyatlar dökoni",
+                    text="🛍️ Buyumlar va Imkoniyatlar dökoni",
                     callback_data=ITEMS_CALLBACK,
                 )
             ],
@@ -132,7 +132,7 @@ def packages_text(user_id: int | None = None) -> str:
 def items_text(user_id: int) -> str:
     """Buyumlar dökoni bosh sahifasi."""
     return (
-        "🛍️ <b>Buyumlar va İmkoniyatlar dökoni</b>\n\n"
+        "🛍️ <b>Buyumlar va Imkoniyatlar dökoni</b>\n\n"
         f"Balans: <b>{format_price(balance_of(user_id))}</b> tanga\n\n"
         "Bölumni tanlang: ramkalar, unvonlar, boosterlar va çiptalar."
     )
@@ -340,7 +340,7 @@ async def shop_pay_section(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == ITEMS_CALLBACK)
 async def shop_items_section(callback: CallbackQuery) -> None:
-    """Buyumlar va İmkoniyatlar dökoni bosh sahifasi."""
+    """Buyumlar va Imkoniyatlar dökoni bosh sahifasi."""
     await callback.answer()
     await _show(
         callback, items_text(callback.from_user.id), items_keyboard()
