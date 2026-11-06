@@ -578,6 +578,17 @@
 
     .fade { animation: fadein 0.25s ease both; }
 
+    /* Hub: bir martalik silliq fade-in va yuklash paytida zaxira balandlik */
+    .hub-main .fade { animation: none; }
+    .hub-main .profile-card { min-height: 330px; }
+    .hub-main .bonus-card { min-height: 215px; }
+    .hub-main .hub-missions { min-height: 270px; }
+    .hub-main .hub-board { min-height: 320px; }
+    .sk-profile { height: 330px; }
+    .sk-bonus { height: 215px; }
+    .sk-missions { height: 270px; }
+    .sk-board { height: 320px; }
+
     #toast {
       position: fixed;
       left: 50%;
@@ -2579,40 +2590,28 @@ function profileCardHtml() {
         renderHub();
       }
 
-      async function loadAccount() {
-        try {
-          if (!profile || !profile.authenticated || !profile.id) {
-            renderLoginScreen();
-            return;
-          }
-          var u = getTgUser();
-          if (u && u.id) {
-            var tgName = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
-            if (tgName) profile.name = tgName;
-            if (u.username) profile.username = u.username;
-            profile.photo = u.photo_url || profile.photo || "";
-          }
-          profile.guest = false;
-          var path = "/api/me?user_id=" + encodeURIComponent(profile.id) +
-            "&username=" + encodeURIComponent(profile.username || "") +
-            "&full_name=" + encodeURIComponent(profile.name || "");
-          var data = await request(path);
-          if (!data || !data.user) return;
-          updateProfileFromAccount(data.user);
-          view.history = data.history || view.history || [];
-          if (view.shopOpen) view.shop = data.shop || view.shop;
-          if (!view.code) renderHub();
-          else if (view.room) renderRoom(true);
-        } catch (error) {
-          if (error && (error.status === 401 || error.status === 404)) {
-            clearStoredAccount();
-            profile = loadProfile();
-            renderLoginScreen(error.message);
-            return;
-          }
-          /* Tarmoq xatosida keshdagi profil ko'rsatiladi. */
-          if (!view.code) renderHub();
-        }
+      function syncTelegramProfile() {
+        var u = getTgUser();
+        if (!u || !u.id) return;
+        var tgName = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
+        if (tgName) profile.name = tgName;
+        if (u.username) profile.username = u.username;
+        profile.photo = u.photo_url || profile.photo || "";
+        profile.guest = false;
+      }
+
+      function accountPath() {
+        return "/api/me?user_id=" + encodeURIComponent(profile.id) +
+          "&username=" + encodeURIComponent(profile.username || "") +
+          "&full_name=" + encodeURIComponent(profile.name || "");
+      }
+
+      function applyAccountPayload(data) {
+        if (!data || !data.user) return false;
+        updateProfileFromAccount(data.user);
+        view.history = data.history || view.history || [];
+        if (view.shopOpen) view.shop = data.shop || view.shop;
+        return true;
       }
 
       // ----------------------------------------------------------------
@@ -2661,7 +2660,7 @@ function profileCardHtml() {
         if (!missions.length) return "";
         var done = missions.filter(function (item) { return item.claimed; }).length;
         var ready = missions.filter(function (item) { return item.claimable; }).length;
-        return '<section class="fade"><div class="section-title"><h2>' + icon("target") + ' Missiyalar</h2>' +
+        return '<section class="fade hub-missions"><div class="section-title"><h2>' + icon("target") + ' Missiyalar</h2>' +
           '<span>' + (ready ? ready + " ta mukofot tayyor" : done + "/" + missions.length + " bajarildi") + '</span></div>' +
           '<div class="mission-list">' + missions.map(function (mission) {
             var action;
@@ -2708,7 +2707,7 @@ function profileCardHtml() {
           '<button class="board-tab' + (period === "week" ? " active" : "") +
             '" data-act="board-period" data-period="week">' + icon("bolt") + ' Bu haftalik liga</button>' +
           '</div>';
-        var head = '<section class="fade"><div class="section-title"><h2>' + icon("trophy") +
+        var head = '<section class="fade hub-board"><div class="section-title"><h2>' + icon("trophy") +
           ' Reyting</h2><span>' + (period === "week" ? "haftalik liga" : "top " + top.length) +
           '</span></div>' + tabs;
         if (!top.length) {
@@ -2741,7 +2740,6 @@ function profileCardHtml() {
       async function setBoardPeriod(period) {
         view.boardPeriod = period === "week" ? "week" : "all";
         haptic("light");
-        renderHub();
         await loadActivity(true);
       }
 
@@ -2908,31 +2906,63 @@ function profileCardHtml() {
         else enterRoom(match.code);
       }
 
+      function activityPath() {
+        return "/api/activity?user_id=" + encodeURIComponent(profile.id) +
+          "&username=" + encodeURIComponent(profile.username || "") +
+          "&full_name=" + encodeURIComponent(profile.name || "");
+      }
+
+      function applyActivityPayload(data) {
+        if (!data) return;
+        view.activity = {
+          bonus: data.bonus || null,
+          missions: data.missions || [],
+          top: data.top || [],
+          me: data.me || null,
+          week: data.week || null
+        };
+        if (data.coins != null) profile.balance = Number(data.coins) || 0;
+      }
+
       async function loadActivity(forceRender) {
-        if (view.activityLoading) return;
+        if (view.activityLoading || !profile || !profile.id) return;
         view.activityLoading = true;
         try {
-          var data = await Promise.all([
-            request("/api/bonus?user_id=" + encodeURIComponent(profile.id)),
-            request("/api/missions?user_id=" + encodeURIComponent(profile.id)),
-            request("/api/top?limit=10&period=all&user_id=" + encodeURIComponent(profile.id)),
-            request("/api/top?limit=10&period=week&user_id=" + encodeURIComponent(profile.id))
-          ]);
-          view.activity = {
-            bonus: data[0] ? data[0].bonus : null,
-            missions: data[1] && data[1].missions ? data[1].missions : [],
-            top: data[2] && data[2].top ? data[2].top : [],
-            me: data[2] ? data[2].me : null,
-            week: data[3] || null
-          };
-          if (data[0] && data[0].coins != null) profile.balance = Number(data[0].coins) || 0;
-          else if (data[1] && data[1].coins != null) profile.balance = Number(data[1].coins) || 0;
+          var data = await request(activityPath());
+          applyActivityPayload(data);
           if (!view.code && (forceRender || !view.shopOpen)) renderHub();
         } catch (error) {
           /* Tarmoq xatosida eski ma'lumot qoladi. */
         } finally {
           view.activityLoading = false;
         }
+      }
+
+      // Hub ma'lumotlarini bitta parallel paketda yuklaydi. Render faqat
+      // barcha javoblar qaytgach, bir marta bajariladi.
+      async function loadHubData() {
+        if (view.hubLoading || !profile || !profile.id) return false;
+        view.hubLoading = true;
+        syncTelegramProfile();
+        var results = await Promise.all([
+          request(accountPath()).catch(function (error) { return { error: error }; }),
+          request(activityPath()).catch(function (error) { return { error: error }; })
+        ]);
+        view.hubLoading = false;
+        var account = results[0];
+        var activity = results[1];
+        if (account && account.error) {
+          if (account.error.status === 401 || account.error.status === 404) {
+            clearStoredAccount();
+            profile = loadProfile();
+            renderLoginScreen(account.error.message);
+            return false;
+          }
+        } else {
+          applyAccountPayload(account);
+        }
+        if (activity && !activity.error) applyActivityPayload(activity);
+        return true;
       }
 
       async function claimBonus() {
@@ -3366,8 +3396,9 @@ function profileCardHtml() {
             else if (/^MAF/.test(view.code)) enterMafia(view.code);
             else enterRoom(view.code);
           } else {
-            renderHub();
-            loadActivity();
+            renderHubSkeleton();
+            var ready = await loadHubData();
+            if (ready && profile.authenticated) renderHub();
           }
         } catch (error) {
           setLoginError((error && error.message) || "Kiriş amalga oşmadi. Qayta urinib köring.");
@@ -4613,6 +4644,32 @@ function profileCardHtml() {
         setTimeout(showAliasResult, 700);
       });
 
+      function renderHubSkeleton() {
+        stopLive();
+        stopTimer();
+        setBackButton(false);
+        app.innerHTML =
+          '<header class="brand fade">' +
+            '<div class="brand-left">' +
+              '<div class="logo">RG</div>' +
+              '<div><div class="brand-name">Revilend Games</div>' +
+              '<div class="brand-sub">Telegram Mini App</div></div>' +
+            '</div>' +
+            '<span class="badge live">ONLINE</span>' +
+          '</header>' +
+          '<main class="fade hub-main" aria-busy="true">' +
+            '<section class="hero">' +
+              '<p class="eyebrow">STOL ÖYINLARI</p>' +
+              '<h1>Keçqurun nima öynaymiz?</h1>' +
+              '<p>Guruh bilan birga öynaladigan öyinlar. Xona kodini kiriting yoki guruhda /bunker, /mafia yoki /spy yuboring.</p>' +
+            '</section>' +
+            '<div class="skeleton sk-profile"></div>' +
+            '<div class="skeleton sk-bonus"></div>' +
+            '<div class="skeleton sk-missions"></div>' +
+            '<div class="skeleton sk-board"></div>' +
+          '</main>';
+      }
+
       function renderHub() {
         stopLive();
         stopTimer();
@@ -4658,7 +4715,7 @@ function profileCardHtml() {
             '</div>' +
             '<span class="badge live">ONLINE</span>' +
           '</header>' +
-          '<main class="fade">' +
+          '<main class="fade hub-main">' +
             '<section class="hero">' +
               '<p class="eyebrow">STOL ÖYINLARI</p>' +
               '<h1>Keçqurun nima öynaymiz?</h1>' +
@@ -5697,24 +5754,24 @@ function profileCardHtml() {
         });
       }
 
-      function boot() {
+      async function boot() {
         if (!profile || !profile.authenticated) {
           renderLoginScreen();
           return;
         }
+        var routeCode = view.code;
+        renderHubSkeleton();
+        var ready = await loadHubData();
+        if (!ready || !profile.authenticated) return;
         renderHub();
-        loadActivity();
-        loadAccount().then(function () {
-          if (!profile.authenticated) return;
-          if (initialSpyCode) {
-            enterSpy(initialSpyCode);
-          } else if (initialMafiaCode) {
-            enterMafia(initialMafiaCode);
-          } else if (view.code) {
-            if (/^SPY\d{3}$/.test(view.code)) enterSpy(view.code);
-            else enterRoom(view.code);
-          }
-        });
+        if (initialSpyCode) {
+          enterSpy(initialSpyCode);
+        } else if (initialMafiaCode) {
+          enterMafia(initialMafiaCode);
+        } else if (routeCode) {
+          if (/^SPY\d{3}$/.test(routeCode)) enterSpy(routeCode);
+          else enterRoom(routeCode);
+        }
       }
 
       startOrthographyObserver();

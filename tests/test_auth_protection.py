@@ -1,4 +1,4 @@
-"""Production API endpoints must reject caller-supplied Telegram IDs."""
+"""Production API: o'qishlar user_id bilan, yozishlar initData bilan ishlaydi."""
 
 import os
 import unittest
@@ -26,9 +26,20 @@ class ProtectedApiAuthTest(unittest.TestCase):
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
 
-    def test_private_reads_reject_forged_user_id(self) -> None:
-        response = self.client.get("/api/missions?user_id=7001")
-        self.assertEqual(response.status_code, 401, response.text)
+    def test_activity_reads_accept_user_id_without_init_data(self) -> None:
+        """Missiyalar, streak va reyting initData'siz ham yuklanadi."""
+        missions = self.client.get("/api/missions?user_id=7001")
+        self.assertEqual(missions.status_code, 200, missions.text)
+        self.assertIn("missions", missions.json())
+
+        activity = self.client.get("/api/activity?user_id=7001")
+        self.assertEqual(activity.status_code, 200, activity.text)
+        payload = activity.json()
+        self.assertIn("bonus", payload)
+        self.assertIn("missions", payload)
+        self.assertIn("top", payload)
+        self.assertIn("week", payload)
+        self.assertIn("coins", payload)
 
     def test_room_reads_accept_user_id_without_init_data(self) -> None:
         """Xona endpointlari user_id bilan initData'siz ham javob beradi."""

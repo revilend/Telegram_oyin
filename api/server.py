@@ -1330,9 +1330,14 @@ async def my_missions(
     user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Foydalanuvchining missiyalari va taraqqiyoti."""
-    resolved_id = resolve_user_id(user, user_id)
+    """Foydalanuvchining missiyalari va taraqqiyoti.
+
+    ``/api/me`` kabi: imzolangan initData bo'lmasa ham ``user_id`` bilan
+    ishlaydi, shuning uchun bot klaviaturasidan ochilganda 401 bo'lmaydi.
+    """
+    resolved_id, _, _ = profile_identity(user, user_id)
     economy = get_economy()
+    economy.ensure_user(resolved_id)
     statuses = mission_statuses(economy, resolved_id)
     return {
         "missions": missions_payload(statuses),
@@ -1390,6 +1395,41 @@ async def top_players(
     if board.get("me") is not None:
         board["me"]["in_top"] = int(board["me"].get("rank") or 0) <= limit
     return board
+
+
+@app.get("/api/activity")
+async def activity_snapshot(
+    user_id: int | None = None,
+    username: str = "",
+    full_name: str = "",
+    limit: int = 10,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Profil faolligi: bonus, missiyalar va reyting bir javobda.
+
+    ``/api/me`` kabi, imzolangan initData bo'lmasa ham ``user_id`` bilan
+    ishlaydi. Mini App botning pastki klaviaturasidan ochilganda shu sabab
+    missiyalar, streak va reyting 401 xatosiz yuklanadi.
+    """
+    resolved_id, _, _ = profile_identity(user, user_id, username, full_name)
+    limit = max(1, min(int(limit), 50))
+    economy = get_economy()
+    account = economy.ensure_user(resolved_id)
+    statuses = mission_statuses(economy, resolved_id)
+    all_board = build_leaderboard("all", limit, resolved_id, economy=economy)
+    all_board["period"] = normalize_period("all")
+    if all_board.get("me") is not None:
+        all_board["me"]["in_top"] = int(all_board["me"].get("rank") or 0) <= limit
+    week_board = build_leaderboard("week", limit, resolved_id, economy=economy)
+    week_board["period"] = normalize_period("week")
+    return {
+        "bonus": asdict(economy.daily_bonus_status(resolved_id)),
+        "missions": missions_payload(statuses),
+        "top": all_board.get("top", []),
+        "me": all_board.get("me"),
+        "week": week_board,
+        "coins": account.coins,
+    }
 
 
 @app.get("/api/league")
