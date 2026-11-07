@@ -232,31 +232,36 @@ class MegaStoreTest(unittest.TestCase):
         self.assertEqual(
             callbacks,
             [
-                "shopsec_SPIN",
-                "shopsec_COSMETIC",
                 "shopsec_BOOSTER",
-                "shopsec_CLAN",
-                "shopsec_TICKET",
+                "shopsec_FRAME",
+                "shopsec_TITLE",
+                "shopsec_SPECIAL",
                 "shop_home",
             ],
         )
 
     def test_section_view_lists_prices_and_buy_buttons(self) -> None:
-        text = shop.section_text(88003, "COSMETIC")
-        self.assertIn("Kosmetika", text)
-        self.assertIn("Oltin ramka", text)
+        text = shop.section_text(88003, "FRAME")
+        self.assertIn("Ramkalar", text)
+        self.assertIn("Oltin", text)
         self.assertIn("150 tanga", text)
-        self.assertIn("«Don Krestniy» unvoni", text)
+        self.assertIn("Olovli Ajdaho", text)
         callbacks = [
-            row[0].callback_data for row in shop.section_keyboard("COSMETIC").inline_keyboard
+            row[0].callback_data for row in shop.section_keyboard("FRAME").inline_keyboard
         ]
         self.assertIn("shopbuy_frame_gold", callbacks)
-        self.assertIn("shopbuy_title_don", callbacks)
+        self.assertIn("shopbuy_frame_diamond", callbacks)
+        text = shop.section_text(88003, "TITLE")
+        self.assertIn("Mafiya Otaxoni", text)
+        title_callbacks = [
+            row[0].callback_data for row in shop.section_keyboard("TITLE").inline_keyboard
+        ]
+        self.assertIn("shopbuy_title_don", title_callbacks)
         self.assertEqual(callbacks[-1], "shopsection_items")
 
     def test_spin_section_has_wheel_button(self) -> None:
         callbacks = [
-            row[0].callback_data for row in shop.section_keyboard("SPIN").inline_keyboard
+            row[0].callback_data for row in shop.section_keyboard("SPECIAL").inline_keyboard
         ]
         self.assertIn("shopbuy_spin_extra", callbacks)
         self.assertIn("shop_spin_wheel", callbacks)
@@ -272,7 +277,7 @@ class MegaStoreTest(unittest.TestCase):
         self.assertEqual(self.store.entry(88001, "frame_gold").quantity, 1)
         self.assertIn("sotib olindi", callback.answers[-1])
         self.assertIn("tanga", callback.bot.messages[-1][1])
-        self.assertIn("Oltin ramka", callback.bot.messages[-1][1])
+        self.assertIn("Oltin", callback.bot.messages[-1][1])
 
     def test_buy_without_coins_shows_warning(self) -> None:
         self.economy.spend_coins(88004, self.economy.get_user(88004).coins)

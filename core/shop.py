@@ -38,21 +38,44 @@ SPIN_COST = 20
 SPIN_TICKET_SLUG = "spin_extra"
 MAX_BUY_QUANTITY = 10
 
+BOOSTER = "BOOSTER"
+FRAME = "FRAME"
+TITLE = "TITLE"
+SPECIAL = "SPECIAL"
+
+# Eski bo'lim nomlari (moslik uchun saqlanadi).
 SPIN = "SPIN"
 COSMETIC = "COSMETIC"
-BOOSTER = "BOOSTER"
 CLAN = "CLAN"
 TICKET = "TICKET"
 
-SECTION_ORDER = (SPIN, COSMETIC, BOOSTER, CLAN, TICKET)
+SECTION_ORDER = (BOOSTER, FRAME, TITLE, SPECIAL)
 
 SECTION_TITLES = {
-    SPIN: "🎰 Omad ğildiragi",
-    COSMETIC: "✨ Kosmetika",
-    BOOSTER: "🚀 Boosterlar",
-    CLAN: "🛡 Klan",
-    TICKET: "🎟 Çiptalar",
+    BOOSTER: "🚀 Busterlar",
+    FRAME: "🎨 Ramkalar",
+    TITLE: "👑 Unvonlar",
+    SPECIAL: "🎁 Maxsus",
 }
+
+LOOTBOX_SLUG = "lootbox"
+SPIN_TICKET_PACK = 5
+LOOTBOX_POOL = (
+    "booster_shield",
+    "booster_kevlar",
+    "booster_double_vote",
+    "booster_spy_radar",
+    "booster_bomb_magnet",
+    "booster_time_master",
+    "booster_double_coins",
+    "frame_gold",
+    "frame_neon",
+    "frame_cyber",
+    "frame_fire",
+    "frame_diamond",
+    "title_boss",
+    "title_shadow",
+)
 
 
 @dataclass(frozen=True)
@@ -61,7 +84,7 @@ class ShopItem:
 
     slug: str
     section: str
-    kind: str  # frame | title | booster | ticket | spin
+    kind: str  # frame | title | booster | ticket | spin | special
     title: str
     description: str
     price: int
@@ -83,65 +106,7 @@ class ShopItem:
 
 
 CATALOG: tuple[ShopItem, ...] = (
-    ShopItem(
-        slug=SPIN_TICKET_SLUG,
-        section=SPIN,
-        kind="spin",
-        title="Omad ğildiragi çiptasi",
-        description="Qoşimça bir marta aylantiriş uçun çipta.",
-        price=40,
-        emoji="🎰",
-    ),
-    ShopItem(
-        slug="frame_gold",
-        section=COSMETIC,
-        kind="frame",
-        title="Oltin ramka",
-        description="Avataringiz atrofida oltin nur soçadi.",
-        price=150,
-        emoji="🥇",
-        payload="gold",
-    ),
-    ShopItem(
-        slug="frame_neon",
-        section=COSMETIC,
-        kind="frame",
-        title="Neon ramka",
-        description="Yorqin neon halqa — profil darağalanganda körinadi.",
-        price=220,
-        emoji="💠",
-        payload="neon",
-    ),
-    ShopItem(
-        slug="frame_fire",
-        section=COSMETIC,
-        kind="frame",
-        title="Olov ramka",
-        description="Qizil-olov halqasi eng faol öyinçilar uçun.",
-        price=180,
-        emoji="🔥",
-        payload="fire",
-    ),
-    ShopItem(
-        slug="title_don",
-        section=COSMETIC,
-        kind="title",
-        title="«Don Krestniy» unvoni",
-        description="Ismingiz ostida nufuzli unvon körinadi.",
-        price=250,
-        emoji="👑",
-        payload="Don Krestniy",
-    ),
-    ShopItem(
-        slug="title_boss",
-        section=COSMETIC,
-        kind="title",
-        title="«Bunker Boshliği» unvoni",
-        description="Bunkerni boshqarganlarga munosib unvon.",
-        price=180,
-        emoji="🛡",
-        payload="Bunker Boshliği",
-    ),
+    # ---------------------------- Busterlar ----------------------------
     ShopItem(
         slug="booster_shield",
         section=BOOSTER,
@@ -153,35 +118,169 @@ CATALOG: tuple[ShopItem, ...] = (
         payload="shield",
     ),
     ShopItem(
-        slug="booster_double_vote",
-        section=BOOSTER,
-        kind="booster",
-        title="2 karra ovoz",
-        description="Bitta ovoz berişda ovozingizni ikkilantiradi.",
-        price=15,
-        emoji="✖️",
-        payload="double_vote",
-    ),
-    ShopItem(
         slug="booster_kevlar",
         section=BOOSTER,
         kind="booster",
-        title="Kevlar jilet",
+        title="Kevlar Jilet",
         description="Mafiyada bir marta ölimdan saqlaydi.",
         price=40,
         emoji="🦺",
         payload="kevlar",
     ),
     ShopItem(
+        slug="booster_double_vote",
+        section=BOOSTER,
+        kind="booster",
+        title="2x Ovoz",
+        description="Bitta ovoz berişda ovozingizni ikkilantiradi.",
+        price=15,
+        emoji="✖️",
+        payload="double_vote",
+    ),
+    ShopItem(
+        slug="booster_bomb_magnet",
+        section=BOOSTER,
+        kind="booster",
+        title="Bomba Magniti",
+        description="Bomba öyinida xavfli kartani bir marta chetlab ötadi.",
+        price=60,
+        emoji="🧲",
+        payload="bomb_magnet",
+    ),
+    ShopItem(
         slug="booster_spy_radar",
         section=BOOSTER,
         kind="booster",
-        title="Josus radari",
-        description="3 ta notöğri joyni öçiradi.",
+        title="Josus Radari",
+        description="Josusda 3 ta notöğri joyni öçiradi.",
         price=20,
         emoji="🛰",
         payload="spy_radar",
     ),
+    ShopItem(
+        slug="booster_time_master",
+        section=BOOSTER,
+        kind="booster",
+        title="Vaqt Ustasi",
+        description="Aliasda raundga qoşimça vaqt qöşadi.",
+        price=45,
+        emoji="⏱",
+        payload="time_master",
+    ),
+    ShopItem(
+        slug="booster_double_coins",
+        section=BOOSTER,
+        kind="booster",
+        title="2x Tanga Qopçiği",
+        description="Keyingi ğalabada tanga mukofotini ikkilantiradi.",
+        price=70,
+        emoji="💰",
+        payload="double_coins",
+    ),
+    # ----------------------------- Ramkalar -----------------------------
+    ShopItem(
+        slug="frame_gold",
+        section=FRAME,
+        kind="frame",
+        title="Oltin",
+        description="Avataringiz atrofida oltin nur soçadi.",
+        price=150,
+        emoji="🥇",
+        payload="gold",
+    ),
+    ShopItem(
+        slug="frame_neon",
+        section=FRAME,
+        kind="frame",
+        title="Neon",
+        description="Yorqin neon halqa — profilda yaqqol körinadi.",
+        price=220,
+        emoji="💠",
+        payload="neon",
+    ),
+    ShopItem(
+        slug="frame_cyber",
+        section=FRAME,
+        kind="frame",
+        title="Kiber Glitch",
+        description="Rağamli glitch effekti bilan kiber ramka.",
+        price=320,
+        emoji="🧬",
+        payload="cyber",
+    ),
+    ShopItem(
+        slug="frame_fire",
+        section=FRAME,
+        kind="frame",
+        title="Olovli Ajdaho",
+        description="Qizil-olov halqasi eng faol öyinçilar uçun.",
+        price=260,
+        emoji="🔥",
+        payload="fire",
+    ),
+    ShopItem(
+        slug="frame_diamond",
+        section=FRAME,
+        kind="frame",
+        title="Olmos VIP",
+        description="Olmos kabi yaltiraydigan premium VIP ramka.",
+        price=500,
+        emoji="💎",
+        payload="diamond",
+    ),
+    # ----------------------------- Unvonlar -----------------------------
+    ShopItem(
+        slug="title_don",
+        section=TITLE,
+        kind="title",
+        title="👑 Mafiya Otaxoni",
+        description="Mafiya stolining eng nufuzli unvoni.",
+        price=300,
+        emoji="👑",
+        payload="Mafiya Otaxoni",
+    ),
+    ShopItem(
+        slug="title_boss",
+        section=TITLE,
+        kind="title",
+        title="🛡 Daxlsiz",
+        description="Sizga heç kim yeta olmaydi — daxlsiz unvon.",
+        price=180,
+        emoji="🛡",
+        payload="Daxlsiz",
+    ),
+    ShopItem(
+        slug="title_shadow",
+        section=TITLE,
+        kind="title",
+        title="👻 Körinmas Soya",
+        description="Reytingda soyadek sezilmas, lekin kuchli unvon.",
+        price=280,
+        emoji="👻",
+        payload="Körinmas Soya",
+    ),
+    # ------------------------------ Maxsus ------------------------------
+    ShopItem(
+        slug=SPIN_TICKET_SLUG,
+        section=SPECIAL,
+        kind="spin",
+        title="5x Omad Çiptasi",
+        description="Bir xaridda 5 ta aylantiriş çiptasi.",
+        price=160,
+        emoji="🎁",
+        payload="5",
+    ),
+    ShopItem(
+        slug=LOOTBOX_SLUG,
+        section=SPECIAL,
+        kind="special",
+        title="Sirli Quti",
+        description="Ichida tasodifiy buster, ramka yoki unvon bor.",
+        price=120,
+        emoji="🎁",
+        payload="lootbox",
+    ),
+    # -------------------- Eski buyumlar (moslik uchun) -------------------
     ShopItem(
         slug="clan_emblem",
         section=CLAN,
@@ -299,6 +398,7 @@ class PurchaseResult:
     total_price: int
     account: UserAccount
     entry: InventoryEntry
+    loot: tuple[ShopItem, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -308,6 +408,7 @@ class PurchaseResult:
             "total_price": self.total_price,
             "coins": self.account.coins,
             "inventory": self.entry.as_dict(),
+            "loot": [prize.as_dict() for prize in self.loot],
         }
 
 
@@ -576,10 +677,38 @@ class ShopStore:
                 f"{total} ta kerak"
             )
 
+        if item.slug == LOOTBOX_SLUG:
+            bag: dict[str, int] = {}
+            for _ in range(count):
+                prize = CATALOG_BY_SLUG[random.choice(LOOTBOX_POOL)]
+                bag[prize.slug] = bag.get(prize.slug, 0) + 1
+            account = self.economy.spend_coins(uid, total)
+            last_entry: InventoryEntry | None = None
+            for prize_slug, extra in bag.items():
+                prize_current = self.entry(uid, prize_slug)
+                last_entry = InventoryEntry(
+                    item_slug=prize_slug,
+                    quantity=prize_current.quantity + extra,
+                    is_equipped=prize_current.is_equipped,
+                )
+                self._save_entry(uid, last_entry)
+            self._record_transaction(uid, item, count, total)
+            prizes = tuple(CATALOG_BY_SLUG[slug] for slug in bag)
+            assert last_entry is not None
+            return PurchaseResult(
+                item=item,
+                quantity=count,
+                total_price=total,
+                account=account,
+                entry=last_entry,
+                loot=prizes,
+            )
+
         current = self.entry(uid, item.slug)
+        grant = count * SPIN_TICKET_PACK if item.slug == SPIN_TICKET_SLUG else count
         updated = InventoryEntry(
             item_slug=item.slug,
-            quantity=current.quantity + count,
+            quantity=current.quantity + grant,
             is_equipped=current.is_equipped,
         )
         self._save_entry(uid, updated)

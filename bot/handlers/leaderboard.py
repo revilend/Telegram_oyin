@@ -28,7 +28,9 @@ MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
 FRAME_BADGES = {
     "frame_gold": "🥇",
     "frame_neon": "💠",
+    "frame_cyber": "🧬",
     "frame_fire": "🔥",
+    "frame_diamond": "💎",
     "clan_emblem": "⚜️",
 }
 

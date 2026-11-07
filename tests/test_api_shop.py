@@ -39,14 +39,23 @@ class ShopApiTest(unittest.TestCase):
         payload = response.json()
         sections = [section["key"] for section in payload["sections"]]
         self.assertEqual(
-            sections, ["SPIN", "COSMETIC", "BOOSTER", "CLAN", "TICKET"]
+            sections, ["BOOSTER", "FRAME", "TITLE", "SPECIAL"]
         )
         cosmetic = next(
-            section for section in payload["sections"] if section["key"] == "COSMETIC"
+            section for section in payload["sections"] if section["key"] == "FRAME"
         )
         slugs = [item["slug"] for item in cosmetic["items"]]
         self.assertIn("frame_gold", slugs)
-        self.assertIn("title_don", slugs)
+        titles = next(
+            section for section in payload["sections"] if section["key"] == "TITLE"
+        )
+        self.assertIn("title_don", [item["slug"] for item in titles["items"]])
+        specials = next(
+            section for section in payload["sections"] if section["key"] == "SPECIAL"
+        )
+        special_slugs = [item["slug"] for item in specials["items"]]
+        self.assertIn("lootbox", special_slugs)
+        self.assertIn("spin_extra", special_slugs)
         self.assertEqual(payload["wheel"]["cost"], 20)
         self.assertGreaterEqual(len(payload["wheel"]["segments"]), 8)
         self.assertIn("sections", payload)

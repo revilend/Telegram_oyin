@@ -32,6 +32,7 @@ from core.shop import (
     CATALOG_BY_SLUG,
     SECTION_ORDER,
     SECTION_TITLES,
+    SPECIAL,
     SPIN,
     ShopError,
     get_shop_store,
@@ -134,7 +135,7 @@ def items_text(user_id: int) -> str:
     return (
         "🛍️ <b>Buyumlar va Imkoniyatlar dökoni</b>\n\n"
         f"Balans: <b>{format_price(balance_of(user_id))}</b> tanga\n\n"
-        "Bölumni tanlang: ramkalar, unvonlar, boosterlar va çiptalar."
+        "Bölumni tanlang: busterlar, ramkalar, unvonlar va maxsus sovğalar."
     )
 
 
@@ -160,7 +161,7 @@ def section_text(user_id: int, section: str) -> str:
             f"{item.emoji} <b>{item.title}</b> — {format_price(item.price)} tanga\n"
             f"<i>{item.description}</i>"
         )
-    if section == SPIN:
+    if section == SPECIAL:
         lines.append("")
         lines.append("Kuniga bir marta bepul; keyingi aylantiriş 20 tanga yoki çipta.")
     return "\n".join(lines)
@@ -178,7 +179,7 @@ def section_keyboard(section: str) -> InlineKeyboardMarkup:
         for item in CATALOG_BY_SLUG.values()
         if item.section == section
     ]
-    if section == SPIN:
+    if section == SPECIAL:
         rows.append(
             [InlineKeyboardButton(text="🎰 Aylantiriş", callback_data=SPIN_CALLBACK)]
         )

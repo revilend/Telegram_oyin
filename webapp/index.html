@@ -3091,6 +3091,70 @@
     .game-card > .game-actions > .match-btn { flex: 1 1 calc(50% - 4px) !important; }
     .game-card > .game-actions > .match-status { flex: 1 1 100% !important; }
 
+    /* Do'kon: 2 ustunli shisha kartochkalar */
+    .item-list {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 10px !important;
+}
+    .item-card { padding: 12px 11px !important; border-radius: 18px !important; }
+    .item-card .item-grid {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 8px !important;
+}
+    .item-card .item-emoji { width: 42px !important; height: 42px !important; }
+    .item-card .item-main b {
+      display: inline !important;
+      font-size: 12.5px !important;
+      line-height: 1.2;
+}
+    .item-card .item-owned {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 10px;
+      color: #a78bfa;
+}
+    .item-card .item-desc { font-size: 10.5px !important; }
+    .item-card .item-side { width: 100% !important; min-width: 0 !important; }
+    .item-card .item-side .btn {
+      width: 100% !important;
+      padding: 8px 6px !important;
+      font-size: 11px !important;
+}
+
+    /* Inventar: har bir qatorda Kiyish tugmasi */
+    .inv-item {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      flex-wrap: wrap !important;
+}
+    .inv-item .inv-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+}
+    .inv-item .inv-qty { flex: 0 0 auto; }
+    .inv-item .btn.small {
+      flex: 0 0 auto;
+      padding: 5px 9px !important;
+      font-size: 10px !important;
+}
+
+    /* Yangi ramkalar */
+    .avatar-frame.frame-cyber {
+      box-shadow: 0 0 26px rgba(34, 211, 238, 0.85), 0 0 60px rgba(16, 185, 129, 0.32);
+      animation: auraPulse 2.4s ease-in-out infinite;
+}
+    .avatar-frame.frame-diamond {
+      box-shadow: 0 0 30px rgba(186, 230, 253, 0.9), 0 0 70px rgba(96, 165, 250, 0.4);
+      animation: auraPulse 2s ease-in-out infinite;
+}
+
     /* O'yin xonasi: hech qachon ikkiga bo'linmaydi */
     .room-shell, .mafia-shell, .spy-shell, .bomb-room {
       min-height: 100vh !important;
@@ -3770,12 +3834,15 @@
 var FRAME_CLASSES = {
   frame_gold: "frame-gold", gold: "frame-gold",
   frame_neon: "frame-neon", neon: "frame-neon",
+  frame_cyber: "frame-cyber", cyber: "frame-cyber",
   frame_fire: "frame-fire", fire: "frame-fire",
+  frame_diamond: "frame-diamond", diamond: "frame-diamond",
   clan_emblem: "frame-clan", clan: "frame-clan"
 };
 var TITLE_LABELS = {
-  title_don: "👑 Don Krestniy",
-  title_boss: "🛡 Bunker Boshliği"
+  title_don: "👑 Mafiya Otaxoni",
+  title_boss: "🛡 Daxlsiz",
+  title_shadow: "👻 Körinmas Soya"
 };
 
 function frameClass(slug) {
@@ -3923,7 +3990,8 @@ function profileCardHtml() {
             qty: qty,
             title: item.title || slug,
             emoji: item.emoji || "🎁",
-            equipped: !!entry.is_equipped
+            equipped: !!entry.is_equipped,
+            equippable: !!item.equippable
           });
         });
         rows.sort(function (a, b) {
@@ -3945,7 +4013,14 @@ function profileCardHtml() {
             return '<div class="inv-item' + (item.equipped ? " equipped" : "") + '">' +
               '<span class="inv-emoji">' + esc(item.emoji) + '</span>' +
               '<span class="inv-name">' + esc(item.title) + '</span>' +
-              '<span class="inv-qty">x' + esc(item.qty) + '</span></div>';
+              '<span class="inv-qty">x' + esc(item.qty) + '</span>' +
+              (item.equippable
+                ? '<button class="btn small' + (item.equipped ? " sel" : "") +
+                  '" data-act="equip-toggle" data-slug="' + esc(item.slug) +
+                  '" data-equip="' + (item.equipped ? "0" : "1") + '">' +
+                  (item.equipped ? "Taqilgan" : "Kiyish") + '</button>'
+                : '') +
+              '</div>';
           }).join("") + '</div>' +
           '<button class="btn block" data-act="shop">🛍️ Dökonga ötiş</button>';
 }
@@ -4052,9 +4127,13 @@ function profileCardHtml() {
       function shopItemIcon(item) {
         var slug = String((item && item.slug) || "");
         if (slug.indexOf("shield") >= 0) return "shield";
-        if (slug.indexOf("kevlar") >= 0) return "vest";
+        if (slug.indexOf("kevlar") >= 0) return "shirt";
+        if (slug.indexOf("magnet") >= 0) return "bomb";
+        if (slug.indexOf("time") >= 0) return "clock";
+        if (slug.indexOf("coins") >= 0) return "coins";
         if (slug.indexOf("spy") >= 0) return "radar";
         if (slug.indexOf("double_vote") >= 0) return "zap";
+        if (slug.indexOf("lootbox") >= 0) return "gift";
         if (slug.indexOf("spin") >= 0) return "sparkles";
         if (slug.indexOf("title") >= 0) return "crown";
         if (slug.indexOf("frame") >= 0) return "sparkles";
@@ -4167,7 +4246,8 @@ function profileCardHtml() {
             profile.frame = (data.equipped && data.equipped.frame) || profile.frame;
             profile.title = (data.equipped && data.equipped.title) || profile.title;
             if (view.items) view.items.inventory = data.inventory || view.items.inventory;
-            toast("✅ " + data.item.title + " sotib olindi!", "success");
+            var bought = (data.loot && data.loot.length) ? data.loot[0].title : data.item.title;
+            toast("✅ " + bought + " olindi!", "success");
             haptic("success");
 }
         } catch (error) {

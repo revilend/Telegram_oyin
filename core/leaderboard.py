@@ -62,7 +62,9 @@ def display_name(account: Any) -> str:
 FRAME_KEYS = {
     "frame_gold": "gold",
     "frame_neon": "neon",
+    "frame_cyber": "cyber",
     "frame_fire": "fire",
+    "frame_diamond": "diamond",
     "clan_emblem": "clan",
 }
 
