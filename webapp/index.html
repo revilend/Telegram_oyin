@@ -1096,8 +1096,8 @@
     }
     .modal-x:hover,
     .modal-x:focus {
-      background: rgba(255, 255, 255, 0.18);
-      color: #fff;
+      background: rgba(148, 163, 184, 0.24);
+      color: var(--text);
       transform: scale(1.08);
       outline: none;
     }
@@ -1204,24 +1204,52 @@
       border-color: rgba(239, 68, 68, 0.5);
     }
 
+    /* Barcha modal oynalar uchun yopilish holati */
+    .shop-overlay, .mvp-overlay, .bomb-boom-overlay, #bomb-overlays .bomb-overlay-body {
+      transition: opacity 0.16s ease;
+    }
+    .shop-overlay.is-closing, .mvp-overlay.is-closing, .bomb-boom-overlay.is-closing,
+    #bomb-overlays.is-closing .bomb-overlay-body, #bomb-overlays.is-closing .bomb-backdrop {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .bomb-sheet-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .bomb-boom-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 2;
+    }
+
     /* Shop close button improvements */
     .shop-close {
       width: 34px;
       height: 34px;
-      border: 0;
-      background: rgba(255, 255, 255, 0.08);
+      flex: 0 0 auto;
+      border: 1px solid rgba(148, 163, 184, 0.38);
+      background: rgba(15, 23, 42, 0.1);
       color: var(--text);
       border-radius: 50%;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1;
       transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
     }
     .shop-close:hover,
     .shop-close:focus {
-      background: rgba(255, 255, 255, 0.18);
-      color: #fff;
+      background: rgba(148, 163, 184, 0.24);
+      color: var(--text);
       transform: scale(1.08);
       outline: none;
     }
@@ -3649,7 +3677,7 @@ function profileCardHtml() {
         var body = '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Dökon">' +
           '<div class="shop-head"><div><h2>' + icon("coin") + ' Dökon</h2>' +
             '<p class="shop-lede">Balans: <b>' + esc(money(profile.balance)) + ' tanga</b></p></div>' +
-            '<button class="shop-close" data-act="shop-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="shop-close" data-act="shop-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<div class="shop-tabs">' +
             '<button class="shop-tab' + (tab === "items" ? " sel" : "") + '" data-act="shop-tab" data-tab="items">🛍️ Buyumlar</button>' +
             '<button class="shop-tab' + (tab === "coins" ? " sel" : "") + '" data-act="shop-tab" data-tab="coins">💳 Tangalar</button>' +
@@ -3685,7 +3713,7 @@ function profileCardHtml() {
         return '<div class="shop-overlay"><section class="shop-sheet wheel-sheet" role="dialog" aria-modal="true" aria-label="Omad gʻildiragi">' +
           '<div class="shop-head"><div><h2>' + lucideIcon("sparkles") + ' Omad gʻildiragi</h2>' +
             '<p class="shop-lede">Kuniga bir marta bepul, keyin 20 tanga yoki çipta.</p></div>' +
-            '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<div class="wheel-wrap">' +
             '<div class="wheel-pointer"></div>' +
             '<div class="wheel' + (view.wheelBusy ? " spinning" : "") + '" style="background: conic-gradient(' + stops + ')">' + labels + '</div>' +
@@ -3727,6 +3755,7 @@ function profileCardHtml() {
         view.shopOpen = false;
         view.wheelResult = null;
         renderHub();
+        syncModalBackButton();
         if (!view.items) {
           await loadShopItems();
           renderHub();
@@ -4483,7 +4512,7 @@ function profileCardHtml() {
           '<button class="chat-fab" data-chat="toggle" aria-label="Guruh suhbatini oçiş">' + icon("send") + "💬 Guruh suhbati</button>" +
           '<section class="chat-sheet" id="chat-sheet">' +
             '<header class="chat-head"><b>💬 Guruh suhbati</b><span class="chat-online">online</span>' +
-              '<button class="icon-btn" data-chat="close" aria-label="Yopiş">' + icon("close") + "</button></header>" +
+              '<button class="icon-btn" data-chat="close" aria-label="Yopiş" title="Yopiş">✕</button></header>' +
             '<div class="chat-list" id="chat-list"></div>' +
             '<div class="chat-quick">' + CHAT_QUICK.map(function (phrase) {
               return '<button type="button" data-quick="' + esc(phrase) + '">' + esc(phrase) + '</button>';
@@ -4527,11 +4556,13 @@ function profileCardHtml() {
         chatState.locked = false;
         document.getElementById("chat-lock").hidden = true;
         if (chatState.input) chatState.input.focus();
+        syncModalBackButton();
 }
 
       function closeChat() {
         var sheet = document.getElementById("chat-sheet");
         if (sheet) sheet.classList.remove("open");
+        syncModalBackButton();
 }
 
       function chatMessageHtml(m) {
@@ -5238,13 +5269,13 @@ function profileCardHtml() {
           if (current[i].outerHTML !== next[i].outerHTML) {
             current[i].replaceWith(next[i]);
             changed = true;
-}
+          }
+        }
         return changed;
 }
 
       // Xona ekranini bo'laklab yangilaydi: faqat o'zgargan yuqori darajali
       // bloklar almashtiriladi, qolgan DOM tugunlari va scroll saqlanadi.
-      }
       function paintRoomScreen(key, top, mainClass, mainHtml) {
         var shell = app.querySelector('[data-room-screen="' + key + '"]');
         if (!shell || shell.__top !== top) {
@@ -5848,6 +5879,7 @@ function profileCardHtml() {
         if (view.code) return;
         view.tournamentOpen = true;
         renderHub();
+        syncModalBackButton();
         if (!view.tournaments) await loadTournaments(true);
 }
 
@@ -5962,7 +5994,7 @@ function profileCardHtml() {
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Turnirlar">' +
           '<div class="shop-head"><div><h2>' + lucideIcon("trophy") + ' Turnirlar</h2>' +
             '<p class="shop-lede">Haftalik çempionatlar: 50 tanga yoki turnir çiptasi bilan qatnaşing.</p></div>' +
-            '<button class="shop-close" data-act="tour-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="shop-close" data-act="tour-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           body +
           '<button class="btn block" data-act="tour-refresh"' + (view.tournamentsLoading ? " disabled" : "") + '>' + lucideIcon("refresh-cw") + ' Yangilaş</button>' +
         '</section></div>';
@@ -6018,7 +6050,10 @@ function profileCardHtml() {
           var host = document.createElement("div");
           host.innerHTML = mvpOverlayHtml();
           var overlay = host.firstElementChild;
-          if (overlay) document.body.appendChild(overlay);
+          if (overlay) {
+            document.body.appendChild(overlay);
+            syncModalBackButton();
+          }
 }
 
       }
@@ -6134,7 +6169,10 @@ function profileCardHtml() {
         var host = document.createElement("div");
         host.innerHTML = mvpOverlayHtml();
         var overlay = host.firstElementChild;
-        if (overlay) document.body.appendChild(overlay);
+        if (overlay) {
+          document.body.appendChild(overlay);
+          syncModalBackButton();
+        }
 }
 
       window.addEventListener("load", function () {
@@ -6396,7 +6434,7 @@ function profileCardHtml() {
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Josus xonasi">' +
           '<div class="shop-head"><div><h2>' + icon("glasses") + ' Josus</h2>' +
             '<p class="shop-lede">Guruhdan olingan <b>SPY123</b> kodini kiriting yoki yangi xona oçing.</p></div>' +
-            '<button class="shop-close" data-act="spy-entry-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="shop-close" data-act="spy-entry-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<form id="spy-entry-form" class="join-form">' +
             '<input id="spy-entry-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="SPY123" aria-label="Josus xona kodi" />' +
             '<button type="submit" class="btn primary">Kiriş</button>' +
@@ -6413,7 +6451,7 @@ function profileCardHtml() {
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Alias yöriqnomasi">' +
           '<div class="shop-head"><div><h2>' + icon("sparkles") + ' Alias / Krokodil</h2>' +
             '<p class="shop-lede">Tezkor söz tuşuntiriş va topiş poygasi. 2–20 öyinçi.</p></div>' +
-            '<button class="shop-close" data-act="alias-entry-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="shop-close" data-act="alias-entry-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<ol class="rules-list">' +
             '<li>Botni guruhingizga qöşing.</li>' +
             '<li>Guruhda <code>/alias</code> yoki <code>/krokodil</code> yuboring.</li>' +
@@ -6431,7 +6469,7 @@ function profileCardHtml() {
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Portlovçi Bomba xonasi">' +
           '<div class="shop-head"><div><h2>' + lucideIcon("bomb") + ' Portlovçi Bomba</h2>' +
             '<p class="shop-lede">Guruhdan olingan <b>BMB123</b> kodini kiriting yoki yangi xona oçing.</p></div>' +
-            '<button class="shop-close" data-act="bomb-entry-close" aria-label="Yopiş">' + icon("close") + '</button></div>' +
+            '<button class="shop-close" data-act="bomb-entry-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<form id="bomb-entry-form" class="join-form">' +
             '<input id="bomb-entry-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BMB123" aria-label="Bomba xona kodi" />' +
             '<button type="submit" class="btn primary">Kiriş</button>' +
@@ -6865,7 +6903,8 @@ function profileCardHtml() {
           : "Karta qölingizga qöşildi. Navbatni tugatish uçun karta tortishda davom eting.";
         return '<section class="bomb-sheet" role="dialog" aria-modal="true">' +
           '<div class="bomb-sheet-head"><div><h2>' + esc(card.symbol || "") + ' ' + esc(card.name) + '</h2>' +
-            '<p>' + (result.defused ? "Zararsizlantirildi" : "Yangi karta") + '</p></div></div>' +
+            '<p>' + (result.defused ? "Zararsizlantirildi" : "Yangi karta") + '</p></div>' +
+            '<button class="bomb-sheet-close" data-act="bomb-drawn-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<div class="bomb-preview-card">' + bombFaceHtml(card.type) + '</div>' +
           '<p class="bomb-ability">' + esc(note) + '</p>' +
           '<button class="bomb-hold-btn" data-act="bomb-drawn-close">Davom etiş</button>' +
@@ -6877,6 +6916,7 @@ function profileCardHtml() {
         if (!result) return "";
         var mine = Number(result.eliminated_id) === Number(profile.id);
         return '<div class="bomb-boom-overlay" role="alertdialog" aria-modal="true">' +
+          '<button class="bomb-sheet-close bomb-boom-close" data-act="bomb-boom-close" aria-label="Yopiş" title="Yopiş">✕</button>' +
           '<div><div class="boom">💥</div><h2>PORTLASH!</h2>' +
           '<p>' + (mine ? "Qölingizda Zararsizlantiriş böğildi. Siz öyindan çiqdingiz!" :
             esc(bombPlayerName(view.bombState || {}, result.eliminated_id)) + " portladi va öyindan çiqdi.") + '</p>' +
@@ -6933,6 +6973,7 @@ function profileCardHtml() {
 }
         if (html) host.classList.add("open");
         else host.classList.remove("open");
+        syncModalBackButton();
 }
 
       function renderBomb() {
@@ -7659,7 +7700,8 @@ function profileCardHtml() {
 
       function handleClick(event) {
         var button = event.target.closest("[data-act]");
-        if (!button || !app.contains(button)) return;
+        if (!button) return;
+        if (!app.contains(button) && !button.closest("#bomb-overlays, .mvp-overlay, .bomb-boom-overlay")) return;
         var act = button.getAttribute("data-act");
 
         if (act === "home") {
@@ -7681,12 +7723,15 @@ function profileCardHtml() {
         } else if (act === "open-spyfall") {
           view.spyEntry = true;
           renderHub();
+          syncModalBackButton();
         } else if (act === "open-alias") {
           view.aliasEntry = true;
           renderHub();
+          syncModalBackButton();
         } else if (act === "open-bomb") {
           view.bombEntry = true;
           renderHub();
+          syncModalBackButton();
         } else if (act === "bomb-entry-close") {
           view.bombEntry = false;
           renderHub();
@@ -7981,54 +8026,122 @@ function profileCardHtml() {
       // Modal yopish (overlay, klaviatura, Telegram BackButton)
       // ----------------------------------------------------------------
       }
-      function closeAllOverlays() {
-        if (view.shopOpen) {
+      function hasBombOverlay() {
+        return !!(view.bombBoom || view.bombDrawn || view.bombFutureOpen || view.bombPreview != null ||
+          document.querySelector("#bomb-overlays.open"));
+}
+
+      function isChatPanelOpen() {
+        var sheet = document.getElementById("chat-sheet");
+        return !!(sheet && sheet.classList.contains("open"));
+}
+
+      function hasOpenOverlay() {
+        return !!(view.shopOpen || view.wheelOpen || view.tournamentOpen ||
+          view.spyEntry || view.aliasEntry || view.bombEntry || view.mvp ||
+          document.querySelector(".mvp-overlay") || hasBombOverlay() || isChatPanelOpen());
+}
+
+      function syncModalBackButton() {
+        setBackButton(!!(view.code || hasOpenOverlay()));
+}
+
+      function closeNodeSmooth(node, callback) {
+        if (!node) {
+          if (callback) callback();
+          return;
+}
+        node.classList.add("is-closing");
+        setTimeout(function () {
+          if (callback) callback();
+        }, 160);
+}
+
+      // Eng ustki modalni yopadi: MVP -> Bomba -> chat -> hub oynasi.
+      function closeTopOverlay() {
+        var mvp = document.querySelector(".mvp-overlay");
+        if (mvp) {
+          view.mvp = null;
+          closeNodeSmooth(mvp, function () {
+            if (mvp.parentNode) mvp.parentNode.removeChild(mvp);
+          });
+          syncModalBackButton();
+          return true;
+}
+
+        if (hasBombOverlay()) {
+          var host = document.getElementById("bomb-overlays");
+          view.bombBoom = null;
+          view.bombDrawn = null;
+          view.bombFuture = [];
+          view.bombFutureOpen = false;
+          view.bombPreview = null;
+          view.bombTarget = null;
+          if (host) {
+            closeNodeSmooth(host, function () {
+              host.classList.remove("is-closing");
+              renderBombOverlays();
+            });
+          } else {
+            renderBombOverlays();
+}
+          syncModalBackButton();
+          return true;
+}
+
+        if (isChatPanelOpen()) {
+          closeChat();
+          syncModalBackButton();
+          return true;
+}
+
+        if (view.shopOpen || view.wheelOpen || view.tournamentOpen ||
+            view.spyEntry || view.aliasEntry || view.bombEntry) {
+          var hubOverlay = document.querySelector("#hub-overlays .shop-overlay");
           view.shopOpen = false;
           view.shopPackage = null;
-        }
-        if (view.wheelOpen) {
           view.wheelOpen = false;
           view.wheelResult = null;
-        }
-        if (view.tournamentOpen) {
           view.tournamentOpen = false;
           view.tournaments = null;
-        }
-        var mvp = document.querySelector(".mvp-overlay");
-        if (mvp) mvp.remove();
-        view.mvp = null;
-        renderHub();
-      }
+          view.spyEntry = false;
+          view.aliasEntry = false;
+          view.bombEntry = false;
+          if (hubOverlay) {
+            closeNodeSmooth(hubOverlay, function () { renderHub(); });
+          } else {
+            renderHub();
+}
+          syncModalBackButton();
+          return true;
+}
+        return false;
+}
 
       function onOverlayClick(event) {
         var target = event.target;
-        if (!target) return;
-        if (target.classList && target.classList.contains("shop-overlay")) {
-          closeAllOverlays();
-          return;
-        }
-        if (target.classList && target.classList.contains("mvp-overlay")) {
-          var mvp = document.querySelector(".mvp-overlay");
-          if (mvp) mvp.remove();
-          view.mvp = null;
-        }
-      }
+        if (!target || !target.classList) return;
+        if (target.classList.contains("shop-overlay") ||
+            target.classList.contains("mvp-overlay") ||
+            target.classList.contains("bomb-backdrop") ||
+            target.classList.contains("bomb-overlay-body") ||
+            target.classList.contains("bomb-boom-overlay")) {
+          closeTopOverlay();
+}
+}
 
       document.addEventListener("keydown", function (event) {
         if (!event) return;
         var key = event.key;
         if (key === "Escape" || key === "Esc") {
-          if (view.shopOpen || view.wheelOpen || view.tournamentOpen || view.mvp || document.querySelector(".mvp-overlay")) {
-            closeAllOverlays();
-          }
+          closeTopOverlay();
           event.stopPropagation();
-        }
+}
       });
-// ----------------------------------------------------------------
-      // Ishga tushirish
+// Ishga tushirish
       // ----------------------------------------------------------------
-      app.addEventListener("click", handleClick);
-      app.addEventListener("click", onOverlayClick);
+      document.addEventListener("click", handleClick);
+      document.addEventListener("click", onOverlayClick);
       app.addEventListener("submit", handleSubmit);
       app.addEventListener("change", function (event) {
         if (!event.target) return;
@@ -8056,10 +8169,7 @@ function profileCardHtml() {
           if (tg.BackButton) {
             tg.BackButton.onClick(function () {
               haptic("medium");
-              if (view.shopOpen || view.wheelOpen || view.tournamentOpen || view.mvp || document.querySelector(".mvp-overlay")) {
-                closeAllOverlays();
-                return;
-              }
+              if (closeTopOverlay()) return;
 
               if (!view.code) {
                 setBackButton(false);
