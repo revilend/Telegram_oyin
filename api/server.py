@@ -53,6 +53,15 @@ from bot.localized import LocalizedBot
 from bot.main import build_dispatcher, set_commands
 from core.billing import buy_booster, decline_shield
 from core.daily_backup import start_daily_backup, stop_daily_backup
+from core.achievements import achievements_payload
+from core.daily_quests import (
+    DailyQuestError,
+    claim_daily_quest,
+    claim_weekly_chest,
+    daily_quests_payload,
+    record_daily_event,
+    reroll_daily_quests,
+)
 from core.db import get_store
 from core.economy import (
     COIN_PACKAGES,
@@ -136,6 +145,7 @@ GAMES: list[dict[str, Any]] = [
         "players": "4–16",
         "description": "Falokatdan keyin omon qolish uchun guruh bo'lib kartalaringizni "
         "oching, bahslashing va bunkerga kim tushishini hal qiling.",
+        "image": "bunkergame.png",
     },
     {
         "slug": "mafia",
@@ -145,6 +155,7 @@ GAMES: list[dict[str, Any]] = [
         "players": "4–20",
         "description": "Kechki shaharda mafiya va tinch aholi o'rtasidagi sirli "
         "kurash. Guruhda /mafia bilan boshlang.",
+        "image": "mafiagame.png",
     },
     {
         "slug": "spyfall",
@@ -154,6 +165,7 @@ GAMES: list[dict[str, Any]] = [
         "players": "3–12",
         "description": "Hamma joyni biladi, faqat bitta josus bilmaydi. Savol-javob "
         "orqali uni toping.",
+        "image": "spygame.png",
     },
     {
         "slug": "alias",
@@ -163,6 +175,7 @@ GAMES: list[dict[str, Any]] = [
         "players": "2–20",
         "description": "Tezkor so'z tushuntirish va topish poygasi. Guruhda /alias "
         "bilan boshlang.",
+        "image": "aliasgame.png",
     },
     {
         "slug": "bomb",
@@ -563,6 +576,13 @@ async def economy_error_handler(request: Any, exc: EconomyError) -> JSONResponse
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.exception_handler(DailyQuestError)
+async def daily_quest_error_handler(
+    request: Any, exc: DailyQuestError
+) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
 @app.exception_handler(ShopInsufficientCoinsError)
 async def shop_coins_handler(
     request: Any, exc: ShopInsufficientCoinsError
@@ -764,7 +784,10 @@ async def _handle_socket_payload(
         payload = json.loads(raw)
     except (TypeError, ValueError):
         return
-    if not isinstance(payload, dict) or payload.get("type") != "chat":
+    if not isinstance(payload, dict) or payload.get("type") not in {
+        "chat",
+        "reaction",
+    }:
         return
     if user_id is None:
         await websocket.send_json(
@@ -776,7 +799,10 @@ async def _handle_socket_payload(
         )
         return
     try:
-        await chat_hub.post(code, int(user_id), str(payload.get("text") or ""))
+        if payload.get("type") == "reaction":
+            await chat_hub.react(code, int(user_id), str(payload.get("emoji") or ""))
+        else:
+            await chat_hub.post(code, int(user_id), str(payload.get("text") or ""))
     except ChatError as exc:
         access = _chat_access(code, int(user_id))
         locked = bool(access is None or chat_hub.locked(code, int(user_id), access))
@@ -1006,6 +1032,7 @@ async def shop_buy(
     resolved_id = resolve_user_id(user, payload.user_id)
     metrics.user(resolved_id)
     result = get_shop_store().buy(resolved_id, payload.item_slug, payload.quantity)
+    record_daily_event(get_economy(), resolved_id, "shop")
     data = result.as_dict()
     data["inventory"] = [entry.as_dict() for entry in get_shop_store().inventory(resolved_id)]
     data["equipped"] = get_shop_store().equipped(resolved_id)
@@ -1022,6 +1049,7 @@ async def spin_wheel(
     metrics.user(resolved_id)
     store = get_shop_store()
     result = store.spin(resolved_id)
+    record_daily_event(get_economy(), resolved_id, "spin")
     data = result.as_dict()
     data["spin"] = store.spin_status(resolved_id)
     data["inventory"] = [entry.as_dict() for entry in store.inventory(resolved_id)]
@@ -1348,6 +1376,7 @@ async def bonus_claim(
     resolved_id = resolve_user_id(user, payload.user_id if payload else None)
     economy = get_economy()
     claim = economy.claim_daily_bonus(resolved_id)
+    record_daily_event(economy, resolved_id, "bonus")
     return {
         "ok": True,
         "amount": claim.amount,
@@ -1391,6 +1420,74 @@ async def claim_my_mission(
         "ok": True,
         "mission": missions_payload([status])[0],
         "coins": account.coins,
+    }
+
+
+@app.get("/api/quests")
+async def my_daily_quests(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Bugungi 3 ta topshiriq, reroll va haftalik sandiq holati."""
+    resolved_id, _, _ = profile_identity(user, user_id)
+    economy = get_economy()
+    economy.ensure_user(resolved_id)
+    return {
+        "daily": daily_quests_payload(economy, resolved_id),
+        "coins": economy.get_user(resolved_id).coins,
+    }
+
+
+@app.post("/api/quests/{quest_key}/claim")
+async def claim_my_daily_quest(
+    quest_key: str,
+    payload: UserRequest | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Bajarilgan kunlik topshiriq mukofotini beradi."""
+    resolved_id = resolve_user_id(user, payload.user_id if payload else None)
+    result = claim_daily_quest(get_economy(), resolved_id, quest_key)
+    return {"ok": True, **result}
+
+
+@app.post("/api/quests/reroll")
+async def reroll_my_daily_quests(
+    payload: UserRequest | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Kuniga bir marta topshiriqlarni almashtiradi."""
+    resolved_id = resolve_user_id(user, payload.user_id if payload else None)
+    daily = reroll_daily_quests(get_economy(), resolved_id)
+    return {
+        "ok": True,
+        "daily": daily,
+        "coins": get_economy().get_user(resolved_id).coins,
+    }
+
+
+@app.post("/api/quests/chest")
+async def claim_my_weekly_chest(
+    payload: UserRequest | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Haftalik 5 ta topshiriq sandiqini ochadi."""
+    resolved_id = resolve_user_id(user, payload.user_id if payload else None)
+    result = claim_weekly_chest(get_economy(), resolved_id)
+    return {"ok": True, **result}
+
+
+@app.get("/api/achievements")
+async def my_achievements(
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Profil nishonlari: ochilganlar va progress."""
+    resolved_id, _, _ = profile_identity(user, user_id)
+    rows = achievements_payload(get_economy(), resolved_id)
+    return {
+        "achievements": rows,
+        "unlocked": sum(1 for row in rows if row["unlocked"]),
+        "total": len(rows),
     }
 
 
@@ -1457,6 +1554,8 @@ async def activity_snapshot(
     return {
         "bonus": asdict(economy.daily_bonus_status(resolved_id)),
         "missions": missions_payload(statuses),
+        "quests": daily_quests_payload(economy, resolved_id),
+        "achievements": achievements_payload(economy, resolved_id),
         "top": all_board.get("top", []),
         "me": all_board.get("me"),
         "week": week_board,
@@ -1538,6 +1637,7 @@ async def matchmaking_join(
     result = get_matchmaker().join(
         resolved_id, payload.game_type, name=name, username=username
     )
+    record_daily_event(get_economy(), resolved_id, "match")
     return {"ok": True, **result}
 
 

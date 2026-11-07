@@ -65,6 +65,9 @@ create table if not exists public.users (
     wins             integer not null default 0,
     bunker_wins      integer not null default 0,
     mafia_wins       integer not null default 0,
+    spy_wins         integer not null default 0,
+    alias_wins       integer not null default 0,
+    bomb_wins        integer not null default 0,
     referral_count   integer not null default 0,
     role             text not null default 'user',
     created_at       timestamptz not null default now(),
@@ -81,6 +84,12 @@ alter table public.users
     add column if not exists bunker_wins integer not null default 0;
 alter table public.users
     add column if not exists mafia_wins integer not null default 0;
+alter table public.users
+    add column if not exists spy_wins integer not null default 0;
+alter table public.users
+    add column if not exists alias_wins integer not null default 0;
+alter table public.users
+    add column if not exists bomb_wins integer not null default 0;
 
 -- Referal tizimi: kim kimni taklif qilgani (har bir taklif bir marta).
 create table if not exists public.referrals (
@@ -317,3 +326,33 @@ create table if not exists public.tournament_participants (
     joined_at     timestamptz not null default now(),
     primary key (tournament_id, user_id)
 );
+
+-- ---------------------------------------------------------------------
+-- Kunlik topshiriqlar va haftalik sandiq
+-- ---------------------------------------------------------------------
+create table if not exists public.daily_quest_state (
+    user_id     bigint not null,
+    day         text not null,
+    state       jsonb not null default '{}'::jsonb,
+    updated_at  timestamptz not null default now(),
+    primary key (user_id, day)
+);
+
+create table if not exists public.daily_quest_profile (
+    user_id     bigint primary key,
+    state       jsonb not null default '{}'::jsonb,
+    updated_at  timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------
+-- Doimiy nishonlar (achievements)
+-- ---------------------------------------------------------------------
+create table if not exists public.user_achievements (
+    user_id         bigint not null,
+    achievement_key text not null,
+    unlocked_at     timestamptz not null default now(),
+    primary key (user_id, achievement_key)
+);
+
+create index if not exists user_achievements_user_idx
+    on public.user_achievements (user_id);

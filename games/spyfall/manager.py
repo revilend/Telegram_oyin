@@ -273,15 +273,29 @@ class SpyfallManager:
             except Exception:  # tanga yozilmasa o'yin holati buzilmasin
                 logger.exception("Josus mukofotini qo'shib bo'lmadi: %s", user_id)
         room.rewards_granted = True
-        recorder = getattr(store, "record_game_history", None)
+        rewards = {user_id: amount for user_id in room.winner_ids}
+        recorder = getattr(store, "record_finished_game", None)
         if callable(recorder):
             try:
                 recorder(
+                    room.code,
+                    room.players.keys(),
+                    room.winner_ids,
+                    game="spyfall",
+                    coins_by_user=rewards,
+                )
+                return
+            except Exception:
+                logger.exception("Josus natijasini yozib bo'lmadi: %s", room.code)
+        legacy = getattr(store, "record_game_history", None)
+        if callable(legacy):
+            try:
+                legacy(
                     "spyfall",
                     room.code,
                     room.players.keys(),
                     room.winner_ids,
-                    {user_id: amount for user_id in room.winner_ids},
+                    rewards,
                 )
             except Exception:
                 logger.exception("Josus tarixini yozib bo'lmadi: %s", room.code)

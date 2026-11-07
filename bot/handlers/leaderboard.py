@@ -25,6 +25,26 @@ TOP_LIMIT = 10
 EMPTY_TEXT = "Hozirça reyting böş. Birinçi bölib öyin boşlang!"
 TITLE = "🏆 <b>Reyting va Top</b>"
 MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
+FRAME_BADGES = {
+    "frame_gold": "🥇",
+    "frame_neon": "💠",
+    "frame_fire": "🔥",
+    "clan_emblem": "⚜️",
+}
+
+
+def cosmetics_badges(user_id: int) -> tuple[str, str]:
+    """Taqilgan ramka emojisi va unvon matni (xato bo'lsa — bo'sh)."""
+    try:
+        from core.shop import CATALOG_BY_SLUG, get_shop_store
+
+        equipped = get_shop_store().equipped(int(user_id))
+        frame_emoji = FRAME_BADGES.get(str(equipped.get("frame") or ""), "")
+        item = CATALOG_BY_SLUG.get(str(equipped.get("title") or ""))
+        return frame_emoji, str(item.payload) if item is not None else ""
+    except Exception:
+        logger.exception("Bezaklarni öqib bölmadi: %s", user_id)
+        return "", ""
 
 
 def leaderboard_text(
@@ -38,11 +58,18 @@ def leaderboard_text(
 
     for place, account in enumerate(top, start=1):
         prefix = MEDALS.get(place, f"{place}.")
-        lines.append(
-            f"{prefix} {escape(display_name(account))} — "
+        frame_emoji, title_text = cosmetics_badges(account.user_id)
+        name_html = escape(display_name(account))
+        if frame_emoji:
+            name_html = f"{frame_emoji} {name_html}"
+        line = (
+            f"{prefix} {name_html} — "
             f"<b>{format_price(player_rating(account))}</b> reyting · "
             f"{safe_int(account.wins)} ğalaba"
         )
+        if title_text:
+            line += f"\n   👑 <i>{escape(title_text)}</i>"
+        lines.append(line)
 
     if me is not None:
         lines.append("")

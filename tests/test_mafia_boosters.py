@@ -257,18 +257,26 @@ class MafiaRewardTest(unittest.TestCase):
 
 
 class ProfileSplitTest(unittest.TestCase):
-    def test_profile_shows_both_game_wins(self) -> None:
+    def test_profile_shows_all_five_game_wins(self) -> None:
         account = UserAccount(
             user_id=42,
             full_name="Ali",
             coins=100,
-            wins=3,
-            bunker_wins=2,
-            mafia_wins=1,
+            wins=15,
+            bunker_wins=3,
+            mafia_wins=2,
+            spy_wins=1,
+            alias_wins=4,
+            bomb_wins=5,
         )
         text = profile_text(account)
-        self.assertIn("🛡️ Bunker: <b>2</b> ğalaba", text)
-        self.assertIn("🕵️ Mafiya: <b>1</b> ğalaba", text)
+        self.assertIn("🛡️ Bunker: <b>3</b>", text)
+        self.assertIn("🕵️ Mafiya: <b>2</b>", text)
+        self.assertIn("🕶️ Josus: <b>1</b>", text)
+        self.assertIn("🐊 Alias: <b>4</b>", text)
+        self.assertIn("💣 Bomba: <b>5</b>", text)
+        # Umumiy g'alabalar barcha besh o'yin yig'indisidan hisoblanadi.
+        self.assertIn("Umumiy ğalabalar: <b>15</b>", text)
 
 
 class PhaseTimerTest(unittest.TestCase):

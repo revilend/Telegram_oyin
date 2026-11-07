@@ -156,6 +156,7 @@ class BombRoom:
         self._rng = rng or random.Random()
         self._coin_award = coin_award or _default_coin_award
         self._reward_paid = False
+        self._result_recorded = False
         self._lock = threading.RLock()
 
     # ------------------------------------------------------------------
@@ -459,15 +460,35 @@ class BombRoom:
                 self.status = BombStatus.FINISHED
                 self.winner_id = winner.user_id
                 self._pay_reward(winner.user_id)
+                self._record_result()
                 return winner.user_id
             if not alive:
                 self.status = BombStatus.FINISHED
                 self.winner_id = None
+                self._record_result()
             return None
 
     def _finish_without_winner(self) -> None:
         self.status = BombStatus.FINISHED
         self.winner_id = None
+        self._record_result()
+
+    def _record_result(self) -> None:
+        """Natijani iqtisodiyotga bir marta yozadi (``bomb_wins``)."""
+        if self._result_recorded:
+            return
+        self._result_recorded = True
+        try:
+            from core.economy import get_economy
+
+            get_economy().record_finished_game(
+                self.code,
+                [player.user_id for player in self.players.values()],
+                [self.winner_id] if self.winner_id is not None else [],
+                game="bomb",
+            )
+        except Exception:
+            logger.exception("Bomb natijasini yozib bo'lmadi: %s", self.code)
 
     def _pay_reward(self, user_id: int) -> None:
         if self._reward_paid or self.winner_reward <= 0:

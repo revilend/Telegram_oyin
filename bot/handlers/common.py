@@ -57,14 +57,16 @@ CANCELLED_TEXT = "❌ Jarayon bekor qilindi."
 
 WELCOME_TEXT = (
     "Salom, <b>{name}</b>! 👋\n\n"
-    "<b>Revilend Games</b> — Telegram içida öynaladigan stol öyinlari platformasi.\n\n"
-    "🛡️ <b>Bunker</b> — falokatdan keyin kartalar böyiça bahslaşib, bunkerga "
-    "kim tuşişini hal qilasiz.\n"
-    "🕵️ <b>Mafiya</b> — tunda yaşirin rollar, kunduzi ovoz beriş.\n"
-    "🔍 <b>Josus</b> — hamma joyni biladi, faqat josus bilmaydi.\n\n"
-    "🎮 Öyinlarni oçiş uçun pastdagi menyudan foydalaning yoki "
-    "«🎲 Öyinlar röyxati»ni bosing.\n"
-    "➕ Guruhda yangi öyin oçiş uçun: /bunker, /mafia yoki /spy"
+    "🎮 <b>Revilend Games</b> — Telegram içidagi premium stol "
+    "öyinlari portali!\n"
+    "🛡️ <b>Bunker</b> — Falokatdan keyin omon qoliş va bahslaşuv.\n"
+    "🕵️ <b>Mafiya</b> — Tungi rollar va kunduzgi tergov.\n"
+    "🕶️ <b>Josus (Spyfall)</b> — Hamma joyni biladi, josus esa qidiradi.\n"
+    "🐊 <b>Alias / Krokodil</b> — Söz tuşuntiriş poygasi.\n"
+    "💣 <b>Portlovçi Bomba</b> — Xavfli karta öyini, bombani "
+    "zararsizlantir va tirik qol!\n"
+    "➕ Guruhda öyin oçiş uçun:\n"
+    "/bunker, /mafia, /spy, /alias yoki /bomb yuboring."
 )
 
 WELCOME_ONLY_TEXT = (
@@ -255,7 +257,8 @@ async def start_command(message: Message, command: CommandObject | None = None) 
     user = message.from_user
     if message.chat.type != "private":
         await message.answer(
-            "Öyinni oçiş uçun /bunker, /mafia yoki /spy buyruğini yuboring."
+            "Öyin oçiş uçun /bunker, /mafia, /spy, /alias yoki /bomb "
+            "buyruğini yuboring."
         )
         return
 

@@ -295,8 +295,18 @@ async def _stop_game(bot: Bot, room: AliasRoom, *, reason: str) -> None:
             await bot.send_message(room.chat_id, INACTIVE_TEXT)
             return
         if reason == "completed":
-            for winner in room.winners():
+            winners = room.winners()
+            for winner in winners:
                 _award_coins(winner.user_id, WINNER_REWARD)
+            try:
+                get_economy().record_finished_game(
+                    room.code,
+                    [player.user_id for player in room.players.values()],
+                    [winner.user_id for winner in winners],
+                    game="alias",
+                )
+            except Exception:
+                logger.exception("Alias natijasini yozib bölmadi: %s", room.code)
         keyboard = results_keyboard(room)
         if keyboard is None:
             await bot.send_message(room.chat_id, results_text(room, reason=reason))

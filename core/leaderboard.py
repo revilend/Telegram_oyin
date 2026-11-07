@@ -6,10 +6,13 @@ bajariladi.  Haftalik liga dushanba kuni 00:00 da nolga tushadi.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
 from core.economy import EconomyStore, get_economy, player_rating
+
+logger = logging.getLogger(__name__)
 
 PERIOD_ALL = "all"
 PERIOD_WEEK = "week"
@@ -54,6 +57,31 @@ def display_name(account: Any) -> str:
     if username:
         return username
     return f"ID {getattr(account, 'user_id', 0)}"
+
+
+FRAME_KEYS = {
+    "frame_gold": "gold",
+    "frame_neon": "neon",
+    "frame_fire": "fire",
+    "clan_emblem": "clan",
+}
+
+
+def _cosmetics(user_id: int) -> dict[str, str]:
+    """Taqilgan ramka va unvon: ``{"frame": ..., "title": ...}``."""
+    try:
+        from core.shop import CATALOG_BY_SLUG, get_shop_store
+
+        equipped = get_shop_store().equipped(int(user_id))
+        frame = FRAME_KEYS.get(str(equipped.get("frame") or ""), "")
+        item = CATALOG_BY_SLUG.get(str(equipped.get("title") or ""))
+        return {
+            "frame": frame,
+            "title": str(item.payload) if item is not None else "",
+        }
+    except Exception:
+        logger.exception("Bezaklarni o'qib bo'lmadi: %s", user_id)
+        return {"frame": "", "title": ""}
 
 
 def _all_time(economy: EconomyStore, limit: int, viewer_id: int | None) -> dict[str, Any]:
@@ -103,9 +131,15 @@ def _all_time(economy: EconomyStore, limit: int, viewer_id: int | None) -> dict[
                 "is_me": True,
             }
 
+    top = rows[:limit]
+    for row in top:
+        row.update(_cosmetics(int(row["user_id"])))
+    if me is not None:
+        me.update(_cosmetics(int(me["user_id"])))
+
     return {
         "period": PERIOD_ALL,
-        "top": rows[:limit],
+        "top": top,
         "me": me,
         "total": len(rows),
         "week_start": None,
@@ -138,6 +172,10 @@ def _weekly(
             "medal": medal_for(int(me.get("rank") or 0)),
             "is_me": True,
         }
+    for row in top:
+        row.update(_cosmetics(int(row.get("user_id") or 0)))
+    if me is not None:
+        me.update(_cosmetics(int(me.get("user_id") or 0)))
     start, end = week_bounds()
     return {
         "period": PERIOD_WEEK,

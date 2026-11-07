@@ -95,6 +95,9 @@ class UserAccount:
     wins: int = 0
     bunker_wins: int = 0
     mafia_wins: int = 0
+    spy_wins: int = 0
+    alias_wins: int = 0
+    bomb_wins: int = 0
     referral_count: int = 0
     last_bonus_at: str = ""
     bonus_streak: int = 0
@@ -255,10 +258,32 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         wins=int(row.get("wins") or 0),
         bunker_wins=int(row.get("bunker_wins") or 0),
         mafia_wins=int(row.get("mafia_wins") or 0),
+        spy_wins=int(row.get("spy_wins") or 0),
+        alias_wins=int(row.get("alias_wins") or 0),
+        bomb_wins=int(row.get("bomb_wins") or 0),
         referral_count=int(row.get("referral_count") or 0),
         last_bonus_at=str(row.get("last_bonus_at") or ""),
         bonus_streak=int(row.get("bonus_streak") or 0),
     )
+
+
+GAME_WIN_COLUMNS: dict[str, str] = {
+    "bunker": "bunker_wins",
+    "mafia": "mafia_wins",
+    "spy": "spy_wins",
+    "spyfall": "spy_wins",
+    "josus": "spy_wins",
+    "alias": "alias_wins",
+    "krokodil": "alias_wins",
+    "bomb": "bomb_wins",
+    "bomba": "bomb_wins",
+}
+
+
+def game_win_column(game_type: str) -> str:
+    """O'yin turiga mos g'alaba ustunini qaytaradi."""
+    key = str(game_type or "").strip().lower()
+    return GAME_WIN_COLUMNS.get(key, "bunker_wins")
 
 
 def _row_to_payment(row: dict[str, Any]) -> PaymentRequest:
@@ -417,6 +442,9 @@ class EconomyStore:
                         "wins": 0,
                         "bunker_wins": 0,
                         "mafia_wins": 0,
+                        "spy_wins": 0,
+                        "alias_wins": 0,
+                        "bomb_wins": 0,
                         "referral_count": 0,
                         "role": "user",
                         "created_at": _now(),
@@ -441,6 +469,9 @@ class EconomyStore:
                     "wins": 0,
                     "bunker_wins": 0,
                     "mafia_wins": 0,
+                    "spy_wins": 0,
+                    "alias_wins": 0,
+                    "bomb_wins": 0,
                     "referral_count": 0,
                     "role": "user",
                     "created_at": _now(),
@@ -1306,9 +1337,20 @@ class EconomyStore:
         room_code: str,
         user_ids: Iterable[int],
         winner_ids: Iterable[int],
+        game: str = "bunker",
+        reward: int = 0,
+        coins_by_user: dict[int, int] | None = None,
     ) -> bool:
-        """Tugagan o'yinni bir marta hisobga oladi (o'yinlar va g'alabalar)."""
+        """Tugagan o'yinni bir marta hisobga oladi (o'yinlar va g'alabalar).
+
+        ``game`` qaysi g'alaba ustuni oshishini belgilaydi: bunker, mafia,
+        spyfall, alias yoki bomb. ``reward`` berilsa, g'oliblarga shu qadar
+        tanga qo'shiladi.
+        """
         code = str(room_code).strip().upper()
+        game_type = str(game or "bunker").strip().lower()
+        win_column = game_win_column(game_type)
+        reward = max(0, int(reward))
         players = sorted({int(uid) for uid in user_ids})
         winners = sorted({int(uid) for uid in winner_ids} & set(players))
         with self._lock:
@@ -1334,22 +1376,34 @@ class EconomyStore:
                 won = uid in winners
                 games = account.games_played + 1
                 wins = account.wins + (1 if won else 0)
-                bunker_wins = account.bunker_wins + (1 if won else 0)
+                game_wins = getattr(account, win_column) + (1 if won else 0)
+                coins = account.coins + (reward if won else 0)
                 if not self.enabled:
                     row = self._users[uid]
                     row["games_played"] = games
                     row["wins"] = wins
-                    row["bunker_wins"] = bunker_wins
+                    row[win_column] = game_wins
+                    if reward:
+                        row["coins"] = coins
                 else:
-                    self._update_user_row(
-                        uid,
-                        {
-                            "games_played": games,
-                            "wins": wins,
-                            "bunker_wins": bunker_wins,
-                        },
-                    )
-            self.record_game_history("bunker", code, players, winners)
+                    changes: dict[str, Any] = {
+                        "games_played": games,
+                        "wins": wins,
+                        win_column: game_wins,
+                    }
+                    if reward:
+                        changes["coins"] = coins
+                    self._update_user_row(uid, changes)
+            history_coins = coins_by_user
+            if history_coins is None and reward:
+                history_coins = {uid: reward for uid in winners}
+            self.record_game_history(
+                game_type,
+                code,
+                players,
+                winners,
+                history_coins,
+            )
             return True
 
     def record_mafia_game(

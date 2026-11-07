@@ -46,7 +46,20 @@ def display_name(account: UserAccount) -> str:
     return f"ID {account.user_id}"
 
 
-def profile_text(account: UserAccount) -> str:
+def equipped_title(user_id: int) -> str:
+    """Do'kondan taqilgan unvon matnini qaytaradi (bo'lmasa — bo'sh)."""
+    try:
+        from core.shop import CATALOG_BY_SLUG, get_shop_store
+
+        slug = str(get_shop_store().equipped(int(user_id)).get("title") or "")
+        item = CATALOG_BY_SLUG.get(slug)
+        return str(item.payload) if item is not None else ""
+    except Exception:
+        logger.exception("Unvonni öqib bölmadi: %s", user_id)
+        return ""
+
+
+def profile_text(account: UserAccount, title: str = "") -> str:
     """Chiroyli profil kartochkasi (barcha maydonlar xavfsiz)."""
     name = escape(display_name(account))
     username = f"@{escape(account.username)}" if account.username else "—"
@@ -55,18 +68,25 @@ def profile_text(account: UserAccount) -> str:
     wins = safe_int(account.wins)
     bunker_wins = safe_int(account.bunker_wins)
     mafia_wins = safe_int(account.mafia_wins)
+    spy_wins = safe_int(account.spy_wins)
+    alias_wins = safe_int(account.alias_wins)
+    bomb_wins = safe_int(account.bomb_wins)
+    total_wins = bunker_wins + mafia_wins + spy_wins + alias_wins + bomb_wins
+    title_line = f"\n👑 Unvon: <b>{escape(title)}</b>" if title else ""
     return (
         "╭───────────────────────╮\n"
         "    👤 <b>Mening profilim</b>\n"
         "╰───────────────────────╯\n\n"
-        f"👤 Ism: <b>{name}</b>\n"
+        f"👤 Ism: <b>{name}</b>{title_line}\n"
         f"🔗 Username: {username}\n"
         f"🆔 ID: <code>{account.user_id}</code>\n"
         f"🪙 Tangalar: <b>{format_price(coins)}</b>\n"
         f"🎮 Öynalgan öyinlar: <b>{games}</b> | "
         f"🥇 Ğalabalar: <b>{wins}</b>\n"
-        f"🛡️ Bunker: <b>{bunker_wins}</b> ğalaba | "
-        f"🕵️ Mafiya: <b>{mafia_wins}</b> ğalaba\n"
+        f"🛡️ Bunker: <b>{bunker_wins}</b> | 🕵️ Mafiya: <b>{mafia_wins}</b>\n"
+        f"🕶️ Josus: <b>{spy_wins}</b> | 🐊 Alias: <b>{alias_wins}</b>\n"
+        f"💣 Bomba: <b>{bomb_wins}</b>\n"
+        f"🏅 Umumiy ğalabalar: <b>{total_wins}</b>\n"
         f"🏆 Reyting: <b>{format_price(player_rating(account))}</b>"
     )
 
@@ -94,7 +114,7 @@ async def show_profile(message: Message) -> None:
         await message.answer(f"⚠️ Profil xatosi: {escape(str(exc))}")
         return
 
-    text = profile_text(account)
+    text = profile_text(account, equipped_title(user.id))
     if account.coins == START_COINS and account.games_played == 0:
         text += (
             f"\n\n🎁 Röyxatdan ötganingiz uçun <b>{START_COINS}</b> bepul "

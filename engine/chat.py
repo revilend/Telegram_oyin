@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 MAX_MESSAGE_LENGTH = 300
 HISTORY_LIMIT = 200
 GHOST_LIMIT = 1
+REACTION_EMOJIS = ("🔥", "😂", "💣", "👀", "❤️", "👏", "🤔", "😱")
 
 KIND_USER = "user"
 KIND_SYSTEM = "system"
@@ -180,6 +181,42 @@ class ChatHub:
 
         await self._broadcast(code, entry)
         return entry
+
+    async def react(self, code: str, user_id: int, emoji: str) -> None:
+        """Xonadagi barcha a'zolarga tezkor emoji reaksiya yuboradi."""
+        clean = str(emoji or "").strip()
+        if clean not in REACTION_EMOJIS:
+            raise ChatError("Bu reaksiya mavjud emas")
+        access = self._resolver(code, int(user_id))
+        if access is None:
+            raise ChatError("Xona topilmadi")
+        if not access.is_member:
+            raise ChatError("Siz bu xonada qatnashmayapsiz")
+
+        async with self._lock:
+            clients = list(self._clients.get(code) or [])
+        payload = {
+            "type": "reaction",
+            "user_id": int(user_id),
+            "name": access.name,
+            "emoji": clean,
+            "ts": time.time(),
+        }
+        stale: list[_Client] = []
+        for client in clients:
+            member = self._resolver(code, client.user_id)
+            if member is None or not member.is_member:
+                continue
+            try:
+                await client.websocket.send_json(payload)
+            except Exception:
+                stale.append(client)
+        if stale:
+            async with self._lock:
+                current = self._clients.get(code) or []
+                self._clients[code] = [
+                    client for client in current if client not in stale
+                ]
 
     async def system(self, code: str, text: str) -> None:
         """Tizim xabarini hammaga tarqatadi (tarixga ham yoziladi)."""
