@@ -1302,11 +1302,13 @@
     .wheel-sheet { text-align: center; }
     .wheel-wrap {
       position: relative;
-      width: min(74vw, 280px);
+      width: 280px;
+      max-width: 100%;
       aspect-ratio: 1 / 1;
-      margin: 6px auto 14px;
+      margin: 16px auto 16px;
       touch-action: none;
     }
+    .wheel svg { display: block; width: 100%; height: 100%; border-radius: 50%; }
     .wheel {
       width: 100%;
       height: 100%;
@@ -1341,17 +1343,35 @@
     }
     .wheel-pointer {
       position: absolute;
-      top: -10px;
+      top: -24px;
       left: 50%;
       transform: translateX(-50%);
-      width: 0;
-      height: 0;
-      border-left: 12px solid transparent;
-      border-right: 12px solid transparent;
-      border-top: 18px solid #a78bfa;
-      filter: drop-shadow(0 4px 8px rgba(139, 92, 246, 0.7));
-      z-index: 3;
+      font-size: 30px;
+      line-height: 1;
+      z-index: 5;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.75));
+      pointer-events: none;
     }
+    .wheel-hub {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 48px;
+      height: 48px;
+      padding: 0;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      background: radial-gradient(circle at 35% 30%, #fff3b0, #fbbf24 55%, #b45309);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 6;
+    }
+    .wheel-hub:disabled { opacity: 0.7; cursor: default; }
     .wheel-label {
       position: absolute;
       left: 50%;
@@ -2963,7 +2983,10 @@
       background:
         radial-gradient(circle at 50% 0%, #2a1152 0%, #140a26 42%, #0b0614 100%) !important;
       isolation: isolate;
+      padding: 18px 2px 20px !important;
+      scrollbar-width: none;
 }
+    .wheel-sheet::-webkit-scrollbar { width: 0; height: 0; }
     .wheel-sheet .wheel-wrap { z-index: 1; }
     .wheel-sheet .wheel {
       background-color: #0b0614;
@@ -4321,20 +4344,72 @@ function profileCardHtml() {
         return body;
 }
 
+      var WHEEL_COLORS = [
+        "#7c3aed", "#06b6d4", "#f59e0b", "#8b5cf6",
+        "#10b981", "#2563eb", "#ef4444", "#1e3a8a"
+      ];
+      var WHEEL_SHORT_LABELS = {
+        coins_10: "🪙 10",
+        coins_20: "🪙 20",
+        coins_50: "🪙 50",
+        coins_100: "🪙 100",
+        coins_500: "🪙 500",
+        booster_shield: "🛡️",
+        booster_kevlar: "🦺",
+        booster_double_vote: "📢 2x",
+        booster_spy_radar: "🛰️",
+        mystery: "🎁",
+        frame_gold: "🥇",
+        frame_neon: "💠",
+        title_boss: "👑"
+      };
+      function wheelPoint(cx, cy, radius, deg) {
+        var rad = (deg - 90) * Math.PI / 180;
+        return [cx + radius * Math.cos(rad), cy + radius * Math.sin(rad)];
+      }
+      function wheelNum(value) { return Math.round(value * 100) / 100; }
+
+      // 8 sektor: har biri 45°, ustma-ust tushmaydi. Faqat qisqa yozuv.
+      function buildWheelSvg(segments, uprightAngle) {
+        var upright = Number(uprightAngle) || 0;
+        var items = segments && segments.length ? segments : [];
+        var count = items.length || 8;
+        var step = 360 / count;
+        var cx = 140, cy = 140, radius = 132, labelRadius = 76;
+        var parts = [];
+        for (var i = 0; i < count; i++) {
+          var start = i * step;
+          var end = start + step;
+          var p1 = wheelPoint(cx, cy, radius, start);
+          var p2 = wheelPoint(cx, cy, radius, end);
+          parts.push('<path d="M' + cx + ' ' + cy +
+            ' L' + wheelNum(p1[0]) + ' ' + wheelNum(p1[1]) +
+            ' A' + radius + ' ' + radius + ' 0 0 1 ' + wheelNum(p2[0]) + ' ' + wheelNum(p2[1]) +
+            ' Z" fill="' + WHEEL_COLORS[i % WHEEL_COLORS.length] + '"' +
+            ' stroke="rgba(255,255,255,0.2)" stroke-width="2"/>');
+        }
+        for (var j = 0; j < count; j++) {
+          var segment = items[j] || {};
+          var label = WHEEL_SHORT_LABELS[segment.key] || segment.emoji || "";
+          var mid = j * step + step / 2;
+          parts.push('<g transform="translate(' + cx + ' ' + cy + ') rotate(' + wheelNum(mid) +
+            ') translate(0 -' + labelRadius + ') rotate(' + wheelNum(-mid - upright) + ')">' +
+            '<rect x="-28" y="-11" width="56" height="22" rx="11" fill="rgba(0,0,0,0.32)"/>' +
+            '<text x="0" y="1" text-anchor="middle" dominant-baseline="middle" font-size="12"' +
+            ' font-weight="700" fill="#ffffff">' + label + '</text></g>');
+        }
+        parts.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + radius +
+          '" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="3"/>');
+        return '<svg class="wheel-svg" viewBox="0 0 280 280" width="280" height="280" role="img" aria-label="Omad gildiragi">' +
+          parts.join("") + '</svg>';
+      }
+
       function wheelModalHtml() {
         if (!view.wheelOpen) return "";
         var wheel = (view.items && view.items.wheel) || { cost: 20, segments: [] };
         var segments = wheel.segments || [];
         var spin = (view.items && view.items.spin) || view.spin || { free: true, tickets: 0 };
-        var colors = ["#7c3aed", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#f472b6", "#0ea5e9", "#eab308", "#14b8a6", "#6366f1"];
-        var step = segments.length ? 360 / segments.length : 30;
-        var stops = segments.map(function (segment, index) {
-          return colors[index % colors.length] + " " + (index * step) + "deg " + ((index + 1) * step) + "deg";
-        }).join(", ");
-        var labels = segments.map(function (segment, index) {
-          var angle = index * step + step / 2;
-          return '<span class="wheel-label" style="transform: rotate(' + angle + 'deg) translateY(-104px) rotate(-' + angle + 'deg)">' + lucideIcon(wheelIcon(segment)) + '</span>';
-        }).join("");
+        var wheelSvg = buildWheelSvg(segments, view.wheelAngle || 0);
         var label = spin.free ? "Bepul aylantiriş" : (Number(spin.tickets) > 0 ? "Çipta bilan" : esc(wheel.cost) + ' tanga');
         var result = "";
         if (view.wheelResult) {
@@ -4349,8 +4424,9 @@ function profileCardHtml() {
             '<p class="shop-lede">Kuniga bir marta bepul, keyin 20 tanga yoki çipta.</p></div>' +
             '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
           '<div class="wheel-wrap">' +
-            '<div class="wheel-pointer"></div>' +
-            '<div class="wheel' + (view.wheelBusy ? " spinning" : (view.wheelAngle ? " spun" : "")) + '" style="--wheel-final:' + (view.wheelAngle || 0) + 'deg; background: conic-gradient(' + stops + ')">' + labels + '</div>' +
+            '<div class="wheel-pointer" aria-hidden="true">🔻</div>' +
+            '<div class="wheel' + (view.wheelBusy ? " spinning" : (view.wheelAngle ? " spun" : "")) + '" style="--wheel-final:' + (view.wheelAngle || 0) + 'deg">' + wheelSvg + '</div>' +
+            '<button type="button" class="wheel-hub" data-act="wheel-spin" aria-label="Aylantirish"' + (view.wheelBusy ? ' disabled' : '') + '>🎯</button>' +
           '</div>' + result +
           '<button class="btn primary block" data-act="wheel-spin"' + (view.wheelBusy ? " disabled" : "") + '>' + lucideIcon("sparkles") + ' ' + label + '</button>' +
           '</section></div>';
@@ -4456,12 +4532,9 @@ function profileCardHtml() {
         view.wheelResult = null;
         renderHub();
         var wheelEl = getWheelElement();
+        var wheelSegments = (view.items && view.items.wheel && view.items.wheel.segments) || [];
+        var finalAngle = 5 * 360;
         if (wheelEl) {
-          var segments = (view.items && view.items.wheel && view.items.wheel.segments) || [];
-          var segmentCount = Math.max(8, segments.length || 8);
-          var fullSpins = 5 + Math.floor(Math.random() * 4);
-          var randomOffset = Math.floor(Math.random() * 360);
-          var finalAngle = fullSpins * 360 + randomOffset;
           wheelEl.style.setProperty("--wheel-final", finalAngle + "deg");
           wheelEl.classList.remove("spinning");
           void wheelEl.offsetWidth;
@@ -4474,6 +4547,20 @@ function profileCardHtml() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ user_id: profile.id })
           });
+          // Natija qaysi sektorda bo'lsa, g'ildirak aynan o'sha sektorda to'xtaydi.
+          var landedIndex = -1;
+          if (data && data.segment && wheelSegments.length) {
+            for (var wi = 0; wi < wheelSegments.length; wi++) {
+              if (wheelSegments[wi].key === data.segment.key) { landedIndex = wi; break; }
+            }
+          }
+          if (landedIndex >= 0) {
+            var segStep = 360 / wheelSegments.length;
+            var segMid = landedIndex * segStep + segStep / 2;
+            finalAngle = (6 + Math.floor(Math.random() * 2)) * 360 - segMid;
+            var liveWheel = getWheelElement();
+            if (liveWheel) liveWheel.style.setProperty("--wheel-final", finalAngle + "deg");
+          }
           var spinWait = 3000 - (Date.now() - spinStartedAt);
           if (spinWait > 0) {
             await new Promise(function (resolve) { setTimeout(resolve, spinWait); });

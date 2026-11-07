@@ -327,20 +327,26 @@ class WheelSegment:
         }
 
 
+# G'ildirakda aynan 8 ta sektor: har biri 45°, mini app ham shu tartibda chizadi.
 WHEEL_SEGMENTS: tuple[WheelSegment, ...] = (
-    WheelSegment("coins_10", "10 tanga", 26, coins=10, emoji="🪙"),
-    WheelSegment("coins_50", "50 tanga", 20, coins=50, emoji="🪙"),
-    WheelSegment("coins_100", "100 tanga", 10, coins=100, emoji="💰"),
-    WheelSegment("coins_500", "500 tanga", 2, coins=500, emoji="💎"),
-    WheelSegment("booster_shield", "Bunker Qalqoni", 8, item_slug="booster_shield", emoji="🛡"),
-    WheelSegment("booster_kevlar", "Kevlar jilet", 8, item_slug="booster_kevlar", emoji="🦺"),
-    WheelSegment("booster_spy_radar", "Josus radari", 8, item_slug="booster_spy_radar", emoji="🛰"),
+    WheelSegment("coins_20", "20 tanga", 22, coins=20, emoji="🪙"),
+    WheelSegment("booster_shield", "Qalqon", 8, item_slug="booster_shield", emoji="🛡"),
+    WheelSegment("coins_50", "50 tanga", 14, coins=50, emoji="🪙"),
+    WheelSegment("booster_kevlar", "Jilet", 8, item_slug="booster_kevlar", emoji="🦺"),
+    WheelSegment("coins_100", "100 tanga", 7, coins=100, emoji="💰"),
     WheelSegment(
-        "booster_double_vote", "2 karra ovoz", 8, item_slug="booster_double_vote", emoji="✖️"
+        "booster_double_vote", "2 karra ovoz", 8, item_slug="booster_double_vote", emoji="📢"
     ),
-    WheelSegment("frame_gold", "Oltin ramka", 5, item_slug="frame_gold", emoji="🥇"),
-    WheelSegment("frame_neon", "Neon ramka", 3, item_slug="frame_neon", emoji="💠"),
-    WheelSegment("title_boss", "Bunker Boshliği", 2, item_slug="title_boss", emoji="🛡"),
+    WheelSegment("mystery", "Sirli sovg'a", 5, emoji="🎁"),
+    WheelSegment("coins_10", "10 tanga", 28, coins=10, emoji="🪙"),
+)
+
+# "Sirli sovg'a" sektori tasodifiy noyob buyumni beradi.
+MYSTERY_SLUGS: tuple[str, ...] = (
+    "booster_spy_radar",
+    "frame_gold",
+    "frame_neon",
+    "title_boss",
 )
 
 
@@ -817,6 +823,15 @@ class ShopStore:
                 expense = SPIN_COST
 
         segment = pick_segment(rng)
+        if segment.key == "mystery":
+            generator = rng or random
+            segment = WheelSegment(
+                key=segment.key,
+                label=segment.label,
+                weight=segment.weight,
+                item_slug=generator.choice(MYSTERY_SLUGS),
+                emoji=segment.emoji,
+            )
         entry: InventoryEntry | None = None
         if segment.coins:
             account = self.economy.add_coins(uid, segment.coins)
