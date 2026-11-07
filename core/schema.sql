@@ -68,6 +68,8 @@ create table if not exists public.users (
     spy_wins         integer not null default 0,
     alias_wins       integer not null default 0,
     bomb_wins        integer not null default 0,
+    equipped_frame   text not null default '',
+    equipped_title   text not null default '',
     referral_count   integer not null default 0,
     role             text not null default 'user',
     created_at       timestamptz not null default now(),
@@ -90,6 +92,11 @@ alter table public.users
     add column if not exists alias_wins integer not null default 0;
 alter table public.users
     add column if not exists bomb_wins integer not null default 0;
+-- Taqilgan kosmetika nusxasi: tez o'qish va eski mijozlar bilan moslik uchun.
+alter table public.users
+    add column if not exists equipped_frame text not null default '';
+alter table public.users
+    add column if not exists equipped_title text not null default '';
 
 -- Referal tizimi: kim kimni taklif qilgani (har bir taklif bir marta).
 create table if not exists public.referrals (

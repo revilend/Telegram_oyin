@@ -896,12 +896,35 @@ class ShopStore:
                 is_equipped=bool(equip),
             ),
         )
+        equipped = self.equipped(uid)
+        self._sync_equipped_columns(uid, equipped)
         return {
             "ok": True,
             "item": item.as_dict(),
             "is_equipped": bool(equip),
-            "equipped": self.equipped(uid),
+            "equipped": equipped,
         }
+
+    def _sync_equipped_columns(
+        self, user_id: int, equipped: dict[str, str]
+    ) -> None:
+        """Ramka/unvon nusxasini ``users`` jadvaliga ham yozadi."""
+        if not self.enabled:
+            return
+        try:
+            safe_update(
+                self.client,
+                USERS_TABLE,
+                {
+                    "equipped_frame": equipped.get("frame", ""),
+                    "equipped_title": equipped.get("title", ""),
+                },
+                {USERS_ID_COLUMN: int(user_id)},
+            )
+        except Exception:
+            logger.exception(
+                "Taqilgan kosmetikani saqlab bo'lmadi: %s", user_id
+            )
 
     def transactions(self) -> list[dict[str, Any]]:
         """Xotiradagi xarid tarixi (testlar va diagnostika uchun)."""

@@ -44,8 +44,8 @@
       --panel: rgba(255, 255, 255, 0.045);
       --panel-strong: rgba(255, 255, 255, 0.075);
       --border: rgba(255, 255, 255, 0.09);
-      --text: #f2f4fb;
-      --muted: #98a1bb;
+      --text: #f1f5f9;
+      --muted: #cbd5e1;
       --accent: #8b5cf6;
       --accent-2: #22d3ee;
       --on-accent: #0a0f1f;
@@ -386,9 +386,9 @@
     .mission.ready { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.08); }
     .mission .m-emoji { font-size: 20px; width: 28px; text-align: center; }
     .mission .m-body { flex: 1; min-width: 0; }
-    .m-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; }
+    .m-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; color: #f8fafc; }
     .m-title .m-reward { font-size: 11px; color: var(--warning); white-space: nowrap; }
-    .m-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .m-desc { font-size: 11px; color: #cbd5e1; margin-top: 2px; }
     .m-bar { margin-top: 6px; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
     .m-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
     .m-progress { font-size: 11px; color: var(--muted); white-space: nowrap; }
@@ -1050,9 +1050,9 @@
       background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(139, 92, 246, 0.12));
       border: 1px solid rgba(251, 191, 36, 0.28);
 }
-    .wallet-balance { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); }
+    .wallet-balance { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: #e2e8f0; }
     .wallet-balance span { font-size: 20px; }
-    .wallet-balance b { font-size: 22px; color: var(--text); }
+    .wallet-balance b, .wallet-amount { font-size: 18px; font-weight: 800; color: #fcd34d; line-height: 1.2; }
     .coin-btn {
       border: 0; border-radius: 999px; padding: 8px 13px; font-size: 12px; font-weight: 700;
       color: #1f1300; background: linear-gradient(135deg, #fbbf24, #f59e0b); cursor: pointer;
@@ -2051,12 +2051,26 @@
     .inv-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: linear-gradient(140deg, rgba(139,92,246,.16), rgba(15,23,42,.02)); }
     .inv-item.equipped { border-color: rgba(255,215,0,.45); box-shadow: 0 0 18px rgba(255,215,0,.16); }
     .inv-emoji { font-size: 18px; line-height: 1; }
-    .inv-name { flex: 1; font-size: 12.5px; font-weight: 600; }
-    .inv-qty { font-size: 12px; font-weight: 800; color: var(--neon); }
+    .inv-name { flex: 1; font-size: 12.5px; font-weight: 600; color: #f8fafc; }
+    .inv-qty { font-size: 12px; font-weight: 800; color: #fcd34d; }
     .inv-empty { padding: 6px 0 2px; }
-    .inv-empty p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+    .inv-empty p { margin: 0 0 10px; color: #cbd5e1; font-size: 13px; }
     .top-row .t-title { display: block; font-size: 10.5px; font-weight: 700; color: var(--gold); letter-spacing: .3px; }
     .top-row .avatar-frame { padding: 2px; }
+
+    /* O'yin xonasida o'yinchining busterlari */
+    .room-boosters {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+      margin: 0 0 12px; padding: 8px 10px; border-radius: 12px;
+      background: rgba(34, 211, 238, 0.07); border: 1px solid rgba(34, 211, 238, 0.2);
+}
+    .room-boosters .rb-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase; color: #cbd5e1; margin-right: 2px; }
+    .room-boosters .rb-pill {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 4px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+      color: #f1f5f9; background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 255, 255, 0.12);
+}
+    .room-boosters .rb-pill b { color: #fcd34d; }
 
     /* Ovoz tugmasi */
     .sound-toggle {
@@ -3886,6 +3900,8 @@
       function storeProfileCache(account) {
         if (!account) return;
         try {
+          var cached = readProfileCache() || {};
+          if (Number(cached.user_id) !== Number(account.user_id)) cached = {};
           window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
             user_id: Number(account.user_id) || 0,
             full_name: String(account.full_name || ""),
@@ -3894,10 +3910,31 @@
             games_played: Number(account.games_played) || 0,
             wins: Number(account.wins) || 0,
             bunker_wins: Number(account.bunker_wins) || 0,
-            mafia_wins: Number(account.mafia_wins) || 0
+            mafia_wins: Number(account.mafia_wins) || 0,
+            spy_wins: Number(account.spy_wins) || 0,
+            alias_wins: Number(account.alias_wins) || 0,
+            bomb_wins: Number(account.bomb_wins) || 0,
+            inventory: Array.isArray(cached.inventory) ? cached.inventory : [],
+            frame: String(cached.frame || ""),
+            title: String(cached.title || "")
           }));
         } catch (error) {
           /* Kesh yozilmasa ham profil ishlaydi. */
+}
+
+      }
+      function storeInventoryCache() {
+        if (typeof profile === "undefined" || !profile || !profile.id) return;
+        try {
+          var cached = readProfileCache() || {};
+          if (Number(cached.user_id) !== Number(profile.id)) cached = {};
+          cached.user_id = Number(profile.id) || 0;
+          cached.inventory = Array.isArray(profile.inventory) ? profile.inventory : (cached.inventory || []);
+          cached.frame = String(profile.frame || "");
+          cached.title = String(profile.title || "");
+          window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(cached));
+        } catch (error) {
+          /* localStorage yopiq bo'lsa ham serverdagi inventar ishlaydi. */
 }
 
       }
@@ -4087,7 +4124,9 @@ function profileCardHtml() {
       }
       function inventoryMap() {
         var map = {};
-        var source = (view.items && view.items.inventory) || profile.inventory || [];
+        var source = (profile && profile.inventory && profile.inventory.length)
+          ? profile.inventory
+          : ((view.items && view.items.inventory) || []);
         source.forEach(function (entry) {
           map[entry.slug] = entry;
         });
@@ -4130,14 +4169,16 @@ function profileCardHtml() {
           var entry = owned[slug] || {};
           var qty = Number(entry.quantity) || 0;
           if (qty <= 0) return;
-          var item = catalog[slug] || ITEM_LABELS[slug] || { title: slug, emoji: "🎁" };
+          var item = ITEM_LABELS[slug] || catalog[slug] || {};
+          var kind = entry.kind || item.kind || "";
           rows.push({
             slug: slug,
             qty: qty,
-            title: item.title || slug,
-            emoji: item.emoji || "🎁",
+            title: entry.title || item.title || slug,
+            emoji: entry.emoji || item.emoji || "🎁",
             equipped: !!entry.is_equipped,
-            equippable: !!item.equippable
+            equippable: !!(item.equippable || kind === "frame" || kind === "title" ||
+              /^(frame_|title_|clan_)/.test(slug))
           });
         });
         rows.sort(function (a, b) {
@@ -4159,12 +4200,12 @@ function profileCardHtml() {
             return '<div class="inv-item' + (item.equipped ? " equipped" : "") + '">' +
               '<span class="inv-emoji">' + esc(item.emoji) + '</span>' +
               '<span class="inv-name">' + esc(item.title) + '</span>' +
-              '<span class="inv-qty">x' + esc(item.qty) + '</span>' +
+              '<span class="inv-qty">×' + esc(item.qty) + '</span>' +
               (item.equippable
                 ? '<button class="btn small' + (item.equipped ? " sel" : "") +
                   '" data-act="equip-toggle" data-slug="' + esc(item.slug) +
                   '" data-equip="' + (item.equipped ? "0" : "1") + '">' +
-                  (item.equipped ? "Taqilgan" : "Kiyish") + '</button>'
+                  (item.equipped ? "✓ Taqilgan" : "⚡ Taqish") + '</button>'
                 : '') +
               '</div>';
           }).join("") + '</div>' +
@@ -4174,6 +4215,23 @@ function profileCardHtml() {
           '<div class="section-title"><h2>🎒 Mening Inventarim</h2><span>' +
             (items.length ? items.length + ' ta buyum' : 'boş') + '</span></div>' +
           body + '</section>';
+}
+
+      function roomBoostersHtml() {
+        var source = (profile && profile.inventory) || [];
+        var items = source.filter(function (entry) {
+          if (!entry || Number(entry.quantity) <= 0) return false;
+          return entry.kind === "booster" || /^booster_/.test(String(entry.slug || ""));
+        });
+        if (!items.length) return "";
+        return '<div class="room-boosters" aria-label="Sizning busterlaringiz">' +
+          '<span class="rb-label">🎒 Busterlar</span>' +
+          items.map(function (entry) {
+            var title = entry.title || entry.slug || "Buster";
+            return '<span class="rb-pill" title="' + esc(title) + '">' +
+              esc(entry.emoji || "🎒") + ' ' + esc(title) + ': <b>x' +
+              esc(Number(entry.quantity) || 0) + '</b></span>';
+          }).join("") + '</div>';
 }
 
       function packagesBody() {
@@ -4487,6 +4545,7 @@ function profileCardHtml() {
             profile.frame = (data.equipped && data.equipped.frame) || profile.frame;
             profile.title = (data.equipped && data.equipped.title) || profile.title;
             if (view.items) view.items.inventory = data.inventory || view.items.inventory;
+            storeInventoryCache();
             var bought = (data.loot && data.loot.length) ? data.loot[0].title : data.item.title;
             toast("✅ " + bought + " olindi!", "success");
             haptic("success");
@@ -4513,6 +4572,8 @@ function profileCardHtml() {
             profile.title = (data.equipped && data.equipped.title) || "";
             profile.inventory = data.inventory || profile.inventory;
             if (view.items) view.items.inventory = data.inventory || view.items.inventory;
+            storeInventoryCache();
+            if (view.activity) await loadActivity(true);
             toast(equip ? "Taqildi" : "Yeçildi", "success");
 }
         } catch (error) {
@@ -4605,6 +4666,12 @@ function profileCardHtml() {
       function applyAccountPayload(data) {
         if (!data || !data.user) return false;
         updateProfileFromAccount(data.user);
+        if (data.inventory) profile.inventory = data.inventory;
+        if (data.equipped) {
+          profile.frame = data.equipped.frame || "";
+          profile.title = data.equipped.title || "";
+        }
+        storeInventoryCache();
         view.history = data.history || view.history || [];
         if (view.shopOpen) view.shop = data.shop || view.shop;
         return true;
@@ -5454,6 +5521,12 @@ function profileCardHtml() {
             wins: Number(cached.wins) || 0,
             bunker_wins: Number(cached.bunker_wins) || 0,
             mafia_wins: Number(cached.mafia_wins) || 0,
+            spy_wins: Number(cached.spy_wins) || 0,
+            alias_wins: Number(cached.alias_wins) || 0,
+            bomb_wins: Number(cached.bomb_wins) || 0,
+            inventory: Array.isArray(cached.inventory) ? cached.inventory : [],
+            frame: String(cached.frame || ""),
+            title: String(cached.title || ""),
             level: 1 + Math.floor((Number(cached.games_played) || 0) / 5),
             guest: false,
             authenticated: true,
@@ -5472,6 +5545,12 @@ function profileCardHtml() {
             wins: Number(cached.wins) || 0,
             bunker_wins: Number(cached.bunker_wins) || 0,
             mafia_wins: Number(cached.mafia_wins) || 0,
+            spy_wins: Number(cached.spy_wins) || 0,
+            alias_wins: Number(cached.alias_wins) || 0,
+            bomb_wins: Number(cached.bomb_wins) || 0,
+            inventory: Array.isArray(cached.inventory) ? cached.inventory : [],
+            frame: String(cached.frame || ""),
+            title: String(cached.title || ""),
             level: 1 + Math.floor((Number(cached.games_played) || 0) / 5),
             guest: false,
             authenticated: true,
@@ -5488,6 +5567,12 @@ function profileCardHtml() {
           wins: 0,
           bunker_wins: 0,
           mafia_wins: 0,
+          spy_wins: 0,
+          alias_wins: 0,
+          bomb_wins: 0,
+          inventory: [],
+          frame: "",
+          title: "",
           level: PLAYER_LEVEL,
           guest: true,
           authenticated: false,
@@ -6126,6 +6211,7 @@ function profileCardHtml() {
               '<p class="muted tiny">' + (me.is_alive ? "Siz öyindasiz." : "Siz kuzatuvçisiz.") +
                 (me.phase === "NIGHT" ? " Tungi harakatlar şu oynadan yuboriladi." : "") + '</p>' +
             '</section>' +
+            roomBoostersHtml() +
             shopHtml +
             '<div class="footer">Revilend Games · Mafiya</div>'
         );
@@ -6580,7 +6666,7 @@ function profileCardHtml() {
           tally = '<button class="btn block" data-act="spy-tally"' + (view.spyActionBusy ? " disabled" : "") + '>' + icon("ballot") + ' Ovozlarni yakunlaş</button>';
 }
 
-        paintRoomScreen("spy", top, "spy-shell", hero + lobby +
+        paintRoomScreen("spy", top, "spy-shell", hero + roomBoostersHtml() + lobby +
             (status === "LOBBY" ? "" : spyCardHtml(me, state)) +
             timer + result + booster +
             spyPlayersHtml(me, state) +
@@ -7574,7 +7660,7 @@ function profileCardHtml() {
               '<p>Bombani zararsizlantir, raqiblarga hujum qil va oxirgi tirik qol.</p>' +
               '<div class="bomb-turn"><span>Navbat: <strong>' + esc(current ? current.name : "—") + '</strong></span>' +
                 '<span>' + (me && me.is_alive ? myTurn ? 'Sizning navbatingiz' : 'Kuting…' : 'Kuzatuvçi') + '</span></div>' +
-            '</div>',
+            '</div>' + roomBoostersHtml(),
           players: bombPlayersHtml(state),
           table: '<div class="bomb-table">' +
               '<div class="bomb-pile"><span class="bomb-pile-label">Koloda</span>' +
@@ -7942,6 +8028,7 @@ function profileCardHtml() {
         '</div>';
 
         html += catastropheHtml(room);
+        html += roomBoostersHtml();
 
         if (status === "FINISHED") {
           html += finishedHtml(room);
