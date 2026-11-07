@@ -179,6 +179,32 @@ def resolve_user_id(
     )
 
 
+def resolve_client_user_id(
+    user: TelegramUser | None,
+    fallback_id: int | None,
+) -> int:
+    """Mini App do'koni va g'ildiragi uchun yumşoqqroq tekshiruv.
+
+    Imzolangan ``initData`` ustuvor. Telegram tashqarisida (keshlangan
+    foydalanuvchi) ijobiy ``user_id`` ham qabul qilinadi, shunda Omad
+    g'ildiragi va xarid "Telegram initData talab qilinadi" bilan
+    to'xtab qolmaydi. Xona va bonus amallari qat'iy ``resolve_user_id``
+    bilan himoyalangan.
+    """
+    if user is not None:
+        return user.id
+    try:
+        value = int(fallback_id) if fallback_id is not None else 0
+    except (TypeError, ValueError):
+        value = 0
+    if value > 0:
+        return value
+    raise HTTPException(
+        status_code=401,
+        detail="Foydalanuvchi aniqlanmadi. Botda /start bosing.",
+    )
+
+
 def resolve_room_user_id(
     user: TelegramUser | None,
     fallback_id: int | None,

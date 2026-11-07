@@ -9,23 +9,10 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
     (function () {
-      var boxId = "mini-app-error";
+      // Qizil xato paneli butunlay olib tashlandi: xato faqat konsolga
+      // yoziladi, ekran tuzilishi hech qachon buzilmaydi.
       window.__showMiniAppError = function (message) {
-        try {
-          var text = String(message || "Noma'lum xato").slice(0, 500);
-          var box = document.getElementById(boxId);
-          if (!box) {
-            box = document.createElement("div");
-            box.id = boxId;
-            box.setAttribute("role", "alert");
-            box.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#dc2626;color:#fff;padding:10px 14px;font:12px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:pre-wrap;box-shadow:0 4px 18px rgba(0,0,0,.45)";
-            (document.body || document.documentElement).appendChild(box);
-          }
-          box.textContent = "Mini App xatosi: " + text;
-          box.style.display = "block";
-        } catch (error) {
-          try { console.error("Mini App xatosi:", message); } catch (ignored) {}
-        }
+        try { console.error("Mini App xatosi:", message); } catch (ignored) {}
       };
       window.onerror = function (message, url, line, column, error) {
         try { console.error("Mini App xatosi:", message, url, line, column, error); } catch (ignored) {}
@@ -2056,6 +2043,8 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
     .sound-toggle.off { color: var(--muted); border-color: rgba(255,255,255,0.12); }
+    /* Modal ochiq bo'lsa, qattiq joylashgan ovoz tugmasi ustki qatlamda qolmasin */
+    body:has(.shop-overlay) .sound-toggle { opacity: 0 !important; pointer-events: none !important; }
 
     /* Turnir afishasi va modal */
     .tour-banner {
@@ -2864,7 +2853,255 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.001ms !important;
 }
-  </style>
+
+</style>
+    <style>
+    /* ================================================================
+       MOBIL QAT'IY TARTIB: bitta ustun, gorizontal siljish yo'q
+       ================================================================ */
+    html, body {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+      overscroll-behavior-x: none;
+}
+    #app {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      max-width: 680px !important;
+      min-width: 0 !important;
+      overflow-x: hidden !important;
+      margin: 0 auto;
+}
+    #app > *, .hub-main > *, .room-shell > *, .mafia-shell > *,
+    .spy-shell > *, .bomb-room > * {
+      min-width: 0 !important;
+      max-width: 100% !important;
+}
+    .hub-main, .room-shell, .mafia-shell, .spy-shell, .bomb-room, .bunker-shell {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      overflow-x: hidden !important;
+}
+    .hub-main { gap: 14px; }
+    .shop-overlay { background: rgba(8, 5, 15, 0.9) !important; }
+
+    /* Profil: to'liq en, faqat ustun oqim */
+    .profile-card { width: 100% !important; max-width: 100% !important; }
+    .profile-head {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      padding-right: 88px !important;
+      min-width: 0 !important;
+}
+    .profile-head > div { min-width: 0 !important; }
+    .profile-name-lg { overflow-wrap: anywhere; }
+    .profile-stats { grid-template-columns: 1fr 1fr !important; }
+    .win-grid { grid-template-columns: 1fr 1fr !important; width: 100% !important; }
+    .inv-grid { grid-template-columns: 1fr !important; }
+
+    /* Reyting: faqat vertikal ro'yxat */
+    .hub-board { width: 100% !important; max-width: 100% !important; overflow: hidden !important; }
+    .board-tabs { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px; }
+    .top-list { display: flex !important; flex-direction: column !important; gap: 6px; width: 100% !important; }
+    .top-row {
+      display: grid !important;
+      grid-template-columns: auto auto minmax(0, 1fr) auto !important;
+      align-items: center !important;
+      gap: 8px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+}
+    .top-row .t-name { min-width: 0 !important; overflow: hidden !important; }
+    .top-row .t-rating { white-space: nowrap !important; }
+
+    /* Modal: qalin qorong'i parda — orqadagi tovarlar ko'rinmaydi */
+    .modal-backdrop {
+      position: fixed !important;
+      inset: 0 !important;
+      background: rgba(8, 5, 15, 0.96) !important;
+      z-index: 99999 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 16px !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+}
+    .modal-backdrop .shop-sheet, .shop-sheet {
+      background: #0d0618 !important;
+      border: 1px solid rgba(168, 85, 247, 0.35) !important;
+      width: 100% !important;
+      max-width: 520px !important;
+      max-height: 90vh !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+}
+    .wheel-sheet {
+      background:
+        radial-gradient(circle at 50% 0%, #2a1152 0%, #140a26 42%, #0b0614 100%) !important;
+      isolation: isolate;
+}
+    .wheel-sheet .wheel-wrap { z-index: 1; }
+    .wheel-sheet .wheel {
+      background-color: #0b0614;
+      box-shadow:
+        0 0 0 8px rgba(11, 6, 20, 0.96),
+        0 0 0 13px rgba(139, 92, 246, 0.3),
+        0 18px 50px rgba(0, 0, 0, 0.75);
+}
+    .wheel-sheet .wheel-label { z-index: 4; }
+
+    /* Do'kon: chapda belgi, o'rtada nom, o'ngda aniq narx */
+    .shop-screen, .item-list { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+    .item-card {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 12px 13px !important;
+}
+    .item-card .item-grid {
+      display: grid !important;
+      grid-template-columns: 46px minmax(0, 1fr) auto !important;
+      align-items: center !important;
+      gap: 10px !important;
+      width: 100% !important;
+}
+    .item-card .item-emoji {
+      width: 46px !important;
+      height: 46px !important;
+      flex: 0 0 46px !important;
+}
+    .item-card .item-main { min-width: 0 !important; }
+    .item-card .item-main b { display: block; line-height: 1.25; overflow-wrap: anywhere; }
+    .item-card .item-desc {
+      display: -webkit-box !important;
+      white-space: normal !important;
+      overflow: hidden !important;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+}
+    .item-card .item-side {
+      width: auto !important;
+      min-width: 72px !important;
+      display: flex !important;
+      justify-content: flex-end !important;
+}
+    .item-card .item-side .btn { white-space: nowrap !important; }
+    .shop-chips {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 6px !important;
+      overflow-x: hidden !important;
+      max-width: 100% !important;
+}
+
+    /* Panel va bo'limlar: faqat vertikal oqim (global flex-row'ni bekor qiladi) */
+    .hub-board, .bonus-card, .quest-board, .inventory-card, .history-section {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 8px !important;
+}
+    .hub-board .section-title, .bonus-card .bonus-head { width: 100% !important; }
+    .hub-board .top-list { width: 100% !important; align-items: stretch !important; }
+
+    /* Yuqori panel: brend, ONLINE va ovoz tugmasi ustma-ust tushmasin */
+    .brand {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 8px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: hidden !important;
+}
+    .brand-left { flex: 1 1 auto !important; min-width: 0 !important; overflow: hidden !important; }
+    .brand-left > div:last-child { min-width: 0 !important; }
+    .brand-name { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+    .brand-sub { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+    .brand-right { flex: 0 0 auto !important; display: flex !important; align-items: center !important; gap: 6px !important; }
+    .brand .badge { flex: 0 0 auto !important; padding: 4px 7px !important; font-size: 9px !important; }
+    /* Qattiq joylashgan ovoz tugmasi header nishonini to'smasin */
+    .brand { padding-right: 46px !important; }
+    @media (max-width: 380px) {
+      .brand-name { font-size: 13px !important; }
+      .brand .badge { font-size: 8px !important; padding: 3px 6px !important; }
+    }
+
+    /* Profil kartasi: faqat vertikal oqim */
+    .hub-main .profile-card { min-height: 0 !important; }
+    .profile-card {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 10px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 14px !important;
+}
+    .profile-card .wallet-row {
+      width: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 10px !important;
+      margin-top: 4px !important;
+}
+    .profile-card .win-grid { width: 100% !important; }
+
+    /* O'yin kartasi: banner + matn, tugmalar pastda */
+    .game-card {
+      display: grid !important;
+      grid-template-columns: 84px minmax(0, 1fr) !important;
+      align-items: start !important;
+      gap: 10px 12px !important;
+      padding: 13px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+}
+    .game-card > .game-banner, .game-card > .game-icon {
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+}
+    .game-card > .game-banner { width: 84px !important; height: 96px !important; }
+    .game-card > .game-body {
+      grid-column: 2 !important;
+      grid-row: 1 !important;
+      min-width: 0 !important;
+}
+    .game-card > .game-body:first-child { grid-column: 1 / -1 !important; }
+    .game-card > .game-actions {
+      grid-column: 1 / -1 !important;
+      grid-row: 2 !important;
+      display: flex !important;
+      flex-wrap: wrap !important;
+      align-items: stretch !important;
+      gap: 8px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+}
+    .game-card > .game-actions > .btn,
+    .game-card > .game-actions > .play-btn,
+    .game-card > .game-actions > .match-btn { flex: 1 1 calc(50% - 4px) !important; }
+    .game-card > .game-actions > .match-status { flex: 1 1 100% !important; }
+
+    /* O'yin xonasi: hech qachon ikkiga bo'linmaydi */
+    .room-shell, .mafia-shell, .spy-shell, .bomb-room {
+      min-height: 100vh !important;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+    .mafia-shell .mafia-board, .spy-shell .spy-board, .bomb-room .bomb-board,
+    .room-shell .room-board {
+      width: 100% !important;
+      max-width: 100% !important;
+}
+    </style>
 </head>
 <body>
   <svg class="ui-sprite" aria-hidden="true" focusable="false">
@@ -3863,7 +4100,7 @@ function profileCardHtml() {
             : (reward.item ? esc(reward.item.title) : 'Sovğa');
           result = '<div class="wheel-result">' + icon("sparkles") + ' Siz yutdingiz: <b>' + text + '</b></div>';
 }
-        return '<div class="shop-overlay"><section class="shop-sheet wheel-sheet" role="dialog" aria-modal="true" aria-label="Omad gʻildiragi">' +
+        return '<div class="shop-overlay modal-backdrop"><section class="shop-sheet wheel-sheet modal-sheet" role="dialog" aria-modal="true" aria-label="Omad gʻildiragi">' +
           '<div class="shop-head"><div><h2>' + lucideIcon("sparkles") + ' Omad gʻildiragi</h2>' +
             '<p class="shop-lede">Kuniga bir marta bepul, keyin 20 tanga yoki çipta.</p></div>' +
             '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +

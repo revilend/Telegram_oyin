@@ -33,6 +33,7 @@ from pydantic import BaseModel
 
 from api.auth import (
     TelegramUser,
+    resolve_client_user_id,
     resolve_room_user_id,
     resolve_user_id,
     telegram_user,
@@ -1029,7 +1030,7 @@ async def shop_buy(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Buyumni tangalarga sotib oladi va inventarga qo'shadi."""
-    resolved_id = resolve_user_id(user, payload.user_id)
+    resolved_id = resolve_client_user_id(user, payload.user_id)
     metrics.user(resolved_id)
     result = get_shop_store().buy(resolved_id, payload.item_slug, payload.quantity)
     record_daily_event(get_economy(), resolved_id, "shop")
@@ -1045,7 +1046,7 @@ async def spin_wheel(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Omad ğildiragini aylantiradi (kuniga bir bepul)."""
-    resolved_id = resolve_user_id(user, payload.user_id if payload else None)
+    resolved_id = resolve_client_user_id(user, payload.user_id if payload else None)
     metrics.user(resolved_id)
     store = get_shop_store()
     result = store.spin(resolved_id)
@@ -1062,7 +1063,7 @@ async def equip_item(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Sotib olingan ramka yoki unvonni profilga taqadi yoki yeçadi."""
-    resolved_id = resolve_user_id(user, payload.user_id)
+    resolved_id = resolve_client_user_id(user, payload.user_id)
     result = get_shop_store().equip(resolved_id, payload.item_slug, payload.equip)
     result["inventory"] = [
         entry.as_dict() for entry in get_shop_store().inventory(resolved_id)
