@@ -7,6 +7,38 @@
   <title>Revilend Games</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    (function () {
+      var boxId = "mini-app-error";
+      window.__showMiniAppError = function (message) {
+        try {
+          var text = String(message || "Noma'lum xato").slice(0, 500);
+          var box = document.getElementById(boxId);
+          if (!box) {
+            box = document.createElement("div");
+            box.id = boxId;
+            box.setAttribute("role", "alert");
+            box.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#dc2626;color:#fff;padding:10px 14px;font:12px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:pre-wrap;box-shadow:0 4px 18px rgba(0,0,0,.45)";
+            (document.body || document.documentElement).appendChild(box);
+          }
+          box.textContent = "Mini App xatosi: " + text;
+          box.style.display = "block";
+        } catch (error) {
+          try { console.error("Mini App xatosi:", message); } catch (ignored) {}
+        }
+      };
+      window.onerror = function (message, url, line, column, error) {
+        try { console.error("Mini App xatosi:", message, url, line, column, error); } catch (ignored) {}
+        window.__showMiniAppError(message);
+        return false;
+      };
+      window.addEventListener("unhandledrejection", function (event) {
+        var reason = event && event.reason;
+        try { console.error("Mini App promise xatosi:", reason); } catch (ignored) {}
+        window.__showMiniAppError(reason && reason.message ? reason.message : reason);
+      });
+    })();
+  </script>
   <style>
     :root {
       --bg: #070b16;
@@ -598,11 +630,14 @@
 
     @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
     @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    /* #app'da transform ishlatilmaydi: u fixed bottom-nav uchun containing
+       block yaratib, menyuni ekran pastida emas, sahifa oxirida qo'yadi. */
+    @keyframes appFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     .fade { animation: none; }
     /* Kirish animatsiyasi faqat #app tugunida: u qayta yaratilmaydi,
        shuning uchun poll/WebSocket yangilanishlari uni qayta boshlamaydi. */
-    #app { animation: fadein 0.25s ease both; }
+    #app { animation: appFadeIn 0.25s ease both; }
 
     /* Hub: bir martalik silliq fade-in va yuklash paytida zaxira balandlik */
     .hub-main .fade { animation: none; }
@@ -3011,9 +3046,10 @@
           try { window.lucide.createIcons(); } catch (error) { /* CDN yo'q bo'lsa jim o'tadi */ }
 }
 
+      }
       function plain(value) {
         return String(value == null ? "" : value)
-          .replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu, "")
+          .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0F]/g, "")
           .replace(/\s+/g, " ")
           .trim();
 }
@@ -3246,6 +3282,7 @@
           haptic("light");
 }
 
+      }
       function ensureTimer(room) {
         if (!room || (room.status !== "PLAYING" && room.status !== "VOTING")) {
           stopTimer();
@@ -3330,6 +3367,7 @@
           return null;
 }
 
+      }
       function storeTgUser(source) {
         var user = pickTgUser(source);
         if (!user) return null;
@@ -3349,6 +3387,7 @@
           return null;
 }
 
+      }
       function storeProfileCache(account) {
         if (!account) return;
         try {
@@ -3366,6 +3405,7 @@
           /* Kesh yozilmasa ham profil ishlaydi. */
 }
 
+      }
       function urlParamUser() {
         try {
           var params = new URLSearchParams(window.location.search);
@@ -3382,6 +3422,7 @@
           return null;
 }
 
+      }
       function getTgUser() {
         try {
           var webApp = window.Telegram && window.Telegram.WebApp;
@@ -3400,7 +3441,8 @@
                 try { window.localStorage.setItem(TG_USER_ID_KEY, String(parsed.id)); } catch (e) {}
                 return storeTgUser(parsed);
               }
-}
+            }
+          }
 
         } catch (error) {
           console.warn("Telegram foydalanuvçi ma'lumotini öqib bölmadi", error);
@@ -3485,6 +3527,7 @@ function profileCardHtml() {
           window.open(url, "_blank", "noopener");
 }
 
+      }
       function inventoryMap() {
         var map = {};
         var source = (view.items && view.items.inventory) || profile.inventory || [];
@@ -3689,6 +3732,7 @@ function profileCardHtml() {
           renderHub();
 }
 
+      }
       async function buyItem(slug) {
         if (!slug || view.itemBusy) return;
         view.itemBusy = true;
@@ -4085,6 +4129,7 @@ function profileCardHtml() {
           nodes[i].innerHTML = matchStatusHtml(slug);
 }
 
+      }
       function syncMatchPolling() {
         var queued = false;
         var slugs = ["bunker", "mafia", "spyfall", "alias", "bomb"];
@@ -4098,6 +4143,7 @@ function profileCardHtml() {
           view.matchTimer = null;
 }
 
+      }
       async function loadMatchmaking() {
         if (!profile || !profile.authenticated) return;
         try {
@@ -4115,6 +4161,7 @@ function profileCardHtml() {
           /* Tarmoq xatosida oxirgi ma'lumot qoladi. */
 }
 
+      }
       async function startMatchmaking(slug) {
         if (view.matchBusy) return;
         view.matchBusy = true;
@@ -4143,6 +4190,7 @@ function profileCardHtml() {
           view.matchBusy = false;
 }
 
+      }
       async function stopMatchmaking(slug) {
         try {
           await request("/api/matchmaking/leave", {
@@ -4205,6 +4253,7 @@ function profileCardHtml() {
 
       // Hub ma'lumotlarini bitta parallel paketda yuklaydi. Render faqat
       // barcha javoblar qaytgach, bir marta bajariladi.
+      }
       async function loadHubData() {
         if (view.hubLoading || !profile || !profile.id) return false;
         view.hubLoading = true;
@@ -4249,6 +4298,7 @@ function profileCardHtml() {
           view.actionBusy = false;
 }
 
+      }
       async function claimMission(key) {
         if (view.actionBusy || !key) return;
         view.actionBusy = true;
@@ -4268,6 +4318,7 @@ function profileCardHtml() {
           view.actionBusy = false;
 }
 
+      }
       async function claimQuest(key) {
         if (view.actionBusy || !key) return;
         view.actionBusy = true;
@@ -4292,6 +4343,7 @@ function profileCardHtml() {
           view.actionBusy = false;
 }
 
+      }
       async function rerollQuests() {
         if (view.actionBusy) return;
         view.actionBusy = true;
@@ -4315,6 +4367,7 @@ function profileCardHtml() {
           view.actionBusy = false;
 }
 
+      }
       async function claimChest() {
         if (view.actionBusy) return;
         view.actionBusy = true;
@@ -4339,6 +4392,7 @@ function profileCardHtml() {
           view.actionBusy = false;
 }
 
+      }
       async function redeemPromo() {
         if (view.actionBusy) return;
         var input = document.getElementById("promo-code");
@@ -4365,6 +4419,7 @@ function profileCardHtml() {
           view.actionBusy = false;
 }
 
+      }
       function openShopPayment() {
         var shop = view.shop || DEFAULT_SHOP;
         var coins = Number(view.shopPackage);
@@ -4464,6 +4519,7 @@ function profileCardHtml() {
           openChat();
 }
 
+      }
       function openChat() {
         var sheet = document.getElementById("chat-sheet");
         if (!sheet) return;
@@ -4556,6 +4612,7 @@ function profileCardHtml() {
           ws.send(JSON.stringify({ type: "chat", text: chatState.outbox.shift() }));
 }
 
+      }
       function onChatMessage(message) {
         if (message.kind === "system" && /arvohsiz/i.test(message.text)) {
           chatState.locked = true;
@@ -4726,6 +4783,7 @@ function profileCardHtml() {
           /* localStorage yopiq bo'lsa ham davom etamiz. */
 }
 
+      }
       function stripIdentityParams() {
         try {
           var url = new URL(window.location.href);
@@ -4739,6 +4797,7 @@ function profileCardHtml() {
           /* Tarixni yangilash imkoni bo'lmasa ham davom etamiz. */
 }
 
+      }
       async function submitLogin(value) {
         var raw = String(value || "").replace(/\D/g, "");
         if (raw.length < 5 || raw.length > 12) {
@@ -4783,6 +4842,8 @@ function profileCardHtml() {
             again.innerHTML = icon("lock") + " Kiriş";
 }
 
+      }
+      }
       function openTelegramLogin() {
         haptic("medium");
         if (tg && tg.openTelegramLink) {
@@ -4791,6 +4852,7 @@ function profileCardHtml() {
           window.open(BOT_LOGIN_URL, "_blank", "noopener");
 }
 
+      }
       function clearStoredAccount() {
         try {
           window.localStorage.removeItem(TG_USER_STORAGE_KEY);
@@ -4800,6 +4862,7 @@ function profileCardHtml() {
           /* localStorage yopiq bo'lsa ham sahifa yangilanadi. */
 }
 
+      }
       function logout() {
         clearStoredAccount();
         haptic("medium");
@@ -4813,6 +4876,7 @@ function profileCardHtml() {
           window.location.reload();
 }
 
+      }
       async function request(path, options) {
         var requestOptions = Object.assign({}, options || {});
         var headers = Object.assign({}, (options && options.headers) || {});
@@ -4945,6 +5009,8 @@ function profileCardHtml() {
             renderMafia();
 }
 
+      }
+      }
       function stopMafiaClock() {
         if (mafiaClock.interval) clearInterval(mafiaClock.interval);
         mafiaClock.interval = null;
@@ -4969,6 +5035,7 @@ function profileCardHtml() {
           sfx("timer_tick");
 }
 
+      }
       function syncMafiaClock(me) {
         stopMafiaClock();
         if (!me || !me.phase_deadline) return;
@@ -5038,6 +5105,8 @@ function profileCardHtml() {
 }
 
 
+      }
+      }
       function mafiaNightPanelHtml(me) {
         var state = view.mafiaState || {};
         if (me.phase !== "NIGHT" || !me.is_alive) return "";
@@ -5153,6 +5222,8 @@ function profileCardHtml() {
       // Konteyner ichidagi faqat o'zgargan yuqori darajali bloklarni
       // almashtiradi. innerHTML faqat birinchi qurish yoki tuzilma
       // o'zgarganda ishlatiladi; oddiy yangilanishda DOM tegilmaydi.
+      }
+      }
       function patchElementChildren(container, html) {
         var template = document.createElement("template");
         template.innerHTML = html;
@@ -5173,6 +5244,7 @@ function profileCardHtml() {
 
       // Xona ekranini bo'laklab yangilaydi: faqat o'zgargan yuqori darajali
       // bloklar almashtiriladi, qolgan DOM tugunlari va scroll saqlanadi.
+      }
       function paintRoomScreen(key, top, mainClass, mainHtml) {
         var shell = app.querySelector('[data-room-screen="' + key + '"]');
         if (!shell || shell.__top !== top) {
@@ -5195,6 +5267,8 @@ function profileCardHtml() {
             current[i].replaceWith(next[i]);
 }
 
+      }
+      }
       function renderMafia() {
         var top = '<div class="topbar">' +
           '<button class="icon-btn" data-act="exit-room" aria-label="Orqaga">' + icon("arrow-left") + '</button>' +
@@ -5382,6 +5456,7 @@ function profileCardHtml() {
           sfx("timer_tick");
 }
 
+      }
       function syncSpyClock(state) {
         stopSpyClock();
         if (!state || !state.deadline || state.status === "FINISHED") return;
@@ -5458,6 +5533,8 @@ function profileCardHtml() {
           renderSpy();
 }
 
+      }
+      }
       async function createSpyRoom() {
         if (view.actionBusy) return;
         view.actionBusy = true;
@@ -5475,6 +5552,7 @@ function profileCardHtml() {
           view.actionBusy = false;
 }
 
+      }
       async function spyPost(path, payload, successMessage) {
         if (view.spyActionBusy) return null;
         var code = view.code;
@@ -5510,6 +5588,8 @@ function profileCardHtml() {
             scheduleSpyPoll();
 }
 
+      }
+      }
       function spyCardHtml(me, state) {
         if (!me) return "";
         var finished = state && state.status === "FINISHED";
@@ -5941,6 +6021,7 @@ function profileCardHtml() {
           if (overlay) document.body.appendChild(overlay);
 }
 
+      }
       function mvpOverlayHtml() {
         if (!view.mvp) return "";
         var rows = (view.mvp.rows || []).map(function (row) {
@@ -5983,6 +6064,7 @@ function profileCardHtml() {
           return null;
 }
 
+      }
       function aliasResultFromUrl() {
         try {
           var token = new URLSearchParams(window.location.search).get("alias_result");
@@ -5991,6 +6073,7 @@ function profileCardHtml() {
           return null;
 }
 
+      }
       function viewerIdFromContext() {
         try {
           if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -6169,10 +6252,52 @@ function profileCardHtml() {
         view.shopOpen = false;
         haptic("light");
         renderHubMain(tab);
+        var nav = document.querySelector(".bottom-nav");
+        if (nav) {
+          Array.prototype.forEach.call(nav.querySelectorAll(".nav-item"), function (button) {
+            var active = button.getAttribute("data-tab") === tab;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-current", active ? "page" : "false");
+          });
+        }
         if (tab === "shop" && !view.items && !view.itemsLoading) {
           await loadShopItems();
           if (view.hubTab === "shop") renderHubMain("shop");
 }
+
+      // API yoki render funksiyasi yiqilsa ham o'yinlar va navigatsiya ko'rinsin.
+      }
+      function renderEmergencyHub(reason) {
+        try {
+          var cards = (GAMES || []).map(function (game) {
+            return '<article class="game-card active">' +
+              '<div class="game-body">' +
+                '<div class="game-top"><span class="game-name">' + esc(game.name) + '</span>' +
+                  '<span class="badge live">FAOL</span></div>' +
+                '<p class="game-desc">' + esc(game.description) + '</p>' +
+                '<div class="game-meta">' + esc(game.players) + ' öyinçi</div>' +
+              '</div></article>';
+          }).join("");
+          app.innerHTML =
+            '<header class="brand fade">' +
+              '<div class="brand-left"><div class="logo">RG</div>' +
+                '<div><div class="brand-name">Revilend Games</div>' +
+                '<div class="brand-sub">STOL ÖYINLARI</div></div></div>' +
+              '<span class="badge live">ONLINE</span>' +
+            '</header>' +
+            '<main class="fade hub-main pb-24">' +
+              tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
+              '<div class="section-title"><h2>5 ta öyin</h2><span>Faol</span></div>' +
+              cards +
+            '</main>' + bottomNavHtml();
+          refreshLucide();
+          if (reason) console.error("Zaxira hub ishga tushdi:", reason);
+        } catch (error) {
+          console.error("Zaxira hubni çizib bölmadi:", error);
+          app.innerHTML = '<main style="padding:24px"><h1>Revilend Games</h1>' +
+            '<p>Mini App yuklanmadi. Sahifani yangilang.</p></main>';
+        }
+      }
 
       function renderHubSkeleton() {
         stopLive();
@@ -6265,6 +6390,7 @@ function profileCardHtml() {
           loadShopItems().then(function () { if (view.hubTab === "shop") renderHub(); });
 }
 
+      }
       function spyEntryHtml() {
         if (!view.spyEntry) return "";
         return '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Josus xonasi">' +
@@ -6390,6 +6516,7 @@ function profileCardHtml() {
           view.bombPoll = null;
 }
 
+      }
       function startBombPolling() {
         if (view.bombPoll || view.mode !== "bomb") return;
         view.bombPoll = setInterval(function () {
@@ -6463,6 +6590,7 @@ function profileCardHtml() {
           renderBomb();
 }
 
+      }
       async function createBombRoom() {
         if (view.bombBusy) return;
         view.bombBusy = true;
@@ -6482,6 +6610,7 @@ function profileCardHtml() {
           view.bombBusy = false;
 }
 
+      }
       async function bombPost(action, payload, successMessage) {
         if (!view.bombCode || view.bombBusy) return;
         view.bombBusy = true;
@@ -6531,6 +6660,7 @@ function profileCardHtml() {
           renderBomb();
 }
 
+      }
       function bombPlay() {
         var hand = (view.bombMe && view.bombMe.hand) || [];
         var index = Number(view.bombPreview);
@@ -7005,6 +7135,7 @@ function profileCardHtml() {
           renderRoomError(error);
 }
 
+      }
       function renderRoom(keepScroll) {
         if (!view.room) return;
         var room = view.room;
@@ -7361,6 +7492,7 @@ function profileCardHtml() {
       // ----------------------------------------------------------------
       // Real-vaqt
       // ----------------------------------------------------------------
+      }
       function connectSocket() {
         if (!view.code) return;
         stopSocket();
@@ -7426,6 +7558,7 @@ function profileCardHtml() {
           try { socket.close(); } catch (err) { /* ignore */ }
 }
 
+      }
       function startPolling() {
         stopPolling();
         view.pollTimer = setInterval(function () {
@@ -7439,6 +7572,7 @@ function profileCardHtml() {
           view.pollTimer = null;
 }
 
+      }
       function stopLive() {
         stopSocket();
         stopPolling();
@@ -7505,6 +7639,7 @@ function profileCardHtml() {
           view.busy = false;
 }
 
+      }
       async function joinRoom() {
         var name = (profile.name || "").trim();
         if (!name) {
@@ -7785,6 +7920,7 @@ function profileCardHtml() {
           sendAction({ action: "booster", booster: "reroll", card_type: cardType }, "Karta almaştirildi");
 }
 
+      }
       function handleSubmit(event) {
         if (event.target.id === "login-form") {
           event.preventDefault();
@@ -7844,6 +7980,7 @@ function profileCardHtml() {
       // ----------------------------------------------------------------
       // Modal yopish (overlay, klaviatura, Telegram BackButton)
       // ----------------------------------------------------------------
+      }
       function closeAllOverlays() {
         if (view.shopOpen) {
           view.shopOpen = false;
@@ -7982,7 +8119,8 @@ function profileCardHtml() {
         if (ORTHO_SKIP_TAGS[node.tagName]) return;
         for (var i = 0; i < node.childNodes.length; i += 1) {
           localizeSubtree(node.childNodes[i]);
-}
+        }
+      }
 
       function startOrthographyObserver() {
         if (!window.MutationObserver || !document.body) return;
@@ -7996,7 +8134,8 @@ function profileCardHtml() {
 }
             for (var j = 0; j < mutation.addedNodes.length; j += 1) {
               localizeSubtree(mutation.addedNodes[j]);
-}
+            }
+          }
         });
         observer.observe(document.body, {
           childList: true,
@@ -8025,10 +8164,39 @@ function profileCardHtml() {
           if (/^SPY\d{3}$/.test(routeCode)) enterSpy(routeCode);
           else if (/^BMB\d{3}$/.test(routeCode)) enterBomb(routeCode);
           else enterRoom(routeCode);
-}
+        }
+      }
 
-      startOrthographyObserver();
-      boot();
+      function initApp() {
+        try {
+          if (tg) {
+            try {
+              tg.ready();
+              tg.expand();
+            } catch (telegramError) { /* eski Telegram versiyasi */ }
+          }
+          startOrthographyObserver();
+          boot().catch(function (error) {
+            console.error("Init xatosi:", error);
+            if (window.__showMiniAppError) {
+              window.__showMiniAppError(error && error.message ? error.message : error);
+            }
+            renderEmergencyHub(error);
+          });
+        } catch (error) {
+          console.error("Init xatosi:", error);
+          if (window.__showMiniAppError) {
+            window.__showMiniAppError(error && error.message ? error.message : error);
+          }
+          renderEmergencyHub(error);
+        }
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initApp);
+      } else {
+        initApp();
+      }
     })();
   </script>
 </body>
