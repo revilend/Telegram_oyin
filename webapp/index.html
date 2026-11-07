@@ -14,6 +14,17 @@
       window.__showMiniAppError = function (message) {
         try { console.error("Mini App xatosi:", message); } catch (ignored) {}
       };
+      // Qora ekran himoyasi: sahifa yuklangach #app bo'sh qolsa, zaxira hub chiziladi.
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          try {
+            var app = document.getElementById("app");
+            if (app && !app.children.length && window.__renderFallbackHub) {
+              window.__renderFallbackHub("blank-screen");
+            }
+          } catch (ignored) {}
+        }, 3000);
+      });
       window.onerror = function (message, url, line, column, error) {
         try { console.error("Mini App xatosi:", message, url, line, column, error); } catch (ignored) {}
         window.__showMiniAppError(message);
@@ -3155,6 +3166,46 @@
       animation: auraPulse 2s ease-in-out infinite;
 }
 
+    /* O'yin banneri: rasm yuklanmasa emoji zaxira ko'rinadi */
+    .game-banner { position: relative !important; }
+    .game-banner-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      line-height: 1;
+}
+    .game-banner img { position: relative; z-index: 1; }
+
+    /* Do'kon kartasi: mahsulot rasmi ikonka ustida */
+    .item-card .item-emoji { position: relative !important; overflow: hidden !important; }
+    .item-card .item-emoji img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 13px;
+      z-index: 1;
+}
+
+    /* Ramka tasviri avatar ustida (profil va reyting) */
+    .avatar-frame { position: relative; }
+    .avatar-frame .avatar-frame-img {
+      position: absolute;
+      left: -4px;
+      top: -4px;
+      width: calc(100% + 8px);
+      height: calc(100% + 8px);
+      object-fit: contain;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 3;
+      mix-blend-mode: screen;
+      filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.45));
+}
+
     /* O'yin xonasi: hech qachon ikkiga bo'linmaydi */
     .room-shell, .mafia-shell, .spy-shell, .bomb-room {
       min-height: 100vh !important;
@@ -3873,7 +3924,9 @@ function profileAvatarHtml(sizeClass) {
 }
 
   var frame = frameClass(p.frame);
-  return frame ? '<div class="avatar-frame ' + frame + '">' + inner + '</div>' : inner;
+  return frame
+    ? '<div class="avatar-frame ' + frame + '">' + inner + frameOverlayHtml(p.frame) + '</div>'
+    : inner;
 }
       
 
@@ -4095,7 +4148,11 @@ function profileCardHtml() {
 }
           return '<div class="item-card' + (count > 0 ? " owned" : "") + '">' +
             '<div class="item-grid">' +
-              '<span class="item-emoji">' + lucideIcon(shopItemIcon(item)) + '</span>' +
+              '<span class="item-emoji">' + lucideIcon(shopItemIcon(item)) +
+                (shopItemImage(item.slug)
+                  ? '<img src="' + esc(shopItemImage(item.slug)) + '" alt="' +
+                    esc(item.title) + '" loading="lazy" onerror="this.remove()" />'
+                  : '') + '</span>' +
               '<div class="item-main"><b>' + esc(item.title) + '</b>' +
                 (count > 0 ? '<span class="item-owned">' + (count > 1 ? "×" + count : "✓") + '</span>' : '') +
                 '<small class="item-desc">' + esc(item.description) + '</small>' +
@@ -4138,6 +4195,44 @@ function profileCardHtml() {
         if (slug.indexOf("title") >= 0) return "crown";
         if (slug.indexOf("frame") >= 0) return "sparkles";
         return "package";
+}
+
+      var ITEM_IMAGES = {
+        lootbox: "shop_box.png",
+        mystery_box: "shop_box.png",
+        spin_extra: "shop_ticket.png",
+        lucky_ticket_pack: "shop_ticket.png",
+        booster_double_coins: "shop_doublecoins.png",
+        double_coins: "shop_doublecoins.png",
+        frame_fire: "frame_dragon.png",
+        frame_fire_dragon: "frame_dragon.png",
+        frame_diamond: "frame_diamond.png",
+        frame_diamond_vip: "frame_diamond.png",
+        frame_cyber: "frame_cyber.png",
+        frame_cyber_glitch: "frame_cyber.png",
+        dragon: "frame_dragon.png",
+        diamond: "frame_diamond.png",
+        cyber: "frame_cyber.png"
+};
+
+      function shopItemImage(slug) {
+        return ITEM_IMAGES[String(slug || "")] || "";
+}
+
+      var FRAME_IMAGES = {
+        frame_fire: "frame_dragon.png", fire: "frame_dragon.png",
+        frame_fire_dragon: "frame_dragon.png", dragon: "frame_dragon.png",
+        frame_diamond: "frame_diamond.png", diamond: "frame_diamond.png",
+        frame_diamond_vip: "frame_diamond.png",
+        frame_cyber: "frame_cyber.png", cyber: "frame_cyber.png",
+        frame_cyber_glitch: "frame_cyber.png"
+};
+
+      function frameOverlayHtml(slug) {
+        var src = FRAME_IMAGES[String(slug || "")] || "";
+        if (!src) return "";
+        return '<img class="avatar-frame-img" src="' + esc(src) +
+          '" alt="" aria-hidden="true" onerror="this.remove()" />';
 }
 
       function shopModalHtml() {
@@ -4507,7 +4602,10 @@ function profileCardHtml() {
       function boardAvatarHtml(player) {
         var inner = avatarHtml(player.name, player.user_id, "sm");
         var frame = frameClass(player.frame);
-        return frame ? '<div class="avatar-frame ' + frame + '">' + inner + '</div>' : inner;
+        return frame
+          ? '<div class="avatar-frame ' + frame + '">' + inner +
+            frameOverlayHtml(player.frame) + '</div>'
+          : inner;
 }
 
       function leaderboardHtml() {
@@ -6749,7 +6847,13 @@ function profileCardHtml() {
         var brandSub = tab === "games" ? "STOL ÖYINLARI" : tab === "shop" ? "MEGA STORE" : tab === "rating" ? "HAFTALIK LIGA" : "PROFIL";
         var main = document.querySelector(".hub-main");
         if (main) {
-          main.innerHTML = hubContentHtml(tab);
+          try {
+            main.innerHTML = hubContentHtml(tab);
+          } catch (renderError) {
+            console.error("Bo'limni çizib bölmadi:", renderError);
+            main.innerHTML = '<section class="panel"><h2>Bo\'lim yuklanmadi</h2>' +
+              '<p class="muted">Sahifani yangilab, qayta urinib köring.</p></section>';
+          }
           var brandRight = document.querySelector(".brand-right .glass-pill");
           if (brandRight) {
             var coinsSpan = brandRight.querySelector("span") || brandRight;
@@ -6977,7 +7081,10 @@ function profileCardHtml() {
           : '<button class="play-btn" disabled>Tez kunda</button>';
         return '<article class="game-card ' + (active ? "active" : "") + '">' +
           (game.image
-            ? '<div class="game-banner"><img src="' + esc(game.image) + '" alt="' + esc(game.name) + '" loading="lazy" /></div>'
+            ? '<div class="game-banner"><span class="game-banner-fallback">' +
+                esc(game.emoji || "🎮") + '</span><img src="' + esc(game.image) +
+                '" alt="' + esc(game.name) +
+                '" loading="lazy" onerror="this.style.display=\'none\'" /></div>'
             : '<div class="game-icon">' + icon(game.icon || "gamepad") + '</div>') +
           '<div class="game-body">' +
             '<div class="game-top"><span class="game-name">' + esc(game.name) + '</span>' +
@@ -8756,6 +8863,9 @@ function profileCardHtml() {
           else enterRoom(routeCode);
         }
       }
+
+      // Tashqi (window.onerror) himoyadan ham zaxira hubni chaqirish uchun.
+      window.__renderFallbackHub = renderEmergencyHub;
 
       function initApp() {
         try {

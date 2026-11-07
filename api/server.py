@@ -186,7 +186,7 @@ GAMES: list[dict[str, Any]] = [
         "players": "2–8",
         "description": "Karta öyini: bombani zararsizlantir, raqiblarga hujum qil "
         "va oxirgi tirik qol. Guruhda /bomb bilan boshlang.",
-        "image": "assets/images/bomb/bomb.png",
+        "image": "bombgame.png",
     },
 ]
 
