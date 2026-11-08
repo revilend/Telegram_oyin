@@ -1077,7 +1077,9 @@ async def spin_wheel(
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Omad ğildiragini aylantiradi (kuniga bir bepul)."""
-    resolved_id = resolve_client_user_id(user, payload.user_id if payload else None)
+    # Omad g'ildiragi bitta bosishda ishlashi kerak: initData bo'lmasa ham
+    # ijobiy user_id yetarli (xona amallari baribir qat'iy tekshiriladi).
+    resolved_id = resolve_room_user_id(user, payload.user_id if payload else None)
     metrics.user(resolved_id)
     store = get_shop_store()
     result = store.spin(resolved_id)

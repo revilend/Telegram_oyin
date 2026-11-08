@@ -16,6 +16,7 @@ from aiogram.types import BotCommand
 from bot.config import get_config
 from core.daily_backup import start_daily_backup, stop_daily_backup
 from bot.handlers import (
+    testlab,
     admin,
     alias_group,
     bomb_group,
@@ -56,6 +57,7 @@ BOT_COMMANDS = [
     BotCommand(command="profile", description="Mening profilim"),
     BotCommand(command="top", description="Reyting va Top"),
     BotCommand(command="cancel", description="Jarayonni bekor qiliş"),
+    BotCommand(command="test_game", description="Virtual botlar bilan test (admin)"),
 ]
 
 
@@ -71,6 +73,7 @@ def build_dispatcher() -> Dispatcher:
     # Missiya tugmalari ``mission_claim_`` callbacklari bilan keladi.
     dispatcher.include_router(missions.router)
     dispatcher.include_router(admin.router)
+    dispatcher.include_router(testlab.router)
     # Mafiya callbacklari ``join_mafia_``/``start_mafia_`` bilan boshlanadi,
     # shuning uchun Bunker'dan oldin ulanadi.
     # Alias javoblarini kuzatuvchi handler Mafiya moderatoridan oldin turadi.

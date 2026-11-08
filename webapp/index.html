@@ -11,9 +11,9 @@
     (function () {
       // Qizil xato paneli butunlay olib tashlandi: xato faqat konsolga
       // yoziladi, ekran tuzilishi hech qachon buzilmaydi.
-      window.__showMiniAppError = function (message) {
-        try { console.error("Mini App xatosi:", message); } catch (ignored) {}
-      };
+      // Ekranda hech qanday qizil "Script error" paneli chiqmaydi: xato
+      // faqat konsolga (debug uchun) yoziladi.
+      window.__showMiniAppError = function () {};
       // Qora ekran himoyasi: sahifa yuklangach #app bo'sh qolsa, zaxira hub chiziladi.
       window.addEventListener("load", function () {
         setTimeout(function () {
@@ -26,14 +26,16 @@
         }, 3000);
       });
       window.onerror = function (message, url, line, column, error) {
-        try { console.error("Mini App xatosi:", message, url, line, column, error); } catch (ignored) {}
-        window.__showMiniAppError(message);
-        return false;
+        try { console.warn("Mini App xatosi:", message, url, line, column, error); } catch (ignored) {}
+        // true — brauzer/Telegram standart qizil xato panelini ko'rsatmaydi.
+        return true;
       };
       window.addEventListener("unhandledrejection", function (event) {
         var reason = event && event.reason;
-        try { console.error("Mini App promise xatosi:", reason); } catch (ignored) {}
-        window.__showMiniAppError(reason && reason.message ? reason.message : reason);
+        try { console.warn("Mini App promise xatosi:", reason); } catch (ignored) {}
+        try {
+          if (event && typeof event.preventDefault === "function") event.preventDefault();
+        } catch (ignored) {}
       });
     })();
   </script>
@@ -3479,6 +3481,61 @@
       color: #cbd5e1 !important;
       background: rgba(255, 255, 255, 0.045) !important;
       border: 1px dashed rgba(255, 255, 255, 0.14) !important;
+}
+    /* ================================================================
+       LAYOUT HIMOYASI: ekran ikkiga bo'linmaydi, gorizontal overflow yo'q
+       ================================================================ */
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden !important;
+}
+    #app {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      overflow-x: hidden !important;
+}
+    .hub-main, .room-shell, .bunker-shell, .mafia-shell, .spy-shell, .bomb-room,
+    #tab-games, #tab-shop, #tab-rating, #tab-profile {
+      width: 100% !important;
+      max-width: 100vw !important;
+      min-width: 0 !important;
+      margin: 0 auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow-x: hidden !important;
+}
+    .hub-main > *, .room-shell > *, .bunker-shell > *, .mafia-shell > *,
+    .spy-shell > *, .bomb-room > *, #tab-games > *, #tab-shop > *,
+    #tab-rating > *, #tab-profile > * {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+}
+    /* Reyting va profil: faqat bitta toza vertikal ustun */
+    .board-list, .rating-list, .leaderboard, .history-list, .purchase-list,
+    .profile-grid, .profile-split, .stat-grid, .lb-row, .board-tabs {
+      display: flex !important;
+      flex-direction: column !important;
+      grid-template-columns: 1fr !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+}
+    .board-tabs > * { width: 100% !important; }
+    .profile-split > *, .stat-grid > * { max-width: 100% !important; min-width: 0 !important; }
+
+    /* Omad g'ildiragi: orqadagi do'kon ko'rinmaydi */
+    .shop-overlay.modal-backdrop,
+    .shop-overlay:has(.wheel-sheet) {
+      background: rgba(10, 6, 18, 0.98) !important;
+      z-index: 99999 !important;
+}
+    .wheel-sheet {
+      position: relative;
+      background: rgba(10, 6, 18, 0.98) !important;
+      z-index: 100000 !important;
 }
     </style>
 </head>
