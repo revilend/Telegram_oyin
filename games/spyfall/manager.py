@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+from core import room_store
 from core.db import get_store
 from core.economy import EconomyStore, InsufficientCoinsError, get_economy
 from games.spyfall.engine import (
@@ -340,6 +341,26 @@ class SpyfallManager:
             return None
 
     # ------------------------------------------------------------------ testlar
+    def sync_from_store(self) -> int:
+        """Bazadagi tugamagan Josus xonalarini xotiraga qaytaradi."""
+        restored = 0
+        for state in room_store.load_states(SPYFALL_TABLE):
+            try:
+                room = SpyfallRoom.from_state(state)
+            except Exception:
+                logger.exception("Josus xonasini bazadan tiklab bo'lmadi")
+                continue
+            if room.phase in (Phase.FINISHED, Phase.EXPIRED):
+                continue
+            with self._lock:
+                if room.code not in self._rooms:
+                    self._rooms[room.code] = room
+                    self._times[room.code] = time.time()
+                    restored += 1
+        if restored:
+            logger.info("Josus: bazadan %s ta xona tiklandi", restored)
+        return restored
+
     def clear(self) -> None:
         """Barcha xonalarni xotiradan tozalaydi (testlar uchun)."""
         with self._lock:

@@ -14,7 +14,7 @@ import random
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable
+from typing import Any, Callable
 
 from games.bomb.cards import CardType, card_info
 from games.bomb.generator import MAX_PLAYERS, MIN_PLAYERS, build_bomb_deck
@@ -498,6 +498,92 @@ class BombRoom:
             self._coin_award(int(user_id), int(self.winner_reward))
         except Exception:  # mukofot xatosi o'yin natijasini yo'qotmasin
             logger.exception("Xavfli Bomba g'olibiga tanga berilmadi")
+
+    # ------------------------------------------------------------------
+    # Saqlash / tiklash
+    # ------------------------------------------------------------------
+    def to_state(self) -> dict[str, Any]:
+        """Xonani Supabase JSONB uchun dict'ga aylantiradi."""
+        return {
+            "code": self.code,
+            "chat_id": self.chat_id,
+            "host_id": self.host_id,
+            "players": [
+                {
+                    "user_id": player.user_id,
+                    "name": player.name,
+                    "hand": [card.value for card in player.hand],
+                    "is_alive": player.is_alive,
+                    "draws_left": player.draws_left,
+                }
+                for player in self.players.values()
+            ],
+            "order": list(self.order),
+            "deck": [card.value for card in self.deck],
+            "discard": [card.value for card in self.discard],
+            "status": self.status.value,
+            "turn_index": self.turn_index,
+            "winner_id": self.winner_id,
+            "last_eliminated_id": self.last_eliminated_id,
+            "last_future_owner": self.last_future_owner,
+            "last_future_cards": [card.value for card in self.last_future_cards],
+            "winner_reward": self.winner_reward,
+            "reward_paid": self._reward_paid,
+            "result_recorded": self._result_recorded,
+        }
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> "BombRoom":
+        """``to_state`` natijasidan Bomb xonasini tiklaydi."""
+        room = cls(
+            str(state.get("code") or ""),
+            chat_id=int(state.get("chat_id") or 0),
+            winner_reward=int(state.get("winner_reward") or WINNER_REWARD),
+        )
+        room.host_id = (
+            int(state["host_id"]) if state.get("host_id") is not None else None
+        )
+        for raw in state.get("players") or []:
+            if not isinstance(raw, dict):
+                continue
+            player = BombPlayer(
+                user_id=int(raw.get("user_id") or 0),
+                name=str(raw.get("name") or ""),
+                hand=[
+                    _coerce_card_type(card)
+                    for card in raw.get("hand") or []
+                ],
+                is_alive=bool(raw.get("is_alive", True)),
+                draws_left=int(raw.get("draws_left") or 0),
+            )
+            room.players[player.user_id] = player
+        room.order = [int(item) for item in state.get("order") or []]
+        room.deck = [_coerce_card_type(card) for card in state.get("deck") or []]
+        room.discard = [
+            _coerce_card_type(card) for card in state.get("discard") or []
+        ]
+        room.status = BombStatus(str(state.get("status") or "LOBBY"))
+        room.turn_index = int(state.get("turn_index") or 0)
+        room.winner_id = (
+            int(state["winner_id"]) if state.get("winner_id") is not None else None
+        )
+        room.last_eliminated_id = (
+            int(state["last_eliminated_id"])
+            if state.get("last_eliminated_id") is not None
+            else None
+        )
+        room.last_future_owner = (
+            int(state["last_future_owner"])
+            if state.get("last_future_owner") is not None
+            else None
+        )
+        room.last_future_cards = tuple(
+            _coerce_card_type(card)
+            for card in state.get("last_future_cards") or []
+        )
+        room._reward_paid = bool(state.get("reward_paid", False))
+        room._result_recorded = bool(state.get("result_recorded", False))
+        return room
 
     # ------------------------------------------------------------------
     # Ko'rinish

@@ -3,7 +3,7 @@
 Do'kon uch bo'limdan iborat: tanga paketlari (chek orqali), buyumlar
 (ramkalar, unvonlar, boosterlar, çiptalar) va omad ğildiragi.  Balans
 :class:`core.economy.EconomyStore` da turadi; inventar ``user_inventory``
-jadvalida, xarid tarixi esa ``transactions`` jadvalida saqlanadi.
+jadvalida, xarid tarixi esa ``shop_transactions`` jadvalida saqlanadi.
 
 Supabase sozlanmagan bo'lsa hammasi xotirada ishlaydi — testlar va lokal
 ishga tushirish uchun qulay.
@@ -32,7 +32,8 @@ from core.economy import (
 logger = logging.getLogger(__name__)
 
 INVENTORY_TABLE = "user_inventory"
-TRANSACTIONS_TABLE = "transactions"
+TRANSACTIONS_TABLE = "shop_transactions"
+LEGACY_TRANSACTIONS_TABLE = "transactions"
 
 SPIN_COST = 20
 SPIN_TICKET_SLUG = "spin_extra"
@@ -511,16 +512,20 @@ class ShopStore:
             return self._client
         return self.economy.client
 
+    def _memory_rows(self, user_id: int) -> list[dict[str, Any]]:
+        """Joriy jarayondagi inventar nusxasini qaytaradi."""
+        return [
+            {"item_slug": slug, **values}
+            for slug, values in self._inventory.get(int(user_id), {}).items()
+        ]
+
     def _rows(self, user_id: int) -> list[dict[str, Any]]:
-        """Foydalanuvchi inventar qatorlarini qaytaradi (baza yoki xotira)."""
+        """Foydalanuvchi inventar qatorlarini qaytaradi (baza + xotira)."""
         uid = int(user_id)
         if not self.enabled:
-            return [
-                {"item_slug": slug, **values}
-                for slug, values in self._inventory.get(uid, {}).items()
-            ]
+            return self._memory_rows(uid)
         try:
-            return (
+            rows = (
                 self.client.table(INVENTORY_TABLE)
                 .select("*")
                 .eq("user_id", uid)
@@ -530,7 +535,18 @@ class ShopStore:
             )
         except Exception:
             logger.exception("Inventarni öqib bölmadi: %s", uid)
-            return []
+            return self._memory_rows(uid)
+
+        # Supabase javobi bir zum kechiksa ham, shu jarayonda yozilgan
+        # xarid profilda darhol ko'rinadi. Bazadagi qator ustuvor turadi.
+        merged = {
+            str(row.get("item_slug") or ""): dict(row)
+            for row in rows
+            if isinstance(row, dict) and row.get("item_slug")
+        }
+        for row in self._memory_rows(uid):
+            merged.setdefault(str(row["item_slug"]), row)
+        return list(merged.values())
 
     def _save_entry(self, user_id: int, entry: InventoryEntry) -> None:
         uid = int(user_id)
@@ -567,6 +583,7 @@ class ShopStore:
             "unit_price": int(item.price),
             "total_price": int(total),
             "currency": "coins",
+            "kind": "buy",
         }
         with self._lock:
             self._transactions.append({**row, "created_at": _now().isoformat()})
@@ -574,10 +591,19 @@ class ShopStore:
                 self._transactions = self._transactions[-500:]
         if not self.enabled:
             return
-        try:
-            safe_insert(self.client, TRANSACTIONS_TABLE, row)
-        except Exception:
-            logger.exception("Xarid tarixini yozib bölmadi: %s", user_id)
+        # Yangi `shop_transactions` jadvali; eski o'rnatishlar uchun
+        # `transactions`ga ham qayta urinamiz.
+        for table in (TRANSACTIONS_TABLE, LEGACY_TRANSACTIONS_TABLE):
+            try:
+                safe_insert(self.client, table, row)
+                return
+            except Exception:
+                logger.warning(
+                    "Xarid tarixini %s jadvaliga yozib bo'lmadi: %s",
+                    table,
+                    user_id,
+                )
+        logger.error("Xarid tarixi saqlanmadi: %s", user_id)
 
     # ------------------------------------------------------------------
     # Katalog va inventar

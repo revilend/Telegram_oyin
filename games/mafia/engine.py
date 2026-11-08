@@ -23,7 +23,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable
+from typing import Any, Iterable
 
 from games.mafia.generator import MIN_PLAYERS, deal_mafia_roles
 from games.mafia.roles import Faction, MafiaRole, get_role_profile
@@ -194,6 +194,150 @@ class MafiaRoom:
         self.winner: Winner | None = None
         self.finish_reason = ""
         self.log: list[str] = []
+
+    # ------------------------------------------------------------------ saqlash
+    @staticmethod
+    def _report_to_state(report: NightReport) -> dict[str, Any]:
+        """Tungi hisobotni JSONB uchun oddiy dict'ga aylantiradi."""
+        return {
+            "night": report.night,
+            "deaths": list(report.deaths),
+            "blocked": list(report.blocked),
+            "protected": list(report.protected),
+            "healed": list(report.healed),
+            "sheriff_results": {
+                str(user_id): value
+                for user_id, value in report.sheriff_results.items()
+            },
+            "silenced": list(report.silenced),
+            "revived": list(report.revived),
+            "copied": {
+                str(user_id): role.value
+                for user_id, role in report.copied.items()
+            },
+            "shielded": list(report.shielded),
+        }
+
+    @staticmethod
+    def _report_from_state(state: dict[str, Any]) -> NightReport:
+        """JSONB hisobotini :class:`NightReport`ga qaytaradi."""
+        return NightReport(
+            night=int(state.get("night") or 0),
+            deaths=tuple(int(item) for item in state.get("deaths") or []),
+            blocked=tuple(int(item) for item in state.get("blocked") or []),
+            protected=tuple(int(item) for item in state.get("protected") or []),
+            healed=tuple(int(item) for item in state.get("healed") or []),
+            sheriff_results={
+                int(user_id): str(value)
+                for user_id, value in (state.get("sheriff_results") or {}).items()
+            },
+            silenced=tuple(int(item) for item in state.get("silenced") or []),
+            revived=tuple(int(item) for item in state.get("revived") or []),
+            copied={
+                int(user_id): MafiaRole(role)
+                for user_id, role in (state.get("copied") or {}).items()
+            },
+            shielded=tuple(int(item) for item in state.get("shielded") or []),
+        )
+
+    def to_state(self) -> dict[str, Any]:
+        """Xonani Supabase JSONB ustuniga yozish uchun holatga aylantiradi."""
+        return {
+            "room_id": self.room_id,
+            "phase": self.phase.value,
+            "round": self.round,
+            "players": [
+                {
+                    "user_id": player.user_id,
+                    "name": player.name,
+                    "role": player.role.value if player.role is not None else None,
+                    "is_alive": player.is_alive,
+                    "used_actions": [
+                        action.value
+                        for action in sorted(
+                            player.used_actions, key=lambda item: item.value
+                        )
+                    ],
+                    "kevlar_active": player.kevlar_active,
+                    "kevlar_used": player.kevlar_used,
+                    "double_vote": player.double_vote,
+                    "role_rerolled": player.role_rerolled,
+                }
+                for player in self.players.values()
+            ],
+            "night_actions": [
+                {
+                    "actor_id": action.actor_id,
+                    "kind": action.kind.value,
+                    "target_id": action.target_id,
+                }
+                for action in self.night_actions.values()
+            ],
+            "votes": {str(voter): int(target) for voter, target in self.votes.items()},
+            "eliminated": list(self.eliminated),
+            "silenced": sorted(self.silenced),
+            "last_report": (
+                self._report_to_state(self.last_report)
+                if self.last_report is not None
+                else None
+            ),
+            "winner": self.winner.value if self.winner is not None else None,
+            "finish_reason": self.finish_reason,
+            "log": list(self.log),
+        }
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> "MafiaRoom":
+        """``to_state`` natijasidan xonani tiklaydi."""
+        players: list[MafiaPlayer] = []
+        for raw in state.get("players") or []:
+            if not isinstance(raw, dict):
+                continue
+            role = raw.get("role")
+            player = MafiaPlayer(
+                user_id=int(raw.get("user_id") or 0),
+                name=str(raw.get("name") or ""),
+                role=MafiaRole(role) if role else None,
+            )
+            player.is_alive = bool(raw.get("is_alive", True))
+            player.used_actions = {
+                NightActionType(item)
+                for item in raw.get("used_actions") or []
+                if item in NightActionType._value2member_map_
+            }
+            player.kevlar_active = bool(raw.get("kevlar_active", False))
+            player.kevlar_used = bool(raw.get("kevlar_used", False))
+            player.double_vote = bool(raw.get("double_vote", False))
+            player.role_rerolled = bool(raw.get("role_rerolled", False))
+            players.append(player)
+        room = cls(players, room_id=str(state.get("room_id") or ""))
+        room.phase = GamePhase(str(state.get("phase") or "LOBBY"))
+        room.round = int(state.get("round") or 0)
+        room.night_actions = {}
+        for raw in state.get("night_actions") or []:
+            if not isinstance(raw, dict):
+                continue
+            actor_id = int(raw.get("actor_id") or 0)
+            room.night_actions[actor_id] = NightAction(
+                actor_id=actor_id,
+                kind=NightActionType(str(raw.get("kind"))),
+                target_id=int(raw.get("target_id") or 0),
+            )
+        room.votes = {
+            int(voter): int(target)
+            for voter, target in (state.get("votes") or {}).items()
+        }
+        room.eliminated = [int(item) for item in state.get("eliminated") or []]
+        room.silenced = {int(item) for item in state.get("silenced") or []}
+        report = state.get("last_report")
+        room.last_report = (
+            cls._report_from_state(report) if isinstance(report, dict) else None
+        )
+        winner = state.get("winner")
+        room.winner = Winner(str(winner)) if winner else None
+        room.finish_reason = str(state.get("finish_reason") or "")
+        room.log = [str(item) for item in state.get("log") or []]
+        return room
 
     # ------------------------------------------------------------------ holat
     def get_player(self, user_id: int) -> MafiaPlayer:

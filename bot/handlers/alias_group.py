@@ -290,6 +290,7 @@ async def _stop_game(bot: Bot, room: AliasRoom, *, reason: str) -> None:
     if room.status is AliasStatus.FINISHED:
         return
     room.finish(reason)
+    manager.save(room)
     try:
         if reason == "inactive":
             await bot.send_message(room.chat_id, INACTIVE_TEXT)
@@ -371,6 +372,7 @@ async def _announce_round(bot: Bot, room: AliasRoom, current: AliasRound) -> Non
             "Raund bekor qilindi, keyingi tuşuntiruvçi tanlanadi.",
         )
         room.abort_round()
+        get_default_manager().save(room)
         _spawn(_delay_next_round(bot, room.code, current.number))
         return
     _spawn(_round_timeout(bot, room.code, current.number, current.duration))
@@ -394,6 +396,7 @@ async def _round_timeout(
         return
     if not room.expire_round():
         return
+    manager.save(room)
     explainer = _player_label(room, current.explainer_id)
     await bot.send_message(
         room.chat_id,
@@ -466,6 +469,7 @@ async def create_alias_game(message: Message) -> None:
             reply_markup=lobby_keyboard(room),
         )
         room.lobby_message_id = getattr(sent, "message_id", None)
+        manager.save(room)
     except Exception as exc:
         logger.exception("Guruhda /alias buyruğida xatolik: %s", exc)
         await message.reply(f"⚠️ Xatolik yuz berdi: {escape(str(exc))}")

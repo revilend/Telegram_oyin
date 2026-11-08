@@ -108,24 +108,46 @@ create table if not exists public.referrals (
 );
 
 create index if not exists referrals_inviter_idx
-\n-- Inventory: sotib olingan upgrading va xususiy xususiyatlar
+    on public.referrals (inviter_id);
+
+-- ---------------------------------------------------------------------
+-- Inventory: sotib olingan buyumlar va xarid tarixi
+-- ---------------------------------------------------------------------
 create table if not exists public.user_inventory (
     user_id         bigint not null references public.users(telegram_id) on delete cascade,
     item_slug       text not null,
     quantity        integer not null default 1,
     is_equipped     boolean not null default false,
     primary key (user_id, item_slug)
-);\
--- Transactions: xarid va oylab chiqarish tarixini saqlash
+);
+
+create index if not exists user_inventory_user_idx
+    on public.user_inventory (user_id);
+
+create table if not exists public.shop_transactions (
+    id               bigserial primary key,
+    user_id          bigint not null references public.users(telegram_id) on delete cascade,
+    item_slug        text not null default '',
+    quantity         integer not null default 1,
+    unit_price       integer not null default 0,
+    total_price      integer not null default 0,
+    currency         text not null default 'coins',
+    kind             text not null default 'buy',
+    created_at       timestamptz not null default now()
+);
+
+create index if not exists shop_transactions_user_idx
+    on public.shop_transactions (user_id, created_at desc);
+
+-- Eski o'rnatishlar bilan moslik uchun tarixiy jadval ham qoladi.
 create table if not exists public.transactions (
     id               bigserial primary key,
     user_id          bigint not null references public.users(telegram_id) on delete cascade,
-    item_slug        text not null default "",
-    kind             text not null default "buy",
+    item_slug        text not null default '',
+    kind             text not null default 'buy',
     amount           integer not null default 0,
     created_at       timestamptz not null default now()
 );
-    on public.referrals (inviter_id);
 
 create table if not exists public.payment_requests (
     id               text primary key,
@@ -221,6 +243,42 @@ create table if not exists public.spyfall_rooms (
 
 create index if not exists spyfall_rooms_updated_at_idx
     on public.spyfall_rooms (updated_at desc);
+
+-- ---------------------------------------------------------------------
+-- O'yin xonalari: server qayta ishga tushganda ham JSONB holatdan tiklash
+-- ---------------------------------------------------------------------
+create table if not exists public.bunker_rooms (
+    code        text primary key,
+    state       jsonb not null,
+    updated_at  timestamptz not null default now()
+);
+
+create table if not exists public.mafia_rooms (
+    code        text primary key,
+    state       jsonb not null,
+    updated_at  timestamptz not null default now()
+);
+
+create table if not exists public.bomb_rooms (
+    code        text primary key,
+    state       jsonb not null,
+    updated_at  timestamptz not null default now()
+);
+
+create table if not exists public.alias_rooms (
+    code        text primary key,
+    state       jsonb not null,
+    updated_at  timestamptz not null default now()
+);
+
+create index if not exists bunker_rooms_updated_at_idx
+    on public.bunker_rooms (updated_at desc);
+create index if not exists mafia_rooms_updated_at_idx
+    on public.mafia_rooms (updated_at desc);
+create index if not exists bomb_rooms_updated_at_idx
+    on public.bomb_rooms (updated_at desc);
+create index if not exists alias_rooms_updated_at_idx
+    on public.alias_rooms (updated_at desc);
 
 -- ---------------------------------------------------------------------
 -- O'yin tarixi va haftalik liga

@@ -18,6 +18,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from html import escape
+from typing import Any, Callable
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
@@ -31,6 +32,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core import room_store
 from core.economy import MAFIA_WIN_REWARD, get_economy
 from games.mafia.boosters import KEVLAR
 from games.mafia.engine import (
@@ -109,6 +111,52 @@ class MafiaGame:
             return 0
         return max(0, int(round(self.phase_deadline - time.time())))
 
+    # ------------------------------------------------------------------
+    # Saqlash / tiklash
+    # ------------------------------------------------------------------
+    def to_state(self) -> dict[str, Any]:
+        """Xonani Supabase JSONB uchun dict'ga aylantiradi."""
+        return {
+            "code": self.code,
+            "chat_id": self.chat_id,
+            "host_id": self.host_id,
+            "usernames": {
+                str(user_id): username
+                for user_id, username in self.usernames.items()
+            },
+            "lobby_message_id": self.lobby_message_id,
+            "phase_deadline": self.phase_deadline,
+            "phase_duration": self.phase_duration,
+            "room": self.room.to_state(),
+        }
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> "MafiaGame":
+        """``to_state`` natijasidan Mafiya xonasini tiklaydi."""
+        raw_room = state.get("room") or {}
+        room = MafiaRoom.from_state(raw_room)
+        return cls(
+            code=str(state.get("code") or ""),
+            chat_id=int(state.get("chat_id") or 0),
+            host_id=int(state.get("host_id") or 0),
+            room=room,
+            usernames={
+                int(user_id): str(username)
+                for user_id, username in (state.get("usernames") or {}).items()
+            },
+            lobby_message_id=(
+                int(state["lobby_message_id"])
+                if state.get("lobby_message_id") is not None
+                else None
+            ),
+            phase_deadline=(
+                float(state["phase_deadline"])
+                if state.get("phase_deadline") is not None
+                else None
+            ),
+            phase_duration=int(state.get("phase_duration") or 60),
+        )
+
 
 class MafiaLobbyManager:
     """Guruh Mafiya xonalari reyestri."""
@@ -118,6 +166,67 @@ class MafiaLobbyManager:
         self._times: dict[str, float] = {}
         self._rng = random.Random(seed)
         self._lock = threading.RLock()
+        self._on_change: Callable[[MafiaGame], None] | None = None
+        self._room_loader: Callable[[str], MafiaGame | None] | None = None
+
+    # ------------------------------------------------------------------
+    # Saqlash integratsiyasi
+    # ------------------------------------------------------------------
+    def set_change_handler(
+        self, handler: Callable[[MafiaGame], None] | None
+    ) -> None:
+        """Har bir o'zgarishdan keyin chaqiriladigan saqlash funksiyasi."""
+        self._on_change = handler
+
+    def set_room_loader(
+        self, loader: Callable[[str], MafiaGame | None] | None
+    ) -> None:
+        """Xona xotirada bo'lmasa chaqiriladigan yuklash funksiyasi."""
+        self._room_loader = loader
+
+    def save(self, game: MafiaGame) -> None:
+        """Xonani darhol saqlashga yuboradi (API/bot amallari uchun)."""
+        self._times[game.code] = time.time()
+        self._persist(game)
+
+    def _persist(self, game: MafiaGame) -> None:
+        handler = self._on_change
+        if handler is None:
+            return
+        try:
+            handler(game)
+        except Exception:
+            logger.exception("Mafiya %s xonasi saqlanmadi", game.code)
+
+    def _restore(self, code: str) -> MafiaGame | None:
+        loader = self._room_loader
+        if loader is None:
+            return None
+        try:
+            return loader(code)
+        except Exception:
+            logger.exception("Mafiya %s xonasi yuklanmadi", code)
+            return None
+
+    def sync_from_store(self) -> int:
+        """Bazadagi tugamagan Mafiya xonalarini xotiraga qaytaradi."""
+        restored = 0
+        for state in room_store.load_states(room_store.MAFIA_ROOMS_TABLE):
+            try:
+                game = MafiaGame.from_state(state)
+            except Exception:
+                logger.exception("Mafiya xonasi bazadan tiklanmadi")
+                continue
+            if game.room.phase in (GamePhase.FINISHED, GamePhase.EXPIRED):
+                continue
+            with self._lock:
+                if game.code not in self._games:
+                    self._games[game.code] = game
+                    self._times[game.code] = time.time()
+                    restored += 1
+        if restored:
+            logger.info("Mafiya: bazadan %s ta xona tiklandi", restored)
+        return restored
 
     def create_game(
         self,
@@ -141,18 +250,24 @@ class MafiaLobbyManager:
             game.usernames[int(host_id)] = host_username or ""
             self._games[code] = game
             self._times[code] = time.time()
+            self._persist(game)
             return game
 
     def get_game(self, code: str) -> MafiaGame:
-        """Kod bo'yicha xonani qaytaradi."""
+        """Kod bo'yicha xonani qaytaradi (kerak bo'lsa bazadan tiklaydi)."""
         normalized = (code or "").strip().upper()
-        game = self._games.get(normalized)
-        if game is None:
-            raise MafiaGameError(
-                f"'{normalized or code}' kodli Mafiya xonasi topilmadi"
-            )
-        self._times[normalized] = time.time()
-        return game
+        with self._lock:
+            game = self._games.get(normalized)
+            if game is None:
+                game = self._restore(normalized)
+                if game is not None:
+                    self._games[normalized] = game
+            if game is None:
+                raise MafiaGameError(
+                    f"'{normalized or code}' kodli Mafiya xonasi topilmadi"
+                )
+            self._times[normalized] = time.time()
+            return game
 
     def prune_lobbies(self, max_age_seconds: int = 30 * 60) -> int:
         """Uzoq vaqt harakatsiz qolgan Mafiya lobby'larini yopadi."""
@@ -163,6 +278,8 @@ class MafiaLobbyManager:
                 if game.room.phase is not GamePhase.LOBBY:
                     continue
                 if now - self._times.get(code, now) > max_age_seconds:
+                    game.room.phase = GamePhase.EXPIRED
+                    self._persist(game)
                     self._games.pop(code, None)
                     self._times.pop(code, None)
                     removed += 1
@@ -184,6 +301,7 @@ class MafiaLobbyManager:
                 if game.room.phase is GamePhase.LOBBY and idle > lobby_idle_seconds:
                     game.room.phase = GamePhase.EXPIRED
                     game.clear_phase_timer()
+                    self._persist(game)
                     self._games.pop(code, None)
                     self._times.pop(code, None)
                     expired += 1
@@ -193,6 +311,7 @@ class MafiaLobbyManager:
                 ):
                     game.room.phase = GamePhase.FINISHED
                     game.clear_phase_timer()
+                    self._persist(game)
                     self._games.pop(code, None)
                     self._times.pop(code, None)
                     finished += 1
@@ -238,6 +357,7 @@ class MafiaLobbyManager:
             except MafiaError as exc:
                 raise MafiaGameError(str(exc)) from exc
             game.usernames[int(user_id)] = username or ""
+            self._persist(game)
             return player
 
     def start_game(self, code: str, host_id: int) -> MafiaGame:
@@ -253,6 +373,7 @@ class MafiaLobbyManager:
             except MafiaError as exc:
                 raise MafiaGameError(str(exc)) from exc
             game.start_phase_timer()
+            self._persist(game)
             return game
 
     def _generate_code(self) -> str:
@@ -650,6 +771,7 @@ async def create_mafia_game(message: Message) -> None:
             reply_markup=lobby_keyboard(game),
         )
         game.lobby_message_id = getattr(sent, "message_id", None)
+        get_default_manager().save(game)
     except Exception as exc:
         logger.exception("Guruhda /mafia buyruğida xatolik: %s", exc)
         await message.reply(f"⚠️ Xatolik yuz berdi: {escape(str(exc))}")
@@ -765,6 +887,9 @@ async def end_mafia_night(callback: CallbackQuery) -> None:
         resolve_night(game.room)
         if game.room.phase is not GamePhase.FINISHED:
             game.start_phase_timer()
+        save = getattr(manager, "save", None)
+        if callable(save):
+            save(game)
     except (MafiaGameError, MafiaError) as exc:
         await callback.answer(str(exc), show_alert=True)
         return

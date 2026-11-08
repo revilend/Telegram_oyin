@@ -1,15 +1,18 @@
 """«Xavfli Bomba» xonalari menejeri.
 
 Guruh boti ham, Mini App API ham **shu** menejerni ishlatadi, shuning uchun
-botda ochilgan xona Mini App'da darhol ko'rinadi. Xonalar hozircha xotirada
-saqlanadi; keyingi bosqichda Supabase jadvaliga ko'chirish mumkin.
+botda ochilgan xona Mini App'da darhol ko'rinadi. Xona holati Supabase'dagi
+``bomb_rooms`` jadvaliga JSONB sifatida yoziladi va qayta ishga tushganda
+kod bo'yicha yoki startupda tiklanadi.
 """
 
 from __future__ import annotations
 
 import random
 import threading
+from typing import Callable
 
+from core import room_store
 from games.bomb.engine import BombError, BombRoom, BombStatus
 
 CODE_PREFIX = "BMB"
@@ -38,6 +41,65 @@ class BombManager:
         self._lock = threading.RLock()
         self._rng = random.Random(seed)
         self._coin_award = coin_award
+        self._on_change: Callable[[BombRoom], None] | None = None
+        self._room_loader: Callable[[str], BombRoom | None] | None = None
+
+    # ------------------------------------------------------------------
+    # Saqlash integratsiyasi
+    # ------------------------------------------------------------------
+    def set_change_handler(
+        self, handler: Callable[[BombRoom], None] | None
+    ) -> None:
+        """Har bir o'zgarishdan keyin chaqiriladigan saqlash funksiyasi."""
+        self._on_change = handler
+
+    def set_room_loader(
+        self, loader: Callable[[str], BombRoom | None] | None
+    ) -> None:
+        """Xona xotirada bo'lmasa chaqiriladigan yuklash funksiyasi."""
+        self._room_loader = loader
+
+    def save(self, room: BombRoom) -> None:
+        """Xonani darhol saqlashga yuboradi (API/bot amallari uchun)."""
+        self._persist(room)
+
+    def _persist(self, room: BombRoom) -> None:
+        handler = self._on_change
+        if handler is None:
+            return
+        try:
+            handler(room)
+        except Exception:
+            logger.exception("Bomb %s xonasini saqlab bo'lmadi", room.code)
+
+    def _restore(self, code: str) -> BombRoom | None:
+        loader = self._room_loader
+        if loader is None:
+            return None
+        try:
+            return loader(code)
+        except Exception:
+            logger.exception("Bomb %s xonasini yuklab bo'lmadi", code)
+            return None
+
+    def sync_from_store(self) -> int:
+        """Bazadagi tugamagan Bomb xonalarini xotiraga qaytaradi."""
+        restored = 0
+        for state in room_store.load_states(room_store.BOMB_ROOMS_TABLE):
+            try:
+                room = BombRoom.from_state(state)
+            except Exception:
+                logger.exception("Bomb xonasini bazadan tiklab bo'lmadi")
+                continue
+            if room.status is BombStatus.FINISHED:
+                continue
+            with self._lock:
+                if room.code not in self._rooms:
+                    self._rooms[room.code] = room
+                    restored += 1
+        if restored:
+            logger.info("Bomb: bazadan %s ta xona tiklandi", restored)
+        return restored
 
     def _new_code(self) -> str:
         for _ in range(1000):
@@ -64,13 +126,18 @@ class BombManager:
             )
             room.add_player(host_id, host_name, is_host=True)
             self._rooms[room.code] = room
+            self._persist(room)
             return room
 
     def get_room(self, code: str) -> BombRoom:
-        """Kod bo'yicha xonani qaytaradi."""
+        """Kod bo'yicha xonani qaytaradi (kerak bo'lsa bazadan tiklaydi)."""
         normalized = (code or "").strip().upper()
         with self._lock:
             room = self._rooms.get(normalized)
+            if room is None:
+                room = self._restore(normalized)
+                if room is not None:
+                    self._rooms[normalized] = room
         if room is None:
             raise BombNotFoundError(
                 f"'{normalized or code}' kodli Bomb xonasi topilmadi"
@@ -82,6 +149,7 @@ class BombManager:
         with self._lock:
             room = self.get_room(code)
             room.add_player(user_id, name)
+            self._persist(room)
             return room
 
     def start(self, code: str, user_id: int) -> BombRoom:
@@ -96,6 +164,7 @@ class BombManager:
                 room.start()
             except BombError as exc:
                 raise BombRoomError(str(exc)) from exc
+            self._persist(room)
             return room
 
     def drop(self, code: str) -> None:
@@ -103,6 +172,7 @@ class BombManager:
         normalized = (code or "").strip().upper()
         with self._lock:
             self._rooms.pop(normalized, None)
+        room_store.delete_state(room_store.BOMB_ROOMS_TABLE, normalized)
 
     def reset(self) -> None:
         """Barcha xonalarni tozalaydi (testlar uchun)."""

@@ -40,6 +40,7 @@ from api.auth import (
 )
 from games.bomb.api import router as bomb_router
 from games.bomb.api import set_runtime_bot as set_bomb_bot
+from games.bomb.engine import BombRoom
 from games.bomb.manager import get_default_manager as get_bomb_manager
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
@@ -100,7 +101,8 @@ from engine.matchmaking import (
     get_queue_store,
     normalize_game_type,
 )
-from games.alias.engine import get_default_manager as get_alias_manager
+from games.alias.engine import AliasRoom, get_default_manager as get_alias_manager
+from core import room_store
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
@@ -417,9 +419,62 @@ def setup_persistence() -> None:
     store = get_store()
     if not store.enabled:
         return
-    game_manager.set_change_handler(store.persist)
-    game_manager.set_room_loader(store.load_room)
-    logger.info("Supabase saqlash va xona yuklash yoqilgan")
+    # Bunker: yangi JSONB jadvali. Eski rooms/room_players saqlanib qoladi.
+    game_manager.set_change_handler(room_store.save_bunker)
+    game_manager.set_room_loader(room_store.load_bunker)
+
+    mafia_manager = mafia_bot.get_default_manager()
+    mafia_manager.set_change_handler(
+        lambda game: room_store.save_state(
+            room_store.MAFIA_ROOMS_TABLE, game.code, game.to_state()
+        )
+    )
+
+    def _load_mafia(code: str) -> mafia_bot.MafiaGame | None:
+        state = room_store.load_state(room_store.MAFIA_ROOMS_TABLE, code)
+        return mafia_bot.MafiaGame.from_state(state) if state else None
+
+    mafia_manager.set_room_loader(_load_mafia)
+
+    bomb_manager = get_bomb_manager()
+    bomb_manager.set_change_handler(
+        lambda room: room_store.save_state(
+            room_store.BOMB_ROOMS_TABLE, room.code, room.to_state()
+        )
+    )
+
+    def _load_bomb(code: str) -> BombRoom | None:
+        state = room_store.load_state(room_store.BOMB_ROOMS_TABLE, code)
+        return BombRoom.from_state(state) if state else None
+
+    bomb_manager.set_room_loader(_load_bomb)
+
+    alias_manager = get_alias_manager()
+    alias_manager.set_change_handler(
+        lambda room: room_store.save_state(
+            room_store.ALIAS_ROOMS_TABLE, room.code, room.to_state()
+        )
+    )
+
+    def _load_alias(code: str) -> AliasRoom | None:
+        state = room_store.load_state(room_store.ALIAS_ROOMS_TABLE, code)
+        return AliasRoom.from_state(state) if state else None
+
+    alias_manager.set_room_loader(_load_alias)
+    spyfall_manager = get_spyfall_manager()
+
+    for manager_obj in (
+        game_manager,
+        mafia_manager,
+        bomb_manager,
+        alias_manager,
+        spyfall_manager,
+    ):
+        sync = getattr(manager_obj, "sync_from_store", None)
+        if callable(sync):
+            sync()
+
+    logger.info("Supabase saqlash va barcha o'yin xonalarini yuklash yoqilgan")
 
 
 @asynccontextmanager
@@ -501,10 +556,20 @@ async def lifespan(app: FastAPI):
         get_store().close()
         # Global menejerni yopilgan omborga bog'lab qo'ymaymiz: keyingi ishga
         # tushirish (yoki test) toza holatdan boshlanadi.
-        game_manager = get_default_manager()
-        game_manager.set_coin_balance_reader(None)
-        game_manager.set_change_handler(None)
-        game_manager.set_room_loader(None)
+        for manager_obj in (
+            get_default_manager(),
+            mafia_bot.get_default_manager(),
+            get_bomb_manager(),
+            get_alias_manager(),
+            get_spyfall_manager(),
+        ):
+            setter = getattr(manager_obj, "set_change_handler", None)
+            if callable(setter):
+                setter(None)
+            loader_setter = getattr(manager_obj, "set_room_loader", None)
+            if callable(loader_setter):
+                loader_setter(None)
+        get_default_manager().set_coin_balance_reader(None)
 
 
 # ----------------------------------------------------------------------
@@ -1995,6 +2060,7 @@ async def buy_mafia_booster(
         )
     except MafiaBoosterError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    mafia_bot.get_default_manager().save(game)
 
     return {
         "ok": True,
@@ -2108,6 +2174,7 @@ async def submit_mafia_night_action(
         )
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    mafia_bot.get_default_manager().save(game)
     return {"ok": True}
 
 
@@ -2127,6 +2194,7 @@ async def begin_mafia_voting(
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     game.start_phase_timer()
+    mafia_bot.get_default_manager().save(game)
     return {"ok": True}
 
 
@@ -2143,6 +2211,7 @@ async def cast_mafia_vote(
         game.room.cast_vote(resolved_id, payload.target_id)
     except MafiaError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    mafia_bot.get_default_manager().save(game)
     return {"ok": True}
 
 
@@ -2188,6 +2257,7 @@ async def tally_mafia_votes(
                     _runtime_bot, game, game.room.players[eliminated_id]
                 )
             await mafia_bot.announce_night(_runtime_bot, game)
+    mafia_bot.get_default_manager().save(game)
 
     return {
         "ok": True,

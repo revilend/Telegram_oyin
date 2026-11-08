@@ -584,6 +584,40 @@ class GameManager:
         """Xona xotirada topilmasa chaqiriladigan yuklash funksiyasini o'rnatadi."""
         self._room_loader = loader
 
+    def sync_from_store(self) -> int:
+        """Supabase'dagi tugamagan Bunker xonalarini xotiraga qaytaradi."""
+        from core import room_store
+
+        restored = 0
+        for state in room_store.load_states(room_store.BUNKER_ROOMS_TABLE):
+            try:
+                raw_room = (
+                    state.get("room")
+                    if isinstance(state.get("room"), dict)
+                    else state
+                )
+                room = GameRoom.model_validate(raw_room)
+                raw_votes = state.get("votes") or {}
+                votes = {
+                    int(voter): int(target)
+                    for voter, target in raw_votes.items()
+                }
+            except Exception:
+                logger.exception("Bunker xonasini bazadan tiklab bo'lmadi")
+                continue
+            if room.status in (RoomStatus.FINISHED, RoomStatus.EXPIRED):
+                continue
+            with self._lock:
+                if room.code not in self._rooms:
+                    self._rooms[room.code] = room
+                    self._votes[room.code] = votes
+                    self._room_times[room.code] = time.time()
+                    self._sync_vote_counts(room)
+                    restored += 1
+        if restored:
+            logger.info("Bunker: bazadan %s ta xona tiklandi", restored)
+        return restored
+
     def _notify(self, room: GameRoom) -> None:
         """Holat o'zgarganini saqlash handleriga bildiradi."""
         handler = self._on_change

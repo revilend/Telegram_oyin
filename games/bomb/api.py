@@ -165,6 +165,7 @@ async def state(
         if room.status.value == "LOBBY":
             try:
                 room.add_player(viewer_id, name or "Öyinçi")
+                get_default_manager().save(room)
             except BombError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         else:
@@ -201,6 +202,7 @@ async def draw(
         result = room.draw_card(user_id)
     except BombError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    get_default_manager().save(room)
     _announce(room, result)
     response = _response(room, user_id)
     response["action"] = _action_payload(result)
@@ -224,6 +226,7 @@ async def play(
         )
     except BombError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    get_default_manager().save(room)
     _announce(room, result)
     response = _response(room, user_id)
     response["action"] = _action_payload(result)

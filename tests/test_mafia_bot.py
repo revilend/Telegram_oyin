@@ -518,6 +518,9 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
             def get_game(self, code: str) -> MafiaGame:
                 return game
 
+            def save(self, _game: MafiaGame) -> None:
+                pass
+
         callback = FakeCallback(1, f"end_night_mafia_{game.code}")
         with patch.object(
             mafia_group, "get_default_manager", return_value=StubManager()
@@ -611,6 +614,9 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
         class StubManager:
             def get_game(self, code: str) -> MafiaGame:
                 return game
+
+            def save(self, _game: MafiaGame) -> None:
+                pass
 
         callback = FakeCallback(999, f"end_night_mafia_{game.code}")
         with patch.object(

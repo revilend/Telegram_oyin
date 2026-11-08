@@ -18,7 +18,9 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
+
+from core import room_store
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +271,123 @@ class AliasRoom:
     consecutive_misses: int = 0
     stop_reason: str = ""
 
+    # ------------------------------------------------------------------
+    # Saqlash / tiklash
+    # ------------------------------------------------------------------
+    def to_state(self) -> dict[str, Any]:
+        """Xona holatini Supabase JSONB uchun dict'ga aylantiradi."""
+        current = self.current_round
+        return {
+            "code": self.code,
+            "chat_id": self.chat_id,
+            "host_id": self.host_id,
+            "players": [
+                {
+                    "user_id": player.user_id,
+                    "name": player.name,
+                    "username": player.username,
+                    "score": player.score,
+                }
+                for player in self.players.values()
+            ],
+            "status": self.status.value,
+            "rounds_played": self.rounds_played,
+            "current_round": (
+                {
+                    "number": current.number,
+                    "explainer_id": current.explainer_id,
+                    "word": {
+                        "word": current.word.word,
+                        "forbidden": list(current.word.forbidden),
+                        "category": current.word.category,
+                    },
+                    "started_at": current.started_at,
+                    "duration": current.duration,
+                    "finished": current.finished,
+                    "winner_id": current.winner_id,
+                    "timed_out": current.timed_out,
+                }
+                if current is not None
+                else None
+            ),
+            "used_words": sorted(self.used_words),
+            "last_explainer_id": self.last_explainer_id,
+            "created_at": self.created_at,
+            "lobby_message_id": self.lobby_message_id,
+            "explainer_counts": {
+                str(user_id): count
+                for user_id, count in self.explainer_counts.items()
+            },
+            "consecutive_misses": self.consecutive_misses,
+            "stop_reason": self.stop_reason,
+        }
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> "AliasRoom":
+        """``to_state`` natijasidan xonani tiklaydi."""
+        room = cls(
+            code=str(state.get("code") or ""),
+            chat_id=int(state.get("chat_id") or 0),
+            host_id=int(state.get("host_id") or 0),
+        )
+        for raw in state.get("players") or []:
+            if not isinstance(raw, dict):
+                continue
+            player = AliasPlayer(
+                user_id=int(raw.get("user_id") or 0),
+                name=str(raw.get("name") or ""),
+                username=str(raw.get("username") or ""),
+                score=int(raw.get("score") or 0),
+            )
+            room.players[player.user_id] = player
+        room.status = AliasStatus(str(state.get("status") or "LOBBY"))
+        room.rounds_played = int(state.get("rounds_played") or 0)
+        raw_round = state.get("current_round")
+        if isinstance(raw_round, dict):
+            raw_word = raw_round.get("word") or {}
+            word = AliasWord(
+                word=str(raw_word.get("word") or ""),
+                forbidden=tuple(
+                    str(item) for item in raw_word.get("forbidden") or []
+                ),
+                category=str(raw_word.get("category") or "umumiy"),
+            )
+            room.current_round = AliasRound(
+                number=int(raw_round.get("number") or 0),
+                explainer_id=int(raw_round.get("explainer_id") or 0),
+                word=word,
+                started_at=float(raw_round.get("started_at") or 0),
+                duration=int(raw_round.get("duration") or ROUND_SECONDS),
+                finished=bool(raw_round.get("finished", False)),
+                winner_id=(
+                    int(raw_round["winner_id"])
+                    if raw_round.get("winner_id") is not None
+                    else None
+                ),
+                timed_out=bool(raw_round.get("timed_out", False)),
+            )
+        room.used_words = {
+            str(item) for item in state.get("used_words") or []
+        }
+        room.last_explainer_id = (
+            int(state["last_explainer_id"])
+            if state.get("last_explainer_id") is not None
+            else None
+        )
+        room.created_at = float(state.get("created_at") or time.time())
+        room.lobby_message_id = (
+            int(state["lobby_message_id"])
+            if state.get("lobby_message_id") is not None
+            else None
+        )
+        room.explainer_counts = {
+            int(user_id): int(count)
+            for user_id, count in (state.get("explainer_counts") or {}).items()
+        }
+        room.consecutive_misses = int(state.get("consecutive_misses") or 0)
+        room.stop_reason = str(state.get("stop_reason") or "")
+        return room
+
     @property
     def total_rounds(self) -> int:
         """O'yin uchun rejalashtirilgan raundlar soni."""
@@ -475,6 +594,67 @@ class AliasManager:
         self._rng = random.Random(seed)
         self._wordbook = wordbook or WordBook()
         self._words_loaded = False
+        self._on_change: Callable[[AliasRoom], None] | None = None
+        self._room_loader: Callable[[str], AliasRoom | None] | None = None
+
+    # ------------------------------------------------------------------
+    # Saqlash integratsiyasi
+    # ------------------------------------------------------------------
+    def set_change_handler(
+        self, handler: Callable[[AliasRoom], None] | None
+    ) -> None:
+        """Har bir o'zgarishdan keyin chaqiriladigan saqlash funksiyasi."""
+        self._on_change = handler
+
+    def set_room_loader(
+        self, loader: Callable[[str], AliasRoom | None] | None
+    ) -> None:
+        """Xona xotirada bo'lmasa chaqiriladigan yuklash funksiyasi."""
+        self._room_loader = loader
+
+    def save(self, room: AliasRoom) -> None:
+        """Xonani darhol saqlashga yuboradi (API/bot amallari uchun)."""
+        self._times[room.code] = time.time()
+        self._persist(room)
+
+    def _persist(self, room: AliasRoom) -> None:
+        handler = self._on_change
+        if handler is None:
+            return
+        try:
+            handler(room)
+        except Exception:
+            logger.exception("Alias %s xonasini saqlab bo'lmadi", room.code)
+
+    def _restore(self, code: str) -> AliasRoom | None:
+        loader = self._room_loader
+        if loader is None:
+            return None
+        try:
+            return loader(code)
+        except Exception:
+            logger.exception("Alias %s xonasini yuklab bo'lmadi", code)
+            return None
+
+    def sync_from_store(self) -> int:
+        """Bazadagi faol Alias xonalarini xotiraga qaytaradi."""
+        restored = 0
+        for state in room_store.load_states(room_store.ALIAS_ROOMS_TABLE):
+            try:
+                room = AliasRoom.from_state(state)
+            except Exception:
+                logger.exception("Alias xonasini bazadan tiklab bo'lmadi")
+                continue
+            if room.status not in (AliasStatus.LOBBY, AliasStatus.PLAYING):
+                continue
+            with self._lock:
+                if room.code not in self._rooms:
+                    self._rooms[room.code] = room
+                    self._times[room.code] = room.created_at
+                    restored += 1
+        if restored:
+            logger.info("Alias: bazadan %s ta xona tiklandi", restored)
+        return restored
 
     # ------------------------------------------------------------------
     # So'zlar
@@ -527,13 +707,18 @@ class AliasManager:
             room.add_player(host_id, host_name, host_username, is_host=True)
             self._rooms[room.code] = room
             self._times[room.code] = time.time()
+            self._persist(room)
             return room
 
     def get_room(self, code: str) -> AliasRoom:
-        """Kod bo'yicha xonani qaytaradi."""
+        """Kod bo'yicha xonani qaytaradi (kerak bo'lsa bazadan tiklaydi)."""
         normalized = (code or "").strip().upper()
         with self._lock:
             room = self._rooms.get(normalized)
+            if room is None:
+                room = self._restore(normalized)
+                if room is not None:
+                    self._rooms[normalized] = room
             if room is None:
                 raise AliasError(f"'{normalized or code}' kodli Alias xonasi topilmadi")
             self._times[normalized] = time.time()
@@ -550,6 +735,7 @@ class AliasManager:
         with self._lock:
             room = self.get_room(code)
             room.add_player(user_id, name, username)
+            self._persist(room)
             return room
 
     def start_game(
@@ -562,6 +748,7 @@ class AliasManager:
                 raise AliasError("O'yinni faqat xona egasi boshlaydi")
             room.start_round(self._rng, self._wordbook, now=now)
             self._times[room.code] = time.time()
+            self._persist(room)
             return room
 
     def next_round(self, code: str, *, now: float | None = None) -> AliasRoom:
@@ -569,6 +756,7 @@ class AliasManager:
         with self._lock:
             room = self.get_room(code)
             room.start_round(self._rng, self._wordbook, now=now)
+            self._persist(room)
             return room
 
     def submit_guess(
@@ -588,6 +776,7 @@ class AliasManager:
             if result is None:
                 return None
             self._times[room.code] = time.time()
+            self._persist(room)
             return room, result
 
     def active_room(self, chat_id: int) -> AliasRoom | None:
@@ -638,6 +827,7 @@ class AliasManager:
                 idle = now - self._times.get(code, now)
                 if room.status is AliasStatus.LOBBY and idle > lobby_idle_seconds:
                     room.status = AliasStatus.EXPIRED
+                    self._persist(room)
                     self._rooms.pop(code, None)
                     self._times.pop(code, None)
                     expired += 1
@@ -645,6 +835,7 @@ class AliasManager:
                     room.status is AliasStatus.PLAYING and idle > game_idle_seconds
                 ):
                     room.finish()
+                    self._persist(room)
                     self._rooms.pop(code, None)
                     self._times.pop(code, None)
                     finished += 1
@@ -658,9 +849,11 @@ class AliasManager:
 
     def drop(self, code: str) -> None:
         """Xonani reyestrdan olib tashlaydi (testlar uchun)."""
+        normalized = (code or "").strip().upper()
         with self._lock:
-            self._rooms.pop((code or "").strip().upper(), None)
-            self._times.pop((code or "").strip().upper(), None)
+            self._rooms.pop(normalized, None)
+            self._times.pop(normalized, None)
+        room_store.delete_state(room_store.ALIAS_ROOMS_TABLE, normalized)
 
     def clear(self) -> None:
         """Barcha xonalarni tozalaydi."""
