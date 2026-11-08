@@ -3291,9 +3291,8 @@
       overflow-x: hidden !important;
 }
 
-    /* O'yin xonasi sarlavhasi: qattiq joylashgan ovoz tugmasi ustiga chiqmasin */
-    .bomb-room .topbar, .room-shell .topbar,
-    .mafia-shell .topbar, .spy-shell .topbar, .bunker-shell .topbar {
+    /* Har qanday xona sarlavhasi: qattiq joylashgan ovoz tugmasi ustiga chiqmasin */
+    .topbar {
       padding-right: 46px !important;
 }
     /* O'yin xonasi: hech qachon ikkiga bo'linmaydi */
@@ -3305,6 +3304,45 @@
     .room-shell .room-board {
       width: 100% !important;
       max-width: 100% !important;
+}
+    /* ================================================================
+       O'YIN KARTASI: "Odam qidirish" / "Tezkor o'yin" tugmasi va
+       o'yinchilar soni har qanday temada yorqin va o'qiladigan bo'lsin.
+       ================================================================ */
+    .game-card .game-actions .match-btn,
+    .game-card > .game-actions > .match-btn {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      opacity: 1 !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+}
+    .game-card .game-actions .match-btn::before,
+    .game-card > .game-actions > .match-btn::before {
+      content: none !important;
+      display: none !important;
+}
+    .game-card .game-actions .match-btn .ui-ico,
+    .game-card > .game-actions > .match-btn .ui-ico {
+      color: #67e8f9 !important;
+      opacity: 1 !important;
+}
+    .game-card .game-actions .match-btn:hover,
+    .game-card .game-actions .match-btn:active,
+    .game-card > .game-actions > .match-btn:hover,
+    .game-card > .game-actions > .match-btn:active {
+      background: rgba(255, 255, 255, 0.15) !important;
+      border-color: rgba(255, 255, 255, 0.28) !important;
+      filter: none !important;
+}
+    .game-card .game-meta,
+    .game-card > .game-body > .game-meta {
+      color: #cbd5e1 !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.2px !important;
+      opacity: 1 !important;
 }
     </style>
 </head>
@@ -5835,7 +5873,7 @@ function profileCardHtml() {
         try {
           var results = await Promise.all([
             fetchMafiaMe(code),
-            request("/api/mafia/" + encodeURIComponent(code) + "/state")
+            request("/api/mafia/" + encodeURIComponent(code) + "/state?user_id=" + encodeURIComponent(profile.id))
           ]);
           if (view.mode !== "mafia" || view.code !== code) return;
           view.mafia = results[0].me;
@@ -6185,6 +6223,9 @@ function profileCardHtml() {
                 '<div class="tarot-face tarot-front"><img src="' + esc(photo) + '" alt="' + esc(me.role_name || "") + '" /></div>' +
               '</div>' +
             '</div>' +
+            (!hasRole && me.is_host && me.phase === "LOBBY"
+              ? '<button class="btn primary block" data-act="mafia-start"' + (view.mafiaActionBusy ? ' disabled' : '') + '>' + icon("play") + ' Öyinni boşlaş</button>'
+              : '') +
             (hasRole && !opened
               ? '<button class="btn primary block" data-act="flip-mafia">' + icon("card") + ' Kartani oçiş</button>'
               : '') +
@@ -6837,14 +6878,20 @@ function profileCardHtml() {
           return bx - ax;
         });
         var mvp = scored[0];
-        var alive = roster.filter(function (player) { return player.is_alive; });
-        var dead = roster.filter(function (player) { return !player.is_alive; });
         var rows = [
           { label: "Öyin", value: kind },
-          { label: "Natija", value: winnerText || "Yakunlandi" },
-          { label: "Omon qolganlar", value: String(alive.length) },
-          { label: "Haydalganlar", value: dead.length ? dead.map(mvpName).join(", ") : "—" }
+          { label: "Natija", value: winnerText || "Yakunlandi" }
         ];
+        // Bunker/Mafiyada omon qolganlar muhim; Josus, Alias va Bombada bunday
+        // tushuncha yo'q, shuning uchun faqat o'yinchilar soni ko'rsatiladi.
+        if (roster.some(function (player) { return player.is_alive !== undefined; })) {
+          var alive = roster.filter(function (player) { return player.is_alive; });
+          var dead = roster.filter(function (player) { return !player.is_alive; });
+          rows.push({ label: "Omon qolganlar", value: String(alive.length) });
+          rows.push({ label: "Haydalganlar", value: dead.length ? dead.map(mvpName).join(", ") : "—" });
+        } else {
+          rows.push({ label: "Öyinçilar", value: String(roster.length) });
+        }
         return {
           name: mvpName(mvp),
           reason: "Eng faol va natijali öyinçi — öyin MVPsi!",
@@ -8353,19 +8400,19 @@ function profileCardHtml() {
                 : '<p class="muted tiny" style="margin-top:10px;text-align:center">Ovozlarni xona egasi sanaydi.</p>') +
             '</section>';
             parts += boosterPanelHtml(me);
-}
+          }
+        }
 
         if (status === "LOBBY") {
           parts += '<div class="notice">⏳ Öyin boşlanişini kuting. Döstlaringizni xona kodini ulaşib taklif qiling: <b>' + esc(room.code) + '</b></div>';
-}
+        }
 
         return parts;
-}
+      }
 
       // ----------------------------------------------------------------
       // Real-vaqt
       // ----------------------------------------------------------------
-      }
       function connectSocket() {
         if (!view.code) return;
         stopSocket();
@@ -8668,6 +8715,8 @@ function profileCardHtml() {
           button.textContent = "Karta oçildi";
           view.mafiaOpen = true;
           haptic("success");
+        } else if (act === "mafia-start") {
+          submitMafiaAction("start", { user_id: profile.id });
         } else if (act === "mafia-booster") {
           buyMafiaBooster(button.getAttribute("data-booster"));
         } else if (act === "mafia-night-submit") {
