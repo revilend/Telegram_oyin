@@ -186,3 +186,126 @@ class ShopApiTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _FakeQuery:
+    """Supabase so'rov zanjirini taqlid qiladi (select/eq/order/limit/execute)."""
+
+    def __init__(self, client, table):
+        self.client = client
+        self.table_name = table
+        self.filters: list[tuple[str, object]] = []
+        self.order_key: str | None = None
+        self.descending = False
+        self.limit_value: int | None = None
+
+    def select(self, *_args, **_kwargs):
+        return self
+
+    def eq(self, column, value):
+        self.filters.append((column, value))
+        return self
+
+    def order(self, column, desc=False, **_kwargs):
+        self.order_key = column
+        self.descending = bool(desc)
+        return self
+
+    def limit(self, value):
+        self.limit_value = int(value)
+        return self
+
+    def execute(self):
+        if self.client.fail:
+            raise RuntimeError("supabase ishlamayapti")
+        rows = [row for row in self.client.rows if row.get("_table", self.table_name) == self.table_name]
+        for column, value in self.filters:
+            rows = [row for row in rows if row.get(column) == value]
+        if self.order_key:
+            rows.sort(key=lambda row: str(row.get(self.order_key) or ""), reverse=self.descending)
+        if self.limit_value is not None:
+            rows = rows[: self.limit_value]
+        return type("Result", (), {"data": [dict(row) for row in rows]})()
+
+
+class _FakeClient:
+    """Faqat `transactions` jadvalini o'qiydigan minimal fake."""
+
+    def __init__(self, rows, fail: bool = False):
+        self.rows = [dict(row) for row in rows]
+        self.fail = fail
+
+    def table(self, name):
+        return _FakeQuery(self, name)
+
+
+class ShopPurchaseHistoryTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.env = patch.dict(
+            os.environ,
+            {
+                "ALLOW_GUEST_AUTH": "true",
+                "SUPABASE_URL": "",
+                "SUPABASE_KEY": "",
+                "BOT_TOKEN": "",
+            },
+        )
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.economy = get_economy()
+        self.store = ShopStore(economy=self.economy)
+        set_shop_store(self.store)
+        self.addCleanup(set_shop_store, None)
+        self.client = TestClient(app)
+        self.addCleanup(self.client.close)
+
+    def _buy(self, user_id: int, slug: str) -> None:
+        self.economy.ensure_user(user_id)
+        self.store.buy(user_id, slug)
+
+    def test_history_endpoint_returns_latest_purchase_first(self) -> None:
+        self._buy(4242, "booster_shield")
+        self._buy(4242, "booster_double_vote")
+        self.economy.ensure_user(5151)
+        self._buy(5151, "booster_kevlar")
+
+        response = self.client.get("/api/shop/history", params={"user_id": 4242})
+        self.assertEqual(response.status_code, 200)
+        history = response.json()["history"]
+        self.assertEqual([row["item_slug"] for row in history], ["booster_double_vote", "booster_shield"])
+        self.assertEqual(history[0]["title"], "2x Ovoz")
+        self.assertEqual(history[0]["total_price"], 15)
+        self.assertEqual(history[1]["total_price"], 50)
+        self.assertTrue(history[0]["created_at"])
+        self.assertEqual(history[0]["kind"], "booster")
+
+    def test_history_reads_supabase_rows_when_enabled(self) -> None:
+        fake = _FakeClient(
+            [
+                {"user_id": 7, "item_slug": "frame_gold", "quantity": 1, "unit_price": 150,
+                 "total_price": 150, "created_at": "2026-01-02T10:00:00+00:00"},
+                {"user_id": 7, "item_slug": "booster_shield", "quantity": 1, "unit_price": 50,
+                 "total_price": 50, "created_at": "2026-01-01T09:00:00+00:00"},
+                {"user_id": 8, "item_slug": "booster_shield", "quantity": 1, "unit_price": 50,
+                 "total_price": 50, "created_at": "2026-01-01T09:00:00+00:00"},
+            ]
+        )
+        store = ShopStore(economy=self.economy, client=fake)
+        self.assertTrue(store.enabled)
+        rows = store.transactions_for_user(7, 5)
+        self.assertEqual([row["item_slug"] for row in rows], ["frame_gold", "booster_shield"])
+
+    def test_history_falls_back_to_memory_when_supabase_fails(self) -> None:
+        store = ShopStore(economy=self.economy, client=_FakeClient([], fail=True))
+        store._transactions.append(
+            {
+                "user_id": 9,
+                "item_slug": "booster_shield",
+                "quantity": 1,
+                "unit_price": 50,
+                "total_price": 50,
+                "created_at": "2026-02-01T08:00:00+00:00",
+            }
+        )
+        rows = store.transactions_for_user(9, 5)
+        self.assertEqual([row["item_slug"] for row in rows], ["booster_shield"])

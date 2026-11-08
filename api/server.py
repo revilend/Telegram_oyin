@@ -1050,15 +1050,10 @@ async def shop_history(
     """Foydalanuvchining oxirgi xaridlari: nima, qachon va qancha tanga."""
     resolved_id = resolve_user_id(user, user_id)
     store = get_shop_store()
-    rows = [
-        row
-        for row in store.transactions()
-        if int(row.get("user_id") or 0) == int(resolved_id or 0)
-    ]
-    rows.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
     cap = max(1, min(int(limit), 30))
+    rows = store.transactions_for_user(int(resolved_id or 0), cap)
     history: list[dict[str, Any]] = []
-    for row in rows[:cap]:
+    for row in rows:
         slug = str(row.get("item_slug") or "")
         item = CATALOG_BY_SLUG.get(slug)
         history.append(

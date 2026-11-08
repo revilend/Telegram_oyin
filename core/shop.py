@@ -930,6 +930,35 @@ class ShopStore:
         """Xotiradagi xarid tarixi (testlar va diagnostika uchun)."""
         return list(self._transactions)
 
+    def transactions_for_user(self, user_id: int, limit: int = 10) -> list[dict[str, Any]]:
+        """Foydalanuvchi xaridlari: baza yoqilgan bo'lsa jadvaldan, aks holda xotiradan."""
+        uid = int(user_id)
+        cap = max(1, min(int(limit), 50))
+        if self.enabled:
+            try:
+                rows = (
+                    self.client.table(TRANSACTIONS_TABLE)
+                    .select("*")
+                    .eq("user_id", uid)
+                    .order("created_at", desc=True)
+                    .limit(cap)
+                    .execute()
+                    .data
+                    or []
+                )
+                clean = [dict(row) for row in rows if int(row.get("user_id") or 0) == uid]
+                clean.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+                return clean[:cap]
+            except Exception:
+                logger.exception("Xarid tarixini bazadan öqib bölmadi: %s", uid)
+        with self._lock:
+            rows = [
+                dict(row) for row in self._transactions
+                if int(row.get("user_id") or 0) == uid
+            ]
+        rows.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+        return rows[:cap]
+
 
 _store: ShopStore | None = None
 _store_lock = threading.Lock()
