@@ -3456,6 +3456,26 @@
 }
     @keyframes buyFade { from { opacity: 0; } to { opacity: 1; } }
     /* Xaridlar tarixi (profil) */
+    .purchase-history-card { padding: 0 !important; overflow: hidden; }
+    .purchase-toggle {
+      width: 100%; display: flex; align-items: center; gap: 11px;
+      padding: 13px 14px; border: 0; border-radius: 18px;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(245, 158, 11, 0.1));
+      color: inherit; text-align: left; cursor: pointer; touch-action: manipulation;
+}
+    .purchase-toggle:active { transform: scale(0.99); }
+    .purchase-toggle-ico {
+      flex: 0 0 auto; width: 34px; height: 34px; border-radius: 11px;
+      display: grid; place-items: center; font-size: 18px;
+      background: rgba(168, 85, 247, 0.22) !important;
+}
+    .purchase-toggle-body { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+    .purchase-toggle-body b { font-size: 13.5px; color: #ffffff !important; }
+    .purchase-toggle-body small { font-size: 11px; color: #cbd5e1 !important; }
+    .purchase-toggle-meta { flex: 0 0 auto; font-size: 11px; font-weight: 800; color: #fcd34d !important; }
+    .purchase-chev { flex: 0 0 auto; color: #cbd5e1; font-size: 18px; line-height: 1; transition: transform 0.2s ease; }
+    .purchase-toggle[aria-expanded="true"] .purchase-chev { transform: rotate(180deg); }
+    .purchase-history-body { padding: 10px 12px 12px; }
     .purchase-list { display: flex; flex-direction: column; gap: 8px; }
     .purchase-row {
       display: flex; align-items: center; gap: 10px; padding: 10px 12px;
@@ -3475,6 +3495,8 @@
     .purchase-cost {
       margin-left: auto; font-size: 12.5px; font-weight: 800;
       color: #fcd34d !important; white-space: nowrap;
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.22);
+      font-variant-numeric: tabular-nums;
 }
     .purchase-empty {
       padding: 14px; border-radius: 16px; font-size: 12px; line-height: 1.5;
@@ -3745,6 +3767,7 @@
         buyConfirm: null,
         purchases: null,
         purchasesLoading: false,
+        purchasesOpen: false,
         wheelBusy: false,
         wheelResult: null,
         shop: null,
@@ -4916,6 +4939,7 @@ function profileCardHtml() {
             if (view.items) view.items.inventory = data.inventory || view.items.inventory;
             storeInventoryCache();
             view.purchases = null;
+            view.purchasesOpen = false;
             // Balans darhol sarlavhada yangilanadi (modal ochiq turganda ham).
             var walletPill = document.querySelector(".brand-right .glass-pill");
             if (walletPill) {
@@ -5324,6 +5348,21 @@ function profileCardHtml() {
         return text.slice(0, 10);
 }
 
+      function purchaseDateTime(value) {
+        var text = String(value || "");
+        var date = new Date(text);
+        if (!isNaN(date.getTime())) {
+          var pad = function (number) { return (number < 10 ? "0" : "") + number; };
+          return pad(date.getDate()) + "." + pad(date.getMonth() + 1) + "." +
+            date.getFullYear() + ", " + pad(date.getHours()) + ":" + pad(date.getMinutes());
+}
+        if (text.length >= 16) {
+          return text.slice(8, 10) + "." + text.slice(5, 7) + "." + text.slice(0, 4) +
+            ", " + text.slice(11, 16);
+}
+        return text.slice(0, 10) || "—";
+}
+
       async function loadPurchaseHistory() {
         if (view.purchasesLoading) return;
         view.purchasesLoading = true;
@@ -5347,30 +5386,36 @@ function profileCardHtml() {
 }
 
       function purchaseHistoryHtml() {
-        var head = '<div class="section-title"><h2>' + lucideIcon("receipt") + ' Xaridlar tarixi</h2>';
         var rows = view.purchases;
-        if (!rows) {
-          return '<section class="fade">' + head + '<span>…</span></div>' +
-            '<div class="purchase-empty">Yuklanmoqda…</div></section>';
+        var count = rows ? rows.length + " ta" : "";
+        var label = view.purchasesOpen ? "Yopish" : "Oxirgi xaridlarni ko‘rish";
+        var toggle = '<button class="purchase-toggle" type="button" data-act="purchase-history" aria-expanded="' +
+          (view.purchasesOpen ? "true" : "false") + '">' +
+          '<span class="purchase-toggle-ico">📜</span>' +
+          '<span class="purchase-toggle-body"><b>Xaridlar tarixi</b><small>' + esc(label) + '</small></span>' +
+          '<span class="purchase-toggle-meta">' + esc(count) + '</span>' +
+          '<span class="purchase-chev" aria-hidden="true">⌄</span></button>';
+        if (!view.purchasesOpen) {
+          return '<section class="panel purchase-history-card fade">' + toggle + '</section>';
 }
-        if (!rows.length) {
-          return '<section class="fade">' + head + '<span>0 ta</span></div>' +
-            '<div class="purchase-empty">Hali xarid qilmadingiz. Dökondan birinchi buyumingizni oling.</div></section>';
+        var body;
+        if (view.purchasesLoading || rows === null) {
+          body = '<div class="purchase-empty">Yuklanmoqda…</div>';
+        } else if (!rows.length) {
+          body = '<div class="purchase-empty">Hozircha xaridlar mavjud emas.</div>';
+        } else {
+          var list = rows.map(function (entry) {
+            var qty = Number(entry.quantity) || 1;
+            return '<div class="purchase-row">' +
+              '<span class="purchase-ico"><span>' + esc(entry.emoji || "🛍") + '</span></span>' +
+              '<span class="h-body"><b>' + esc(entry.title || entry.item_slug) + (qty > 1 ? " ×" + qty : "") + '</b>' +
+                '<span class="muted tiny">' + esc(purchaseDateTime(entry.created_at)) + ' · ' + esc(purchaseKindLabel(entry.kind)) + '</span></span>' +
+              '<span class="purchase-cost">−' + esc(money(entry.total_price)) + ' 🪙</span></div>';
+          }).join("");
+          body = '<div class="purchase-list">' + list + '</div>';
 }
-        var list = rows.map(function (entry) {
-          var qty = Number(entry.quantity) || 1;
-          var image = shopItemImage(entry.item_slug);
-          var badge = image
-            ? '<img src="' + esc(image) + '" alt="" loading="lazy" onerror="this.remove()" />'
-            : '<span>' + esc(entry.emoji || "🛍") + '</span>';
-          return '<div class="purchase-row">' +
-            '<span class="purchase-ico">' + badge + '</span>' +
-            '<span class="h-body"><b>' + esc(entry.title || entry.item_slug) + (qty > 1 ? " ×" + qty : "") + '</b>' +
-              '<span class="muted tiny">' + esc(shortDate(entry.created_at)) + ' · ' + esc(purchaseKindLabel(entry.kind)) + '</span></span>' +
-            '<span class="purchase-cost">−' + esc(money(entry.total_price)) + ' 🪙</span></div>';
-        }).join("");
-        return '<section class="fade">' + head + '<span>' + rows.length + ' ta</span></div>' +
-          '<div class="purchase-list">' + list + '</div></section>';
+        return '<section class="panel purchase-history-card fade">' + toggle +
+          '<div class="purchase-history-body">' + body + '</div></section>';
 }
 
       function historyHtml() {
@@ -7615,11 +7660,6 @@ function profileCardHtml() {
           await loadShopItems();
           if (view.hubTab === tab) renderHubMain(tab);
 }
-        if (tab === "profile") {
-          await loadPurchaseHistory();
-          if (view.hubTab === "profile") renderHubMain("profile");
-}
-
       // API yoki render funksiyasi yiqilsa ham o'yinlar va navigatsiya ko'rinsin.
       }
       function renderEmergencyHub(reason) {
@@ -9252,6 +9292,15 @@ function profileCardHtml() {
           view.mvp = null;
         } else if (act === "mvp-share") {
           shareMvp();
+        } else if (act === "purchase-history") {
+          var openHistory = !view.purchasesOpen;
+          view.purchasesOpen = openHistory;
+          renderHubMain("profile");
+          if (openHistory && !view.purchasesLoading) {
+            loadPurchaseHistory().then(function () {
+              if (view.hubTab === "profile" && view.purchasesOpen) renderHubMain("profile");
+            });
+}
         } else if (act === "hub-tab") {
           switchHubTab(button.getAttribute("data-tab"));
         } else if (act === "shop") {
