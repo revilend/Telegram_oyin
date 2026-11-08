@@ -73,6 +73,7 @@ from core.economy import (
 )
 from core.login_codes import verify_login_code
 from core.shop import (
+    CATALOG_BY_SLUG,
     ShopError,
     ShopInsufficientCoinsError,
     SpinUnavailableError,
@@ -1038,6 +1039,41 @@ async def shop_buy(
     data["inventory"] = [entry.as_dict() for entry in get_shop_store().inventory(resolved_id)]
     data["equipped"] = get_shop_store().equipped(resolved_id)
     return data
+
+
+@app.get("/api/shop/history")
+async def shop_history(
+    limit: int = 10,
+    user_id: int | None = None,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchining oxirgi xaridlari: nima, qachon va qancha tanga."""
+    resolved_id = resolve_user_id(user, user_id)
+    store = get_shop_store()
+    rows = [
+        row
+        for row in store.transactions()
+        if int(row.get("user_id") or 0) == int(resolved_id or 0)
+    ]
+    rows.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+    cap = max(1, min(int(limit), 30))
+    history: list[dict[str, Any]] = []
+    for row in rows[:cap]:
+        slug = str(row.get("item_slug") or "")
+        item = CATALOG_BY_SLUG.get(slug)
+        history.append(
+            {
+                "item_slug": slug,
+                "title": item.title if item is not None else slug,
+                "emoji": item.emoji if item is not None else "\U0001f6cd",
+                "kind": item.kind if item is not None else "",
+                "quantity": int(row.get("quantity") or 1),
+                "unit_price": int(row.get("unit_price") or 0),
+                "total_price": int(row.get("total_price") or 0),
+                "created_at": row.get("created_at") or "",
+            }
+        )
+    return {"history": history}
 
 
 @app.post("/api/spin/wheel")

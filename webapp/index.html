@@ -3453,6 +3453,33 @@
       to { opacity: 1; transform: translateY(0) scale(1); }
 }
     @keyframes buyFade { from { opacity: 0; } to { opacity: 1; } }
+    /* Xaridlar tarixi (profil) */
+    .purchase-list { display: flex; flex-direction: column; gap: 8px; }
+    .purchase-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+    .purchase-row .h-body { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+    .purchase-row .h-body b { font-size: 13px; color: #ffffff !important; }
+    .purchase-row .h-body .tiny { color: #cbd5e1 !important; }
+    .purchase-ico {
+      flex: 0 0 auto; width: 34px; height: 34px; border-radius: 11px;
+      display: grid; place-items: center; overflow: hidden; font-size: 16px;
+      background: rgba(168, 85, 247, 0.2) !important;
+}
+    .purchase-ico img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .purchase-cost {
+      margin-left: auto; font-size: 12.5px; font-weight: 800;
+      color: #fcd34d !important; white-space: nowrap;
+}
+    .purchase-empty {
+      padding: 14px; border-radius: 16px; font-size: 12px; line-height: 1.5;
+      color: #cbd5e1 !important;
+      background: rgba(255, 255, 255, 0.045) !important;
+      border: 1px dashed rgba(255, 255, 255, 0.14) !important;
+}
     </style>
 </head>
 <body>
@@ -3659,6 +3686,8 @@
         itemsLoading: false,
         wheelOpen: false,
         buyConfirm: null,
+        purchases: null,
+        purchasesLoading: false,
         wheelBusy: false,
         wheelResult: null,
         shop: null,
@@ -4829,6 +4858,7 @@ function profileCardHtml() {
             profile.title = (data.equipped && data.equipped.title) || profile.title;
             if (view.items) view.items.inventory = data.inventory || view.items.inventory;
             storeInventoryCache();
+            view.purchases = null;
             // Balans darhol sarlavhada yangilanadi (modal ochiq turganda ham).
             var walletPill = document.querySelector(".brand-right .glass-pill");
             if (walletPill) {
@@ -5235,6 +5265,55 @@ function profileCardHtml() {
         var text = String(value || "");
         if (text.length >= 16) return text.slice(8, 10) + "." + text.slice(5, 7) + " " + text.slice(11, 16);
         return text.slice(0, 10);
+}
+
+      async function loadPurchaseHistory() {
+        if (view.purchasesLoading) return;
+        view.purchasesLoading = true;
+        try {
+          var path = "/api/shop/history?limit=10" + (profile.id ? "&user_id=" + encodeURIComponent(profile.id) : "");
+          var data = await request(path);
+          view.purchases = (data && data.history) || [];
+        } catch (error) {
+          console.error("Xarid tarixini yuklab bölmadi:", error);
+          if (!view.purchases) view.purchases = [];
+}
+        view.purchasesLoading = false;
+}
+
+      function purchaseKindLabel(kind) {
+        var map = {
+          booster: "Buster", frame: "Ramka", title: "Unvon",
+          spin: "Çipta", ticket: "Çipta", special: "Maxsus"
+};
+        return map[String(kind || "")] || "Buyum";
+}
+
+      function purchaseHistoryHtml() {
+        var head = '<div class="section-title"><h2>' + lucideIcon("receipt") + ' Xaridlar tarixi</h2>';
+        var rows = view.purchases;
+        if (!rows) {
+          return '<section class="fade">' + head + '<span>…</span></div>' +
+            '<div class="purchase-empty">Yuklanmoqda…</div></section>';
+}
+        if (!rows.length) {
+          return '<section class="fade">' + head + '<span>0 ta</span></div>' +
+            '<div class="purchase-empty">Hali xarid qilmadingiz. Dökondan birinchi buyumingizni oling.</div></section>';
+}
+        var list = rows.map(function (entry) {
+          var qty = Number(entry.quantity) || 1;
+          var image = shopItemImage(entry.item_slug);
+          var badge = image
+            ? '<img src="' + esc(image) + '" alt="" loading="lazy" onerror="this.remove()" />'
+            : '<span>' + esc(entry.emoji || "🛍") + '</span>';
+          return '<div class="purchase-row">' +
+            '<span class="purchase-ico">' + badge + '</span>' +
+            '<span class="h-body"><b>' + esc(entry.title || entry.item_slug) + (qty > 1 ? " ×" + qty : "") + '</b>' +
+              '<span class="muted tiny">' + esc(shortDate(entry.created_at)) + ' · ' + esc(purchaseKindLabel(entry.kind)) + '</span></span>' +
+            '<span class="purchase-cost">−' + esc(money(entry.total_price)) + ' 🪙</span></div>';
+        }).join("");
+        return '<section class="fade">' + head + '<span>' + rows.length + ' ta</span></div>' +
+          '<div class="purchase-list">' + list + '</div></section>';
 }
 
       function historyHtml() {
@@ -7411,7 +7490,7 @@ function profileCardHtml() {
 
       function profileTabHtml() {
         return tabHeadHtml("PROFIL", "Profilim", "Darağa, XP, statistika va döstlarni taklif qiliş.") +
-          profileCardHtml() + bonusHtml() + inventoryHtml() + missionsHtml() + dailyQuestsHtml() + achievementsHtml() + historyHtml();
+          profileCardHtml() + bonusHtml() + inventoryHtml() + purchaseHistoryHtml() + missionsHtml() + dailyQuestsHtml() + achievementsHtml() + historyHtml();
 }
 
       function hubContentHtml(tab) {
@@ -7478,6 +7557,10 @@ function profileCardHtml() {
         if ((tab === "shop" || tab === "profile") && !view.items && !view.itemsLoading) {
           await loadShopItems();
           if (view.hubTab === tab) renderHubMain(tab);
+}
+        if (tab === "profile") {
+          await loadPurchaseHistory();
+          if (view.hubTab === "profile") renderHubMain("profile");
 }
 
       // API yoki render funksiyasi yiqilsa ham o'yinlar va navigatsiya ko'rinsin.
