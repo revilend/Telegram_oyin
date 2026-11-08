@@ -1876,6 +1876,21 @@ async def join_mafia_lobby(
     return {"ok": True, "me": mafia_me_payload(game, player, economy=economy)}
 
 
+@app.post("/api/mafia/{code}/start")
+async def start_mafia_game(
+    code: str,
+    payload: UserRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Mini App'dan xona egasi Mafiya o'yinini boshlaydi."""
+    resolved_id = resolve_room_user_id(user, payload.user_id)
+    try:
+        mafia_bot.get_default_manager().start_game(code, resolved_id)
+    except mafia_bot.MafiaGameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
+
+
 @app.get("/api/mafia/{code}/me")
 async def get_mafia_role(
     code: str,

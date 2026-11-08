@@ -178,6 +178,12 @@ class GameManager:
                     f"O'yinni boshlash uchun kamida {MIN_PLAYERS_TO_START} o'yinchi kerak"
                 )
 
+            # Sig'im o'yinchi sonidan katta bo'lsa, hech kim haydalmasdan o'yin
+            # birinchi raundda tamom bo'lardi. Shuning uchun sig'imni kamida
+            # ikki raund o'ynaladigan qilib qisqartiramiz.
+            if len(room.players) <= room.bunker_capacity:
+                room.bunker_capacity = max(1, min(room.bunker_capacity, len(room.players) - 2))
+
             for player in room.players.values():
                 player.cards = self._generator.generate_character()
                 player.is_alive = True
