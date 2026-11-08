@@ -104,6 +104,7 @@ from games.alias.engine import get_default_manager as get_alias_manager
 from core.missions import claim_mission, mission_statuses, missions_payload
 from core.settings import get_settings_store
 from engine.boosters import BoosterError, boosters_payload
+from engine import test_bots
 from engine.game_manager import (
     GameError,
     GameManager,
@@ -471,11 +472,14 @@ async def lifespan(app: FastAPI):
     cleaner = get_cleaner()
     cleaner.start()
     watcher = asyncio.create_task(_matchmaking_watch())
+    # Test rejimi (TEST_BOTS=1): ochilgan xonaga botlar qo'shilib, o'yin boshlanadi.
+    test_bots.start_watcher()
 
     try:
         yield
     finally:
         watcher.cancel()
+        test_bots.stop_watcher()
         await asyncio.gather(watcher, return_exceptions=True)
         await get_cleaner().stop()
         matchmaker.set_room_factory(None)
@@ -1653,6 +1657,30 @@ async def matchmaking_status(
         # Navbat to'lganini boshqa ishtirokchilar ham polling orqali biladi.
         payload["match"] = get_matchmaker().recent_match(int(viewer_id), kind)
     return payload
+
+
+class TestBotsFillRequest(BaseModel):
+    """Test rejimida xonani botlar bilan to'ldirish so'rovi."""
+
+    game_type: str
+    code: str
+
+
+@app.get("/api/test/bots")
+async def test_bots_status() -> dict[str, Any]:
+    """Test rejimi holati: yoqilganmi, qaysi xonalar kuzatilmoqda va oxirgi loglar."""
+    return test_bots.status()
+
+
+@app.post("/api/test/bots/fill")
+async def test_bots_fill(payload: TestBotsFillRequest) -> dict[str, Any]:
+    """Xonaga uchta virtual bot qo'shib, o'yinni avtomatik boshlaydi."""
+    if not test_bots.test_mode_enabled():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Test rejimi o'chirilgan: serverni {test_bots.TEST_MODE_ENV}=1 bilan ishga tushiring",
+        )
+    return test_bots.fill_room(payload.game_type, payload.code)
 
 
 @app.post("/api/matchmaking/join")
