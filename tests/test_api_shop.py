@@ -183,6 +183,58 @@ class ShopApiTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_equip_alias_endpoint_accepts_item_id_and_type(self) -> None:
+        self.economy.add_coins(97019, 800)
+        for slug in ("frame_cyber", "title_boss"):
+            self.client.post(
+                "/api/shop/buy", json={"user_id": 97019, "item_slug": slug}
+            )
+        frame = self.client.post(
+            "/api/user/equip",
+            json={
+                "user_id": 97019,
+                "item_id": "frame_cyber",
+                "item_type": "frame",
+            },
+        )
+        self.assertEqual(frame.status_code, 200)
+        self.assertEqual(frame.json()["equipped"]["frame"], "frame_cyber")
+        self.assertEqual(frame.json()["equipped_slugs"]["frame"], "frame_cyber")
+        entries = {entry["slug"]: entry for entry in frame.json()["inventory"]}
+        self.assertTrue(entries["frame_cyber"]["is_equipped"])
+
+        title = self.client.post(
+            "/api/user/equip",
+            json={"user_id": 97019, "item_id": "title_boss", "item_type": "title"},
+        )
+        self.assertEqual(title.status_code, 200)
+        self.assertEqual(title.json()["equipped"]["title"], "title_boss")
+
+        missing = self.client.post("/api/user/equip", json={"user_id": 97019})
+        self.assertEqual(missing.status_code, 422)
+
+    def test_leaderboard_cosmetics_expose_frame_and_title_slugs(self) -> None:
+        from core.leaderboard import _cosmetics
+
+        self.economy.add_coins(97020, 800)
+        for slug in ("frame_fire", "title_boss"):
+            self.client.post(
+                "/api/shop/buy", json={"user_id": 97020, "item_slug": slug}
+            )
+        self.client.post(
+            "/api/profile/equip",
+            json={"user_id": 97020, "item_slug": "frame_fire"},
+        )
+        self.client.post(
+            "/api/profile/equip",
+            json={"user_id": 97020, "item_slug": "title_boss"},
+        )
+        cosmetics = _cosmetics(97020)
+        self.assertEqual(cosmetics["frame"], "fire")
+        self.assertEqual(cosmetics["frame_slug"], "frame_fire")
+        self.assertEqual(cosmetics["title"], "Daxlsiz")
+        self.assertEqual(cosmetics["title_slug"], "title_boss")
+
 
 if __name__ == "__main__":
     unittest.main()

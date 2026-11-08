@@ -70,20 +70,34 @@ FRAME_KEYS = {
 
 
 def _cosmetics(user_id: int) -> dict[str, str]:
-    """Taqilgan ramka va unvon: ``{"frame": ..., "title": ...}``."""
+    """Taqilgan ramka va unvon.
+
+    Mini App ham qisqa kalitni (``gold``), ham aniq slugni (``frame_gold``)
+    ishlatadi; shuning uchun ikkalasi ham qaytariladi.
+    """
+    empty = {
+        "frame": "",
+        "frame_slug": "",
+        "title": "",
+        "title_slug": "",
+    }
     try:
         from core.shop import CATALOG_BY_SLUG, get_shop_store
 
         equipped = get_shop_store().equipped(int(user_id))
-        frame = FRAME_KEYS.get(str(equipped.get("frame") or ""), "")
-        item = CATALOG_BY_SLUG.get(str(equipped.get("title") or ""))
+        frame_slug = str(equipped.get("frame") or "")
+        frame = FRAME_KEYS.get(frame_slug, "")
+        title_slug = str(equipped.get("title") or "")
+        item = CATALOG_BY_SLUG.get(title_slug)
         return {
             "frame": frame,
+            "frame_slug": frame_slug,
             "title": str(item.payload) if item is not None else "",
+            "title_slug": title_slug,
         }
     except Exception:
         logger.exception("Bezaklarni o'qib bo'lmadi: %s", user_id)
-        return {"frame": "", "title": ""}
+        return empty
 
 
 def _all_time(economy: EconomyStore, limit: int, viewer_id: int | None) -> dict[str, Any]:

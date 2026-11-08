@@ -74,6 +74,23 @@ def _history_moment(value: Any) -> datetime | None:
 SPIN_TICKET_SLUG = "spin_extra"
 MAX_BUY_QUANTITY = 10
 
+# Eski do'konda ishlatilgan nomlar yangi katalog sluglariga ko'chiriladi.
+# Shu bilan avval sotib olingan ramkalar ham taqiladi va yo'qolmaydi.
+LEGACY_SLUG_ALIASES = {
+    "frame_cyber_glitch": "frame_cyber",
+    "frame_fire_dragon": "frame_fire",
+    "frame_diamond_vip": "frame_diamond",
+    "cyber_glitch": "frame_cyber",
+    "fire_dragon": "frame_fire",
+    "diamond_vip": "frame_diamond",
+}
+
+
+def canonical_slug(slug: Any) -> str:
+    """Eski buyum nomini joriy katalog slugiga aylantiradi."""
+    value = str(slug or "").strip()
+    return LEGACY_SLUG_ALIASES.get(value, value)
+
 BOOSTER = "BOOSTER"
 FRAME = "FRAME"
 TITLE = "TITLE"
@@ -583,7 +600,9 @@ class ShopStore:
             merged.setdefault(str(row["item_slug"]), row)
         return list(merged.values())
 
-    def _save_entry(self, user_id: int, entry: InventoryEntry) -> None:
+    def _save_entry(
+        self, user_id: int, entry: InventoryEntry, *, strict: bool = False
+    ) -> None:
         uid = int(user_id)
         with self._lock:
             bucket = self._inventory.setdefault(uid, {})
@@ -605,8 +624,13 @@ class ShopStore:
                 },
                 on_conflict="user_id,item_slug",
             )
-        except Exception:
+        except Exception as exc:
             logger.exception("Inventarga yozib bölmadi: %s %s", uid, entry.item_slug)
+            if strict:
+                raise ShopError(
+                    "Taqilgan buyumni Supabase'ga saqlab bo'lmadi. "
+                    "Qayta urinib köring."
+                ) from exc
 
     def _record_transaction(
         self, user_id: int, item: ShopItem, quantity: int, total: int
@@ -672,29 +696,40 @@ class ShopStore:
         return payload
 
     def inventory(self, user_id: int) -> list[InventoryEntry]:
-        """Foydalanuvchi inventari."""
+        """Foydalanuvchi inventari (eski sluglar yangisiga ko'çiriladi)."""
         entries: dict[str, InventoryEntry] = {}
         for row in self._rows(user_id):
-            slug = str(row.get("item_slug") or "")
+            slug = canonical_slug(row.get("item_slug"))
             if slug not in CATALOG_BY_SLUG:
                 continue
+            raw_slug = str(row.get("item_slug") or "")
+            legacy = raw_slug != slug
+            quantity = int(row.get("quantity") or 0)
+            equipped = bool(row.get("is_equipped"))
+            current = entries.get(slug)
+            if current is not None:
+                quantity += current.quantity
+                # Joriy slug qatori ustuvor: eski qatordagi eskirgan
+                # is_equipped belgisi yangi ramkani qayta yoqib yubormasin.
+                equipped = (
+                    current.is_equipped
+                    if legacy
+                    else bool(row.get("is_equipped"))
+                )
             entries[slug] = InventoryEntry(
                 item_slug=slug,
-                quantity=int(row.get("quantity") or 0),
-                is_equipped=bool(row.get("is_equipped")),
+                quantity=quantity,
+                is_equipped=equipped,
             )
         return sorted(entries.values(), key=lambda entry: entry.item_slug)
 
     def entry(self, user_id: int, slug: str) -> InventoryEntry:
         """Bitta buyum bo'yicha inventar yozuvi (yo'q bo'lsa 0 dona)."""
-        for row in self._rows(user_id):
-            if str(row.get("item_slug") or "") == slug:
-                return InventoryEntry(
-                    item_slug=slug,
-                    quantity=int(row.get("quantity") or 0),
-                    is_equipped=bool(row.get("is_equipped")),
-                )
-        return InventoryEntry(item_slug=slug, quantity=0)
+        wanted = canonical_slug(slug)
+        for entry in self.inventory(user_id):
+            if entry.item_slug == wanted:
+                return entry
+        return InventoryEntry(item_slug=wanted, quantity=0)
 
     def equipped(self, user_id: int) -> dict[str, str]:
         """Taqilgan ramka va unvon: ``{"frame": slug, "title": slug}``."""
@@ -725,7 +760,7 @@ class ShopStore:
     # ------------------------------------------------------------------
     def buy(self, user_id: int, slug: str, quantity: int = 1) -> PurchaseResult:
         """Buyumni tangalarga sotib oladi va inventarga qo'shadi."""
-        item = CATALOG_BY_SLUG.get(str(slug or ""))
+        item = CATALOG_BY_SLUG.get(canonical_slug(slug))
         if item is None:
             raise UnknownItemError("Bunday buyum dökonda yöq")
         try:
@@ -921,7 +956,7 @@ class ShopStore:
     # ------------------------------------------------------------------
     def equip(self, user_id: int, slug: str, equip: bool = True) -> dict[str, Any]:
         """Ramka yoki unvonni taqadi/yeçadi va profil holatini qaytaradi."""
-        item = CATALOG_BY_SLUG.get(str(slug or ""))
+        item = CATALOG_BY_SLUG.get(canonical_slug(slug))
         if item is None:
             raise UnknownItemError("Bunday buyum dökonda yöq")
         if item.kind not in {"frame", "title"}:
@@ -948,6 +983,7 @@ class ShopStore:
                             quantity=other.quantity,
                             is_equipped=False,
                         ),
+                        strict=True,
                     )
         self._save_entry(
             uid,
@@ -956,6 +992,7 @@ class ShopStore:
                 quantity=entry.quantity,
                 is_equipped=bool(equip),
             ),
+            strict=True,
         )
         equipped = self.equipped(uid)
         self._sync_equipped_columns(uid, equipped)

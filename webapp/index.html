@@ -402,7 +402,9 @@
 }
     .top-row.me { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.14); }
     .top-rank { width: 22px; text-align: center; font-size: 12px; font-weight: 800; color: var(--muted); }
-    .top-row .t-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .top-row .t-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+    .top-row .t-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .top-row .t-nick { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .top-row .t-rating { font-size: 11px; color: var(--warning); white-space: nowrap; }
     .promo-row { display: flex; gap: 8px; margin-top: 14px; }
     .promo-row input { letter-spacing: 0; text-transform: uppercase; padding: 12px 14px; font-size: 14px; }
@@ -1995,36 +1997,61 @@
     .avatar-frame {
       position: relative;
       display: inline-flex;
+      flex: 0 0 auto;
       padding: 4px;
       border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.18);
       background: rgba(255,255,255,0.03);
+      transition: border-color .2s ease, box-shadow .2s ease;
 }
     .avatar-frame.frame-gold {
-      box-shadow: 0 0 24px rgba(255,215,0,.75), 0 0 58px rgba(255,215,0,.28);
+      border-color: #facc15 !important;
+      box-shadow: 0 0 15px #eab308, inset 0 0 10px rgba(234, 179, 8, .5) !important;
       animation: auraPulse 2.6s ease-in-out infinite;
 }
     .avatar-frame.frame-neon {
-      box-shadow: 0 0 26px rgba(0,240,255,.8), 0 0 64px rgba(0,240,255,.3);
+      border-color: #22d3ee !important;
+      box-shadow: 0 0 20px #06b6d4, inset 0 0 10px rgba(34, 211, 238, .45) !important;
       animation: auraPulse 2.2s ease-in-out infinite;
 }
     .avatar-frame.frame-fire {
-      box-shadow: 0 0 26px rgba(255,59,92,.8), 0 0 58px rgba(255,59,92,.3);
+      border-color: #f97316 !important;
+      box-shadow: 0 0 20px #ef4444, inset 0 0 10px rgba(249, 115, 22, .55) !important;
       animation: auraPulse 1.8s ease-in-out infinite;
 }
+    .avatar-frame.frame-cyber {
+      border-color: #a855f7 !important;
+      box-shadow: 0 0 15px #a855f7, inset 0 0 10px #22c55e !important;
+      animation: auraPulse 2.4s ease-in-out infinite;
+}
+    .avatar-frame.frame-diamond {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 20px #06b6d4, inset 0 0 10px rgba(56, 189, 248, .5) !important;
+      animation: auraPulse 2s ease-in-out infinite;
+}
     .avatar-frame.frame-clan {
-      box-shadow: 0 0 26px rgba(167,139,250,.8), 0 0 58px rgba(167,139,250,.3);
+      border-color: #a78bfa !important;
+      box-shadow: 0 0 20px #7c3aed, inset 0 0 10px rgba(167, 139, 250, .45) !important;
 }
     @keyframes auraPulse {
       0%, 100% { filter: brightness(1); }
       50% { filter: brightness(1.35); }
 }
     .profile-title {
-      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
       font-weight: 800;
-      letter-spacing: 0.5px;
-      color: var(--gold);
-      text-shadow: 0 0 18px rgba(255, 215, 0, 0.4);
-      margin-top: 2px;
+      letter-spacing: 0.35px;
+      color: #fcd34d !important;
+      background: linear-gradient(135deg, rgba(245, 158, 11, .24), rgba(168, 85, 247, .18));
+      border: 1px solid rgba(245, 158, 11, .48);
+      box-shadow: 0 0 16px rgba(245, 158, 11, .2);
+      text-shadow: 0 0 12px rgba(245, 158, 11, .35);
 }
     .win-grid {
       display: grid;
@@ -2057,7 +2084,26 @@
     .inv-qty { font-size: 12px; font-weight: 800; color: #fcd34d; }
     .inv-empty { padding: 6px 0 2px; }
     .inv-empty p { margin: 0 0 10px; color: #cbd5e1; font-size: 13px; }
-    .top-row .t-title { display: block; font-size: 10.5px; font-weight: 700; color: var(--gold); letter-spacing: .3px; }
+    .top-row .t-title {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 0;
+      padding: 1px 7px;
+      border-radius: 999px;
+      vertical-align: middle;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .25px;
+      color: #fcd34d !important;
+      background: rgba(245, 158, 11, .16);
+      border: 1px solid rgba(245, 158, 11, .42);
+      width: fit-content;
+      align-self: flex-start;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+}
     .top-row .avatar-frame { padding: 2px; }
 
     /* O'yin xonasida o'yinchining busterlari */
@@ -2681,8 +2727,11 @@
     filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.24));
     }
     
-    /* Avatar va koloda kartalari orqasida yumshoq binafsha/oltin nur */
-    .avatar, .avatar-wrap, .player .avatar, .avatar-frame {
+    /* Avatar kartalari orqasida yumshoq binafsha/oltin nur.
+       Ramka (.avatar-frame) bu yerda ataylab yo'q: uning o'z rangi va nuri
+       frame-* sinflarida belgilanadi, aks holda barcha ramkalar bir xil
+       binafsha nur bilan bosib ketiladi. */
+    .avatar, .avatar-wrap, .player .avatar {
     box-shadow:
     0 0 0 1px rgba(168, 85, 247, 0.35),
     0 0 20px rgba(168, 85, 247, 0.30),
@@ -2964,13 +3013,13 @@
     .top-list { display: flex !important; flex-direction: column !important; gap: 6px; width: 100% !important; }
     .top-row {
       display: grid !important;
-      grid-template-columns: auto auto minmax(0, 1fr) auto !important;
+      grid-template-columns: auto auto minmax(0, 1fr) !important;
       align-items: center !important;
       gap: 8px !important;
       width: 100% !important;
       max-width: 100% !important;
 }
-    .top-row .t-name { min-width: 0 !important; overflow: hidden !important; }
+    .top-row .t-main { min-width: 0 !important; overflow: hidden !important; }
     .top-row .t-rating { white-space: nowrap !important; }
 
     /* Modal: qalin qorong'i parda — orqadagi tovarlar ko'rinmaydi */
@@ -3201,15 +3250,7 @@
       font-size: 10px !important;
 }
 
-    /* Yangi ramkalar */
-    .avatar-frame.frame-cyber {
-      box-shadow: 0 0 26px rgba(34, 211, 238, 0.85), 0 0 60px rgba(16, 185, 129, 0.32);
-      animation: auraPulse 2.4s ease-in-out infinite;
-}
-    .avatar-frame.frame-diamond {
-      box-shadow: 0 0 30px rgba(186, 230, 253, 0.9), 0 0 70px rgba(96, 165, 250, 0.4);
-      animation: auraPulse 2s ease-in-out infinite;
-}
+    /* Ramka rasmi uchun qo'shimcha nur (ranglar yuqoridagi frame-* sinflarida). */
 
     /* O'yin banneri: rasm yuklanmasa emoji zaxira ko'rinadi */
     .game-banner { position: relative !important; }
@@ -4286,8 +4327,11 @@ var FRAME_CLASSES = {
   frame_gold: "frame-gold", gold: "frame-gold",
   frame_neon: "frame-neon", neon: "frame-neon",
   frame_cyber: "frame-cyber", cyber: "frame-cyber",
+  frame_cyber_glitch: "frame-cyber", cyber_glitch: "frame-cyber",
   frame_fire: "frame-fire", fire: "frame-fire",
+  frame_fire_dragon: "frame-fire", fire_dragon: "frame-fire",
   frame_diamond: "frame-diamond", diamond: "frame-diamond",
+  frame_diamond_vip: "frame-diamond", diamond_vip: "frame-diamond",
   clan_emblem: "frame-clan", clan: "frame-clan"
 };
 var TITLE_LABELS = {
@@ -4295,13 +4339,95 @@ var TITLE_LABELS = {
   title_boss: "🛡 Daxlsiz",
   title_shadow: "👻 Körinmas Soya"
 };
+var TITLE_PAYLOADS = {
+  "Mafiya Otaxoni": "title_don",
+  "Daxlsiz": "title_boss",
+  "Körinmas Soya": "title_shadow"
+};
 
 function frameClass(slug) {
   return FRAME_CLASSES[String(slug || "")] || "";
 }
 
-function titleLabel(slug) {
-  return TITLE_LABELS[String(slug || "")] || "";
+function titleLabel(value) {
+  var key = String(value || "");
+  if (!key) return "";
+  var slug = TITLE_LABELS[key] ? key : TITLE_PAYLOADS[key];
+  if (!slug) return "👑 " + key;
+  return TITLE_LABELS[slug];
+}
+
+// Taqilgan kosmetika: localStorage darhol, Supabase esa asosiy manba.
+function readEquippedStorage(key, userId) {
+  try {
+    var owner = Number(window.localStorage.getItem("equipped_owner") || 0);
+    var uid = Number(userId || 0);
+    if (owner && uid && owner !== uid) return "";
+    return window.localStorage.getItem(key) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function syncEquippedStorage(frame, title) {
+  var uid = Number((typeof profile !== "undefined" && profile && profile.id) || 0);
+  try {
+    window.localStorage.setItem("equipped_frame", String(frame || ""));
+    window.localStorage.setItem("equipped_title", String(title || ""));
+    window.localStorage.setItem("equipped_owner", String(uid));
+  } catch (error) {
+    /* localStorage yopiq bo'lsa ham serverdagi holat ishlaydi. */
+  }
+}
+
+function applyAvatarFrame(frameSlug) {
+  if (typeof profile === "undefined" || !profile) return "";
+  profile.frame = String(frameSlug || "");
+  syncEquippedStorage(profile.frame, profile.title);
+  storeInventoryCache();
+  return profile.frame;
+}
+
+function applyProfileTitle(titleSlug) {
+  if (typeof profile === "undefined" || !profile) return "";
+  profile.title = String(titleSlug || "");
+  syncEquippedStorage(profile.frame, profile.title);
+  storeInventoryCache();
+  return profile.title;
+}
+
+function syncActivityCosmetics(equipped) {
+  // Reyting allaqachon yuklangan bo'lsa, ramka/unvon darhol o'sha qatorda
+  // ko'rinsin — keyingi tarmoq javobini kutmasdan.
+  if (typeof view === "undefined" || !view.activity ||
+      typeof profile === "undefined" || !profile) return;
+  var uid = Number(profile.id) || 0;
+  var frameSlug = String((equipped && equipped.frame) || "");
+  var titleSlug = String((equipped && equipped.title) || "");
+  [view.activity, view.activity.week].forEach(function (board) {
+    if (!board) return;
+    var rows = (board.top || []).slice();
+    if (board.me) rows.push(board.me);
+    rows.forEach(function (row) {
+      if (!row || Number(row.user_id) !== uid) return;
+      row.frame_slug = frameSlug;
+      row.title_slug = titleSlug;
+      row.title = titleSlug;
+    });
+  });
+}
+
+function applyServerEquipped(equipped, inventory) {
+  if (typeof profile === "undefined" || !profile) return;
+  profile.frame = String((equipped && equipped.frame) || "");
+  profile.title = String((equipped && equipped.title) || "");
+  if (inventory) {
+    profile.inventory = inventory;
+    if (typeof view !== "undefined" && view.items) view.items.inventory = inventory;
+  }
+  syncEquippedStorage(profile.frame, profile.title);
+  syncActivityCosmetics(equipped);
+  storeInventoryCache();
 }
 
 function profileAvatarHtml(sizeClass) {
@@ -4323,9 +4449,10 @@ function profileAvatarHtml(sizeClass) {
     inner = avatarHtml(name, pid, cls);
 }
 
-  var frame = frameClass(p.frame);
+  var frameSlug = p.frame || p.frame_slug || "";
+  var frame = frameClass(frameSlug);
   return frame
-    ? '<div class="avatar-frame ' + frame + '">' + inner + frameOverlayHtml(p.frame) + '</div>'
+    ? '<div class="avatar-frame ' + frame + '">' + inner + frameOverlayHtml(frameSlug) + '</div>'
     : inner;
 }
       
@@ -4475,7 +4602,7 @@ function profileCardHtml() {
                 ? '<button class="btn small' + (item.equipped ? " sel" : "") +
                   '" data-act="equip-toggle" data-slug="' + esc(item.slug) +
                   '" data-equip="' + (item.equipped ? "0" : "1") + '">' +
-                  (item.equipped ? "✓ Taqilgan" : "⚡ Taqish") + '</button>'
+                  (item.equipped ? "Taqilgan ✅" : "⚡ Taqish") + '</button>'
                 : '') +
               '</div>';
           }).join("") + '</div>' +
@@ -4562,7 +4689,7 @@ function profileCardHtml() {
           var action;
           if (item.equippable && count > 0) {
             action = '<button class="btn small' + (equipped ? " sel" : " primary") + '" data-act="equip-toggle" data-slug="' + esc(item.slug) + '" data-equip="' + (equipped ? "0" : "1") + '">' +
-              (equipped ? "Taqilgan" : "Taqiş") + '</button>';
+              (equipped ? "Taqilgan ✅" : "Taqiş") + '</button>';
           } else {
             action = '<button class="btn small primary buy-btn" type="button" data-act="buy-open" data-slug="' +
               esc(item.slug) + '" data-title="' + esc(item.title) + '" data-price="' + esc(item.price) +
@@ -4771,10 +4898,10 @@ function profileCardHtml() {
             view.items = data;
             if (data.shop) view.shop = data.shop;
             if (data.equipped) {
-              profile.frame = data.equipped.frame || "";
-              profile.title = data.equipped.title || "";
+              applyServerEquipped(data.equipped, data.inventory);
+} else if (data.inventory) {
+              profile.inventory = data.inventory;
 }
-            if (data.inventory) profile.inventory = data.inventory;
             if (data.spin) view.spin = data.spin;
             if (typeof data.coins === "number") profile.balance = data.coins;
 }
@@ -4947,9 +5074,8 @@ function profileCardHtml() {
           if (data) {
             profile.balance = Number(data.coins) || profile.balance;
             profile.inventory = data.inventory || profile.inventory;
-            profile.frame = (data.equipped && data.equipped.frame) || profile.frame;
-            profile.title = (data.equipped && data.equipped.title) || profile.title;
-            if (view.items) view.items.inventory = data.inventory || view.items.inventory;
+            if (data.equipped) applyServerEquipped(data.equipped, data.inventory);
+            else if (view.items) view.items.inventory = data.inventory || view.items.inventory;
             storeInventoryCache();
             view.purchases = null;
             view.purchasesOpen = false;
@@ -4986,13 +5112,12 @@ function profileCardHtml() {
         var kind = c.kind;
         c.busy = true;
         renderBuyConfirm();
-        await toggleEquip(slug, true);
+        await equipItem(slug, kind || resolveEquipKind(slug));
         view.buyConfirm = null;
         var root = document.getElementById("buy-confirm-root");
         if (root) root.innerHTML = "";
         renderHub();
         syncModalBackButton();
-        toast(kind === "title" ? "👑 Unvon taqildi!" : "🖼️ Ramka taqildi!", "success");
 }
 
       async function buyItem(slug) {
@@ -5007,9 +5132,8 @@ function profileCardHtml() {
           if (data) {
             profile.balance = Number(data.coins) || profile.balance;
             profile.inventory = data.inventory || profile.inventory;
-            profile.frame = (data.equipped && data.equipped.frame) || profile.frame;
-            profile.title = (data.equipped && data.equipped.title) || profile.title;
-            if (view.items) view.items.inventory = data.inventory || view.items.inventory;
+            if (data.equipped) applyServerEquipped(data.equipped, data.inventory);
+            else if (view.items) view.items.inventory = data.inventory || view.items.inventory;
             storeInventoryCache();
             var bought = (data.loot && data.loot.length) ? data.loot[0].title : data.item.title;
             toast("✅ " + bought + " olindi!", "success");
@@ -5023,29 +5147,121 @@ function profileCardHtml() {
         renderHub();
 }
 
-      async function toggleEquip(slug, equip) {
-        if (!slug || view.itemBusy) return;
+      function resolveEquipKind(slug, itemType) {
+        var type = String(itemType || "").toLowerCase();
+        if (type === "frame" || type === "cosmetics" || type === "cosmetic") return "frame";
+        if (type === "title" || type === "titles") return "title";
+        var value = String(slug || "");
+        if (/^frame[_-]/.test(value)) return "frame";
+        if (/^title[_-]/.test(value)) return "title";
+        var item = typeof findShopItem === "function" ? findShopItem(value) : null;
+        if (item && item.kind === "frame") return "frame";
+        if (item && item.kind === "title") return "title";
+        return "";
+      }
+
+      function markEquippedLocally(slug, kind) {
+        var inventory = (profile && Array.isArray(profile.inventory)) ? profile.inventory : [];
+        inventory.forEach(function (entry) {
+          if (!entry) return;
+          var entrySlug = String(entry.slug || entry.item_slug || "");
+          if (resolveEquipKind(entrySlug, entry.kind || "") === kind) {
+            entry.is_equipped = entrySlug === slug;
+          }
+        });
+        if (view.items && Array.isArray(view.items.inventory)) {
+          view.items.inventory = inventory;
+        }
+        storeInventoryCache();
+      }
+
+      function applyEquipPayload(data, slug, kind, equip) {
+        if (data && data.equipped) {
+          applyServerEquipped(data.equipped, data.inventory);
+          return;
+        }
+        if (kind === "frame") applyAvatarFrame(equip ? slug : "");
+        else if (kind === "title") applyProfileTitle(equip ? slug : "");
+        if (data && data.inventory) profile.inventory = data.inventory;
+        markEquippedLocally(slug, kind);
+      }
+
+      async function restoreEquippedFromServer() {
+        try {
+          var data = await request(accountPath());
+          if (data && data.equipped) {
+            applyServerEquipped(data.equipped, data.inventory);
+          }
+        } catch (error) {
+          /* Holatni tiklab bo'lmadi — keyingi yangilanishda qayta o'qiladi. */
+        }
+      }
+
+      async function equipItem(itemId, itemType) {
+        var slug = String(itemId || "");
+        var kind = resolveEquipKind(slug, itemType);
+        if (!slug || !kind) {
+          toast("Bu buyumni taqib bo'lmaydi", "error");
+          return;
+        }
+        if (view.itemBusy) return;
         view.itemBusy = true;
+        // 1. Darhol interfeysda: localStorage + avatar ramkasi / titul.
+        if (kind === "frame") applyAvatarFrame(slug);
+        else applyProfileTitle(slug);
+        markEquippedLocally(slug, kind);
+        renderHub();
+        try {
+          // 2. Backend orqali Supabase'ga saqlash.
+          var data = await request("/api/profile/equip", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: profile.id,
+              item_slug: slug,
+              item_id: slug,
+              item_type: kind,
+              equip: true
+            })
+          });
+          applyEquipPayload(data, slug, kind, true);
+          toast(kind === "title" ? "👑 Unvon taqildi!" : "🖼️ Ramka taqildi!", "success");
+          haptic("success");
+          if (view.activity) await loadActivity(true);
+        } catch (error) {
+          toast(error.message || "Taqib bo'lmadi", "error");
+          await restoreEquippedFromServer();
+        } finally {
+          view.itemBusy = false;
+          renderHub(); // Inventarda "Taqilgan ✅" holati.
+        }
+      }
+
+      async function toggleEquip(slug, equip) {
+        if (!slug) return;
+        if (equip) {
+          await equipItem(slug, resolveEquipKind(slug));
+          return;
+        }
+        if (view.itemBusy) return;
+        view.itemBusy = true;
+        var kind = resolveEquipKind(slug);
         try {
           var data = await request("/api/profile/equip", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: profile.id, item_slug: slug, equip: !!equip })
+            body: JSON.stringify({ user_id: profile.id, item_slug: slug, equip: false })
           });
-          if (data) {
-            profile.frame = (data.equipped && data.equipped.frame) || "";
-            profile.title = (data.equipped && data.equipped.title) || "";
-            profile.inventory = data.inventory || profile.inventory;
-            if (view.items) view.items.inventory = data.inventory || view.items.inventory;
-            storeInventoryCache();
-            if (view.activity) await loadActivity(true);
-            toast(equip ? "Taqildi" : "Yeçildi", "success");
-}
+          applyEquipPayload(data, slug, kind, false);
+          toast("Yeçildi", "success");
+          if (view.activity) await loadActivity(true);
         } catch (error) {
           toast(error.message || "Amal bajarilmadi", "error");
-}
-        view.itemBusy = false;
-        renderHub();
+          await restoreEquippedFromServer();
+        } finally {
+          view.itemBusy = false;
+          renderHub();
+        }
 }
 
       function getWheelElement() {
@@ -5131,11 +5347,8 @@ function profileCardHtml() {
       function applyAccountPayload(data) {
         if (!data || !data.user) return false;
         updateProfileFromAccount(data.user);
-        if (data.inventory) profile.inventory = data.inventory;
-        if (data.equipped) {
-          profile.frame = data.equipped.frame || "";
-          profile.title = data.equipped.title || "";
-        }
+        if (data.equipped) applyServerEquipped(data.equipped, data.inventory);
+        else if (data.inventory) profile.inventory = data.inventory;
         storeInventoryCache();
         view.history = data.history || view.history || [];
         if (view.shopOpen) view.shop = data.shop || view.shop;
@@ -5291,10 +5504,11 @@ function profileCardHtml() {
 
       function boardAvatarHtml(player) {
         var inner = avatarHtml(player.name, player.user_id, "sm");
-        var frame = frameClass(player.frame);
+        var frameSlug = player.frame_slug || player.frame || "";
+        var frame = frameClass(frameSlug);
         return frame
           ? '<div class="avatar-frame ' + frame + '">' + inner +
-            frameOverlayHtml(player.frame) + '</div>'
+            frameOverlayHtml(frameSlug) + '</div>'
           : inner;
 }
 
@@ -5327,20 +5541,20 @@ function profileCardHtml() {
           return '<div class="top-row' + (player.is_me ? " me" : "") + '">' +
             medalBadge(player.medal, player.rank) +
             boardAvatarHtml(player) +
-            '<span class="t-name">' + esc(player.name) +
-              (player.title ? '<span class="t-title">👑 ' + esc(player.title) + '</span>' : '') +
-            '</span>' +
-            '<span class="t-rating">' + meta + '</span></div>';
+            '<div class="t-main"><div class="t-line"><span class="t-nick">' + esc(player.name) + '</span>' +
+            '<span class="t-rating">' + meta + '</span></div>' +
+              (titleLabel(player.title_slug || player.title) ? '<span class="t-title">' + esc(titleLabel(player.title_slug || player.title)) + '</span>' : '') +
+            '</div></div>';
         }).join("");
         var me = board.me;
         if (me && Number(me.rank) > top.length) {
           rows += '<div class="top-row me">' + medalBadge(me.medal, me.rank) +
             boardAvatarHtml(me) +
-            '<span class="t-name">' + esc(me.name) + ' (siz)' +
-              (me.title ? '<span class="t-title">👑 ' + esc(me.title) + '</span>' : '') +
-            '</span>' +
+            '<div class="t-main"><div class="t-line"><span class="t-nick">' + esc(me.name) + ' (siz)</span>' +
             '<span class="t-rating">' + esc(money(me.rating)) + ' · ' + esc(me.wins) + ' ' +
-            icon("trophy") + '</span></div>';
+            icon("trophy") + '</span></div>' +
+              (titleLabel(me.title_slug || me.title) ? '<span class="t-title">' + esc(titleLabel(me.title_slug || me.title)) + '</span>' : '') +
+            '</div></div>';
 }
         return head + '<div class="top-list">' + rows + '</div></section>';
 }
@@ -6076,8 +6290,8 @@ function profileCardHtml() {
             alias_wins: Number(cached.alias_wins) || 0,
             bomb_wins: Number(cached.bomb_wins) || 0,
             inventory: Array.isArray(cached.inventory) ? cached.inventory : [],
-            frame: String(cached.frame || ""),
-            title: String(cached.title || ""),
+            frame: String(cached.frame || readEquippedStorage("equipped_frame", user.id) || ""),
+            title: String(cached.title || readEquippedStorage("equipped_title", user.id) || ""),
             level: 1 + Math.floor((Number(cached.games_played) || 0) / 5),
             guest: false,
             authenticated: true,
@@ -6100,8 +6314,8 @@ function profileCardHtml() {
             alias_wins: Number(cached.alias_wins) || 0,
             bomb_wins: Number(cached.bomb_wins) || 0,
             inventory: Array.isArray(cached.inventory) ? cached.inventory : [],
-            frame: String(cached.frame || ""),
-            title: String(cached.title || ""),
+            frame: String(cached.frame || readEquippedStorage("equipped_frame", cachedId) || ""),
+            title: String(cached.title || readEquippedStorage("equipped_title", cachedId) || ""),
             level: 1 + Math.floor((Number(cached.games_played) || 0) / 5),
             guest: false,
             authenticated: true,
@@ -7736,6 +7950,11 @@ function profileCardHtml() {
         if ((tab === "shop" || tab === "profile") && !view.items && !view.itemsLoading) {
           await loadShopItems();
           if (view.hubTab === tab) renderHubMain(tab);
+}
+        // Reyting kosmetikasi (ramka/unvon) boshqa qurilmada taqilgan
+        // bo'lsa ham, tabga kirganda yangilanadi.
+        if (tab === "rating" && profile.id && !view.activityLoading) {
+          loadActivity();
 }
       // API yoki render funksiyasi yiqilsa ham o'yinlar va navigatsiya ko'rinsin.
       }

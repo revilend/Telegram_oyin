@@ -1074,9 +1074,15 @@ class SpinRequest(BaseModel):
 
 
 class EquipRequest(BaseModel):
-    """Ramka yoki unvonni taqiş/yeçiş so'rovi."""
+    """Ramka yoki unvonni taqiş/yeçiş so'rovi.
 
-    item_slug: str
+    Mini App ``item_slug`` yuboradi; eski mijozlar uchun ``item_id`` va
+    ``item_type`` ham qabul qilinadi.
+    """
+
+    item_slug: str = ""
+    item_id: str | None = None
+    item_type: str | None = None
     equip: bool = True
     user_id: int | None = None
 
@@ -1171,16 +1177,23 @@ async def spin_wheel(
 
 
 @app.post("/api/profile/equip")
+@app.post("/api/user/equip")
 async def equip_item(
     payload: EquipRequest,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
     """Sotib olingan ramka yoki unvonni profilga taqadi yoki yeçadi."""
     resolved_id = resolve_client_user_id(user, payload.user_id)
-    result = get_shop_store().equip(resolved_id, payload.item_slug, payload.equip)
+    slug = (payload.item_slug or payload.item_id or "").strip()
+    if not slug:
+        raise HTTPException(
+            status_code=422, detail="item_slug yoki item_id talab qilinadi"
+        )
+    result = get_shop_store().equip(resolved_id, slug, payload.equip)
     result["inventory"] = [
         entry.as_dict() for entry in get_shop_store().inventory(resolved_id)
     ]
+    result["equipped_slugs"] = dict(result.get("equipped") or {})
     return result
 
 

@@ -3,6 +3,7 @@
 import asyncio
 import os
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -12,7 +13,7 @@ from bot.config import get_config
 from bot.handlers import admin, shop
 from core.economy import START_COINS, EconomyStore, get_economy
 from core.settings import SettingsStore
-from core.shop import ShopStore
+from core.shop import InventoryEntry, ShopStore
 
 
 def make_settings() -> SettingsStore:
@@ -299,6 +300,46 @@ class MegaStoreTest(unittest.TestCase):
         # Ikkinchi aylantiriş bepul emas: 20 tanga yechiladi yoki çipta ketadi.
         self.assertLessEqual(self.economy.get_user(88005).coins, after_free + 500)
         self.assertFalse(self.store.spin_status(88005)["free"])
+
+    def test_legacy_frame_slug_maps_to_current_catalog(self) -> None:
+        """Eski `frame_cyber_glitch` yozuvi joriy ramka sifatida taqiladi."""
+        self.store._save_entry(
+            88010, InventoryEntry("frame_cyber_glitch", 1, True)
+        )
+        self.assertEqual(self.store.equipped(88010)["frame"], "frame_cyber")
+        self.assertTrue(self.store.entry(88010, "frame_cyber").is_equipped)
+        self.assertEqual(
+            [entry.item_slug for entry in self.store.inventory(88010)],
+            ["frame_cyber"],
+        )
+
+    def test_equipping_current_frame_clears_legacy_flag(self) -> None:
+        self.economy.add_coins(88011, 600)
+        self.store._save_entry(
+            88011, InventoryEntry("frame_cyber_glitch", 1, True)
+        )
+        self.store.buy(88011, "frame_diamond")
+        self.store.equip(88011, "frame_diamond")
+        self.assertEqual(self.store.equipped(88011)["frame"], "frame_diamond")
+        self.assertFalse(self.store.entry(88011, "frame_cyber").is_equipped)
+
+
+class CosmeticsUiWiringTest(unittest.TestCase):
+    """Mini App ramka/unvon oqimi backend bilan bog'langanini tekshiradi."""
+
+    def test_equip_contract_is_wired(self) -> None:
+        html = (
+            Path(__file__).resolve().parent.parent / "webapp" / "index.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("function equipItem(itemId, itemType)", html)
+        self.assertIn('window.localStorage.setItem("equipped_frame"', html)
+        self.assertIn('window.localStorage.setItem("equipped_title"', html)
+        self.assertIn("/api/profile/equip", html)
+        self.assertIn(".avatar-frame.frame-cyber", html)
+        self.assertIn(".avatar-frame.frame-diamond", html)
+        self.assertIn(".avatar-frame.frame-gold", html)
+        self.assertIn("Taqilgan ✅", html)
+        self.assertIn("title_slug", html)
 
 
 if __name__ == "__main__":
