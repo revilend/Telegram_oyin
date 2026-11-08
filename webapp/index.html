@@ -7945,7 +7945,19 @@ function profileCardHtml() {
         } catch (error) {
           if (view.bombCode !== requested || view.mode !== "bomb") return;
           view.bombLoading = false;
-          view.bombError = error.message || "Bomba xonasini yuklab bölmadi";
+          var lost = error && (error.status === 404 || /topilmadi/i.test(error.message || ""));
+          if (lost) {
+            // Xona serverda yo'q (masalan server yangilangan): polling to'xtaydi,
+            // ekran qotib qolmaydi va o'yinchi aniq xabar oladi.
+            stopBombPolling();
+            view.bombState = null;
+            view.bombMe = null;
+            view.bombPreview = null;
+            view.bombDrawn = null;
+            view.bombError = "Bu xona endi mavjud emas (server yangilangan bölişi mumkin). Yangi xona oçing.";
+} else {
+            view.bombError = error.message || "Bomba xonasini yuklab bölmadi";
+}
           renderBomb();
 }
 
@@ -8490,6 +8502,18 @@ function profileCardHtml() {
           if (changed || !silent) renderRoom(true);
         } catch (error) {
           view.loading = false;
+          var roomLost = error && (error.status === 404 || /topilmadi/i.test(error.message || ""));
+          if (roomLost) {
+            // Xona yo'q: polling to'xtaydi, ekranda qotib qolgan jadval qolmaydi.
+            try { stopLive(); } catch (ignored) {}
+            view.room = null;
+            view.me = null;
+            view.error = error;
+            renderRoomError({
+              message: "Bu xona endi mavjud emas (server yangilangan bölişi mumkin). Hubga qaytib yangi xona oçing."
+});
+            return;
+}
           if (silent && view.room) {
             return;
 }
