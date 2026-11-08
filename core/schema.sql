@@ -367,30 +367,74 @@ create index if not exists matchmaking_queue_game_idx
 -- Haftalik turnirlar: afisha, qatnaşçilar va eslatmalar
 -- ---------------------------------------------------------------------
 create table if not exists public.tournaments (
-    id          text primary key,
-    game        text not null default 'mixed',
-    title       text not null default '',
-    entry_fee   integer not null default 50,
-    prize_pool  integer not null default 0,
-    starts_at   timestamptz not null,
-    status      text not null default 'OPEN',
-    max_players integer not null default 64,
-    created_by  bigint not null default 0,
-    reminded_at timestamptz,
-    created_at  timestamptz not null default now()
+    id               text primary key,
+    title            text not null default '',
+    game_type        text not null default 'mixed',
+    prize_pool       integer not null default 0,
+    max_participants integer not null default 64,
+    status           text not null default 'OPEN',
+    start_time       timestamptz not null,
+    bracket_data     jsonb not null default '[]'::jsonb,
+    entry_fee        integer not null default 50,
+    created_by       bigint not null default 0,
+    reminded_at      timestamptz,
+    created_at       timestamptz not null default now(),
+    -- Eski mini-app/bot nusxalari bilan moslik uchun saqlanadi.
+    game             text not null default 'mixed',
+    starts_at        timestamptz,
+    max_players      integer not null default 64
 );
+
+-- Mavjud eski jadvallarga yangi maydonlarni qo'shish.
+alter table public.tournaments
+    add column if not exists game_type text not null default 'mixed';
+alter table public.tournaments
+    add column if not exists max_participants integer not null default 64;
+alter table public.tournaments
+    add column if not exists bracket_data jsonb not null default '[]'::jsonb;
+alter table public.tournaments
+    add column if not exists start_time timestamptz;
+
+update public.tournaments
+set game_type = game
+where game is not null and game <> ''
+  and (game_type is null or game_type = 'mixed');
+update public.tournaments
+set start_time = starts_at
+where start_time is null and starts_at is not null;
+update public.tournaments
+set max_participants = max_players
+where max_participants = 64 and max_players is not null and max_players <> 64;
 
 create index if not exists tournaments_starts_idx
     on public.tournaments (status, starts_at);
+create index if not exists tournaments_start_time_idx
+    on public.tournaments (status, start_time);
 
 create table if not exists public.tournament_participants (
     tournament_id text not null references public.tournaments(id) on delete cascade,
     user_id       bigint not null,
+    score         integer not null default 0,
+    status        text not null default 'REGISTERED',
+    registered_at timestamptz not null default now(),
     username      text not null default '',
     full_name     text not null default '',
     joined_at     timestamptz not null default now(),
     primary key (tournament_id, user_id)
 );
+
+alter table public.tournament_participants
+    add column if not exists score integer not null default 0;
+alter table public.tournament_participants
+    add column if not exists status text not null default 'REGISTERED';
+alter table public.tournament_participants
+    add column if not exists registered_at timestamptz;
+update public.tournament_participants
+set registered_at = joined_at
+where registered_at is null and joined_at is not null;
+
+create index if not exists tournament_participants_status_idx
+    on public.tournament_participants (tournament_id, status);
 
 -- ---------------------------------------------------------------------
 -- Kunlik topshiriqlar va haftalik sandiq

@@ -279,6 +279,62 @@ class ShopPurchaseHistoryTest(unittest.TestCase):
         self.assertTrue(history[0]["created_at"])
         self.assertEqual(history[0]["kind"], "booster")
 
+    def test_history_date_filter_and_pagination(self) -> None:
+        self.store._transactions.extend(
+            [
+                {
+                    "user_id": 4242,
+                    "item_slug": "booster_shield",
+                    "quantity": 1,
+                    "unit_price": 50,
+                    "total_price": 50,
+                    "created_at": "2026-11-01T10:00:00+00:00",
+                },
+                {
+                    "user_id": 4242,
+                    "item_slug": "frame_gold",
+                    "quantity": 1,
+                    "unit_price": 150,
+                    "total_price": 150,
+                    "created_at": "2026-11-02T10:00:00+00:00",
+                },
+                {
+                    "user_id": 4242,
+                    "item_slug": "title_don",
+                    "quantity": 1,
+                    "unit_price": 100,
+                    "total_price": 100,
+                    "created_at": "2026-11-03T10:00:00+00:00",
+                },
+            ]
+        )
+        first = self.client.get(
+            "/api/shop/history",
+            params={
+                "user_id": 4242,
+                "from_date": "2026-11-02",
+                "to_date": "2026-11-03",
+                "limit": 1,
+                "offset": 0,
+            },
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual([row["item_slug"] for row in first.json()["history"]], ["title_don"])
+        self.assertTrue(first.json()["has_more"])
+
+        second = self.client.get(
+            "/api/shop/history",
+            params={
+                "user_id": 4242,
+                "from_date": "2026-11-02",
+                "to_date": "2026-11-03",
+                "limit": 1,
+                "offset": 1,
+            },
+        )
+        self.assertEqual([row["item_slug"] for row in second.json()["history"]], ["frame_gold"])
+        self.assertFalse(second.json()["has_more"])
+
     def test_history_reads_supabase_rows_when_enabled(self) -> None:
         fake = _FakeClient(
             [

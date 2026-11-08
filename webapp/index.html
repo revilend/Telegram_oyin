@@ -3476,6 +3476,15 @@
     .purchase-chev { flex: 0 0 auto; color: #cbd5e1; font-size: 18px; line-height: 1; transition: transform 0.2s ease; }
     .purchase-toggle[aria-expanded="true"] .purchase-chev { transform: rotate(180deg); }
     .purchase-history-body { padding: 10px 12px 12px; }
+    .purchase-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-bottom: 10px; }
+    .purchase-filters label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: #cbd5e1 !important; }
+    .purchase-filters input[type="date"] {
+      min-width: 112px; padding: 7px 8px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06);
+      color: #f8fafc !important; font: inherit; font-size: 11px; color-scheme: dark;
+}
+    .purchase-filters .btn.small { min-height: 32px; padding: 6px 10px; }
+    .purchase-more { width: 100%; margin-top: 8px; }
     .purchase-list { display: flex; flex-direction: column; gap: 8px; }
     .purchase-row {
       display: flex; align-items: center; gap: 10px; padding: 10px 12px;
@@ -3768,6 +3777,10 @@
         purchases: null,
         purchasesLoading: false,
         purchasesOpen: false,
+        purchasesHasMore: false,
+        purchasesFrom: "",
+        purchasesTo: "",
+        tournamentClock: null,
         wheelBusy: false,
         wheelResult: null,
         shop: null,
@@ -4940,6 +4953,7 @@ function profileCardHtml() {
             storeInventoryCache();
             view.purchases = null;
             view.purchasesOpen = false;
+            view.purchasesHasMore = false;
             // Balans darhol sarlavhada yangilanadi (modal ochiq turganda ham).
             var walletPill = document.querySelector(".brand-right .glass-pill");
             if (walletPill) {
@@ -5363,16 +5377,25 @@ function profileCardHtml() {
         return text.slice(0, 10) || "—";
 }
 
-      async function loadPurchaseHistory() {
+      async function loadPurchaseHistory(options) {
+        options = options || {};
         if (view.purchasesLoading) return;
+        var append = Boolean(options.append);
+        var offset = append ? ((view.purchases || []).length) : 0;
         view.purchasesLoading = true;
         try {
-          var path = "/api/shop/history?limit=10" + (profile.id ? "&user_id=" + encodeURIComponent(profile.id) : "");
-          var data = await request(path);
-          view.purchases = (data && data.history) || [];
+          var params = ["limit=10", "offset=" + offset];
+          if (profile.id) params.push("user_id=" + encodeURIComponent(profile.id));
+          if (view.purchasesFrom) params.push("from_date=" + encodeURIComponent(view.purchasesFrom));
+          if (view.purchasesTo) params.push("to_date=" + encodeURIComponent(view.purchasesTo));
+          var data = await request("/api/shop/history?" + params.join("&"));
+          var rows = (data && data.history) || [];
+          view.purchases = append ? (view.purchases || []).concat(rows) : rows;
+          view.purchasesHasMore = Boolean(data && data.has_more);
         } catch (error) {
           console.error("Xarid tarixini yuklab bölmadi:", error);
-          if (!view.purchases) view.purchases = [];
+          if (!append) view.purchases = [];
+          view.purchasesHasMore = false;
 }
         view.purchasesLoading = false;
 }
@@ -5387,7 +5410,7 @@ function profileCardHtml() {
 
       function purchaseHistoryHtml() {
         var rows = view.purchases;
-        var count = rows ? rows.length + " ta" : "";
+        var count = rows ? rows.length + (view.purchasesHasMore ? "+" : "") + " ta" : "";
         var label = view.purchasesOpen ? "Yopish" : "Oxirgi xaridlarni ko‘rish";
         var toggle = '<button class="purchase-toggle" type="button" data-act="purchase-history" aria-expanded="' +
           (view.purchasesOpen ? "true" : "false") + '">' +
@@ -5398,6 +5421,12 @@ function profileCardHtml() {
         if (!view.purchasesOpen) {
           return '<section class="panel purchase-history-card fade">' + toggle + '</section>';
 }
+        var filters = '<div class="purchase-filters">' +
+          '<label><span>Dan</span><input type="date" id="purchase-from" value="' + esc(view.purchasesFrom || "") + '"></label>' +
+          '<label><span>Gacha</span><input type="date" id="purchase-to" value="' + esc(view.purchasesTo || "") + '"></label>' +
+          '<button type="button" class="btn small" data-act="purchase-filter">Filtrlash</button>' +
+          '<button type="button" class="link-btn" data-act="purchase-filter-reset">Tozalash</button>' +
+        '</div>';
         var body;
         if (view.purchasesLoading || rows === null) {
           body = '<div class="purchase-empty">Yuklanmoqda…</div>';
@@ -5412,10 +5441,11 @@ function profileCardHtml() {
                 '<span class="muted tiny">' + esc(purchaseDateTime(entry.created_at)) + ' · ' + esc(purchaseKindLabel(entry.kind)) + '</span></span>' +
               '<span class="purchase-cost">−' + esc(money(entry.total_price)) + ' 🪙</span></div>';
           }).join("");
-          body = '<div class="purchase-list">' + list + '</div>';
+          body = '<div class="purchase-list">' + list + '</div>' +
+            (view.purchasesHasMore ? '<button type="button" class="btn block purchase-more" data-act="purchase-load-more">Ko‘proq yuklash</button>' : '');
 }
         return '<section class="panel purchase-history-card fade">' + toggle +
-          '<div class="purchase-history-body">' + body + '</div></section>';
+          '<div class="purchase-history-body">' + filters + body + '</div></section>';
 }
 
       function historyHtml() {
@@ -7204,6 +7234,39 @@ function profileCardHtml() {
       // Hub (bosh sahifa)
       // ----------------------------------------------------------------
       // ---------------- Haftalik turnirlar ----------------
+      var TOURNAMENT_TICKER = null;
+
+      function tournamentCountdownLabel(startValue) {
+        var stamp = new Date(startValue).getTime();
+        if (isNaN(stamp)) return "—";
+        var total = Math.max(0, Math.floor((stamp - Date.now()) / 1000));
+        if (total <= 0) return "Boshlandi";
+        var pad = function (value) { return (value < 10 ? "0" : "") + value; };
+        var days = Math.floor(total / 86400);
+        var hours = Math.floor((total % 86400) / 3600);
+        var minutes = Math.floor((total % 3600) / 60);
+        var seconds = total % 60;
+        return (days ? days + " kun " : "") + pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
+}
+
+      function syncTournamentCountdowns() {
+        var nodes = document.querySelectorAll("[data-tour-countdown]");
+        for (var i = 0; i < nodes.length; i += 1) {
+          nodes[i].textContent = "⏳ " + tournamentCountdownLabel(nodes[i].getAttribute("data-tour-start"));
+}
+}
+
+      function startTournamentTicker() {
+        if (TOURNAMENT_TICKER) clearInterval(TOURNAMENT_TICKER);
+        syncTournamentCountdowns();
+        TOURNAMENT_TICKER = setInterval(syncTournamentCountdowns, 1000);
+}
+
+      function stopTournamentTicker() {
+        if (TOURNAMENT_TICKER) clearInterval(TOURNAMENT_TICKER);
+        TOURNAMENT_TICKER = null;
+}
+
       async function loadTournaments(force) {
         if (view.tournamentsLoading) return;
         view.tournamentsLoading = true;
@@ -7219,6 +7282,8 @@ function profileCardHtml() {
 }
         view.tournamentsLoading = false;
         if (view.tournamentOpen || force) renderHub();
+        if (view.tournamentOpen) startTournamentTicker();
+        else stopTournamentTicker();
 }
 
       async function openTournaments() {
@@ -7226,6 +7291,7 @@ function profileCardHtml() {
         view.tournamentOpen = true;
         renderHub();
         syncModalBackButton();
+        startTournamentTicker();
         if (!view.tournaments) await loadTournaments(true);
 }
 
@@ -7250,7 +7316,6 @@ function profileCardHtml() {
           });
           if (data) {
             profile.balance = Number(data.coins) || profile.balance;
-            setJoinedTournamentId(tournamentId);
             toast("🎟 " + (data.tournament.title || "Turnir") + "ga yozildingiz!", "success");
             haptic("success");
             sfx("victory");
@@ -7284,8 +7349,15 @@ function profileCardHtml() {
 }
 
       function tournamentJoinButton(tournament) {
-        if (tournament.joined || isAlreadyJoinedTournament(tournament.id)) {
-          return '<button class="btn block" data-act="tour-refresh">✅ Ro\'yxatdan o\'tildi ✅</button>';
+        if (tournament.joined) {
+          return '<button class="btn block" type="button" disabled>✅ Siz ro\'yxatdan o\'tgansiz ✅</button>';
+}
+        if (String(tournament.status || "OPEN") === "ACTIVE") {
+          return '<button class="btn block" type="button" disabled>▶️ Turnir boshlangan</button>';
+}
+        var max = Number(tournament.max_participants || tournament.max_players || 0);
+        if (max && Number(tournament.participants_count) >= max) {
+          return '<button class="btn block" type="button" disabled>Joylar to\'ldi ⛔</button>';
 }
         return '<button class="btn primary block" data-act="tour-join" data-id="' + esc(tournament.id) + '"' +
           (view.tournamentBusy ? " disabled" : "") + '>🎟 Qatnaşiş (' + esc(tournament.entry_fee) + ' 🪙)</button>';
@@ -7311,14 +7383,19 @@ function profileCardHtml() {
         var pills = (tournament.participants || []).slice(0, 12).map(function (participant) {
           return '<span class="tour-pill">' + esc(participant.display_name || participant.full_name || participant.username) + '</span>';
         }).join("");
+        var max = Number(tournament.max_participants || tournament.max_players || 0);
+        var start = tournament.start_time || tournament.starts_at || "";
+        var status = String(tournament.status || "OPEN");
+        var statusLabel = status === "ACTIVE" ? "▶️ Boshlangan" : (status === "OPEN" ? "🟢 Ro‘yxat ochiq" : status);
         return '<div class="tour-card">' +
           '<h3>' + esc(tournament.title) + '</h3>' +
           '<div class="tour-prize">' + esc(money(tournament.prize_pool)) + ' 🪙 sovrin fondi</div>' +
           '<div class="tour-meta">' +
             '<span>🎮 ' + esc(tournament.game_title) + '</span>' +
             '<span>🕒 ' + esc(tournament.starts_at_local) + '</span>' +
-            '<span>⏳ ' + esc(tournament.countdown) + '</span>' +
-            '<span>👥 ' + esc(tournament.participants_count) + '/' + esc(tournament.max_players) + '</span>' +
+            '<span data-tour-countdown data-tour-start="' + esc(start) + '">⏳ ' + esc(tournamentCountdownLabel(start)) + '</span>' +
+            '<span>👥 ' + esc(tournament.participants_count) + '/' + esc(max) + '</span>' +
+            '<span>' + esc(statusLabel) + '</span>' +
           '</div>' +
           (pills ? '<div class="tour-participants">' + pills + '</div>' : '<p class="shop-note">Hali heç kim yozilmagan — birinçi böling!</p>') +
           bracketHtml(tournament.bracket) +
@@ -7785,6 +7862,8 @@ function profileCardHtml() {
         if ((tab === "shop" || tab === "profile") && !view.items && !view.itemsLoading) {
           loadShopItems().then(function () { if (view.hubTab === tab) renderHub(); });
 }
+        if (view.tournamentOpen) startTournamentTicker();
+        else stopTournamentTicker();
 
       }
       function spyEntryHtml() {
@@ -9281,6 +9360,7 @@ function profileCardHtml() {
           openTournaments();
         } else if (act === "tour-close") {
           view.tournamentOpen = false;
+          stopTournamentTicker();
           renderHub();
         } else if (act === "tour-refresh") {
           loadTournaments(true);
@@ -9295,12 +9375,42 @@ function profileCardHtml() {
         } else if (act === "purchase-history") {
           var openHistory = !view.purchasesOpen;
           view.purchasesOpen = openHistory;
+          var historyRequest = openHistory ? loadPurchaseHistory() : null;
           renderHubMain("profile");
-          if (openHistory && !view.purchasesLoading) {
-            loadPurchaseHistory().then(function () {
+          if (historyRequest) {
+            historyRequest.then(function () {
               if (view.hubTab === "profile" && view.purchasesOpen) renderHubMain("profile");
             });
 }
+        } else if (act === "purchase-filter") {
+          var fromInput = document.getElementById("purchase-from");
+          var toInput = document.getElementById("purchase-to");
+          view.purchasesFrom = fromInput ? fromInput.value : "";
+          view.purchasesTo = toInput ? toInput.value : "";
+          view.purchases = null;
+          view.purchasesHasMore = false;
+          var filterRequest = loadPurchaseHistory();
+          renderHubMain("profile");
+          filterRequest.then(function () {
+            if (view.hubTab === "profile" && view.purchasesOpen) renderHubMain("profile");
+          });
+        } else if (act === "purchase-filter-reset") {
+          view.purchasesFrom = "";
+          view.purchasesTo = "";
+          view.purchases = null;
+          view.purchasesHasMore = false;
+          var resetRequest = loadPurchaseHistory();
+          renderHubMain("profile");
+          resetRequest.then(function () {
+            if (view.hubTab === "profile" && view.purchasesOpen) renderHubMain("profile");
+          });
+        } else if (act === "purchase-load-more") {
+          if (!view.purchasesLoading) {
+            var moreRequest = loadPurchaseHistory({ append: true });
+            moreRequest.then(function () {
+              if (view.hubTab === "profile" && view.purchasesOpen) renderHubMain("profile");
+            });
+          }
         } else if (act === "hub-tab") {
           switchHubTab(button.getAttribute("data-tab"));
         } else if (act === "shop") {

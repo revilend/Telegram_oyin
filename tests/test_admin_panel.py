@@ -118,6 +118,7 @@ class AdminPanelTest(unittest.TestCase):
                 ["📥 Kutilayotgan tölovlar (Çeklar)"],
                 ["➕ Foydalanuvçiga tanga beriş"],
                 ["🎟 Promo kod yaratiş"],
+                ["🏆 Turnir sozlamalari"],
                 ["📢 Hammaga xabar (Broadcast)"],
                 ["📥 Bazadan nusxa oliş (Backup)"],
                 ["📤 Bazani tiklaş (Restore)"],
@@ -133,11 +134,47 @@ class AdminPanelTest(unittest.TestCase):
                 "admin_pending",
                 "admin_give",
                 "admin_promo",
+                "admin_tournament",
                 "admin_broadcast",
                 "admin_backup",
                 "admin_restore",
             ],
         )
+
+    def test_tournament_settings_text_and_keyboard(self) -> None:
+        from datetime import datetime, timedelta, timezone
+
+        from core.shop import ShopStore, set_shop_store
+        from core.tournaments import TournamentStore, set_tournament_store
+
+        economy = EconomyStore(url="", key="", client=None)
+        shop = ShopStore(economy=economy)
+        set_shop_store(shop)
+        store = TournamentStore(economy=economy, shop=shop)
+        set_tournament_store(store)
+        self.addCleanup(set_tournament_store, None)
+        self.addCleanup(set_shop_store, None)
+        tournament = store.create(
+            "bunker",
+            (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
+            prize_pool=900,
+            max_players=16,
+        )
+        text = admin.tournament_status_text(tournament)
+        self.assertIn("Faol Turnir Holati", text)
+        self.assertIn("Bunker", text)
+        self.assertIn("900", text)
+        self.assertIn("0 / 16", text)
+        callbacks = [
+            button.callback_data
+            for row in admin.tournament_keyboard(tournament).inline_keyboard
+            for button in row
+        ]
+        self.assertIn(admin.TOUR_MAX_CALLBACK, callbacks)
+        self.assertIn(admin.TOUR_TIME_CALLBACK, callbacks)
+        self.assertIn(admin.TOUR_PRIZE_CALLBACK, callbacks)
+        self.assertIn(admin.TOUR_GAME_CALLBACK, callbacks)
+        self.assertIn(admin.TOUR_START_CALLBACK, callbacks)
 
     def test_panel_shows_stats_and_buttons(self) -> None:
         message = FakeMessage()

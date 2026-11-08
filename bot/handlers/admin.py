@@ -45,6 +45,14 @@ from core.settings import (
     get_settings_store,
     parse_card_line,
 )
+from core.tournaments import (
+    ACTIVE,
+    GAME_TITLES,
+    Tournament,
+    TournamentError,
+    format_local,
+    get_tournament_store,
+)
 from engine.game_manager import get_default_manager
 
 logger = logging.getLogger(__name__)
@@ -58,6 +66,17 @@ PROMO_CALLBACK = "admin_promo"
 BROADCAST_CALLBACK = "admin_broadcast"
 BACKUP_CALLBACK = "admin_backup"
 RESTORE_CALLBACK = "admin_restore"
+TOURNAMENT_CALLBACK = "admin_tournament"
+TOUR_MAX_CALLBACK = "admin_tour_max"
+TOUR_MAX_SET_PREFIX = "admin_tour_max_set_"
+TOUR_MAX_CUSTOM_CALLBACK = "admin_tour_max_custom"
+TOUR_TIME_CALLBACK = "admin_tour_time"
+TOUR_PRIZE_CALLBACK = "admin_tour_prize"
+TOUR_GAME_CALLBACK = "admin_tour_game"
+TOUR_GAME_PREFIX = "admin_tour_game_"
+TOUR_START_CALLBACK = "admin_tour_start"
+TOUR_REFRESH_CALLBACK = "admin_tour_yangila"
+TOUR_BACK_CALLBACK = "admin_tour_back"
 BACK_CALLBACK = "admin_back"
 
 # Telegram bot orqali yuklab olinadigan faylning amaliy chegarasi.
@@ -98,6 +117,9 @@ class AdminStates(StatesGroup):
     waiting_promo = State()
     waiting_broadcast = State()
     waiting_restore = State()
+    waiting_tournament_max = State()
+    waiting_tournament_time = State()
+    waiting_tournament_prize = State()
 
 
 def is_admin(user_id: int) -> bool:
@@ -148,6 +170,12 @@ def panel_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="🎟 Promo kod yaratiş",
                     callback_data=PROMO_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🏆 Turnir sozlamalari",
+                    callback_data=TOURNAMENT_CALLBACK,
                 )
             ],
             [
@@ -736,3 +764,428 @@ async def broadcast(message: Message, command: CommandObject) -> None:
         await message.answer("Format: <code>/broadcast E'lon matni</code>")
         return
     await message.answer(await _broadcast_text(message, text))
+
+
+# ----------------------------------------------------------------------
+# 🏆 Turnir sozlamalari
+# ----------------------------------------------------------------------
+TOUR_MAX_OPTIONS = (8, 16, 32, 64)
+TOUR_GAME_OPTIONS = (
+    ("bunker", "Bunker"),
+    ("mafia", "Mafiya"),
+    ("spyfall", "Josus"),
+    ("alias", "Alias"),
+    ("bomb", "Bomba"),
+)
+TOUR_MAX_PROMPT = (
+    "👥 <b>Qatnaşçilar soni</b>\n\n"
+    "Yangi limitni butun son sifatida yuboring (kamida 2):"
+)
+TOUR_TIME_PROMPT = (
+    "⏰ <b>Boşlaniş vaqtini sozlaş</b>\n\n"
+    "Vaqtni quyidagi formatlardan birida yuboring:\n"
+    "<code>2026-11-12 20:00</code>\n"
+    "<code>ertaga 21:00</code>\n"
+    "<code>+3 kun</code> yoki <code>+3 kun 21:00</code>"
+)
+TOUR_PRIZE_PROMPT = (
+    "💰 <b>Sovrin miqdorini sozlaş</b>\n\n"
+    "Yangi sovrin miqdorini tangada yuboring:"
+)
+
+
+def _current_tournament() -> Tournament | None:
+    """Admin panelidagi joriy turnir; baza xatosi bo'lsa None."""
+    try:
+        store = get_tournament_store()
+        store.ensure_weekly()
+        return store.current()
+    except Exception:
+        logger.exception("Faol turnirni öqib bölmadi")
+        return None
+
+
+def tournament_status_text(tournament: Tournament | None = None) -> str:
+    """Faol turnirning admin panelidagi holati."""
+    item = tournament or _current_tournament()
+    if item is None:
+        return (
+            "🏆 <b>Faol Turnir Holati:</b>\n\n"
+            "Hozirça faol turnir topilmadi. Turnir yaratilgaç şu yerda körinadi."
+        )
+    store = get_tournament_store()
+    try:
+        joined = store.participant_count(item.id)
+    except Exception:
+        joined = 0
+    return (
+        "🏆 <b>Faol Turnir Holati:</b>\n"
+        f"🎮 Öyin: <b>{escape(item.game_title)}</b>\n"
+        f"💰 Sovrin: <b>{format_price(item.prize_pool)} tanga</b>\n"
+        f"👥 Qatnaşçilar: <b>{joined} / {item.max_participants} kişi</b>\n"
+        f"⏰ Boşlaniş vaqti: <b>{escape(format_local(item.starts_at) or '—')}</b>\n"
+        f"📌 Holati: <b>{escape(item.status)}</b>"
+    )
+
+
+def tournament_back_keyboard() -> InlineKeyboardMarkup:
+    """Turnir sozlamalariga qaytish."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Turnir sozlamalari", callback_data=TOUR_BACK_CALLBACK)]
+        ]
+    )
+
+
+def tournament_max_keyboard() -> InlineKeyboardMarkup:
+    """Tezkor qatnashchilar limitlari."""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"{value} kişi", callback_data=f"{TOUR_MAX_SET_PREFIX}{value}"
+            )
+            for value in TOUR_MAX_OPTIONS[index : index + 2]
+        ]
+        for index in range(0, len(TOUR_MAX_OPTIONS), 2)
+    ]
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="✍️ Başqa son", callback_data=TOUR_MAX_CUSTOM_CALLBACK
+            )
+        ]
+    )
+    rows.append(
+        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data=TOUR_BACK_CALLBACK)]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def tournament_game_keyboard() -> InlineKeyboardMarkup:
+    """Turnir o'yin turini tanlash."""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=label, callback_data=f"{TOUR_GAME_PREFIX}{key}"
+            )
+        ]
+        for key, label in TOUR_GAME_OPTIONS
+    ]
+    rows.append(
+        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data=TOUR_BACK_CALLBACK)]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def tournament_keyboard(tournament: Tournament | None = None) -> InlineKeyboardMarkup:
+    """Turnirni başqarish tugmalari."""
+    item = tournament or _current_tournament()
+    rows: list[list[InlineKeyboardButton]] = [
+        [
+            InlineKeyboardButton(
+                text="👥 Qatnaşçilar soni", callback_data=TOUR_MAX_CALLBACK
+            ),
+            InlineKeyboardButton(
+                text="⏰ Vaqtni sozlaş", callback_data=TOUR_TIME_CALLBACK
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="💰 Sovrin miqdori", callback_data=TOUR_PRIZE_CALLBACK
+            ),
+            InlineKeyboardButton(
+                text="🎮 Öyin turi", callback_data=TOUR_GAME_CALLBACK
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=(
+                    "▶️ Turnirga start beriş"
+                    if item is None or item.status != ACTIVE
+                    else "✅ Turnir boşlangan"
+                ),
+                callback_data=TOUR_START_CALLBACK,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔄 Yangilaş", callback_data=TOUR_REFRESH_CALLBACK
+            ),
+            InlineKeyboardButton(
+                text="⬅️ Admin panel", callback_data=BACK_CALLBACK
+            ),
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _send_tournament_status(
+    callback: CallbackQuery,
+    *,
+    prefix: str = "",
+    tournament: Tournament | None = None,
+) -> None:
+    """Turnir holatini yangi xabar sifatida yuboradi."""
+    item = tournament or _current_tournament()
+    text = (prefix + "\n\n" if prefix else "") + tournament_status_text(item)
+    await callback.bot.send_message(
+        callback.from_user.id,
+        text,
+        reply_markup=tournament_keyboard(item),
+    )
+
+
+def _check_tournament_admin(callback: CallbackQuery) -> bool:
+    if not is_admin(callback.from_user.id):
+        return False
+    return True
+
+
+@router.callback_query(F.data == TOURNAMENT_CALLBACK)
+async def show_tournament_settings(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    """Admin panelidan turnir sozlamalarini ochadi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.clear()
+    await callback.answer()
+    await _send_tournament_status(callback)
+
+
+@router.callback_query(F.data == TOUR_BACK_CALLBACK)
+async def tournament_back(callback: CallbackQuery, state: FSMContext) -> None:
+    """Turnir sozlamalariga qaytadi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.clear()
+    await callback.answer()
+    await _send_tournament_status(callback)
+
+
+@router.callback_query(F.data == TOUR_REFRESH_CALLBACK)
+async def yangila_tournament_settings(callback: CallbackQuery) -> None:
+    """Turnir holatini bazadan qayta o'qiydi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await callback.answer("Yangilandi")
+    await _send_tournament_status(callback)
+
+
+@router.callback_query(F.data == TOUR_MAX_CALLBACK)
+async def ask_tournament_max(callback: CallbackQuery) -> None:
+    """Qatnaşçilar limitini tanlashni taklif qiladi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id,
+        "👥 <b>Qatnaşçilar soni</b>\n\nTezkor tanlang yoki başqa son kiriting:",
+        reply_markup=tournament_max_keyboard(),
+    )
+
+
+@router.callback_query(F.data == TOUR_MAX_CUSTOM_CALLBACK)
+async def ask_tournament_max_custom(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    """Istalgan qatnashchilar sonini kiritish uchun holat."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_tournament_max)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id, TOUR_MAX_PROMPT, reply_markup=tournament_back_keyboard()
+    )
+
+
+@router.callback_query(F.data.startswith(TOUR_MAX_SET_PREFIX))
+async def set_tournament_max(callback: CallbackQuery) -> None:
+    """Tezkor tanlangan qatnashchilar sonini saqlaydi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    raw = (callback.data or "")[len(TOUR_MAX_SET_PREFIX) :]
+    item = _current_tournament()
+    if item is None:
+        await callback.answer("Faol turnir topilmadi", show_alert=True)
+        return
+    try:
+        updated = get_tournament_store().set_max_participants(item.id, int(raw))
+    except (TournamentError, ValueError) as exc:
+        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        return
+    await callback.answer("Saqlandi")
+    await _send_tournament_status(
+        callback, prefix="✅ Qatnaşçilar limiti yangilandi.", tournament=updated
+    )
+
+
+@router.callback_query(F.data == TOUR_TIME_CALLBACK)
+async def ask_tournament_time(callback: CallbackQuery, state: FSMContext) -> None:
+    """Boşlaniş vaqtini so'raydi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_tournament_time)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id, TOUR_TIME_PROMPT, reply_markup=tournament_back_keyboard()
+    )
+
+
+@router.callback_query(F.data == TOUR_PRIZE_CALLBACK)
+async def ask_tournament_prize(callback: CallbackQuery, state: FSMContext) -> None:
+    """Sovrin miqdorini so'raydi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_tournament_prize)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id, TOUR_PRIZE_PROMPT, reply_markup=tournament_back_keyboard()
+    )
+
+
+@router.callback_query(F.data == TOUR_GAME_CALLBACK)
+async def ask_tournament_game(callback: CallbackQuery) -> None:
+    """O'yin turini tanlashni taklif qiladi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id,
+        "🎮 <b>Öyin turini tanlang</b>",
+        reply_markup=tournament_game_keyboard(),
+    )
+
+
+@router.callback_query(F.data.startswith(TOUR_GAME_PREFIX))
+async def set_tournament_game(callback: CallbackQuery) -> None:
+    """Tanlangan o'yin turini saqlaydi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    game = (callback.data or "")[len(TOUR_GAME_PREFIX) :]
+    item = _current_tournament()
+    if item is None:
+        await callback.answer("Faol turnir topilmadi", show_alert=True)
+        return
+    try:
+        updated = get_tournament_store().set_game(item.id, game)
+    except TournamentError as exc:
+        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        return
+    await callback.answer("Saqlandi")
+    await _send_tournament_status(
+        callback, prefix="✅ Öyin turi yangilandi.", tournament=updated
+    )
+
+
+@router.callback_query(F.data == TOUR_START_CALLBACK)
+async def start_tournament(callback: CallbackQuery) -> None:
+    """Qatnaşçilardan bracket yasab, turnirni boshlaydi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    item = _current_tournament()
+    if item is None:
+        await callback.answer("Faol turnir topilmadi", show_alert=True)
+        return
+    try:
+        updated = get_tournament_store().start(item.id)
+    except TournamentError as exc:
+        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        return
+    await callback.answer("Turnir boşlandi")
+    await _send_tournament_status(
+        callback,
+        prefix="✅ <b>Turnir boşlandi!</b> Bracket bazaga saqlandi.",
+        tournament=updated,
+    )
+
+
+@router.message(AdminStates.waiting_tournament_max)
+async def save_tournament_max(message: Message, state: FSMContext) -> None:
+    """Admin kiritgan istalgan qatnashchilar sonini saqlaydi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    item = _current_tournament()
+    if item is None:
+        await state.clear()
+        await message.answer("⚠️ Faol turnir topilmadi.", reply_markup=panel_keyboard())
+        return
+    try:
+        value = int((message.text or "").strip().replace(" ", ""))
+        updated = get_tournament_store().set_max_participants(item.id, value)
+    except (ValueError, TournamentError) as exc:
+        await message.answer(
+            f"⚠️ {escape(str(exc))}", reply_markup=tournament_back_keyboard()
+        )
+        return
+    await state.clear()
+    await message.answer(
+        tournament_status_text(updated), reply_markup=tournament_keyboard(updated)
+    )
+
+
+@router.message(AdminStates.waiting_tournament_time)
+async def save_tournament_time(message: Message, state: FSMContext) -> None:
+    """Admin kiritgan boshlanish vaqtini saqlaydi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    item = _current_tournament()
+    if item is None:
+        await state.clear()
+        await message.answer("⚠️ Faol turnir topilmadi.", reply_markup=panel_keyboard())
+        return
+    try:
+        updated = get_tournament_store().set_start_time(
+            item.id, (message.text or "").strip()
+        )
+    except TournamentError as exc:
+        await message.answer(
+            f"⚠️ {escape(str(exc))}", reply_markup=tournament_back_keyboard()
+        )
+        return
+    await state.clear()
+    await message.answer(
+        tournament_status_text(updated), reply_markup=tournament_keyboard(updated)
+    )
+
+
+@router.message(AdminStates.waiting_tournament_prize)
+async def save_tournament_prize(message: Message, state: FSMContext) -> None:
+    """Admin kiritgan sovrin miqdorini saqlaydi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    item = _current_tournament()
+    if item is None:
+        await state.clear()
+        await message.answer("⚠️ Faol turnir topilmadi.", reply_markup=panel_keyboard())
+        return
+    try:
+        updated = get_tournament_store().set_prize_pool(
+            item.id, int((message.text or "").strip().replace(" ", ""))
+        )
+    except (ValueError, TournamentError) as exc:
+        await message.answer(
+            f"⚠️ {escape(str(exc))}", reply_markup=tournament_back_keyboard()
+        )
+        return
+    await state.clear()
+    await message.answer(
+        tournament_status_text(updated), reply_markup=tournament_keyboard(updated)
+    )

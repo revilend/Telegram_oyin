@@ -1113,6 +1113,9 @@ async def shop_buy(
 @app.get("/api/shop/history")
 async def shop_history(
     limit: int = 10,
+    offset: int = 0,
+    from_date: str | None = None,
+    to_date: str | None = None,
     user_id: int | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
@@ -1120,7 +1123,10 @@ async def shop_history(
     resolved_id = resolve_user_id(user, user_id)
     store = get_shop_store()
     cap = max(1, min(int(limit), 30))
-    rows = store.transactions_for_user(int(resolved_id or 0), cap)
+    offset = max(0, int(offset or 0))
+    rows, has_more = store.transactions_page(
+        int(resolved_id or 0), cap, offset, from_date, to_date
+    )
     history: list[dict[str, Any]] = []
     for row in rows:
         slug = str(row.get("item_slug") or "")
@@ -1137,7 +1143,12 @@ async def shop_history(
                 "created_at": row.get("created_at") or "",
             }
         )
-    return {"history": history}
+    return {
+        "history": history,
+        "has_more": has_more,
+        "offset": offset,
+        "limit": cap,
+    }
 
 
 @app.post("/api/spin/wheel")
@@ -1230,10 +1241,13 @@ class AdminTournamentRequest(BaseModel):
     """Admin tomonidan yangi turnir oçiş so'rovi."""
 
     game: str = "mixed"
-    starts_at: str
+    game_type: str | None = None
+    starts_at: str = ""
+    start_time: str | None = None
     entry_fee: int = 50
     prize_pool: int = 2_000
     title: str = ""
+    max_participants: int | None = None
     admin_id: int | None = None
 
 
@@ -1310,13 +1324,17 @@ async def admin_create_tournament(
 ) -> dict[str, Any]:
     """Yangi haftalik turnir oçadi."""
     admin = require_admin(user, payload.admin_id)
+    start = (payload.start_time or payload.starts_at or "").strip()
+    if not start:
+        raise HTTPException(status_code=422, detail="start_time yoki starts_at kerak")
     tournament = get_tournament_store().create(
-        payload.game,
-        payload.starts_at,
+        payload.game_type or payload.game,
+        start,
         entry_fee=payload.entry_fee,
         prize_pool=payload.prize_pool,
         title=payload.title,
         created_by=admin,
+        max_players=payload.max_participants or 64,
     )
     return {"ok": True, "tournament": tournament.as_dict()}
 

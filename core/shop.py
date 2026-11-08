@@ -16,7 +16,7 @@ import os
 import random
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from core.db import safe_insert, safe_update, safe_upsert
@@ -36,6 +36,41 @@ TRANSACTIONS_TABLE = "shop_transactions"
 LEGACY_TRANSACTIONS_TABLE = "transactions"
 
 SPIN_COST = 20
+TASHKENT = timezone(timedelta(hours=5))
+
+
+def _history_bound(value: Any, *, end: bool = False) -> str:
+    """Tarix filtri uchun sanani Toshkent kunidan UTC ISO ga aylantiradi."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        if len(text) == 10:
+            moment = datetime.strptime(text, "%Y-%m-%d").replace(tzinfo=TASHKENT)
+            if end:
+                moment = moment.replace(hour=23, minute=59, second=59, microsecond=999999)
+        else:
+            moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=TASHKENT)
+    except ValueError:
+        return ""
+    return moment.astimezone(timezone.utc).isoformat()
+
+
+def _history_moment(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc)
+
+
 SPIN_TICKET_SLUG = "spin_extra"
 MAX_BUY_QUANTITY = 10
 
@@ -956,25 +991,42 @@ class ShopStore:
         """Xotiradagi xarid tarixi (testlar va diagnostika uchun)."""
         return list(self._transactions)
 
-    def transactions_for_user(self, user_id: int, limit: int = 10) -> list[dict[str, Any]]:
-        """Foydalanuvchi xaridlari: baza yoqilgan bo'lsa jadvaldan, aks holda xotiradan."""
+    def transactions_page(
+        self,
+        user_id: int,
+        limit: int = 10,
+        offset: int = 0,
+        from_date: str | None = None,
+        to_date: str | None = None,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        """Xaridlar sahifasi va yana natija borligini qaytaradi."""
         uid = int(user_id)
         cap = max(1, min(int(limit), 50))
+        start = max(0, int(offset or 0))
+        from_bound = _history_bound(from_date)
+        to_bound = _history_bound(to_date, end=True)
+        fetch = cap + 1
         if self.enabled:
             try:
-                rows = (
+                query = (
                     self.client.table(TRANSACTIONS_TABLE)
                     .select("*")
                     .eq("user_id", uid)
-                    .order("created_at", desc=True)
-                    .limit(cap)
-                    .execute()
-                    .data
-                    or []
                 )
+                if from_bound:
+                    query = query.gte("created_at", from_bound)
+                if to_bound:
+                    query = query.lte("created_at", to_bound)
+                query = query.order("created_at", desc=True)
+                if start:
+                    query = query.range(start, start + fetch - 1)
+                else:
+                    query = query.limit(fetch)
+                rows = query.execute().data or []
                 clean = [dict(row) for row in rows if int(row.get("user_id") or 0) == uid]
                 clean.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
-                return clean[:cap]
+                page = clean[:cap]
+                return page, len(clean) > cap
             except Exception:
                 logger.exception("Xarid tarixini bazadan öqib bölmadi: %s", uid)
         with self._lock:
@@ -982,8 +1034,28 @@ class ShopStore:
                 dict(row) for row in self._transactions
                 if int(row.get("user_id") or 0) == uid
             ]
+        if from_bound or to_bound:
+            from_moment = _history_moment(from_bound)
+            to_moment = _history_moment(to_bound)
+            filtered = []
+            for row in rows:
+                moment = _history_moment(row.get("created_at"))
+                if moment is None:
+                    continue
+                if from_moment is not None and moment < from_moment:
+                    continue
+                if to_moment is not None and moment > to_moment:
+                    continue
+                filtered.append(row)
+            rows = filtered
         rows.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
-        return rows[:cap]
+        selected = rows[start : start + fetch]
+        return selected[:cap], len(selected) > cap
+
+    def transactions_for_user(self, user_id: int, limit: int = 10) -> list[dict[str, Any]]:
+        """Foydalanuvchi xaridlari: baza yoqilgan bo'lsa jadvaldan, aks holda xotiradan."""
+        rows, _ = self.transactions_page(user_id, limit=limit)
+        return rows
 
 
 _store: ShopStore | None = None

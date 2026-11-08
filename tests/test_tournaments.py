@@ -55,6 +55,186 @@ class TournamentTestBase(unittest.TestCase):
         return self.economy.get_user(user_id).coins
 
 
+class FakeTournamentResponse:
+    def __init__(self, data):
+        self.data = data
+
+
+class FakeTournamentQuery:
+    """tournaments/tournament_participants uchun minimal PostgREST klienti."""
+
+    def __init__(self, client, table):
+        self.client = client
+        self.table = table
+        self.mode = "select"
+        self.payload = None
+        self.filters = []
+        self.limit_value = None
+        self.range_value = None
+        self.order_value = None
+
+    def select(self, *_columns):
+        self.mode = "select"
+        return self
+
+    def insert(self, payload, **_kwargs):
+        self.mode = "insert"
+        self.payload = dict(payload)
+        return self
+
+    def update(self, payload):
+        self.mode = "update"
+        self.payload = dict(payload)
+        return self
+
+    def eq(self, column, value):
+        self.filters.append((column, "eq", value))
+        return self
+
+    def gte(self, column, value):
+        self.filters.append((column, "gte", value))
+        return self
+
+    def lte(self, column, value):
+        self.filters.append((column, "lte", value))
+        return self
+
+    def order(self, column, desc=False):
+        self.order_value = (column, bool(desc))
+        return self
+
+    def limit(self, value):
+        self.limit_value = int(value)
+        return self
+
+    def range(self, start, end):
+        self.range_value = (int(start), int(end))
+        return self
+
+    def execute(self):
+        rows = self.client.tables.setdefault(self.table, [])
+        if self.mode == "insert":
+            row = dict(self.payload)
+            key = "id" if self.table == "tournaments" else ("tournament_id", "user_id")
+            if isinstance(key, tuple):
+                existing = next(
+                    (item for item in rows if all(item.get(k) == row.get(k) for k in key)),
+                    None,
+                )
+                if existing is not None:
+                    existing.update(row)
+                else:
+                    rows.append(row)
+            else:
+                for index, item in enumerate(rows):
+                    if item.get(key) == row.get(key):
+                        rows[index] = row
+                        break
+                else:
+                    rows.append(row)
+            return FakeTournamentResponse([])
+        if self.mode == "update":
+            for row in rows:
+                if all(
+                    row.get(column) == value
+                    for column, _, value in self.filters
+                    if _ == "eq"
+                ):
+                    row.update(self.payload)
+            return FakeTournamentResponse([])
+
+        selected = []
+        for row in rows:
+            yes = True
+            for column, operation, value in self.filters:
+                current = row.get(column)
+                if operation == "eq" and current != value:
+                    yes = False
+                elif operation == "gte" and str(current or "") < str(value):
+                    yes = False
+                elif operation == "lte" and str(current or "") > str(value):
+                    yes = False
+            if yes:
+                selected.append(dict(row))
+        if self.order_value:
+            column, desc = self.order_value
+            selected.sort(key=lambda item: str(item.get(column) or ""), reverse=desc)
+        if self.range_value:
+            start, end = self.range_value
+            selected = selected[start : end + 1]
+        elif self.limit_value is not None:
+            selected = selected[: self.limit_value]
+        return FakeTournamentResponse(selected)
+
+
+class FakeTournamentClient:
+    def __init__(self):
+        self.tables = {"tournaments": [], "tournament_participants": []}
+
+    def table(self, name):
+        return FakeTournamentQuery(self, name)
+
+
+class TournamentPersistenceTest(TournamentTestBase):
+    def test_supabase_roundtrip_capacity_admin_and_start(self) -> None:
+        from core.tournaments import (
+            ACTIVE,
+            TournamentFullError,
+            TournamentStore,
+            set_tournament_store,
+        )
+
+        client = FakeTournamentClient()
+        shop = get_shop_store()
+        store = TournamentStore(economy=self.economy, shop=shop, client=client)
+        set_tournament_store(store)
+        start = datetime.now(timezone.utc) + timedelta(days=2)
+        tournament = store.create(
+            "bomb", start.isoformat(), prize_pool=500, max_players=2
+        )
+        self.assertEqual(tournament.max_participants, 2)
+
+        restarted = TournamentStore(economy=self.economy, shop=shop, client=client)
+        loaded = restarted.get(tournament.id)
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded.game_type, "bomb")
+        self.assertEqual(loaded.max_participants, 2)
+        self.assertEqual(loaded.start_time, tournament.starts_at)
+
+        self.economy.ensure_user(99001)
+        self.economy.ensure_user(99002)
+        self.economy.ensure_user(99003)
+        restarted.join(99001, tournament.id, "ali", "Ali")
+        restarted.join(99002, tournament.id, "vali", "Vali")
+        after_join = TournamentStore(economy=self.economy, shop=shop, client=client)
+        self.assertTrue(after_join.joined(tournament.id, 99001))
+        self.assertEqual(after_join.participant_count(tournament.id), 2)
+        with self.assertRaises(TournamentFullError) as full:
+            after_join.join(99003, tournament.id, "zilola", "Zilola")
+        self.assertIn("Joylar to'ldi", str(full.exception))
+
+        updated = after_join.set_max_participants(tournament.id, 8)
+        self.assertEqual(updated.max_participants, 8)
+        updated = after_join.set_start_time(tournament.id, "ertaga 21:00")
+        self.assertTrue(updated.start_time)
+        updated = after_join.set_prize_pool(tournament.id, 750)
+        self.assertEqual(updated.prize_pool, 750)
+        updated = after_join.set_game(tournament.id, "mafia")
+        self.assertEqual(updated.game_type, "mafia")
+
+        started = after_join.start(tournament.id)
+        self.assertEqual(started.status, ACTIVE)
+        self.assertTrue(started.bracket_data)
+        persisted = TournamentStore(economy=self.economy, shop=shop, client=client)
+        restored = persisted.get(tournament.id)
+        self.assertEqual(restored.status, ACTIVE)
+        self.assertTrue(restored.bracket_data)
+        payload = persisted.payload(99001)
+        card = next(item for item in payload["tournaments"] if item["id"] == tournament.id)
+        self.assertTrue(card["joined"])
+        self.assertEqual(card["max_participants"], 8)
+        self.assertIn("bracket", card)
+
 class TournamentApiTest(TournamentTestBase):
     def test_active_seeds_weekly_championship(self) -> None:
         response = self.client.get("/api/tournaments/active?user_id=98001")
