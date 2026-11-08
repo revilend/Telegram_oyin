@@ -1,7 +1,7 @@
 """🏆 Haftalik turnirlar: afisha, qatnashish va eslatmalar.
 
 Bosh menyudagi «🏆 Turnirlar» tugmasi va ``/tournaments`` buyrug'i yaqin
-kelayotgan turnirlar afishasini ko'rsatadi.  Qatnashish uchun 50 tanga
+kelayotgan turnirlar afishasini ko'rsatadi.  Qatnaşiş uchun 50 tanga
 yoki ``tournament_ticket`` çiptasi sarflanadi.  Boshlanişga 30 daqiqa
 qolganda yozilgan öyinçilarga şaxsiy eslatma yuboriladi.
 """
@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from html import escape
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
@@ -20,11 +21,15 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    WebAppInfo,
 )
 
+from bot.config import get_config
+from bot.keyboards.main_menu import mini_app_url_for
 from core.economy import format_price
 from core.tournaments import (
     ENTRY_FEE,
+    OPEN,
     REMINDER_MINUTES,
     Tournament,
     TournamentError,
@@ -32,6 +37,7 @@ from core.tournaments import (
     countdown_text,
     format_local,
     get_tournament_store,
+    status_label,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,7 +47,11 @@ router = Router(name="tournaments")
 TOURNAMENTS_BUTTON = "🏆 Turnirlar"
 OPEN_CALLBACK = "tournaments_open"
 REFRESH_CALLBACK = "tour_update"
+# Yangi tugmalar; eski ``tour_join_`` xabarlari ham ishlashda davom etadi.
+JOIN_CALLBACK_PREFIX = "join_tournament_"
+LEAVE_CALLBACK_PREFIX = "leave_tournament_"
 JOIN_PREFIX = "tour_join_"
+NOOP_CALLBACK = "tournament_noop"
 BACK_CALLBACK = "catalog_back"
 
 REMINDER_INTERVAL_SECONDS = 60
@@ -58,9 +68,9 @@ def _ticket_count(user_id: int | None, store: TournamentStore) -> int:
 
 
 def poster_text(user_id: int | None = None, store: TournamentStore | None = None) -> str:
-    """Turnirlar afishasi matni."""
+    """Turnirlar afishasi matni (Supabase holatidan)."""
     storehouse = store or get_tournament_store()
-    tournaments = storehouse.active()
+    tournaments = storehouse.visible()
     lines = ["🏆 <b>Revilend Haftalik Turnirlar</b>", ""]
     if not tournaments:
         lines.append(
@@ -70,8 +80,8 @@ def poster_text(user_id: int | None = None, store: TournamentStore | None = None
         return "\n".join(lines)
 
     lines.append(
-        "Haftalik çempionatlarda qudratingizni sinang — sovrin fondi va "
-        "şöhrat sizni kutmoqda."
+        "Haftalik çempionatlarda kuçingizni sinang — sovrin fondi va "
+        "şön-şöhrat sizni kutmoqda."
     )
     lines.append("")
     for tournament in tournaments:
@@ -79,20 +89,26 @@ def poster_text(user_id: int | None = None, store: TournamentStore | None = None
             user_id is not None
             and storehouse.joined(tournament.id, int(user_id))
         )
-        lines.append(f"🔥 <b>{tournament.title}</b>")
-        lines.append(f"🎮 Öyin: <b>{tournament.game_title}</b>")
-        lines.append(f"💰 Sovrin fondi: <b>{format_price(tournament.prize_pool)} tanga</b>")
+        lines.append(f"🏆 <b>{escape(tournament.title, quote=False)}!</b>")
+        lines.append(f"🎮 Öyin: <b>{escape(tournament.game_title, quote=False)}</b>")
         lines.append(
-            f"🕒 Boşlaniş: <b>{format_local(tournament.starts_at)}</b> "
-            f"({countdown_text(tournament.starts_at)} qoldi)"
+            f"💰 Sovrin fondi: <b>{format_price(tournament.prize_pool)} tanga</b>"
         )
         lines.append(
-            f"👥 Qatnaşçilar: <b>{storehouse.participant_count(tournament.id)}</b>"
-            f"/{tournament.max_players}"
+            f"👥 Örinlar: <b>{storehouse.participant_count(tournament.id)}"
+            f" / {tournament.max_participants} kişi</b>"
+        )
+        lines.append(
+            f"⏰ Boşlaniş vaqti: <b>{format_local(tournament.starts_at) or '—'}</b>"
+            f" ({countdown_text(tournament.starts_at)})"
+        )
+        lines.append(
+            f"📌 Holati: <b>{escape(status_label(tournament.status), quote=False)}</b>"
         )
         if joined:
-            lines.append("✅ Siz bu turnirga yozilgansiz.")
+            lines.append("✅ Siz bu turnirga röyxatdan ötgansiz.")
         lines.append("")
+
     tickets = _ticket_count(user_id, storehouse)
     lines.append(
         f"🎟 Qatnaşiş narxi: <b>{ENTRY_FEE} tanga</b> yoki turnir çiptasi."
@@ -100,33 +116,103 @@ def poster_text(user_id: int | None = None, store: TournamentStore | None = None
     if tickets:
         lines.append(f"🎟 Sizda <b>{tickets}</b> ta turnir çiptasi bor.")
     lines.append("")
-    lines.append("Örinlar çeklangan — hoziroq yoziling!")
+    if any(item.status == OPEN for item in tournaments):
+        lines.append("Örinlar çeklangan — hoziroq yoziling!")
+    else:
+        lines.append("Turnir boşlanişini kuting — barça öyinçilarga xabar beriladi.")
     return "\n".join(lines)
 
 
+def _mini_app_url(user_id: int | None, username: str = "", full_name: str = "") -> str:
+    """Mini App havolasini foydalanuvchi ma'lumotlari bilan qaytaradi."""
+    try:
+        config = get_config()
+        return mini_app_url_for(
+            config.mini_app_url or "",
+            user_id=user_id,
+            username=username,
+            full_name=full_name,
+        )
+    except Exception:
+        logger.debug("Mini App havolasini olib bölmadi", exc_info=True)
+        return ""
+
+
 def poster_keyboard(
-    user_id: int | None = None, store: TournamentStore | None = None
+    user_id: int | None = None,
+    store: TournamentStore | None = None,
+    *,
+    username: str = "",
+    full_name: str = "",
 ) -> InlineKeyboardMarkup:
-    """Har bir turnir uchun qatnashish tugmasi."""
+    """Har bir turnir uchun holatga mos tugmalar."""
     storehouse = store or get_tournament_store()
     rows: list[list[InlineKeyboardButton]] = []
-    for tournament in storehouse.active():
+    for tournament in storehouse.visible():
         joined = (
             user_id is not None
             and storehouse.joined(tournament.id, int(user_id))
         )
-        if joined:
-            label = f"✅ Yozilgansiz — {tournament.game_title}"
+        if tournament.status != OPEN:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="▶️ Turnir boşlangan",
+                        callback_data=NOOP_CALLBACK,
+                    )
+                ]
+            )
+        elif joined:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="✅ Siz röyxatdan ötgansiz",
+                        callback_data=NOOP_CALLBACK,
+                    )
+                ]
+            )
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="❌ Röyxatdan çiqiş",
+                        callback_data=f"{LEAVE_CALLBACK_PREFIX}{tournament.id}",
+                    )
+                ]
+            )
+        elif storehouse.participant_count(tournament.id) >= tournament.max_players:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="⛔ Joylar töldi",
+                        callback_data=NOOP_CALLBACK,
+                    )
+                ]
+            )
         else:
-            label = f"🎟 Qatnaşiş ({ENTRY_FEE} 🪙) — {tournament.game_title}"
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=label,
-                    callback_data=f"{JOIN_PREFIX}{tournament.id}",
-                )
-            ]
-        )
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="✍️ Turnirga röyxatdan ötiş",
+                        callback_data=f"{JOIN_CALLBACK_PREFIX}{tournament.id}",
+                    )
+                ]
+            )
+
+    url = _mini_app_url(user_id, username, full_name)
+    if url:
+        if url.startswith("https://"):
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="🌐 Mini App'da köriş",
+                        web_app=WebAppInfo(url=url),
+                    )
+                ]
+            )
+        else:
+            rows.append(
+                [InlineKeyboardButton(text="🌐 Mini App'da köriş", url=url)]
+            )
     rows.append(
         [InlineKeyboardButton(text="🔄 Yangilaş", callback_data=REFRESH_CALLBACK)]
     )
@@ -141,7 +227,11 @@ async def show_tournaments(message: Message) -> None:
     user = message.from_user
     await message.answer(
         poster_text(user.id if user is not None else None),
-        reply_markup=poster_keyboard(user.id if user is not None else None),
+        reply_markup=poster_keyboard(
+            user.id if user is not None else None,
+            username=(user.username or "") if user is not None else "",
+            full_name=(user.full_name or "") if user is not None else "",
+        ),
     )
 
 
@@ -162,10 +252,15 @@ async def _show(
 
 
 async def _refresh(callback: CallbackQuery) -> None:
+    user = callback.from_user
     await _show(
         callback,
-        poster_text(callback.from_user.id),
-        poster_keyboard(callback.from_user.id),
+        poster_text(user.id),
+        poster_keyboard(
+            user.id,
+            username=user.username or "",
+            full_name=user.full_name or "",
+        ),
     )
 
 
@@ -255,12 +350,21 @@ async def tournaments_refresh(callback: CallbackQuery) -> None:
     await _refresh(callback)
 
 
+def _join_tournament_id(data: str) -> str:
+    """Yangi va eski qatnashish callback'idan turnir id'sini oladi."""
+    for prefix in (JOIN_CALLBACK_PREFIX, JOIN_PREFIX):
+        if data.startswith(prefix):
+            return data[len(prefix) :]
+    return ""
+
+
+@router.callback_query(F.data.startswith(JOIN_CALLBACK_PREFIX))
 @router.callback_query(F.data.startswith(JOIN_PREFIX))
 async def tournaments_join(callback: CallbackQuery) -> None:
-    """Turnirga yoziladi: çipta yoki 50 tanga sarflanadi."""
-    tournament_id = (callback.data or "")[len(JOIN_PREFIX) :]
+    """Turnirga yoziladi: chipta yoki 50 tanga sarflanadi."""
+    tournament_id = _join_tournament_id(callback.data or "")
     try:
-        result = get_tournament_store().join(
+        get_tournament_store().join(
             callback.from_user.id,
             tournament_id,
             callback.from_user.username or "",
@@ -269,16 +373,33 @@ async def tournaments_join(callback: CallbackQuery) -> None:
     except TournamentError as exc:
         await callback.answer(f"⚠️ {exc}", show_alert=True)
         return
-    if result.ticket_used:
-        paid = "turnir çiptasi sarflandi"
-    else:
-        paid = f"{format_price(result.expense)} tanga yeçildi"
     await callback.answer(
-        f"✅ {result.tournament.title}ga yozildingiz!\n"
-        f"{paid}. Balans: {format_price(result.account.coins)} tanga.",
+        "🎉 Tabriklaymiz! Siz turnirga muvaffaqiyatli röyxatdan ötdingiz.\n"
+        "Boşlaniş vaqtida bot sizga xona havolasini yuboradi.",
         show_alert=True,
     )
     await _refresh(callback)
+
+
+@router.callback_query(F.data.startswith(LEAVE_CALLBACK_PREFIX))
+async def tournaments_leave(callback: CallbackQuery) -> None:
+    """Foydalanuvchini turnir röyxatidan chiqaradi."""
+    tournament_id = (callback.data or "")[len(LEAVE_CALLBACK_PREFIX) :]
+    try:
+        get_tournament_store().leave(callback.from_user.id, tournament_id)
+    except TournamentError as exc:
+        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        return
+    await callback.answer(
+        "❌ Siz turnir röyxatidan çiqdingiz.", show_alert=True
+    )
+    await _refresh(callback)
+
+
+@router.callback_query(F.data == NOOP_CALLBACK)
+async def tournaments_noop(callback: CallbackQuery) -> None:
+    """Holat tugmalari uchun ma'lumot beradi."""
+    await callback.answer("Ma'lumot yangilandi")
 
 
 def reminder_text(tournament: Tournament) -> str:

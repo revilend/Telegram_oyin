@@ -53,7 +53,60 @@ OPEN = "OPEN"
 ACTIVE = "ACTIVE"
 FINISHED = "FINISHED"
 
+# Admin panel va tashqi panellar turli nomlarda yozadi: ``registration``,
+# ``active``, ``OPEN`` va h.k.  Hammasi bitta ichki holatga keltiriladi.
+STATUS_ALIASES: dict[str, str] = {
+    "OPEN": OPEN,
+    "REGISTRATION": OPEN,
+    "REGISTRATION_OPEN": OPEN,
+    "REGISTERING": OPEN,
+    "REGISTER": OPEN,
+    "SIGNUP": OPEN,
+    "UPCOMING": OPEN,
+    "PENDING": OPEN,
+    "ROYXAT": OPEN,
+    "RO_YXAT": OPEN,
+    "ACTIVE": ACTIVE,
+    "ONGOING": ACTIVE,
+    "STARTED": ACTIVE,
+    "LIVE": ACTIVE,
+    "IN_PROGRESS": ACTIVE,
+    "INPROGRESS": ACTIVE,
+    "FINISHED": FINISHED,
+    "COMPLETED": FINISHED,
+    "CLOSED": FINISHED,
+    "ENDED": FINISHED,
+    "CANCELLED": FINISHED,
+    "CANCELED": FINISHED,
+}
+
+STATUS_LABELS: dict[str, str] = {
+    OPEN: "Röyxatga oliş oçiq",
+    ACTIVE: "Turnir boşlangan",
+    FINISHED: "Yakunlangan",
+}
+
 TASHKENT = timezone(timedelta(hours=5))
+
+
+def normalize_status(value: Any) -> str:
+    """Turnir holatini yagona ko'rinishga keltiradi.
+
+    Supabase'dagi eski qatorlarda ``registration`` yoki ``active`` kabi
+    kichik harfli qiymatlar bo'lishi mumkin.  Ular mos ravishda ``OPEN`` va
+    ``ACTIVE`` ga aylanadi — aks holda foydalanuvchi menyusi turnirni
+    ko'rmay qoladi.
+    """
+    text = str(value or "").strip().upper().replace("-", "_").replace(" ", "_")
+    if not text:
+        return OPEN
+    return STATUS_ALIASES.get(text, text)
+
+
+def status_label(value: Any) -> str:
+    """Foydalanuvchiga ko'rinadigan holat matni."""
+    status = normalize_status(value)
+    return STATUS_LABELS.get(status, status)
 
 GAME_TITLES: dict[str, str] = {
     "bunker": "Bunker",
@@ -366,7 +419,7 @@ def _tournament_from_row(row: dict[str, Any]) -> Tournament:
         entry_fee=int(_first(row.get("entry_fee"), default=ENTRY_FEE) or ENTRY_FEE),
         prize_pool=int(row.get("prize_pool") or 0),
         starts_at=str(_first(row.get("start_time"), row.get("starts_at"), default="")),
-        status=str(row.get("status") or OPEN),
+        status=normalize_status(row.get("status")),
         max_players=int(
             _first(
                 row.get("max_participants"),
@@ -580,7 +633,12 @@ class TournamentStore:
         return tournaments
 
     def active(self, now: datetime | None = None) -> list[Tournament]:
-        """Ro'yxatga olish uchun ochiq turnirlar."""
+        """Ro'yxatga olish uchun ochiq turnirlar.
+
+        ``registration`` va ``OPEN`` bir xil qabul qilinadi; ``active``
+        turnirlar ro'yxatga olish uchun emas, faqat ko'rish uchun xizmat
+        qiladi.
+        """
         moment = now or _now()
         self.ensure_weekly(moment)
         result = []
@@ -856,6 +914,44 @@ class TournamentStore:
             expense=expense,
             participants_count=self.participant_count(tournament.id),
         )
+
+    def leave(self, user_id: int, tournament_id: str) -> Tournament:
+        """Turnirdan ro'yxatdan chiqadi (qatnashchi yozuvi o'chiriladi)."""
+        uid = int(user_id)
+        tournament = self.get(tournament_id)
+        if tournament is None:
+            raise TournamentNotFoundError("Turnir topilmadi.")
+        now = _now()
+        if tournament.status != OPEN:
+            raise TournamentClosedError("Turnir allaqachon boshlangan.")
+        if tournament.starts_moment + timedelta(minutes=JOIN_GRACE_MINUTES) <= now:
+            raise TournamentClosedError("Turnir boshlanib ketgan — ro'yxat yopilgan.")
+        if not self.joined(tournament.id, uid):
+            raise TournamentError("Siz bu turnirga yozilmagansiz.")
+        tid = str(tournament.id)
+        if not self.enabled:
+            with self._lock:
+                bucket = self._participants.get(tid, [])
+                self._participants[tid] = [
+                    row for row in bucket if int(row.get("user_id") or 0) != uid
+                ]
+            return tournament
+        try:
+            (
+                self.client.table(PARTICIPANTS_TABLE)
+                .delete()
+                .eq("tournament_id", tid)
+                .eq("user_id", uid)
+                .execute()
+            )
+        except Exception as exc:
+            logger.exception(
+                "Turnir qatnaşçisini o'çirib bölmadi: %s %s", tid, uid
+            )
+            raise TournamentError(
+                "Ro'yxatdan chiqishni Supabase'ga saqlab bo'lmadi."
+            ) from exc
+        return tournament
 
     def set_max_participants(
         self, tournament_id: str, value: int

@@ -87,6 +87,10 @@ class FakeTournamentQuery:
         self.payload = dict(payload)
         return self
 
+    def delete(self):
+        self.mode = "delete"
+        return self
+
     def eq(self, column, value):
         self.filters.append((column, "eq", value))
         return self
@@ -113,6 +117,17 @@ class FakeTournamentQuery:
 
     def execute(self):
         rows = self.client.tables.setdefault(self.table, [])
+        if self.mode == "delete":
+            rows[:] = [
+                row
+                for row in rows
+                if not all(
+                    row.get(column) == value
+                    for column, operation, value in self.filters
+                    if operation == "eq"
+                )
+            ]
+            return FakeTournamentResponse([])
         if self.mode == "insert":
             row = dict(self.payload)
             key = "id" if self.table == "tournaments" else ("tournament_id", "user_id")
@@ -234,6 +249,64 @@ class TournamentPersistenceTest(TournamentTestBase):
         self.assertTrue(card["joined"])
         self.assertEqual(card["max_participants"], 8)
         self.assertIn("bracket", card)
+
+    def test_registration_status_from_supabase_is_listed_and_leave_works(self) -> None:
+        client = FakeTournamentClient()
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        client.tables["tournaments"].extend(
+            [
+                {
+                    "id": "reg1",
+                    "title": "Portlovchi Bomba Haftalik Turniri",
+                    "game_type": "bomb",
+                    "game": "bomb",
+                    "prize_pool": 5000,
+                    "max_participants": 8,
+                    "max_players": 8,
+                    "status": "registration",
+                    "start_time": start.isoformat(),
+                    "starts_at": start.isoformat(),
+                    "bracket_data": [],
+                    "entry_fee": 50,
+                    "created_by": 0,
+                },
+                {
+                    "id": "live1",
+                    "title": "Boshlangan turnir",
+                    "game_type": "mafia",
+                    "game": "mafia",
+                    "prize_pool": 1000,
+                    "max_participants": 8,
+                    "max_players": 8,
+                    "status": "active",
+                    "start_time": (start - timedelta(days=2)).isoformat(),
+                    "starts_at": (start - timedelta(days=2)).isoformat(),
+                    "bracket_data": [],
+                    "entry_fee": 50,
+                    "created_by": 0,
+                },
+            ]
+        )
+        store = TournamentStore(
+            economy=self.economy, shop=get_shop_store(), client=client
+        )
+        set_tournament_store(store)
+        self.addCleanup(set_tournament_store, None)
+
+        visible = [item.id for item in store.visible()]
+        self.assertIn("reg1", visible)
+        self.assertIn("live1", visible)
+        self.assertEqual([item.id for item in store.active()], ["reg1"])
+        payload = store.payload(99030)
+        self.assertIn("reg1", [item["id"] for item in payload["tournaments"]])
+
+        store.join(99030, "reg1", "ali", "Ali")
+        self.assertTrue(store.joined("reg1", 99030))
+        self.assertEqual(store.participant_count("reg1"), 1)
+
+        store.leave(99030, "reg1")
+        self.assertFalse(store.joined("reg1", 99030))
+        self.assertEqual(client.tables["tournament_participants"], [])
 
 class TournamentApiTest(TournamentTestBase):
     def test_active_seeds_weekly_championship(self) -> None:
@@ -390,8 +463,115 @@ class TournamentBotTest(TournamentTestBase):
             row[0].callback_data
             for row in handler.poster_keyboard(98020).inline_keyboard
         ]
-        self.assertIn(f"tour_join_{tournament_id}", callbacks)
+        self.assertIn(f"join_tournament_{tournament_id}", callbacks)
         self.assertIn("tour_update", callbacks)
+
+    def test_registration_status_renders_join_registered_state_and_webapp(self) -> None:
+        from bot.handlers import tournaments as handler
+
+        tournament_id = self.create_tournament()
+        self.store._update_tournament(tournament_id, {"status": "registration"})
+
+        text = handler.poster_text(98021)
+        self.assertIn("Röyxatga oliş oçiq", text)
+        self.assertIn("Bunker Haftalik Turniri", text)
+        self.assertIn("Örinlar:", text)
+        self.assertIn("Boşlaniş vaqti:", text)
+
+        keyboard = handler.poster_keyboard(
+            98021, username="ali", full_name="Ali"
+        )
+        callbacks = [
+            button.callback_data
+            for row in keyboard.inline_keyboard
+            for button in row
+        ]
+        self.assertIn(f"join_tournament_{tournament_id}", callbacks)
+        self.assertIn("tour_update", callbacks)
+        self.assertTrue(
+            any(
+                button.web_app is not None
+                and button.web_app.url.startswith("https://")
+                for row in keyboard.inline_keyboard
+                for button in row
+            )
+        )
+
+        self.store.join(98021, tournament_id, "ali", "Ali")
+        joined_keyboard = handler.poster_keyboard(98021)
+        labels = [
+            button.text
+            for row in joined_keyboard.inline_keyboard
+            for button in row
+        ]
+        joined_callbacks = [
+            button.callback_data
+            for row in joined_keyboard.inline_keyboard
+            for button in row
+        ]
+        self.assertIn("✅ Siz röyxatdan ötgansiz", labels)
+        self.assertIn("❌ Röyxatdan çiqiş", labels)
+        self.assertIn(f"leave_tournament_{tournament_id}", joined_callbacks)
+
+    def test_lowercase_active_status_is_visible_but_not_joinable(self) -> None:
+        from bot.handlers import tournaments as handler
+
+        tournament_id = self.create_tournament()
+        self.store._update_tournament(tournament_id, {"status": "active"})
+        text = handler.poster_text(98022)
+        self.assertIn("Turnir boşlangan", text)
+        keyboard = handler.poster_keyboard(98022)
+        labels = [
+            button.text for row in keyboard.inline_keyboard for button in row
+        ]
+        callbacks = [
+            button.callback_data
+            for row in keyboard.inline_keyboard
+            for button in row
+        ]
+        self.assertIn("▶️ Turnir boşlangan", labels)
+        self.assertNotIn(f"join_tournament_{tournament_id}", callbacks)
+
+    def test_join_and_leave_callbacks_update_the_store(self) -> None:
+        import asyncio
+        from types import SimpleNamespace
+
+        from bot.handlers import tournaments as handler
+
+        tournament_id = self.create_tournament()
+        user = SimpleNamespace(id=98023, username="ali", full_name="Ali")
+
+        class FakeBot:
+            def __init__(self) -> None:
+                self.sent: list[str] = []
+
+            async def send_message(self, chat_id, text, reply_markup=None):
+                self.sent.append(text)
+
+        class FakeCallback:
+            def __init__(self, data: str) -> None:
+                self.data = data
+                self.from_user = user
+                self.bot = FakeBot()
+                self.message = None
+                self.answers: list[str] = []
+
+            async def answer(self, text: str = "", show_alert: bool = False):
+                self.answers.append(text)
+
+        joined = FakeCallback(f"join_tournament_{tournament_id}")
+        asyncio.run(handler.tournaments_join(joined))
+        self.assertTrue(self.store.joined(tournament_id, 98023))
+        self.assertIn("Tabriklaymiz", joined.answers[0])
+
+        left = FakeCallback(f"leave_tournament_{tournament_id}")
+        asyncio.run(handler.tournaments_leave(left))
+        self.assertFalse(self.store.joined(tournament_id, 98023))
+        self.assertIn("çiqdingiz", left.answers[0])
+        self.assertEqual(
+            handler._join_tournament_id(f"tour_join_{tournament_id}"),
+            tournament_id,
+        )
 
     def test_reminder_text_mentions_start(self) -> None:
         from bot.handlers import tournaments as handler
