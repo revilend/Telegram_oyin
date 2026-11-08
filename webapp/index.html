@@ -3344,6 +3344,115 @@
       letter-spacing: 0.2px !important;
       opacity: 1 !important;
 }
+    /* ================================================================
+       XARID TASDIQLASH MODALI (buy confirm)
+       ================================================================ */
+    .item-card .item-side .buy-btn {
+      cursor: pointer !important;
+      touch-action: manipulation !important;
+      -webkit-tap-highlight-color: rgba(168, 85, 247, 0.28);
+}
+    .buy-confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000 !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      padding-bottom: calc(18px + env(safe-area-inset-bottom));
+      background: rgba(4, 2, 10, 0.74);
+      cursor: pointer;
+      animation: buyFade 0.18s ease-out;
+}
+    .buy-confirm-card {
+      position: relative;
+      width: 100%;
+      max-width: 348px;
+      padding: 22px 18px 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(168, 85, 247, 0.42);
+      background: linear-gradient(165deg, rgba(34, 23, 54, 0.98), rgba(14, 9, 24, 0.99)) !important;
+      box-shadow: 0 26px 64px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+      color: #f2f4fb !important;
+      pointer-events: auto;
+      cursor: default;
+      animation: buyIn 0.2s ease-out;
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      max-height: calc(100vh - 132px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+}
+    .buy-confirm-overlay.is-closing { opacity: 0; }
+    .buy-confirm-overlay.is-closing .buy-confirm-card { opacity: 0; transform: scale(0.94); }
+    .buy-confirm-x {
+      position: absolute; top: 11px; right: 11px;
+      width: 32px; height: 32px; border: 0; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1); color: #f2f4fb !important;
+      font-size: 15px; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+}
+    .buy-confirm-x:hover, .buy-confirm-x:active { background: rgba(255, 255, 255, 0.2); }
+    .buy-confirm-title {
+      margin: 0 34px 14px 0;
+      font-size: 17px; font-weight: 800; letter-spacing: -0.2px;
+      color: #ffffff !important;
+}
+    .buy-confirm-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px; border-radius: 18px;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      margin-bottom: 14px;
+}
+    .buy-confirm-emoji {
+      flex: 0 0 auto; width: 54px; height: 54px; border-radius: 15px;
+      display: grid; place-items: center; overflow: hidden;
+      background: rgba(139, 92, 246, 0.2);
+      color: #c4b5fd;
+}
+    .buy-confirm-emoji img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .buy-confirm-emoji .lucide-icon, .buy-confirm-emoji .ui-ico { width: 26px; height: 26px; }
+    .buy-confirm-meta { min-width: 0; }
+    .buy-confirm-meta b { display: block; font-size: 15px; color: #ffffff !important; line-height: 1.25; }
+    .buy-confirm-meta small { display: block; margin-top: 3px; font-size: 11.5px; color: #cbd5e1 !important; line-height: 1.4; }
+    .buy-confirm-rows { display: grid; gap: 8px; margin-bottom: 10px; }
+    .buy-confirm-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      font-size: 13px; color: #cbd5e1 !important;
+      padding: 9px 12px; border-radius: 13px;
+      background: rgba(255, 255, 255, 0.045) !important;
+      border: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+    .buy-confirm-row b { font-size: 14px; color: #ffffff !important; }
+    .buy-confirm-row b.price { color: #fcd34d !important; }
+    .buy-confirm-row b.low { color: #f87171 !important; }
+    .buy-confirm-note {
+      margin: 0 0 14px; font-size: 11.5px; line-height: 1.45;
+      color: #cbd5e1 !important;
+}
+    .buy-confirm-lede { margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: #dbe2f2 !important; }
+    .buy-confirm-lede b { color: #ffffff !important; }
+    .buy-confirm-done { font-size: 34px; line-height: 1; text-align: center; margin-bottom: 10px; }
+    .buy-confirm-actions { display: grid; gap: 8px; }
+    .buy-confirm-actions .btn {
+      width: 100%; color: #f2f4fb !important;
+      background: rgba(255, 255, 255, 0.09) !important;
+      border: 1px solid rgba(255, 255, 255, 0.16) !important;
+      cursor: pointer;
+      touch-action: manipulation;
+}
+    .buy-confirm-actions .btn.primary {
+      color: #0b0713 !important;
+      background: linear-gradient(135deg, #c084fc 0%, #8b5cf6 55%, #f59e0b 100%) !important;
+      border-color: rgba(245, 158, 11, 0.45) !important;
+}
+    .buy-confirm-actions .btn[disabled] { opacity: 0.5; cursor: default; }
+    @keyframes buyIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+}
+    @keyframes buyFade { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -3549,6 +3658,7 @@
         items: null,
         itemsLoading: false,
         wheelOpen: false,
+        buyConfirm: null,
         wheelBusy: false,
         wheelResult: null,
         shop: null,
@@ -4332,7 +4442,9 @@ function profileCardHtml() {
             action = '<button class="btn small' + (equipped ? " sel" : " primary") + '" data-act="equip-toggle" data-slug="' + esc(item.slug) + '" data-equip="' + (equipped ? "0" : "1") + '">' +
               (equipped ? "Taqilgan" : "Taqiş") + '</button>';
           } else {
-            action = '<button class="btn small primary" data-act="shop-buy" data-slug="' + esc(item.slug) + '">' +
+            action = '<button class="btn small primary buy-btn" type="button" data-act="buy-open" data-slug="' +
+              esc(item.slug) + '" data-title="' + esc(item.title) + '" data-price="' + esc(item.price) +
+              '" data-kind="' + esc(item.kind || "") + '" onclick="openBuyConfirmModal(this)">' +
               esc(money(item.price)) + ' ' + icon("coin") + '</button>';
 }
           return '<div class="item-card' + (count > 0 ? " owned" : "") + '">' +
@@ -4568,6 +4680,196 @@ function profileCardHtml() {
 }
 
       }
+      // ---------------- Xarid tasdiqlash modali ----------------
+      function findShopItem(slug) {
+        var sections = (view.items && view.items.sections) || [];
+        for (var i = 0; i < sections.length; i++) {
+          var items = sections[i].items || [];
+          for (var j = 0; j < items.length; j++) {
+            if (items[j].slug === slug) return items[j];
+}
+}
+        return null;
+}
+
+      function buyConfirmRoot() {
+        var root = document.getElementById("buy-confirm-root");
+        if (root) return root;
+        var host = document.getElementById("app") || document.body;
+        root = document.createElement("div");
+        root.id = "buy-confirm-root";
+        host.appendChild(root);
+        return root;
+}
+
+      // Narx tugmasidan bir marta bosishda darhol chaqiriladi (inline onclick).
+      // Argument sifatida element ham, (slug, title, price) ham qabul qilinadi.
+      function openBuyConfirmModal(target, title, price) {
+        var el = target && typeof target === "object" ? target : null;
+        var slug = el ? (el.getAttribute("data-slug") || "") : String(target || "");
+        if (!slug) return;
+        var item = findShopItem(slug) || {};
+        var openedAt = Date.now();
+        if (view.buyConfirm && view.buyConfirm.slug === slug &&
+            openedAt - (view.buyConfirm.openedAt || 0) < 400) {
+          return;
+}
+        var itemTitle = el ? (el.getAttribute("data-title") || item.title || "") : (title || item.title || slug);
+        var itemPrice = Number(el ? el.getAttribute("data-price") : price);
+        if (!isFinite(itemPrice) || itemPrice <= 0) itemPrice = Number(item.price) || 0;
+        view.buyConfirm = {
+          stage: "confirm",
+          slug: slug,
+          title: itemTitle,
+          price: itemPrice,
+          kind: (item && item.kind) || (el ? el.getAttribute("data-kind") : "") || "",
+          description: (item && item.description) || "",
+          equippable: !!(item && item.equippable),
+          busy: false,
+          openedAt: openedAt
+};
+        renderBuyConfirm();
+        haptic("light");
+        syncModalBackButton();
+}
+      window.openBuyConfirmModal = openBuyConfirmModal;
+
+      function renderBuyConfirm() {
+        var root = buyConfirmRoot();
+        var c = view.buyConfirm;
+        if (!c) { root.innerHTML = ""; return; }
+        var balance = Number(profile.balance) || 0;
+        var left = balance - (Number(c.price) || 0);
+        var enough = left >= 0;
+        var img = shopItemImage(c.slug);
+        var badge = img
+          ? '<img src="' + esc(img) + '" alt="' + esc(c.title) + '" loading="lazy" onerror="this.remove()" />'
+          : lucideIcon(shopItemIcon({ slug: c.slug }));
+        var html;
+        if (c.stage === "done") {
+          var noun = c.kind === "title" ? "Unvonni" : (c.kind === "frame" ? "Ramkani" : "Buyumni");
+          html = '<div class="buy-confirm-overlay"><section class="buy-confirm-card" role="dialog" aria-modal="true" aria-label="Xarid yakunlandi">' +
+            '<button class="buy-confirm-x" type="button" data-act="buy-cancel" aria-label="Yopiş" title="Yopiş">✕</button>' +
+            '<div class="buy-confirm-done">🎉</div>' +
+            '<h2 class="buy-confirm-title">Tabriklaymiz!</h2>' +
+            '<p class="buy-confirm-lede"><b>' + esc(c.title) + '</b> inventaringizga qoşildi.' +
+              (c.equippable ? ' ' + noun + ' hozirning özidayoq taqasizmi?' : '') + '</p>' +
+            '<div class="buy-confirm-actions">' +
+              (c.equippable
+                ? '<button class="btn primary block" type="button" data-act="buy-equip"' + (c.busy ? " disabled" : "") + '>⚡ Hozir taqish</button>'
+                : '') +
+              '<button class="btn block" type="button" data-act="buy-cancel">Yopiş</button>' +
+            '</div></section></div>';
+        } else {
+          html = '<div class="buy-confirm-overlay"><section class="buy-confirm-card" role="dialog" aria-modal="true" aria-label="Xaridni tasdiqlang">' +
+            '<button class="buy-confirm-x" type="button" data-act="buy-cancel" aria-label="Yopiş" title="Yopiş">✕</button>' +
+            '<h2 class="buy-confirm-title">🛍️ Xaridni tasdiqlang</h2>' +
+            '<div class="buy-confirm-item">' +
+              '<span class="buy-confirm-emoji">' + badge + '</span>' +
+              '<div class="buy-confirm-meta"><b>' + esc(c.title) + '</b>' +
+                (c.description ? '<small>' + esc(c.description) + '</small>' : '') + '</div>' +
+            '</div>' +
+            '<div class="buy-confirm-rows">' +
+              '<div class="buy-confirm-row"><span>Narxi</span><b class="price">🪙 ' + money(c.price) + ' tanga</b></div>' +
+              '<div class="buy-confirm-row"><span>Qoladigan balans</span><b class="' + (enough ? "" : "low") + '">' + money(left) + ' tanga</b></div>' +
+            '</div>' +
+            '<p class="buy-confirm-note">' + (enough
+              ? 'Tasdiqlasangiz, ' + money(c.price) + ' tanga hisobingizdan darhol yechiladi.'
+              : 'Tangalar yetarli emas — ' + money(Math.abs(left)) + ' tanga yetmayapti.') + '</p>' +
+            '<div class="buy-confirm-actions">' +
+              '<button class="btn primary block" type="button" data-act="buy-confirm"' + (enough && !c.busy ? "" : " disabled") + '>' +
+                (c.busy ? 'Sotib olinmoqda…' : '✅ Ha, sotib olaman') + '</button>' +
+              '<button class="btn block" type="button" data-act="buy-cancel">✕ Bekor qiliş</button>' +
+            '</div></section></div>';
+}
+        root.innerHTML = html;
+        refreshLucide();
+}
+
+      function clearBuyConfirm() {
+        var root = document.getElementById("buy-confirm-root");
+        view.buyConfirm = null;
+        if (!root) return;
+        if (!root.querySelector(".buy-confirm-overlay.is-closing")) root.innerHTML = "";
+}
+
+      function closeBuyConfirm() {
+        var root = document.getElementById("buy-confirm-root");
+        var overlay = root ? root.querySelector(".buy-confirm-overlay") : null;
+        view.buyConfirm = null;
+        syncModalBackButton();
+        var finish = function () {
+          if (root) root.innerHTML = "";
+          renderHub();
+};
+        if (overlay) {
+          overlay.classList.remove("is-closing");
+          overlay.classList.add("is-closing");
+          setTimeout(finish, 160);
+        } else {
+          finish();
+}
+}
+
+      async function confirmBuyItem() {
+        var c = view.buyConfirm;
+        if (!c || c.stage !== "confirm" || c.busy) return;
+        c.busy = true;
+        renderBuyConfirm();
+        try {
+          var data = await request("/api/shop/buy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: profile.id, item_slug: c.slug })
+});
+          if (data) {
+            profile.balance = Number(data.coins) || profile.balance;
+            profile.inventory = data.inventory || profile.inventory;
+            profile.frame = (data.equipped && data.equipped.frame) || profile.frame;
+            profile.title = (data.equipped && data.equipped.title) || profile.title;
+            if (view.items) view.items.inventory = data.inventory || view.items.inventory;
+            storeInventoryCache();
+            // Balans darhol sarlavhada yangilanadi (modal ochiq turganda ham).
+            var walletPill = document.querySelector(".brand-right .glass-pill");
+            if (walletPill) {
+              walletPill.innerHTML = lucideIcon("coins") + " " + money(profile.balance);
+              refreshLucide();
+}
+            var bought = data.item || {};
+            c.stage = "done";
+            c.busy = false;
+            c.title = bought.title || c.title;
+            c.kind = bought.kind || c.kind;
+            c.equippable = !!(bought.equippable || c.kind === "frame" || c.kind === "title");
+            renderBuyConfirm();
+            toast("✅ " + c.title + " olindi!", "success");
+            haptic("success");
+            return;
+}
+        } catch (error) {
+          toast(error.message || "Xarid amalga oşmadi", "error");
+          haptic("error");
+}
+        c.busy = false;
+        renderBuyConfirm();
+}
+
+      async function equipBoughtItem() {
+        var c = view.buyConfirm;
+        if (!c || c.busy) return;
+        var slug = c.slug;
+        var kind = c.kind;
+        c.busy = true;
+        renderBuyConfirm();
+        await toggleEquip(slug, true);
+        view.buyConfirm = null;
+        var root = document.getElementById("buy-confirm-root");
+        if (root) root.innerHTML = "";
+        renderHub();
+        syncModalBackButton();
+        toast(kind === "title" ? "👑 Unvon taqildi!" : "🖼️ Ramka taqildi!", "success");
+}
+
       async function buyItem(slug) {
         if (!slug || view.itemBusy) return;
         view.itemBusy = true;
@@ -7239,6 +7541,7 @@ function profileCardHtml() {
 }
 
       function renderHub() {
+        clearBuyConfirm();
         stopLive();
         stopTimer();
         stopBombPolling();
@@ -8799,13 +9102,22 @@ function profileCardHtml() {
         } else if (act === "shop-section") {
           view.shopSection = button.getAttribute("data-section") || "BOOSTER";
           renderHub();
-        } else if (act === "shop-buy") {
+        } else if (act === "shop-buy" || act === "buy-open") {
+          openBuyConfirmModal(button);
+        } else if (act === "buy-confirm") {
+          confirmBuyItem();
+        } else if (act === "buy-cancel") {
+          closeBuyConfirm();
+        } else if (act === "buy-equip") {
+          equipBoughtItem();
+        } else if (act === "shop-buy-legacy") {
           buyItem(button.getAttribute("data-slug"));
         } else if (act === "equip-toggle") {
           toggleEquip(button.getAttribute("data-slug"), button.getAttribute("data-equip") === "1");
         } else if (act === "shop-close") {
           view.shopOpen = false;
           view.shopPackage = null;
+          clearBuyConfirm();
           renderHub();
         } else if (act === "shop-pack") {
           view.shopPackage = Number(button.getAttribute("data-coins"));
@@ -8918,7 +9230,7 @@ function profileCardHtml() {
 }
 
       function hasOpenOverlay() {
-        return !!(view.shopOpen || view.wheelOpen || view.tournamentOpen ||
+        return !!(view.buyConfirm || view.shopOpen || view.wheelOpen || view.tournamentOpen ||
           view.spyEntry || view.aliasEntry || view.bombEntry || view.mvp ||
           document.querySelector(".mvp-overlay") || hasBombOverlay() || isChatPanelOpen());
 }
@@ -8940,6 +9252,11 @@ function profileCardHtml() {
 
       // Eng ustki modalni yopadi: MVP -> Bomba -> chat -> hub oynasi.
       function closeTopOverlay() {
+        if (view.buyConfirm) {
+          closeBuyConfirm();
+          syncModalBackButton();
+          return true;
+}
         var mvp = document.querySelector(".mvp-overlay");
         if (mvp) {
           view.mvp = null;
@@ -8979,6 +9296,7 @@ function profileCardHtml() {
         if (view.shopOpen || view.wheelOpen || view.tournamentOpen ||
             view.spyEntry || view.aliasEntry || view.bombEntry) {
           var hubOverlay = document.querySelector("#hub-overlays .shop-overlay");
+          clearBuyConfirm();
           view.shopOpen = false;
           view.shopPackage = null;
           view.wheelOpen = false;
