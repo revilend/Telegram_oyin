@@ -1074,6 +1074,7 @@ class SpinRequest(BaseModel):
     """Omad ğildiragini aylantiriş so'rovi."""
 
     user_id: int | None = None
+    stop_angle: int | None = None
 
 
 class EquipRequest(BaseModel):
@@ -1175,7 +1176,10 @@ async def spin_wheel(
     resolved_id = resolve_room_user_id(user, payload.user_id if payload else None)
     metrics.user(resolved_id)
     store = get_shop_store()
-    result = store.spin(resolved_id)
+    stop_angle = payload.stop_angle if payload else None
+    if stop_angle is not None and not (0 <= int(stop_angle) < 360):
+        raise HTTPException(status_code=422, detail="stop_angle 0..359 oralig'ida bo'lishi kerak")
+    result = store.spin(resolved_id, stop_angle=stop_angle)
     record_daily_event(get_economy(), resolved_id, "spin")
     data = result.as_dict()
     data["spin"] = store.spin_status(resolved_id)

@@ -262,6 +262,7 @@
     .text-purple-200 { color: #e9d5ff !important; }
     .text-slate-100 { color: #f1f5f9 !important; }
     .text-slate-300 { color: #cbd5e1 !important; }
+    .text-amber-300 { color: #fcd34d !important; }
     @media (min-width: 640px) { [class~="sm:text-base"] { font-size: 16px !important; line-height: 24px !important; } }
 
     .game-card {
@@ -1434,6 +1435,14 @@
       z-index: 6;
     }
     .wheel-hub:disabled { opacity: 0.7; cursor: default; }
+    .wheel-head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+    .wheel-sound-toggle {
+      display: grid; place-items: center; width: 32px; height: 32px;
+      border-radius: 50%; border: 1px solid rgba(0, 240, 255, 0.32);
+      background: rgba(8, 10, 18, 0.72); color: var(--neon);
+      font-size: 15px; cursor: pointer;
+}
+    .wheel-sound-toggle.off { color: var(--muted); border-color: rgba(255,255,255,0.12); }
     .wheel-label {
       position: absolute;
       left: 50%;
@@ -3675,6 +3684,51 @@
       background: rgba(10, 6, 18, 0.98) !important;
       z-index: 100000 !important;
 }
+
+    /* ================================================================
+       KONTRAST XAVFSIZLIGI: barcha tablar uchun qora qoramtir matnlar
+       yo'q; Telegram light rejimi ham dark neon fonga qaytadi.
+       ================================================================ */
+    body.theme-light {
+      --bg: #070b16 !important;
+      --bg-soft: #0d1324 !important;
+      --text: #f2f4fb !important;
+      --muted: #cbd5e1 !important;
+      --accent: #8b5cf6 !important;
+      --accent-2: #22d3ee !important;
+      --panel: rgba(255,255,255,.045) !important;
+      --panel-strong: rgba(255,255,255,.075) !important;
+      --border: rgba(255,255,255,.09) !important;
+      color: #f2f4fb !important;
+      background: #070b16 !important;
+}
+    .muted, .tiny, .game-desc, .game-meta, .item-desc, .profile-handle,
+    .shop-lede, .tab-head p:last-child, .distance-note,
+    .shop-note, .booster-panel .lede, .shield-offer p, .state-screen p,
+    .auth-lede, .card p, .cat-block li, .catastrophe > p,
+    .purchase-row .tiny, .history-row .tiny, .m-desc, .q-desc,
+    .m-progress, .q-progress, .quest-top .muted, .bonus-card .muted {
+      color: #cbd5e1 !important;
+}
+    .join-card, .join-card *, .item-card, .item-card *,
+    .profile-card, .profile-card *, .purchase-history-card,
+    .purchase-history-card *, .history-row, .history-row *,
+    .game-card, .game-card *, .shop-block, .shop-block * {
+      color: inherit;
+}
+    .join-card h2, .join-card b, .profile-card b,
+    .purchase-history-card b, .history-row b {
+      color: #ffffff !important;
+}
+    .wallet-balance b, .shop-wallet-balance b, .purchase-cost,
+    .text-amber-300 {
+      color: #fcd34d !important;
+}
+    .nav-item { color: #cbd5e1 !important; }
+    .footer { color: #cbd5e1 !important; }
+    input::placeholder, .auth-form input::placeholder {
+      color: #aebacd !important;
+}
     </style>
 </head>
 <body>
@@ -3880,6 +3934,9 @@
         items: null,
         itemsLoading: false,
         wheelOpen: false,
+        wheelAngle: 0,
+        wheelFinalAngle: 0,
+        wheelWinningIndex: -1,
         buyConfirm: null,
         purchases: null,
         purchasesLoading: false,
@@ -4049,10 +4106,12 @@
 }
         var presets = {
           click: function () { tone(880, 0, 0.05, "square", 0.025); tone(1320, 0.02, 0.05, "sine", 0.018); },
+          wheel_tick: function () { tone(1450, 0, 0.022, "square", 0.028); tone(920, 0.008, 0.028, "triangle", 0.02); },
+          wheel_win: function () { [523, 659, 784, 1046, 1318].forEach(function (f, index) { tone(f, index * 0.11, 0.28, "triangle", 0.075); tone(f * 2, index * 0.11 + 0.015, 0.12, "sine", 0.025); }); },
           card_flip: function () { tone(220, 0, 0.12, "sawtooth", 0.05); tone(520, 0.06, 0.14, "triangle", 0.06); tone(980, 0.13, 0.2, "sine", 0.035); },
           timer_tick: function () { tone(1180, 0, 0.035, "square", 0.022); },
           eliminated: function () { tone(180, 0, 0.5, "sawtooth", 0.085); tone(92, 0.18, 0.72, "sine", 0.075); },
-          victory: function () { [523, 659, 784, 1046].forEach(function (f, index) { tone(f, index * 0.12, 0.3, "triangle", 0.075); }); }
+          victory: function () { presets.wheel_win(); }
         };
         return {
           isEnabled: function () { return enabled; },
@@ -4085,14 +4144,24 @@
         document.body.appendChild(button);
 }
 
+      function syncSoundToggleButtons(on) {
+        var state = typeof on === "boolean" ? on : SoundManager.isEnabled();
+        var iconText = state ? "🔊" : "🔇";
+        document.querySelectorAll("#sound-toggle, .wheel-sound-toggle").forEach(function (btn) {
+          btn.textContent = iconText;
+          btn.classList.toggle("off", !state);
+          btn.setAttribute("aria-pressed", state ? "true" : "false");
+          btn.setAttribute("aria-label", state ? "Ovozni o'chirish" : "Ovozni yoqish");
+        });
+      }
+
       document.addEventListener("click", function (event) {
         var target = event.target;
         if (!target || !target.closest) return;
         var button = target.closest("#sound-toggle");
         if (button) {
           var on = SoundManager.toggle();
-          button.textContent = on ? "🔊" : "🔇";
-          button.classList.toggle("off", !on);
+          syncSoundToggleButtons(on);
           return;
 }
         var interactive = target.closest("button,[data-act],input,select,textarea");
@@ -4107,25 +4176,26 @@
       function applyTelegramTheme() {
         if (!tg) return;
         var params = tg.themeParams || {};
-        var light = tg.colorScheme === "light";
         var root = document.documentElement;
-        var bg = params.bg_color || (light ? "#f4f5fb" : "#070b16");
-        var text = params.text_color || (light ? "#111827" : "#f2f4fb");
-        var muted = params.hint_color || (light ? "#5b6478" : "#98a1bb");
-        var accent = params.button_color || (light ? "#7c3aed" : "#8b5cf6");
-        var onAccent = params.button_text_color || (light ? "#ffffff" : "#0a0f1f");
+        // Revilend Mini App doim dark neon palitrada ishlaydi: Telegram light
+        // rejimi qora matn bermasligi uchun asosiy ranglar yorqin.
+        var bg = "#070b16";
+        var text = "#f2f4fb";
+        var muted = "#cbd5e1";
+        var accent = params.button_color || "#8b5cf6";
+        var onAccent = params.button_text_color || "#0a0f1f";
 
-        document.body.classList.toggle("theme-light", light);
+        document.body.classList.remove("theme-light");
         root.style.setProperty("--bg", bg);
-        root.style.setProperty("--bg-soft", params.secondary_bg_color || (light ? "#ffffff" : "#0d1324"));
+        root.style.setProperty("--bg-soft", "#0d1324");
         root.style.setProperty("--text", text);
         root.style.setProperty("--muted", muted);
         root.style.setProperty("--accent", accent);
         root.style.setProperty("--on-accent", onAccent);
-        root.style.setProperty("--accent-2", light ? "#0891b2" : "#22d3ee");
-        root.style.setProperty("--panel", light ? "rgba(15,23,42,.045)" : "rgba(255,255,255,.045)");
-        root.style.setProperty("--panel-strong", light ? "rgba(15,23,42,.075)" : "rgba(255,255,255,.075)");
-        root.style.setProperty("--border", light ? "rgba(15,23,42,.11)" : "rgba(255,255,255,.09)");
+        root.style.setProperty("--accent-2", "#22d3ee");
+        root.style.setProperty("--panel", "rgba(255,255,255,.045)");
+        root.style.setProperty("--panel-strong", "rgba(255,255,255,.075)");
+        root.style.setProperty("--border", "rgba(255,255,255,.09)");
 
         try {
           if (tg.setHeaderColor) tg.setHeaderColor(bg);
@@ -4547,7 +4617,7 @@ function profileCardHtml() {
     '</div>' +
     
           '<div class="wallet-row">' +
-            '<div class="wallet-balance"><span>' + icon("coin") + '</span><b>' + esc(profile.balance) + '</b> tanga</div>' +
+            '<div class="wallet-balance"><span>' + icon("coin") + '</span><b class="text-amber-300">' + esc(profile.balance) + '</b> tanga</div>' +
             '<button class="coin-btn" data-act="shop">' + icon("plus") + ' Dökon</button>' +
           '</div>' +
           '<div class="profile-stats">' +
@@ -4901,7 +4971,7 @@ function profileCardHtml() {
         var cx = 140, cy = 140, radius = 132, labelRadius = 76;
         var parts = [];
         for (var i = 0; i < count; i++) {
-          var start = i * step;
+          var start = i * step - step / 2;
           var end = start + step;
           var p1 = wheelPoint(cx, cy, radius, start);
           var p2 = wheelPoint(cx, cy, radius, end);
@@ -4914,7 +4984,7 @@ function profileCardHtml() {
         for (var j = 0; j < count; j++) {
           var segment = items[j] || {};
           var label = WHEEL_SHORT_LABELS[segment.key] || segment.emoji || "";
-          var mid = j * step + step / 2;
+          var mid = j * step;
           parts.push('<g transform="translate(' + cx + ' ' + cy + ') rotate(' + wheelNum(mid) +
             ') translate(0 -' + labelRadius + ') rotate(' + wheelNum(-mid - upright) + ')">' +
             '<rect x="-28" y="-11" width="56" height="22" rx="11" fill="rgba(0,0,0,0.32)"/>' +
@@ -4932,7 +5002,9 @@ function profileCardHtml() {
         var wheel = (view.items && view.items.wheel) || { cost: 20, segments: [] };
         var segments = wheel.segments || [];
         var spin = (view.items && view.items.spin) || view.spin || { free: true, tickets: 0 };
-        var wheelSvg = buildWheelSvg(segments, view.wheelAngle || 0);
+        var currentAngle = view.wheelFinalAngle || view.wheelAngle || 0;
+        var wheelSvg = buildWheelSvg(segments, currentAngle);
+        var soundOn = SoundManager.isEnabled();
         var label = spin.free ? "Bepul aylantiriş" : (Number(spin.tickets) > 0 ? "Çipta bilan" : esc(wheel.cost) + ' tanga');
         var result = "";
         if (view.wheelResult) {
@@ -4945,10 +5017,12 @@ function profileCardHtml() {
         return '<div class="shop-overlay modal-backdrop"><section class="shop-sheet wheel-sheet modal-sheet" role="dialog" aria-modal="true" aria-label="Omad gʻildiragi">' +
           '<div class="shop-head"><div><h2>' + lucideIcon("sparkles") + ' Omad gʻildiragi</h2>' +
             '<p class="shop-lede">Kuniga bir marta bepul, keyin 20 tanga yoki çipta.</p></div>' +
-            '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
+            '<div class="wheel-head-actions">' +
+            '<button type="button" class="wheel-sound-toggle' + (soundOn ? "" : " off") + '" data-act="wheel-sound" data-sound-toggle="1" aria-pressed="' + (soundOn ? "true" : "false") + '" aria-label="' + (soundOn ? "Ovozni o'chirish" : "Ovozni yoqish") + '" title="' + (soundOn ? "Ovozni o'chirish" : "Ovozni yoqish") + '">' + (soundOn ? "🔊" : "🔇") + '</button>' +
+            '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş" title="Yopiş">✕</button></div></div>' +
           '<div class="wheel-wrap">' +
             '<div class="wheel-pointer" aria-hidden="true">🔻</div>' +
-            '<div class="wheel' + (view.wheelBusy ? " spinning" : (view.wheelAngle ? " spun" : "")) + '" style="--wheel-final:' + (view.wheelAngle || 0) + 'deg">' + wheelSvg + '</div>' +
+            '<div class="wheel' + (view.wheelBusy ? " spinning" : (view.wheelAngle ? " spun" : "")) + '" style="--wheel-final:' + (currentAngle || 0) + 'deg">' + wheelSvg + '</div>' +
             '<button type="button" class="wheel-hub" data-act="wheel-spin" aria-label="Aylantirish"' + (view.wheelBusy ? ' disabled' : '') + '>🎯</button>' +
           '</div>' + result +
           '<button class="btn primary block" data-act="wheel-spin"' + (view.wheelBusy ? " disabled" : "") + '>' + lucideIcon("sparkles") + ' ' + label + '</button>' +
@@ -5351,41 +5425,56 @@ function profileCardHtml() {
         if (view.wheelBusy) return;
         view.wheelBusy = true;
         view.wheelResult = null;
+        // OMAD G'ILDIRAGI — REAL TO'XTASH FIZIKASI (FAIR SPIN)
+        // 8 ta sektor, har biri 45°. Tasodifiy to'xtash burchagi birinchi
+        // aniqlanadi, ko'rsatkich ostidagi sektor indeksi esa formuladan
+        // hisoblanadi; backend aynan shu sektorni mukofotlaydi.
+        const stopAngle = Math.floor(Math.random() * 360);
+        const finalDegrees = 1800 + stopAngle;
+        const winningIndex = Math.floor(((360 - (finalDegrees % 360) + 22.5) % 360) / 45);
+        view.wheelFinalAngle = finalDegrees;
+        view.wheelWinningIndex = winningIndex;
         renderHub();
         var wheelEl = getWheelElement();
         var wheelSegments = (view.items && view.items.wheel && view.items.wheel.segments) || [];
-        var finalAngle = 5 * 360;
         if (wheelEl) {
-          wheelEl.style.setProperty("--wheel-final", finalAngle + "deg");
+          wheelEl.style.setProperty("--wheel-final", finalDegrees + "deg");
           wheelEl.classList.remove("spinning");
           void wheelEl.offsetWidth;
           wheelEl.classList.add("spinning");
         }
-        var spinStartedAt = Date.now();
+        // Ko'rsatkich har bir sektordan o'tayotganda mexanik chertish.
+        var lastTickIndex = -1;
+        var tickStartedAt = Date.now();
+        var tickTimer = setInterval(function () {
+          var progress = Math.min(1, (Date.now() - tickStartedAt) / 3000);
+          var eased = 1 - Math.pow(1 - progress, 3);
+          var currentAngle = finalDegrees * eased;
+          var current = Math.floor(((360 - (currentAngle % 360) + 22.5) % 360) / 45);
+          if (current !== lastTickIndex) {
+            lastTickIndex = current;
+            sfx("wheel_tick");
+          }
+        }, 45);
+        var spinStartedAt = tickStartedAt;
         try {
           var data = await request("/api/spin/wheel", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: profile.id })
+            body: JSON.stringify({ user_id: profile.id, stop_angle: stopAngle })
           });
-          // Natija qaysi sektorda bo'lsa, g'ildirak aynan o'sha sektorda to'xtaydi.
-          var landedIndex = -1;
-          if (data && data.segment && wheelSegments.length) {
-            for (var wi = 0; wi < wheelSegments.length; wi++) {
-              if (wheelSegments[wi].key === data.segment.key) { landedIndex = wi; break; }
-            }
-          }
-          if (landedIndex >= 0) {
-            var segStep = 360 / wheelSegments.length;
-            var segMid = landedIndex * segStep + segStep / 2;
-            finalAngle = (6 + Math.floor(Math.random() * 2)) * 360 - segMid;
-            var liveWheel = getWheelElement();
-            if (liveWheel) liveWheel.style.setProperty("--wheel-final", finalAngle + "deg");
-          }
           var spinWait = 3000 - (Date.now() - spinStartedAt);
           if (spinWait > 0) {
             await new Promise(function (resolve) { setTimeout(resolve, spinWait); });
-}
+          }
+          if (data && data.segment && wheelSegments.length) {
+            var serverIndex = wheelSegments.findIndex(function (segment) {
+              return segment.key === data.segment.key;
+            });
+            if (serverIndex >= 0 && serverIndex !== winningIndex) {
+              throw new Error("Gʻildirak natijasi koʻrsatkich bilan mos kelmadi");
+            }
+          }
           if (data) {
             view.wheelResult = data;
             profile.balance = Number(data.coins) || profile.balance;
@@ -5393,19 +5482,23 @@ function profileCardHtml() {
             if (view.items) {
               view.items.inventory = data.inventory || view.items.inventory;
               view.items.spin = data.spin || view.items.spin;
-}
+          }
             view.spin = data.spin || view.spin;
             haptic("success");
-}
+            sfx("wheel_win");
+          }
         } catch (error) {
           toast(error.message || "Aylantiriş amalga oşmadi", "error");
           haptic("error");
-}
-        view.wheelBusy = false;
-        // Gildirak yakuniy burcagida qoladi: natija korinsin, sakrab qaytmasin.
-        view.wheelAngle = finalAngle;
-        renderHub();
-}
+        } finally {
+          if (tickTimer) clearInterval(tickTimer);
+          view.wheelBusy = false;
+          // Gildirak yakuniy burcagida qoladi: natija korinsin, sakrab qaytmasin.
+          view.wheelAngle = finalDegrees;
+          view.wheelFinalAngle = finalDegrees;
+          renderHub();
+        }
+      }
 
       function syncTelegramProfile() {
         var u = getTgUser();
@@ -9780,6 +9873,9 @@ function profileCardHtml() {
           switchHubTab(button.getAttribute("data-tab"));
         } else if (act === "shop") {
           switchHubTab("shop");
+        } else if (act === "wheel-sound") {
+          var soundOn = SoundManager.toggle();
+          syncSoundToggleButtons(soundOn);
         } else if (act === "wheel-open") {
           openWheel();
         } else if (act === "wheel-close") {

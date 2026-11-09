@@ -407,6 +407,70 @@ class CosmeticsUiWiringTest(unittest.TestCase):
         self.assertIn("card-glass overflow-hidden w-full p-4 join-card", html)
         self.assertIn("Sinxronlash keyinroq bajariladi", html)
 
+    def test_wheel_physics_and_audio_are_wired(self) -> None:
+        html = (
+            Path(__file__).resolve().parent.parent / "webapp" / "index.html"
+        ).read_text(encoding="utf-8")
+        # Real to'xtash fizikasi — frontend va backend bir xil formulani ishlatadi.
+        self.assertIn("const stopAngle = Math.floor(Math.random() * 360);", html)
+        self.assertIn(
+            "const winningIndex = Math.floor(((360 - (finalDegrees % 360) + 22.5) % 360) / 45);",
+            html,
+        )
+        self.assertIn("stop_angle: stopAngle", html)
+        self.assertIn("wheel_tick", html)
+        self.assertIn("wheel_win", html)
+        self.assertIn("wheel-sound-toggle", html)
+        self.assertIn('data-act="wheel-sound"', html)
+        self.assertIn("text-amber-300", html)
+        self.assertNotIn("text-black", html)
+        self.assertNotIn("text-slate-900", html)
+        self.assertNotIn("text-gray-800", html)
+
+    def test_stop_angle_maps_to_same_segment_as_frontend(self) -> None:
+        from core.shop import WHEEL_SEGMENTS, segment_from_stop_angle
+
+        self.assertEqual(len(WHEEL_SEGMENTS), 8)
+        for stop_angle in range(0, 360, 7):
+            final_degrees = 1800 + stop_angle
+            expected_index = int(
+                (((360 - (final_degrees % 360) + 22.5) % 360)) // 45
+            )
+            segment, winning_index, backend_final = segment_from_stop_angle(stop_angle)
+            self.assertEqual(winning_index, expected_index)
+            self.assertEqual(backend_final, final_degrees)
+            self.assertIs(segment, WHEEL_SEGMENTS[expected_index])
+
+    def test_sync_equipped_columns_uses_upsert_for_missing_user_row(self) -> None:
+        from core.shop import ShopStore
+
+        calls = []
+
+        class CaptureQuery:
+            def __init__(self, table: str) -> None:
+                self.table = table
+
+            def upsert(self, row, on_conflict=None):
+                calls.append((self.table, dict(row), on_conflict))
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[])
+
+        class CaptureClient:
+            def table(self, name: str):
+                return CaptureQuery(name)
+
+        store = ShopStore(client=CaptureClient())
+        store._sync_equipped_columns(777, {"frame": "frame_gold", "title": ""})
+        self.assertEqual(len(calls), 1)
+        table, row, on_conflict = calls[0]
+        self.assertEqual(table, "users")
+        self.assertEqual(row["telegram_id"], 777)
+        self.assertEqual(row["equipped_frame"], "frame_gold")
+        self.assertEqual(row["equipped_title"], "")
+        self.assertEqual(on_conflict, "telegram_id")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -481,6 +481,9 @@ class SpinResult:
     expense: int
     account: UserAccount
     entry: InventoryEntry | None = None
+    stop_angle: int | None = None
+    final_degrees: int | None = None
+    winning_index: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -490,6 +493,9 @@ class SpinResult:
             "ticket_used": self.ticket_used,
             "expense": self.expense,
             "coins": self.account.coins,
+            "stop_angle": self.stop_angle,
+            "final_degrees": self.final_degrees,
+            "winning_index": self.winning_index,
             "reward": {
                 "kind": "coins" if self.segment.coins else "item",
                 "coins": self.segment.coins,
@@ -576,6 +582,21 @@ def pick_segment(rng: random.Random | None = None) -> WheelSegment:
         if roll <= upto:
             return segment
     return WHEEL_SEGMENTS[-1]
+
+
+def segment_from_stop_angle(stop_angle: int) -> tuple[WheelSegment, int, int]:
+    """Tasodifiy to'xtash burchagidan yutuq sektorini aniqlaydi.
+
+    Frontend bilan bir xil matematika: 8 ta sektor (har biri 45°),
+    ``finalDegrees = 1800 + stopAngle`` va
+    ``winningIndex = floor(((360 - (finalDegrees % 360) + 22.5) % 360) / 45)``.
+    """
+    normalized = int(stop_angle) % 360
+    final_degrees = 1800 + normalized
+    winning_index = int(
+        (((360 - (final_degrees % 360) + 22.5) % 360)) // 45
+    )
+    return WHEEL_SEGMENTS[winning_index], winning_index, final_degrees
 
 
 class ShopStore:
@@ -950,6 +971,7 @@ class ShopStore:
         *,
         now: datetime | None = None,
         rng: random.Random | None = None,
+        stop_angle: int | None = None,
     ) -> SpinResult:
         """Ğildirakni aylantiradi: kuniga bir bepul, keyin çipta yoki 20 tanga."""
         uid = int(user_id)
@@ -983,7 +1005,18 @@ class ShopStore:
                 self.economy.spend_coins(uid, SPIN_COST)
                 expense = SPIN_COST
 
-        segment = pick_segment(rng)
+        winning_index: int | None = None
+        final_degrees: int | None = None
+        normalized_stop: int | None = None
+        if stop_angle is not None:
+            if not 0 <= int(stop_angle) < 360:
+                raise ShopError("stop_angle 0..359 oralig'ida bo'lishi kerak")
+            normalized_stop = int(stop_angle)
+            segment, winning_index, final_degrees = segment_from_stop_angle(
+                normalized_stop
+            )
+        else:
+            segment = pick_segment(rng)
         if segment.key == "mystery":
             generator = rng or random
             segment = WheelSegment(
@@ -1014,6 +1047,9 @@ class ShopStore:
             expense=expense,
             account=account,
             entry=entry,
+            stop_angle=normalized_stop,
+            final_degrees=final_degrees,
+            winning_index=winning_index,
         )
 
     # ------------------------------------------------------------------
@@ -1069,18 +1105,24 @@ class ShopStore:
     def _sync_equipped_columns(
         self, user_id: int, equipped: dict[str, str]
     ) -> None:
-        """Ramka/unvon nusxasini ``users`` jadvaliga ham yozadi."""
+        """Ramka/unvon nusxasini ``users.equipped_frame`` ga xavfsiz yozadi.
+
+        Foydalanuvchi qatori hali yaratilmagan bo'lsa ham ``upsert`` yozadi,
+        shuning uchun "Taqilgan buyumni Supabase'ga saqlab bo'lmadi" xatosi
+        foydalanuvchiga chiqmaydi (faqat logda qoladi).
+        """
         if not self.enabled:
             return
         try:
-            safe_update(
+            safe_upsert(
                 self.client,
                 USERS_TABLE,
                 {
+                    USERS_ID_COLUMN: int(user_id),
                     "equipped_frame": equipped.get("frame", ""),
                     "equipped_title": equipped.get("title", ""),
                 },
-                {USERS_ID_COLUMN: int(user_id)},
+                on_conflict=USERS_ID_COLUMN,
             )
         except Exception:
             logger.exception(
