@@ -1213,6 +1213,32 @@ async def spin_wheel(
     return data
 
 
+class LanguageRequest(BaseModel):
+    """Mini App tilini saqlash so'rovi (``users.language_code``)."""
+
+    language_code: str = ""
+    user_id: int | None = None
+
+
+@app.post("/api/profile/language")
+@app.post("/api/user/language")
+async def save_language(
+    payload: LanguageRequest,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Foydalanuvchining afzal tilini Supabase'ga yozadi."""
+    from core.i18n import LANGUAGES as SUPPORTED_LANGUAGES
+
+    resolved_id = resolve_client_user_id(user, payload.user_id)
+    code = (payload.language_code or "").strip().lower().split("-")[0].split("_")[0]
+    if code not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=422, detail="language_code uz/ru/en bo'lishi kerak")
+    economy = get_economy()
+    economy.ensure_user(resolved_id, "", "")
+    economy.set_language(resolved_id, code)
+    return {"user_id": resolved_id, "language_code": code}
+
+
 @app.post("/api/profile/equip")
 @app.post("/api/user/equip")
 async def equip_item(

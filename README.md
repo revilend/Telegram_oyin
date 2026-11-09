@@ -653,6 +653,20 @@ Qoidalar:
 - Callback ma’lumotlari hech qachon tilga bog‘liq emas — tugmalar matni o‘zgaradi, callback o‘zgarmaydi.
 - Yangi xabarlar uchun matnni `core/i18n.py` ga kalit bilan qo‘shing va handlerda `t(lang, "kalit")` dan oling.
 
+### Mini App i18n (`webapp/js/i18n.js`)
+
+Mini App interfeysi ham uch tilda ishlaydi:
+
+| Element | Joyi |
+|:---|:---|
+| Lug‘at | `webapp/js/i18n.js` — `translations.uz / .ru / .en` (yangi kalitlar shu yerga qo‘shiladi) |
+| Ulanish | `webapp/index.html` — `tr(kalit, fallback)` helperi bilan template funksiyalar (pastki nav, o‘yin kartalari, do‘kon, xarid modali, reyting, profil) |
+| Tilni yuklash | `/api/me` javobidagi `user.language_code` → `I18N.initFromServer()`, fallback: `localStorage.lang` → Telegram `initDataUnsafe.user.language_code` → `uz` |
+| Almashtirish | Profil sahifasining yuqori qismidagi `[ 🇺🇿 UZ ] [ 🇷🇺 RU ] [ 🇬🇧 EN ]` switcher; klik `data-i18n-lang` → `I18N.setLanguage()` → sahifa reload’siz `renderHubMain()` + bottom nav qayta chiziladi |
+| Saqlash | `localStorage.lang` + `POST /api/profile/language` (`users.language_code`, Supabase) |
+
+Backend endpoint: `POST /api/profile/language` — tilni `uz/ru/en` tekshirib `users.language_code` ga yozadi (faqat server-side `service_role` yozuvi).
+
 ---
 
 ## 🗄️ Supabase Database-First arxitekturasi
