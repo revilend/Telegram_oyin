@@ -178,11 +178,9 @@ def _load_state(store: Any, user_id: int) -> tuple[dict[str, Any], Any]:
     day = _day_key()
     key = (uid, day)
     state: dict[str, Any] | None = None
-    with _LOCK:
-        cached = _MEMORY_STATES.get(key)
-        if cached:
-            state = dict(cached)
-    if state is None and getattr(store, "enabled", False):
+    # Supabase ustuvor: baza yoqilgan bo'lsa, fakt faqat bazadan olinadi
+    # (RAM cache eski holatni bosib ketmasligi uchun).
+    if getattr(store, "enabled", False):
         try:
             rows = (
                 store.client.table(STATE_TABLE)
@@ -200,6 +198,11 @@ def _load_state(store: Any, user_id: int) -> tuple[dict[str, Any], Any]:
                     state = dict(raw)
         except Exception:
             logger.exception("Kunlik topshiriq holatini o'qib bo'lmadi: %s", uid)
+    if state is None:
+        with _LOCK:
+            cached = _MEMORY_STATES.get(key)
+            if cached:
+                state = dict(cached)
     if not state or state.get("day") != day:
         state = _new_state(account, day)
     state.setdefault("baseline", {})
@@ -230,11 +233,7 @@ def _load_profile(store: Any, user_id: int) -> dict[str, Any]:
     uid = int(user_id)
     week = _week_key()
     profile: dict[str, Any] | None = None
-    with _LOCK:
-        cached = _MEMORY_PROFILES.get(uid)
-        if cached:
-            profile = dict(cached)
-    if profile is None and getattr(store, "enabled", False):
+    if getattr(store, "enabled", False):
         try:
             rows = (
                 store.client.table(PROFILE_TABLE)
@@ -251,6 +250,11 @@ def _load_profile(store: Any, user_id: int) -> dict[str, Any]:
                     profile = dict(raw)
         except Exception:
             logger.exception("Haftalik sandiq holatini o'qib bo'lmadi: %s", uid)
+    if profile is None:
+        with _LOCK:
+            cached = _MEMORY_PROFILES.get(uid)
+            if cached:
+                profile = dict(cached)
     if not profile or profile.get("week") != week:
         profile = {"week": week, "claims": 0, "chest_claimed": False}
     return profile

@@ -493,10 +493,14 @@ class TournamentStore:
             rows = self.client.table(TOURNAMENTS_TABLE).select("*").execute().data or []
             self._read_failed = False
             return [dict(row) for row in rows]
-        except Exception:
+        except Exception as exc:
+            # O'qish xatosida bo'sh ro'yxat qaytarilmaydi: turnirlar
+            # mavjud bo'lsa ham "yo'q" bo'lib ko'rinardi.
             self._read_failed = True
-            logger.exception("Turnirlar ro'yxatini öqib bölmadi")
-            return []
+            logger.exception("Turnirlar ro'yxatini Supabase'dan öqib bölmadi")
+            raise TournamentError(
+                "Turnirlar bazadan yuklab bo'lmadi. Qayta urinib ko'ring."
+            ) from exc
 
     def _participant_rows(self, tournament_id: str) -> list[dict[str, Any]]:
         tid = str(tournament_id)
@@ -512,9 +516,13 @@ class TournamentStore:
                 or []
             )
             return [dict(row) for row in rows]
-        except Exception:
-            logger.exception("Turnir qatnaşçilarini öqib bölmadi: %s", tid)
-            return []
+        except Exception as exc:
+            logger.exception(
+                "Turnir qatnaşçilarini Supabase'dan öqib bölmadi: %s", tid
+            )
+            raise TournamentError(
+                "Turnir qatnaşçilarini bazadan yuklab bo'lmadi."
+            ) from exc
 
     def _tournament_row(self, tournament: Tournament) -> dict[str, Any]:
         return {

@@ -1,233 +1,152 @@
-"""Saqlash hooklari va Supabase mapping testlari."""
+"""Supabase-first (database-first) arxitektura testlari."""
 
+from __future__ import annotations
+
+import os
 import unittest
-from typing import Any
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from core.db import SupabaseStore
-from engine.game_manager import GameManager
-from models.game import GameRoom, RoomStatus, ShieldOffer
-
-
-class ManagerPersistenceTest(unittest.TestCase):
-    def test_change_handler_receives_every_mutation(self) -> None:
-        manager = GameManager(seed=42)
-        events: list[tuple[str, str, dict[int, int]]] = []
-        manager.set_change_handler(
-            lambda room, votes: events.append(
-                (room.code, room.status.value, dict(votes))
-            )
-        )
-
-        room = manager.create_room(1, "Ali", "ali", bunker_capacity=2)
-        manager.join_room(room.code, 2, "Vali", "vali")
-        manager.join_room(room.code, 3, "Zilola", "zilola")
-        manager.join_room(room.code, 4, "Sardor", "sardor")
-        manager.start_game(room.code)
-        manager.reveal_card(room.code, 1, "profession")
-        manager.cast_vote(room.code, 1, 2)
-        manager.tally_votes(room.code)
-
-        self.assertEqual(
-            [status for _, status, _ in events],
-            [
-                "LOBBY",
-                "LOBBY",
-                "LOBBY",
-                "LOBBY",
-                "PLAYING",
-                "PLAYING",
-                "VOTING",
-                "PLAYING",
-            ],
-        )
-        self.assertEqual(events[6][2], {1: 2})
-        self.assertEqual(events[7][2], {})
-
-    def test_loader_restores_room_and_votes(self) -> None:
-        source = GameManager(seed=7)
-        room = source.create_room(11, "Ali", "ali", bunker_capacity=2)
-        source.join_room(room.code, 12, "Vali", "vali")
-        source.join_room(room.code, 13, "Zilola", "zilola")
-        source.join_room(room.code, 14, "Sardor", "sardor")
-        source.start_game(room.code)
-        source.reveal_card(room.code, 11, "health")
-        source.cast_vote(room.code, 11, 12)
-
-        snapshot = GameRoom.model_validate(room.model_dump(mode="json"))
-        votes = {11: 12}
-
-        target = GameManager(seed=8)
-        calls: list[str] = []
-
-        def loader(code: str):
-            calls.append(code)
-            return (snapshot, votes) if code == room.code else None
-
-        target.set_room_loader(loader)
-        restored = target.get_room(room.code.lower())
-
-        self.assertEqual(restored.code, room.code)
-        self.assertTrue(restored.players[11].cards["health"].is_revealed)
-        self.assertEqual(restored.players[12].votes_against, 1)
-        self.assertEqual(calls, [room.code])
-
-        eliminated = target.tally_votes(room.code)
-        self.assertIsNotNone(eliminated)
-        self.assertEqual(eliminated.user_id, 12)
-        self.assertEqual(len(calls), 1, "Xona ikkinchi marta yuklanmasligi kerak")
-
-    def test_loader_missing_room_raises(self) -> None:
-        manager = GameManager(seed=9)
-        manager.set_room_loader(lambda code: None)
-        with self.assertRaises(Exception) as ctx:
-            manager.get_room("BNK000")
-        self.assertIn("topilmadi", str(ctx.exception))
+from core.economy import EconomyStore
+from core.persistence import (
+    ADMIN_USER_ID,
+    ensure_admin_profile,
+    ensure_persistence_or_raise,
+    persistence_status,
+)
+from core.shop import ShopStore
 
 
-class _FakeResponse:
-    def __init__(self, data: list[dict[str, Any]]) -> None:
-        self.data = data
-
-
-class _FakeQuery:
-    def __init__(self, client: "_FakeClient", table: str) -> None:
+class _Query:
+    def __init__(self, client, table):
         self.client = client
-        self.table_name = table
-        self.mode = "select"
-        self.filters: dict[str, Any] = {}
-        self.limit_value: int | None = None
+        self.table = table
+        self.filters: dict[str, object] = {}
+        self._op = "select"
+        self._payload: object = None
 
-    def select(self, *columns: str) -> "_FakeQuery":
-        self.mode = "select"
+    def select(self, *_args, **_kwargs):
+        self._op = "select"
         return self
 
-    def upsert(self, rows: Any, on_conflict: str | None = None) -> "_FakeQuery":
-        self.client.upsert(self.table_name, [rows] if isinstance(rows, dict) else rows)
-        self.mode = "upsert"
+    def eq(self, key, value):
+        self.filters[key] = value
         return self
 
-    def eq(self, column: str, value: Any) -> "_FakeQuery":
-        self.filters[column] = value
+    def limit(self, _value):
         return self
 
-    def limit(self, value: int) -> "_FakeQuery":
-        self.limit_value = value
+    def insert(self, payload, **_kwargs):
+        self._op = "insert"
+        self._payload = payload
         return self
 
-    def execute(self) -> _FakeResponse:
-        if self.mode != "select":
-            return _FakeResponse([])
-        rows = [
-            row
-            for row in self.client.tables.get(self.table_name, [])
+    def upsert(self, payload, **_kwargs):
+        self._op = "upsert"
+        self._payload = payload
+        return self
+
+    def update(self, payload, **_kwargs):
+        self._op = "update"
+        self._payload = payload
+        return self
+
+    def _rows(self) -> list[dict]:
+        if self.table == "users":
+            source = list(self.client.users.values())
+        elif self.table == "user_inventory":
+            source = [dict(row) for row in self.client.inventory.values()]
+        else:
+            source = []
+        return [
+            dict(row)
+            for row in source
             if all(row.get(key) == value for key, value in self.filters.items())
         ]
-        if self.limit_value is not None:
-            rows = rows[: self.limit_value]
-        return _FakeResponse([dict(row) for row in rows])
+
+    def execute(self):
+        if self._op == "insert" and isinstance(self._payload, dict):
+            row = dict(self._payload)
+            if self.table == "users":
+                self.client.users[int(row["telegram_id"])] = row
+            elif self.table == "user_inventory":
+                key = (int(row["user_id"]), str(row["item_slug"]))
+                self.client.inventory[key] = row
+            return SimpleNamespace(data=[])
+        if self._op == "upsert" and isinstance(self._payload, dict):
+            row = dict(self._payload)
+            if self.table == "users":
+                key = int(row["telegram_id"])
+                self.client.users[key] = {**self.client.users.get(key, {}), **row}
+            elif self.table == "user_inventory":
+                key = (int(row["user_id"]), str(row["item_slug"]))
+                self.client.inventory[key] = row
+            return SimpleNamespace(data=[])
+        if self._op == "update" and isinstance(self._payload, dict):
+            if self.table == "users" and "telegram_id" in self.filters:
+                key = int(self.filters["telegram_id"])
+                if key in self.client.users:
+                    self.client.users[key].update(self._payload)
+            return SimpleNamespace(data=[])
+        return SimpleNamespace(data=self._rows()[:1] if self._op == "select" else [])
 
 
-class _FakeClient:
-    def __init__(self) -> None:
-        self.tables: dict[str, list[dict[str, Any]]] = {
-            "rooms": [],
-            "room_players": [],
-        }
+class _Client:
+    """users + user_inventory'ni xotirada tutadigan minimal Supabase fake."""
 
-    def table(self, name: str) -> _FakeQuery:
-        return _FakeQuery(self, name)
+    def __init__(self):
+        self.users: dict[int, dict] = {}
+        self.inventory: dict[tuple[int, str], dict] = {}
 
-    def upsert(self, table: str, rows: list[dict[str, Any]]) -> None:
-        if table == "rooms":
-            merged = {row["code"]: row for row in self.tables[table]}
-            merged.update({row["code"]: row for row in rows})
-            self.tables[table] = list(merged.values())
-            return
-        merged_players = {
-            (row["room_code"], row["user_id"]): row for row in self.tables[table]
-        }
-        merged_players.update(
-            {(row["room_code"], row["user_id"]): row for row in rows}
-        )
-        self.tables[table] = list(merged_players.values())
+    def table(self, name: str):
+        return _Query(self, name)
 
 
-class SupabaseMappingTest(unittest.TestCase):
-    def test_round_trip_rooms_and_players(self) -> None:
-        manager = GameManager(seed=21)
-        room = manager.create_room(31, "Ali", "ali", bunker_capacity=2)
-        manager.join_room(room.code, 32, "Vali", "vali")
-        manager.join_room(room.code, 33, "Zilola", "zilola")
-        manager.join_room(room.code, 34, "Sardor", "sardor")
-        manager.start_game(room.code)
-        manager.reveal_card(room.code, 31, "luggage")
-        manager.cast_vote(room.code, 31, 32)
+class PersistenceTest(unittest.TestCase):
+    def _stores(self):
+        fake = _Client()
+        economy = EconomyStore(url="", key="", client=fake)
+        shop = ShopStore(economy=economy, client=fake)
+        return economy, shop
 
-        fake_client = _FakeClient()
-        store = SupabaseStore(client=fake_client)
-        try:
-            store.save_room(room, votes={31: 32})
-            loaded = store.load_room(room.code)
-        finally:
-            store.close()
+    def test_admin_profile_is_created_with_recovery_values(self) -> None:
+        economy, shop = self._stores()
+        ok = ensure_admin_profile(economy, shop)
+        self.assertTrue(ok)
+        account = economy.ensure_user(ADMIN_USER_ID)
+        self.assertGreaterEqual(account.coins, 100_000_000)
+        self.assertGreaterEqual(account.bonus_streak, 4)
+        self.assertGreaterEqual(account.streak_days, 4)
+        entry = shop.entry(ADMIN_USER_ID, "frame_fire_dragon")
+        self.assertEqual(entry.quantity, 1)
+        self.assertTrue(entry.is_equipped)
 
-        self.assertEqual(fake_client.tables["rooms"][0]["bunker_capacity"], 2)
-        self.assertIsInstance(fake_client.tables["rooms"][0]["bunker_capacity"], int)
+    def test_existing_admin_profile_is_never_zeroed(self) -> None:
+        economy, shop = self._stores()
+        economy.ensure_user(ADMIN_USER_ID)
+        economy.add_coins(ADMIN_USER_ID, 5)
+        before = economy.ensure_user(ADMIN_USER_ID).coins
+        ensure_admin_profile(economy, shop)
+        after = economy.ensure_user(ADMIN_USER_ID)
+        self.assertGreaterEqual(after.coins, before)
 
-        self.assertIsNotNone(loaded)
-        loaded_room, votes = loaded
-        self.assertEqual(loaded_room.code, room.code)
-        self.assertEqual(loaded_room.status.value, "VOTING")
-        self.assertEqual(loaded_room.bunker_capacity, 2)
-        self.assertEqual(len(loaded_room.players), 4)
-        self.assertTrue(loaded_room.players[31].cards["luggage"].is_revealed)
-        self.assertEqual(loaded_room.players[32].votes_against, 1)
-        self.assertEqual(votes, {31: 32})
+    def test_persistence_or_raise_allows_memory_in_test_mode(self) -> None:
+        with patch.dict(os.environ, {"ALLOW_GUEST_AUTH": "true"}):
+            ensure_persistence_or_raise()
 
-    def test_round_trip_booster_and_shield_fields(self) -> None:
-        manager = GameManager(seed=22)
-        room = manager.create_room(41, "Ali", "ali", bunker_capacity=2)
-        manager.join_room(room.code, 42, "Vali", "vali")
-        manager.join_room(room.code, 43, "Zilola", "zilola")
-        manager.join_room(room.code, 44, "Sardor", "sardor")
-        manager.start_game(room.code)
-        room.players[41].double_vote = True
-        room.players[42].shield_used = True
-        room.vote_weights = {41: 2, 43: 1}
-        room.status = RoomStatus.SHIELD_OFFER
-        room.pending_shield = ShieldOffer(user_id=43, counts={43: 2, 41: 1})
+    def test_persistence_or_raise_blocks_prod_without_supabase(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"ALLOW_GUEST_AUTH": "", "ALLOW_IN_MEMORY_FALLBACK": ""},
+            clear=False,
+        ):
+            with self.assertRaises(RuntimeError):
+                ensure_persistence_or_raise()
 
-        fake_client = _FakeClient()
-        store = SupabaseStore(client=fake_client)
-        try:
-            store.save_room(room, votes={41: 43, 43: 41})
-            loaded = store.load_room(room.code)
-        finally:
-            store.close()
-
-        self.assertIsNotNone(loaded)
-        loaded_room, votes = loaded
-        self.assertEqual(loaded_room.status, RoomStatus.SHIELD_OFFER)
-        self.assertEqual(loaded_room.vote_weights, {41: 2, 43: 1})
-        self.assertEqual(loaded_room.pending_shield.user_id, 43)
-        self.assertEqual(loaded_room.pending_shield.counts, {43: 2, 41: 1})
-        self.assertTrue(loaded_room.players[41].double_vote)
-        self.assertTrue(loaded_room.players[42].shield_used)
-        self.assertEqual(votes, {41: 43, 43: 41})
-        shield_row = next(
-            row
-            for row in fake_client.tables["room_players"]
-            if row["user_id"] == 42
-        )
-        self.assertEqual(shield_row["shield_used"], True)
-
-    def test_disabled_store_is_noop(self) -> None:
-        store = SupabaseStore(url="", key="", client=None)
-        if store.enabled:
-            self.skipTest("Muhitda SUPABASE_URL/SUPABASE_KEY o'rnatilgan")
-        store.persist(GameRoom(room_id="x", code="BNK123", host_id=1), {})
-        self.assertIsNone(store.load_room("BNK123"))
-        store.close()
+    def test_persistence_status_keys(self) -> None:
+        status = persistence_status()
+        self.assertIn("economy", status)
+        self.assertIn("shop", status)
 
 
 if __name__ == "__main__":

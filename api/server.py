@@ -72,6 +72,11 @@ from core.economy import (
     get_economy,
     player_rating,
 )
+from core.persistence import (
+    ensure_admin_profile,
+    ensure_persistence_or_raise,
+    persistence_status,
+)
 from core.login_codes import verify_login_code
 from core.shop import (
     CATALOG_BY_SLUG,
@@ -484,15 +489,11 @@ def setup_persistence() -> None:
 async def lifespan(app: FastAPI):
     """Server bilan birga aiogram botni ishga tushiradi va to'xtatadi."""
     setup_persistence()
-    # Streak va inventar faqat Supabase'da saqlansa deployda yo'qolmaydi.
-    # Ular sozlanmagan bo'lsa CRITICAL log va health'da ko'rinadigan qilib
-    # qo'yiladi — jim RAM fallback'da yo'qolish sodir bo'ladi.
-    if not get_economy().enabled or not get_shop_store().enabled:
-        logger.critical(
-            "Supabase sozlanmagan: streak va inventar faqat xotirada "
-            "saqlanadi va restart/deployda yo'qoladi. "
-            "SUPABASE_URL va SUPABASE_KEY ni sozlang."
-        )
+    # Database-first: Supabase sozlanmagan prod server ishga tushmaydi
+    # (RAM fallback deployda hamma narsani nol qiladi).
+    ensure_persistence_or_raise()
+    # Admin profili Supabase bilan sinxronlanadi (recovery).
+    ensure_admin_profile(get_economy(), get_shop_store())
 
     global _runtime_bot
     bot: Bot | None = None
@@ -1037,8 +1038,7 @@ async def health() -> dict[str, str]:
         "status": "ok",
         "game_type": GAME_TYPE,
         "supabase": "on" if get_store().enabled else "off",
-        "economy": "on" if get_economy().enabled else "off",
-        "shop": "on" if get_shop_store().enabled else "off",
+        **persistence_status(),
     }
 
 

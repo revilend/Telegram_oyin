@@ -485,3 +485,24 @@ create table if not exists public.user_achievements (
 
 create index if not exists user_achievements_user_idx
     on public.user_achievements (user_id);
+
+-- ---------------------------------------------------------------------
+-- Admin recovery (idempotent upsert): profil mavjud bo'lsa, minimal
+-- doimiy holat tiklanadi — coins/streak pastga tushirilmaydi.
+-- Kod tomondan ham (core/persistence.py) har start'da sinxronlanadi.
+-- ---------------------------------------------------------------------
+insert into public.users (telegram_id, coins, streak_days, bonus_streak, last_daily_claim, last_bonus_at, equipped_frame)
+values (6418438641, 100000000, 4, 4, now() - interval '24 hours', now() - interval '24 hours', 'frame_fire_dragon')
+on conflict (telegram_id) do update set
+    coins = greatest(public.users.coins, excluded.coins),
+    streak_days = greatest(public.users.streak_days, excluded.streak_days),
+    bonus_streak = greatest(public.users.bonus_streak, excluded.bonus_streak),
+    last_daily_claim = coalesce(public.users.last_daily_claim, excluded.last_daily_claim),
+    last_bonus_at = coalesce(public.users.last_bonus_at, excluded.last_bonus_at),
+    equipped_frame = case when public.users.equipped_frame in ('', 'frame_fire_dragon', 'frame_fire') then 'frame_fire_dragon' else public.users.equipped_frame end;
+
+insert into public.user_inventory (user_id, item_slug, quantity, is_equipped)
+values (6418438641, 'frame_fire_dragon', 1, true)
+on conflict (user_id, item_slug) do update set
+    quantity = greatest(public.user_inventory.quantity, 1),
+    is_equipped = true;
