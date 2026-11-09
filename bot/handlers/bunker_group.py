@@ -26,6 +26,15 @@ router = Router(name="bunker_group")
 JOIN_PREFIX = "join_"
 START_PREFIX = "start_"
 
+# Bunker xona kodlari doim ``BNK`` + 3 raqam (``BNK123``).  Turnir
+# callbacklari (``join_tournament_TOURNAMENT_1``) ham ``join_`` bilan
+# boshlangani uchun oddiy ``startswith("join_")`` filtr turnir
+# ro'yxatdan o'tishni "xonaga qo'shilish" deb o'qib, bo'lmagan xonada
+# "kodli xona topilmadi" xatosini chiqarardi.  Shuning uchun bunker
+# handlerlari faqat haqiqiy Bunker kodlarini qabul qiladi.
+JOIN_FILTER = r"^join_BNK\d{3}$"
+START_FILTER = r"^start_BNK\d{3}$"
+
 
 # ----------------------------------------------------------------------
 # Matn va tugmalar
@@ -167,7 +176,7 @@ async def create_game_private(message: Message) -> None:
     )
 
 
-@router.callback_query(F.data.startswith(JOIN_PREFIX))
+@router.callback_query(F.data.regexp(JOIN_FILTER))
 async def join_game(callback: CallbackQuery) -> None:
     """«Guruh orqali qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
@@ -198,7 +207,7 @@ async def join_game(callback: CallbackQuery) -> None:
     await _refresh_room_message(callback, room)
 
 
-@router.callback_query(F.data.startswith(START_PREFIX))
+@router.callback_query(F.data.regexp(START_FILTER))
 async def start_game_callback(callback: CallbackQuery) -> None:
     """«O'yinni boshlash» tugmasi — faqat host uchun."""
     code = _callback_code(callback.data, START_PREFIX)

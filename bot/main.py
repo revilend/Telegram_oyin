@@ -81,6 +81,12 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(missions.router)
     dispatcher.include_router(admin.router)
     dispatcher.include_router(testlab.router)
+    # Turnir ro'yxatdan o'tish callbacklari ``join_tournament_`` bilan
+    # boshlanadi va Bunker'ning umumiy ``join_`` prefiksi bilan to'qnashadi.
+    # Shuning uchun turnirlar Bunker'dan oldin ulangani maqsadga muvofiq:
+    # aks holda ``join_tournament_TOURNAMENT_1`` Bunker xona kodi deb
+    # o'qilib, "'TOURNAMENT_1' kodli xona topilmadi" xatosi chiqadi.
+    dispatcher.include_router(tournaments.router)
     # Mafiya callbacklari ``join_mafia_``/``start_mafia_`` bilan boshlanadi,
     # shuning uchun Bunker'dan oldin ulanadi.
     # Alias javoblarini kuzatuvchi handler Mafiya moderatoridan oldin turadi.
@@ -93,7 +99,6 @@ def build_dispatcher() -> Dispatcher:
     dispatcher.include_router(bomb_group.router)
     dispatcher.include_router(games_catalog.router)
     dispatcher.include_router(matchmaking.router)
-    dispatcher.include_router(tournaments.router)
     dispatcher.include_router(profile.router)
     dispatcher.include_router(leaderboard.router)
     # Doimiy pastki menyu tugmalari /start va boshqa buyruqlardan keyin keladi.

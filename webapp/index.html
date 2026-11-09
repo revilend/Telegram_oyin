@@ -7702,6 +7702,12 @@ function leaderboardHtml() {
 
       async function joinTournament(tournamentId) {
         if (!tournamentId || view.tournamentBusy) return;
+        if (isAlreadyJoinedTournament(tournamentId)) {
+          toast("✅ Siz allaqachon ro\u0027yxatdan o\u0027tgansiz!", "success");
+          view.tournaments = null;
+          await loadTournaments(true);
+          return;
+        }
         view.tournamentBusy = true;
         try {
           var data = await request("/api/tournaments/join", {
@@ -7711,13 +7717,21 @@ function leaderboardHtml() {
           });
           if (data) {
             profile.balance = Number(data.coins) || profile.balance;
-            toast("🎟 " + (data.tournament.title || "Turnir") + "ga yozildingiz!", "success");
+            setJoinedTournamentId(tournamentId);
+            toast("✅ Muvaffaqiyatli ro\u0027yxatdan o\u0027tdingiz! Boshlanishidan 15 daqiqa oldin bot sizga xona havolasini yuboradi.", "success");
             haptic("success");
             sfx("victory");
 }
         } catch (error) {
-          toast(error.message || "Turnirga yozilib bölmadi", "error");
-          haptic("error");
+          var already = /allaqachon|already/i.test(error.message || "");
+          if (already) {
+            setJoinedTournamentId(tournamentId);
+            toast("✅ Siz allaqachon ro\u0027yxatdan o\u0027tgansiz!", "success");
+            haptic("success");
+          } else {
+            toast(error.message || "Turnirga yozilib bölmadi", "error");
+            haptic("error");
+          }
 }
         view.tournamentBusy = false;
         view.tournaments = null;
@@ -7744,7 +7758,7 @@ function leaderboardHtml() {
 }
 
       function tournamentJoinButton(tournament) {
-        if (tournament.joined) {
+        if (tournament.joined || isAlreadyJoinedTournament(tournament.id)) {
           return '<button class="btn block" type="button" disabled>✅ Siz ro\'yxatdan o\'tgansiz ✅</button>';
 }
         if (String(tournament.status || "OPEN") === "ACTIVE") {

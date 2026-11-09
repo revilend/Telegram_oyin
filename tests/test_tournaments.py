@@ -381,7 +381,7 @@ class TournamentApiTest(TournamentTestBase):
         self.assertIsNotNone(first["b"])
 
     def test_reminder_due_and_marked(self) -> None:
-        tournament_id = self.create_tournament(minutes=20)
+        tournament_id = self.create_tournament(minutes=10)
         self.store.join(98008, tournament_id, "ali", "Ali")
         due = self.store.due_reminders()
         self.assertEqual([item.id for item in due], [tournament_id])
@@ -562,7 +562,35 @@ class TournamentBotTest(TournamentTestBase):
         joined = FakeCallback(f"join_tournament_{tournament_id}")
         asyncio.run(handler.tournaments_join(joined))
         self.assertTrue(self.store.joined(tournament_id, 98023))
-        self.assertIn("Tabriklaymiz", joined.answers[0])
+        self.assertIn("röyxatdan ötdingiz", joined.bot.sent[0])
+        self.assertIn("15 daqiqa oldin", joined.bot.sent[0])
+        # Xona havolasi röyxatdan ötişda yuborilmaydi, oçilmaydi.
+        self.assertNotIn("Xona havolasi", joined.bot.sent[0])
+
+        # Qayta bosish pulni qayta yeçmasa ham, holat tasdiqlanadi.
+        before = self.coins(98023)
+        duplicate = FakeCallback(f"join_tournament_{tournament_id}")
+        asyncio.run(handler.tournaments_join(duplicate))
+        self.assertEqual(self.coins(98023), before)
+        self.assertTrue(self.store.joined(tournament_id, 98023))
+        self.assertIn("allaqaçon", duplicate.bot.sent[0] + duplicate.answers[0])
+
+        # Tasdiq xabaridagi tugma darhol "ro'yxatdan o'tgansiz" holatida.
+        keyboard = handler.poster_keyboard(98023)
+        labels = [
+            button.text for row in keyboard.inline_keyboard for button in row
+        ]
+        self.assertIn("✅ Siz röyxatdan ötgansiz", labels)
+
+        # Ro'yxatdan o'tish tugmasi web_app / Mini App xona ochmaydi.
+        join_buttons = [
+            button
+            for row in keyboard.inline_keyboard
+            for button in row
+            if (button.callback_data or "").startswith("join_tournament_")
+        ]
+        # allaqachon yozilgan holatda join tugmasi chiqmasligi kerak
+        self.assertEqual(join_buttons, [])
 
         left = FakeCallback(f"leave_tournament_{tournament_id}")
         asyncio.run(handler.tournaments_leave(left))
@@ -573,14 +601,73 @@ class TournamentBotTest(TournamentTestBase):
             tournament_id,
         )
 
+    def test_tournament_join_callback_never_opens_bunker_room(self) -> None:
+        """`join_tournament_TOURNAMENT_1` Bunker xona kodi deb o'qilmasligi.
+
+        Avvalgi xato: Bunker'ning umumiy ``join_`` prefiksi turnir
+        callback'ini tutib, "'TOURNAMENT_1' kodli xona topilmadi"
+        popup'ini chiqarardi.
+        """
+        import re
+
+        from bot.handlers import tournaments as handler
+        from bot.handlers import bunker_group
+
+        # 1. Ro'yxatdan o'tish tugmasi faqat callback: web_app/url yo'q.
+        tournament_id = self.create_tournament()
+        keyboard = handler.poster_keyboard(98040)
+        join_buttons = [
+            button
+            for row in keyboard.inline_keyboard
+            for button in row
+            if (button.callback_data or "").startswith("join_tournament_")
+        ]
+        self.assertEqual(len(join_buttons), 1)
+        self.assertIsNone(join_buttons[0].web_app)
+        self.assertIsNone(join_buttons[0].url)
+        self.assertEqual(
+            join_buttons[0].callback_data, f"join_tournament_{tournament_id}"
+        )
+        # Eski preiks ham turnirga tegishli, bunkerga emas.
+        self.assertEqual(
+            handler._join_tournament_id(f"tour_join_{tournament_id}"),
+            tournament_id,
+        )
+
+        # 2. Bunker filtr faqat haqiqiy BNK kodini qabul qiladi.
+        self.assertIn("BNK", bunker_group.JOIN_FILTER)
+        self.assertIsNone(
+            re.match(bunker_group.JOIN_FILTER, "join_tournament_TOURNAMENT_1")
+        )
+        self.assertIsNone(
+            re.match(bunker_group.START_FILTER, "start_tournament_TOURNAMENT_1")
+        )
+        self.assertIsNotNone(re.match(bunker_group.JOIN_FILTER, "join_BNK123"))
+        self.assertIsNotNone(
+            re.match(bunker_group.START_FILTER, "start_BNK123")
+        )
+
+        # 3. Dispatcher'da turnir routeri bunkerdan oldin turadi.
+        # (build_dispatcher ikkinchi marta chaqirilganda aiogram xato
+        # chiqaradi, shuning uchun tartib kod manbasidan tekshiriladi.)
+        import inspect
+
+        from bot.main import build_dispatcher
+
+        source = inspect.getsource(build_dispatcher)
+        self.assertLess(
+            source.index("tournaments.router"),
+            source.index("bunker_group.router"),
+        )
+
     def test_reminder_text_mentions_start(self) -> None:
         from bot.handlers import tournaments as handler
 
-        tournament_id = self.create_tournament(minutes=25)
+        tournament_id = self.create_tournament(minutes=10)
         tournament = get_tournament_store().get(tournament_id)
         self.assertIsNotNone(tournament)
         text = handler.reminder_text(tournament)
-        self.assertIn("30 daqiqa", text)
+        self.assertIn("15 daqiqa", text)
         self.assertIn(tournament.title, text)
 
     def test_room_link_is_sent_once_after_start(self) -> None:

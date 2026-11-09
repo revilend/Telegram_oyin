@@ -42,8 +42,8 @@ PARTICIPANTS_TABLE = "tournament_participants"
 # Qatnashish narxi (tanga) va çipta slug'i.
 ENTRY_FEE = 50
 TICKET_SLUG = "tournament_ticket"
-# Boshlanişdan şuncha daqiqa öldin eslatma yuboriladi.
-REMINDER_MINUTES = 30
+# Boshlanişdan şuncha daqiqa öldin eslatma va xona havolasi yuboriladi.
+REMINDER_MINUTES = 15
 MAX_PARTICIPANTS = 64
 MIN_PARTICIPANTS = 2
 # Turnir boshlanganidan keyin şuncha daqiqa içida hali qöşiliş mumkin.

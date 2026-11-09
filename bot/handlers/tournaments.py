@@ -2,8 +2,10 @@
 
 Bosh menyudagi «🏆 Turnirlar» tugmasi va ``/tournaments`` buyrug'i yaqin
 kelayotgan turnirlar afishasini ko'rsatadi.  Qatnaşiş uchun 50 tanga
-yoki ``tournament_ticket`` çiptasi sarflanadi.  Boshlanişga 30 daqiqa
-qolganda yozilgan öyinçilarga şaxsiy eslatma yuboriladi.
+yoki ``tournament_ticket`` çiptasi sarflanadi.  Boshlanişga 15 daqiqa
+qolganda yozilgan o'yinchilarga shaxsiy eslatma (va boshlanganda xona
+havolasi) yuboriladi.  Ro'yxatdan o'tish faqat yozuvdir: xona ochilmaydi,
+Mini App ``web_app`` ga yo'naltirilmaydi.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from core.tournaments import (
     ENTRY_FEE,
     OPEN,
     REMINDER_MINUTES,
+    AlreadyJoinedError,
     Tournament,
     TournamentError,
     TournamentStore,
@@ -358,27 +361,72 @@ def _join_tournament_id(data: str) -> str:
     return ""
 
 
+def join_success_text(tournament: Tournament, user_id: int | None = None) -> str:
+    """Ro'yxatdan o'tish tasdiq matni: boshlanish vaqti va 15 daqiqa izohi.
+
+    Bu xabar ``tournament_participants`` ga yozilganidan keyin ko'rsatiladi;
+    o'yin xonasi hali yaratilmagan bo'ladi.
+    """
+    starts = escape(format_local(tournament.starts_at) or "—", quote=False)
+    return (
+        "✅ <b>Muvaffaqiyatli röyxatdan ötdingiz!</b>\n\n"
+        f"🏆 Turnir: <b>{escape(tournament.title, quote=False)}</b>\n"
+        f"🕒 Boşlaniş: <b>{starts}</b>\n\n"
+        "Boşlanişidan 15 daqiqa oldin bot sizga xona havolasini yuboradi."
+    )
+
+
 @router.callback_query(F.data.startswith(JOIN_CALLBACK_PREFIX))
 @router.callback_query(F.data.startswith(JOIN_PREFIX))
 async def tournaments_join(callback: CallbackQuery) -> None:
-    """Turnirga yoziladi: chipta yoki 50 tanga sarflanadi."""
+    """Faqat ro'yxatdan o'tish: o'yin xonasi ochilmaydi, Mini App ochilmaydi.
+
+    Oddiy Telegram callback orqali 50 tanga (yoki turnir chiptasi) yechiladi
+    va ``tournament_participants`` ga ``REGISTERED`` yozuvi qo'shiladi.
+    O'yin xonasi faqat turnir boshlanganda (yoki admin start bosganda)
+    yaratilib, havolasi qatnashchilarga shaxsan yuboriladi.
+    """
     tournament_id = _join_tournament_id(callback.data or "")
+    store = get_tournament_store()
     try:
-        get_tournament_store().join(
+        result = store.join(
             callback.from_user.id,
             tournament_id,
             callback.from_user.username or "",
             callback.from_user.full_name or "",
         )
+    except AlreadyJoinedError:
+        # Qayta bosish pulni qayta yechmaydi: holat allaqachon yozilgan.
+        tournament = store.get(tournament_id)
+        if tournament is None:
+            await callback.answer("Turnir topilmadi.", show_alert=True)
+            return
+        await callback.answer("✅ Siz allaqaçon röyxatdan ötgansiz!")
+        await _show(
+            callback,
+            join_success_text(tournament) + "\n\n" + poster_text(callback.from_user.id, store),
+            poster_keyboard(
+                callback.from_user.id,
+                store,
+                username=callback.from_user.username or "",
+                full_name=callback.from_user.full_name or "",
+            ),
+        )
+        return
     except TournamentError as exc:
         await callback.answer(f"⚠️ {exc}", show_alert=True)
         return
-    await callback.answer(
-        "🎉 Tabriklaymiz! Siz turnirga muvaffaqiyatli röyxatdan ötdingiz.\n"
-        "Boşlaniş vaqtida bot sizga xona havolasini yuboradi.",
-        show_alert=True,
+    await callback.answer("✅ Röyxatdan ötdingiz!")
+    await _show(
+        callback,
+        join_success_text(result.tournament) + "\n\n" + poster_text(callback.from_user.id, store),
+        poster_keyboard(
+            callback.from_user.id,
+            store,
+            username=callback.from_user.username or "",
+            full_name=callback.from_user.full_name or "",
+        ),
     )
-    await _refresh(callback)
 
 
 @router.callback_query(F.data.startswith(LEAVE_CALLBACK_PREFIX))
@@ -473,7 +521,7 @@ async def send_room_links(
 def reminder_text(tournament: Tournament) -> str:
     """Turnir boşlanişidan öldin yuboriladigan eslatma."""
     return (
-        "🏆 <b>Turnir boşlanişiga 30 daqiqa qoldi!</b>\n\n"
+        "🏆 <b>Turnir boşlanişiga 15 daqiqa qoldi!</b>\n\n"
         f"🔥 <b>{tournament.title}</b>\n"
         f"🎮 Öyin: <b>{tournament.game_title}</b>\n"
         f"🕒 Boşlaniş: <b>{format_local(tournament.starts_at)}</b>\n"
