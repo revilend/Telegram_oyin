@@ -195,10 +195,19 @@ async def announce_action(
                 f"💥 <b>{actor_name} portladi!</b>\n"
                 "Bomba çiqdi, qölida Zararsizlantiriş bölmadi."
             )
+        elif result.awaiting_defuse:
+            text = (
+                f"💣 <b>{actor_name}</b> bomba tortdi, lekin qölida "
+                "Zararsizlantiriş bor! Mini App'da bombani tepaga, örtaga "
+                "yoki tagiga yaşirişni tanlasi."
+            )
         elif result.defused:
+            place = {0: "tepasiga", 1: "örtasiga"}.get(result.returned_index or 0)
+            if place is None:
+                place = "tagiga"
             text = (
                 f"🛡️ <b>{actor_name}</b> Zararsizlantiriş işlatdi — "
-                "bomba dastaga qaytdi."
+                f"bomba dastaning {place} yaşirildi."
             )
         else:
             text = (
@@ -209,9 +218,10 @@ async def announce_action(
         card = result.card
         text = f"🎴 <b>{actor_name}</b> «{escape(card_name(card))}» öynadi."
         if card is CardType.ATTACK:
+            draws = max(2, 2 * int(room.attack_stack or 1))
             text += (
                 f"\n⚔️ Navbat {_target_name(room, result.target_id)}ga ötdi — "
-                "u 2 marta karta tortadi."
+                f"u {draws} marta karta tortadi."
             )
         elif card is CardType.SKIP:
             text += "\n⏭️ Navbat keyingi öyinçiga ötdi."

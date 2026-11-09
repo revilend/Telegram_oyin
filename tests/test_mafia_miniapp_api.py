@@ -156,7 +156,7 @@ class MafiaMiniAppApiTest(unittest.TestCase):
         self.assertFalse(self.game.room.players[4].is_alive)
         self.assertIs(self.game.room.phase, GamePhase.NIGHT)
 
-    def test_kamikaze_tally_requires_target_without_eliminating_anyone(self) -> None:
+    def test_kamikaze_tally_auto_takes_a_voter(self) -> None:
         self.game.room.players[4].role = MafiaRole.KAMIKAZE
         self.game.room.phase = GamePhase.VOTING
         self.game.room.cast_vote(1, 4)
@@ -169,9 +169,13 @@ class MafiaMiniAppApiTest(unittest.TestCase):
             json={},
         )
 
-        self.assertEqual(response.status_code, 400)
-        self.assertTrue(self.game.room.players[4].is_alive)
-        self.assertIs(self.game.room.phase, GamePhase.VOTING)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["eliminated_id"], 4)
+        self.assertFalse(self.game.room.players[4].is_alive)
+        self.assertEqual(
+            sum(1 for uid in (1, 2, 3) if not self.game.room.players[uid].is_alive),
+            1,
+        )
 
 
 if __name__ == "__main__":

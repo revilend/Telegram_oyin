@@ -692,6 +692,7 @@ class VotingTest(unittest.TestCase):
             },
             phase=GamePhase.VOTING,
         )
+        room.votes = {2: 1, 4: 1, 5: 1}
 
         winner = resolve_day_vote(room, 1, kamikaze_target_id=4)
 
@@ -712,13 +713,32 @@ class VotingTest(unittest.TestCase):
             },
             phase=GamePhase.VOTING,
         )
+        room.votes = {2: 1, 4: 1, 5: 1}
 
         with self.assertRaises(MafiaError):
-            resolve_day_vote(room, 1)
+            resolve_day_vote(room, 1, kamikaze_target_id=3)
         with self.assertRaises(MafiaError):
             resolve_day_vote(room, 1, kamikaze_target_id=1)
         self.assertTrue(room.get_player(1).is_alive)
         self.assertIs(room.phase, GamePhase.VOTING)
+
+    def test_kamikaze_auto_takes_first_voter_if_target_omitted(self) -> None:
+        room = build_room(
+            {
+                1: MafiaRole.KAMIKAZE,
+                2: MafiaRole.MAFIA,
+                3: MafiaRole.SHERIFF,
+                4: MafiaRole.CITIZEN,
+                5: MafiaRole.CITIZEN,
+            },
+            phase=GamePhase.VOTING,
+        )
+        room.votes = {4: 1, 2: 1, 5: 1}
+
+        self.assertIs(resolve_day_vote(room, 1), Winner.TOWN)
+        self.assertFalse(room.get_player(1).is_alive)
+        self.assertFalse(room.get_player(2).is_alive)
+        self.assertTrue(room.get_player(4).is_alive)
 
     def test_vote_result_requires_voting_phase(self) -> None:
         room = build_room(

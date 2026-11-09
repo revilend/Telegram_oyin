@@ -432,6 +432,12 @@ def _tick_bomb(code: str) -> None:
             ticks = session["turn_ticks"]
         if ticks < IDLE_TICKS:
             return
+    if room.pending_defuse is not None:
+        try:
+            room.defuse_bomb(room.pending_defuse, "middle")
+        except BombError:
+            pass
+        return
     try:
         room.draw_card(actor)
     except BombError:

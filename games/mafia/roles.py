@@ -69,10 +69,10 @@ ROLE_PROFILES: dict[MafiaRole, RoleProfile] = {
     ),
     MafiaRole.SHERIFF: RoleProfile(
         role=MafiaRole.SHERIFF,
-        name_uz="Sherif",
+        name_uz="Komissar Katani",
         description=(
-            "Har tunda bitta o'yinchini tekshiradi va uning mafiya yoki "
-            "tinch aholi ekanini bilib oladi."
+            "Har tunda bitta o'yinchini tekshiradi yoki o'q uzib o'ldiradi. "
+            "Tekshiruvda uning mafiya yoki tinch aholi ekanini bilib oladi."
         ),
         faction=Faction.TOWN,
         has_night_action=True,
@@ -97,10 +97,10 @@ ROLE_PROFILES: dict[MafiaRole, RoleProfile] = {
     ),
     MafiaRole.BLOCKER: RoleProfile(
         role=MafiaRole.BLOCKER,
-        name_uz="Bloklovchi",
+        name_uz="Kezuvchi (Putana)",
         description=(
-            "Tunda bitta o'yinchining harakatini bloklaydi, shu tunda u hech "
-            "narsa qila olmaydi."
+            "Tunda bir o'yinchiga mehmonga boradi va uning tungi harakatini "
+            "muzlatadi: tekshiruv, otish yoki davolash o'sha kecha bajarilmaydi."
         ),
         faction=Faction.TOWN,
         has_night_action=True,
@@ -109,7 +109,8 @@ ROLE_PROFILES: dict[MafiaRole, RoleProfile] = {
         role=MafiaRole.KAMIKAZE,
         name_uz="Kamikadze",
         description=(
-            "Tunda harakati yo'q, ammo o'ldirilsa qotilni ham o'zi bilan olib ketadi."
+            "Tunda harakati yo'q. Tunda o'ldirilsa qotilni, kunduzi ovoz bilan "
+            "haydalsa o'ziga ovoz berganlardan birini o'zi bilan olib ketadi."
         ),
         faction=Faction.TOWN,
         has_night_action=False,
@@ -146,8 +147,8 @@ ROLE_PROFILES: dict[MafiaRole, RoleProfile] = {
         role=MafiaRole.DON,
         name_uz="Don",
         description=(
-            "Mafiya sardori: tunda qurbonni tanlaydi va sherif tekshiruvida "
-            "begunoh ko'rinadi."
+            "Mafiya sardori: tunda qurbonni tanlaydi yoki Komissar Katanini "
+            "qidiradi. Komissar tekshiruvida begunoh ko'rinadi."
         ),
         faction=Faction.MAFIA,
         has_night_action=True,

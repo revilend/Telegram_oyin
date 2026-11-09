@@ -65,7 +65,9 @@ class NightActionType(Enum):
     PROTECT = "protect"
     BLOCK = "block"
     SNIPE = "snipe"
+    SHOOT = "shoot"
     INVESTIGATE = "investigate"
+    DON_SEARCH = "don_search"
     FRAME = "frame"
     WITCH_KILL = "witch_kill"
     WITCH_HEAL = "witch_heal"
@@ -91,6 +93,10 @@ NIGHT_ACTION_BY_ROLE: dict[MafiaRole, NightActionType] = {
 # Bir nechta variantdan tanlaydigan rollar.
 NIGHT_OPTIONS_BY_ROLE: dict[MafiaRole, tuple[NightActionType, ...]] = {
     MafiaRole.WITCH: (NightActionType.WITCH_KILL, NightActionType.WITCH_HEAL),
+    # Komissar Katani tunda yo tekshiradi, yo otadi.
+    MafiaRole.SHERIFF: (NightActionType.INVESTIGATE, NightActionType.SHOOT),
+    # Don odatdagi qurbonni tanlashi yoki Komissarni qidirishi mumkin.
+    MafiaRole.DON: (NightActionType.KILL, NightActionType.DON_SEARCH),
 }
 
 WIN_REASONS: dict[Winner, str] = {
@@ -114,6 +120,7 @@ class MafiaPlayer:
     kevlar_used: bool = False
     double_vote: bool = False
     role_rerolled: bool = False
+    last_heal_target: int | None = None
 
     def __post_init__(self) -> None:
         self.name = (self.name or "").strip()
@@ -156,6 +163,7 @@ class NightReport:
     revived: tuple[int, ...] = ()
     copied: dict[int, MafiaRole] = field(default_factory=dict)
     shielded: tuple[int, ...] = ()
+    don_results: dict[int, str] = field(default_factory=dict)
 
     @property
     def peaceful(self) -> bool:
@@ -216,6 +224,10 @@ class MafiaRoom:
                 for user_id, role in report.copied.items()
             },
             "shielded": list(report.shielded),
+            "don_results": {
+                str(user_id): value
+                for user_id, value in report.don_results.items()
+            },
         }
 
     @staticmethod
@@ -238,6 +250,10 @@ class MafiaRoom:
                 for user_id, role in (state.get("copied") or {}).items()
             },
             shielded=tuple(int(item) for item in state.get("shielded") or []),
+            don_results={
+                int(user_id): str(value)
+                for user_id, value in (state.get("don_results") or {}).items()
+            },
         )
 
     def to_state(self) -> dict[str, Any]:
@@ -262,6 +278,7 @@ class MafiaRoom:
                     "kevlar_used": player.kevlar_used,
                     "double_vote": player.double_vote,
                     "role_rerolled": player.role_rerolled,
+                    "last_heal_target": player.last_heal_target,
                 }
                 for player in self.players.values()
             ],
@@ -309,6 +326,8 @@ class MafiaRoom:
             player.kevlar_used = bool(raw.get("kevlar_used", False))
             player.double_vote = bool(raw.get("double_vote", False))
             player.role_rerolled = bool(raw.get("role_rerolled", False))
+            raw_heal = raw.get("last_heal_target")
+            player.last_heal_target = int(raw_heal) if raw_heal is not None else None
             players.append(player)
         room = cls(players, room_id=str(state.get("room_id") or ""))
         room.phase = GamePhase(str(state.get("phase") or "LOBBY"))
@@ -480,11 +499,16 @@ class MafiaRoom:
             except ValueError as exc:
                 raise MafiaError(f"Noma'lum harakat turi: {kind!r}") from exc
         if kind is None:
-            if len(options) > 1:
+            if len(options) > 1 and actor.role not in (
+                MafiaRole.SHERIFF,
+                MafiaRole.DON,
+            ):
                 raise MafiaError(
                     f"{profile.name_uz} harakat turini tanlashi kerak: "
                     + ", ".join(option.value for option in options)
                 )
+            # Komissar va Don uchun eski API mosligi: tur berilmasa,
+            # birinchi (asosiy) harakat tanlanadi. Mini App aniq tur yuboradi.
             kind = options[0]
         if kind not in options:
             raise MafiaError(
@@ -510,9 +534,23 @@ class MafiaRoom:
             )
         if kind is NightActionType.PROTECT and target_id == actor_id:
             raise MafiaError("Tansoqchi o'zini himoya qila olmaydi")
+        if kind in (
+            NightActionType.SHOOT,
+            NightActionType.DON_SEARCH,
+        ) and target_id == actor_id:
+            raise MafiaError("O'zingizni nishonga olishingiz mumkin emas")
+        if (
+            kind is NightActionType.HEAL
+            and actor.last_heal_target == target_id
+        ):
+            raise MafiaError(
+                "Doktor ketma-ket ikki kecha bir xil o'yinchini davolay olmaydi"
+            )
 
         action = NightAction(actor_id=actor_id, kind=kind, target_id=target_id)
         self.night_actions[actor_id] = action
+        if kind is NightActionType.HEAL:
+            actor.last_heal_target = target_id
         return action
 
     def reroll_role(
@@ -733,6 +771,8 @@ def resolve_night(room: MafiaRoom) -> NightReport:
             attacks.append((action.actor_id, action.target_id, False))
         elif action.kind is NightActionType.SNIPE:
             attacks.append((action.actor_id, action.target_id, True))
+        elif action.kind is NightActionType.SHOOT:
+            attacks.append((action.actor_id, action.target_id, False))
         elif action.kind is NightActionType.WITCH_KILL:
             attacks.append((action.actor_id, action.target_id, False))
 
@@ -819,11 +859,20 @@ def resolve_night(room: MafiaRoom) -> NightReport:
     )
     room.silenced = set(silenced)
 
-    # 4-qadam: Sherif tekshiruvi.
+    # 4-qadam: Komissar tekshiruvi va Donning Komissar qidiruvi.
     sheriff_results = {
         action.actor_id: _sheriff_result(room, action.target_id, frames)
         for action in effective.values()
         if action.kind is NightActionType.INVESTIGATE
+    }
+    don_results = {
+        action.actor_id: (
+            "Komissar Katani topildi!"
+            if room.players[action.target_id].role is MafiaRole.SHERIFF
+            else "Bu o'yinchi Komissar emas."
+        )
+        for action in effective.values()
+        if action.kind is NightActionType.DON_SEARCH
     }
 
     # 5-qadam: tonggi hisobot.
@@ -838,6 +887,7 @@ def resolve_night(room: MafiaRoom) -> NightReport:
         revived=tuple(sorted(revived)),
         copied=copied,
         shielded=tuple(sorted(shielded)),
+        don_results=don_results,
     )
     room.last_report = report
     room.phase = GamePhase.DAY_REPORT
@@ -944,17 +994,30 @@ def resolve_day_vote(
 
     kamikaze_target: MafiaPlayer | None = None
     if player.role is MafiaRole.KAMIKAZE:
+        voters = sorted(
+            voter_id
+            for voter_id, target_id in room.votes.items()
+            if target_id == player.user_id
+            and voter_id != player.user_id
+            and voter_id in room.players
+            and room.players[voter_id].is_alive
+        )
         if kamikaze_target_id is None:
-            raise MafiaError(
-                "Kamikadze o'zi bilan olib ketadigan o'yinchini tanlashi kerak"
-            )
-        if kamikaze_target_id == player.user_id:
-            raise MafiaError("Kamikadze o'zini qurbon qilib olmaydi")
-        kamikaze_target = room.get_player(kamikaze_target_id)
-        if not kamikaze_target.is_alive:
-            raise MafiaError(
-                f"{room.display_name(kamikaze_target)} allaqachon halok bo'lgan"
-            )
+            # Qurbon tanlanmasa, Kamikadzega ovoz bergan birinchi tirik
+            # o'yinchi avtomatik ravishda birga ketadi.
+            kamikaze_target_id = voters[0] if voters else None
+        if kamikaze_target_id is not None:
+            if kamikaze_target_id == player.user_id:
+                raise MafiaError("Kamikadze o'zini qurbon qilib olmaydi")
+            if kamikaze_target_id not in voters:
+                raise MafiaError(
+                    "Kamikadze faqat o'ziga ovoz bergan o'yinchini olib keta oladi"
+                )
+            kamikaze_target = room.get_player(kamikaze_target_id)
+            if not kamikaze_target.is_alive:
+                raise MafiaError(
+                    f"{room.display_name(kamikaze_target)} allaqachon halok bo'lgan"
+                )
 
     room.eliminate(player.user_id)
     if kamikaze_target is not None:

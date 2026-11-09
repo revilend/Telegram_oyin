@@ -211,7 +211,10 @@ def run_bomb(bots: int = 3) -> dict[str, Any]:
         if current is None:
             break
         try:
-            room.draw_card(current)
+            if room.pending_defuse is not None:
+                room.defuse_bomb(room.pending_defuse, "middle")
+            else:
+                room.draw_card(current)
         except BombError:
             break
     after = _snapshot(economy, ids)

@@ -1008,6 +1008,18 @@
     .survivor { display: flex; align-items: center; gap: 7px; padding: 6px 10px 6px 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); font-size: 11px; font-weight: 700; }
     .survivor .avatar { width: 26px; height: 26px; min-width: 26px; font-size: 9px; }
     .epilogue-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; font-size: 9px; letter-spacing: 0.7px; text-transform: uppercase; color: #94a3b8; }
+    .epilogue-years { margin: 0 0 16px; display: grid; gap: 9px; }
+    .epilogue-year { opacity: 0.18; transform: translateY(10px); transition: opacity 0.55s ease, transform 0.55s ease; border: 1px solid rgba(255,255,255,0.09); border-radius: 13px; padding: 11px 12px; background: rgba(255,255,255,0.035); }
+    .epilogue-year.show { opacity: 1; transform: none; }
+    .epilogue-year.risk.show { border-color: rgba(248,113,113,0.36); background: rgba(248,113,113,0.07); }
+    .epilogue-year.ok.show { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.06); }
+    .epilogue-year-head { display: flex; align-items: center; gap: 7px; font-size: 11.5px; margin-bottom: 4px; }
+    .epilogue-year-head b { font-size: 11.5px; }
+    .epilogue-year p { margin: 0; font-size: 11px; line-height: 1.5; color: #cbd5e1; }
+    .epilogue-outcome { margin-top: 12px; padding: 12px; border-radius: 13px; text-align: center; font-weight: 800; font-size: 13px; opacity: 0; transform: scale(0.96); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .epilogue-outcome.show { opacity: 1; transform: none; }
+    .epilogue-outcome.win { color: #86efac; border: 1px solid rgba(52,211,153,0.35); background: rgba(52,211,153,0.1); }
+    .epilogue-outcome.lose { color: #fca5a5; border: 1px solid rgba(248,113,113,0.35); background: rgba(248,113,113,0.1); }
 
     /* ---------- Telegram yorug' tema ---------- */
     body.theme-light { background:
@@ -6767,7 +6779,7 @@ function profileCardHtml() {
         var state = view.mafiaState || {};
         if (me.phase === "DAY_REPORT") {
           var report = state.private_result
-            ? '<div class="notice">' + icon("eye") + ' Şerif tekşiruvi: ' + esc(state.private_result) + '</div>'
+            ? '<div class="notice">' + icon("eye") + ' Tekshiruv natijasi: ' + esc(state.private_result) + '</div>'
             : '';
           return '<section class="panel"><h2>' + icon("sun") + ' Tonggi muhokama</h2>' + report +
             (me.is_host
@@ -7246,6 +7258,12 @@ function profileCardHtml() {
           teammates;
 }
 
+      function spyChosenLocationName() {
+        var locations = view.spyLocations || [];
+        var found = locations.filter(function (location) { return location.key === view.spyGuessKey; })[0];
+        return found ? found.name : "X";
+      }
+
       function spyLocationsHtml(me, state) {
         var locations = view.spyLocations || [];
         if (!locations.length || !state) return "";
@@ -7277,7 +7295,7 @@ function profileCardHtml() {
             '</span></div>' +
             '<button class="btn primary block" data-act="spy-guess"' +
               (view.spyGuessKey == null || view.spyActionBusy ? " disabled" : "") +
-              '>' + icon("target") + ' Men joyni topdim!</button>';
+              '>' + icon("map-pin") + ' 🗺️ Men josusman, bu joy: ' + esc((view.spyGuessKey || "X")) + '</button>';
         } else if (state.status !== "FINISHED") {
           hint = '<p class="muted tiny" style="margin-top:8px">Şubhadan çiqarilgan joyni belgilaş uçun bosing.</p>';
 }
@@ -7298,7 +7316,7 @@ function profileCardHtml() {
           var action = "";
           if (canVote && !self) {
             action = '<button class="btn small' + (selected ? " primary" : "") + '" data-act="spy-vote-select" data-target="' +
-              player.user_id + '">' + (selected ? "Tanlandi" : "Ovoz") + '</button>';
+              player.user_id + '">' + (selected ? "Tanlandi" : "🚨 Fosh qilish") + '</button>';
           } else if (finished) {
             action = '<span class="badge ' + (player.is_spy ? "soon" : "live") + '">' +
               (player.is_spy ? "JOSUS" : "TINCH") + '</span>';
@@ -7319,7 +7337,7 @@ function profileCardHtml() {
         var controls = "";
         if (canVote && view.spyVoteTarget != null) {
           controls = '<button class="btn primary block" data-act="spy-vote-submit" style="margin-top:10px"' +
-            (view.spyActionBusy ? " disabled" : "") + '>Josus deb ovoz beriş</button>';
+            (view.spyActionBusy ? " disabled" : "") + '>🚨 Josusni foş qiliş</button>';
         } else if (me && me.has_voted && voting) {
           controls = '<div class="notice tiny" style="margin-top:10px">Ovozingiz qabul qilindi. Boşqalarni kuting.</div>';
 }
@@ -7415,7 +7433,7 @@ function profileCardHtml() {
               ? '<div class="mafia-tags"><span>' + esc(state.location.emoji) + ' ' + esc(state.location.name) + '</span>' +
                 '<span>' + icon("glasses") + ' ' + esc(spies.map(function (player) { return player.name; }).join(", " ) || "—") + '</span></div>'
               : '') +
-            '<p class="muted tiny">Ğoliblarga mos ravişda +25 / +35 tanga berildi.</p></section>';
+            '<p class="muted tiny">Ğoliblarga mos ravişda +30 tanga, josusga +60 tanga berildi.</p></section>';
           noteGameEnd(
             "spy:" + view.code,
             status,
@@ -8344,6 +8362,9 @@ function profileCardHtml() {
               view.bombBoom = result;
               view.bombDrawn = null;
               haptic("error");
+            } else if (result.awaiting_defuse) {
+              view.bombDrawn = null;
+              haptic("warning");
             } else {
               view.bombDrawn = result;
               if (result.defused) haptic("success");
@@ -8379,7 +8400,7 @@ function profileCardHtml() {
           return;
 }
         if (BOMB_ACTION_TYPES.indexOf(type) < 0) {
-          toast(type === "DEFUSE" ? "Zararsizlantiriş bomba chiqqanda avtomatik işlaydi" : "Bu kartani qöldan öynab bömaydi", "error");
+          toast(type === "DEFUSE" ? "Zararsizlantiriş bomba chiqqanda ishlatiladi" : "Bu kartani qöldan öynab bömaydi", "error");
           return;
 }
         var payload = { card_type: type };
@@ -8525,7 +8546,7 @@ function profileCardHtml() {
         var myTurn = Number(view.bombState && view.bombState.current_player_id) === Number(profile.id) && me.is_alive;
         var playable = BOMB_ACTION_TYPES.indexOf(type) >= 0 && myTurn && !view.bombBusy;
         var note = type === "DEFUSE"
-          ? "Bomba tortilganda avtomatik işlaydi va bombani dastaga qaytaradi."
+          ? "Bomba tortilganda uni kolodaning tepasiga, o'rtasiga yoki tagiga yashirish mumkin."
           : meta.ability;
         var targets = "";
         if (type === "STEAL") {
@@ -8564,6 +8585,20 @@ function profileCardHtml() {
           '<button class="bomb-hold-btn bomb-cancel-btn" data-act="bomb-future-close">✕ Yopiş</button>' +
         '</section>';
 }
+
+      function bombDefuseHtml() {
+        var state = view.bombState;
+        if (!state || state.pending_defuse == null || Number(state.pending_defuse) !== Number(profile.id)) return "";
+        return '<section class="bomb-sheet" role="dialog" aria-modal="true">' +
+          '<div class="bomb-sheet-head"><div><h2>🛡️ Bombani qayerga yashirasiz?</h2>' +
+            '<p>Zararsizlantiriş kartasi qo\'lingizda. Joyni tanlang — bomba yana dastaga qaytadi.</p></div></div>' +
+          '<div class="bomb-targets">' +
+            '<button class="bomb-target" data-act="bomb-defuse" data-position="top">⬆️ Tepaga</button>' +
+            '<button class="bomb-target" data-act="bomb-defuse" data-position="middle">➡️ O\'rtaga</button>' +
+            '<button class="bomb-target" data-act="bomb-defuse" data-position="bottom">⬇️ Tagiga</button>' +
+          '</div>' +
+        '</section>';
+      }
 
       function bombDrawnHtml() {
         var result = view.bombDrawn;
@@ -8636,7 +8671,7 @@ function profileCardHtml() {
         if (view.mode !== "bomb") return;
         var host = bombOverlayHost();
         var html = (view.bombBoom ? bombBoomHtml() : "") +
-          bombPreviewHtml(view.bombMe) + bombFutureHtml() + bombDrawnHtml();
+          bombPreviewHtml(view.bombMe) + bombFutureHtml() + bombDefuseHtml() + bombDrawnHtml();
         if (html !== view.bombOverlaySig) {
           view.bombOverlaySig = html;
           host.querySelector(".bomb-overlay-body").innerHTML = html;
@@ -8922,6 +8957,7 @@ function profileCardHtml() {
 }
         if (keepScroll) window.scrollTo(0, scrollY);
         ensureTimer(room);
+        if (room.status === "FINISHED") startEpilogue(room);
 }
 
       function catastropheHtml(room) {
@@ -8972,6 +9008,40 @@ function profileCardHtml() {
         return first + " " + second;
 }
 
+      function epilogueYearsHtml(room) {
+        var events = room.epilogue || [];
+        if (!events.length) return "";
+        return '<div class="epilogue-years" data-epilogue-years>' + events.map(function (event) {
+          return '<div class="epilogue-year ' + esc(event.tone || "") + '" data-epilogue-year>' +
+            '<div class="epilogue-year-head"><span>' + esc(event.icon || "•") + '</span><b>' +
+              esc(event.title || (event.year + '-yil')) + '</b></div>' +
+            '<p>' + esc(event.text || "") + '</p></div>';
+        }).join("") + '</div>' +
+          '<div class="epilogue-outcome ' + (room.epilogue_survived ? "win" : "lose") + '" data-epilogue-outcome>' +
+            esc(room.epilogue_outcome || (room.epilogue_survived ? "🎉 Insoniyat sivilizatsiyasi qayta tiklandi!" : "💀 Jamoa ichkarida omon qolmadi!")) +
+          '</div>';
+      }
+
+      function startEpilogue(room) {
+        var key = "bunker:" + room.code + ":" + String(room.epilogue_survived) + ":" + String((room.epilogue || []).length);
+        if (view.epilogueKey === key) return;
+        var node = document.querySelector("[data-epilogue-years]");
+        if (!node) return;
+        view.epilogueKey = key;
+        if (view.epilogueTimer) clearInterval(view.epilogueTimer);
+        var years = Array.prototype.slice.call(node.querySelectorAll("[data-epilogue-year]"));
+        var outcome = document.querySelector("[data-epilogue-outcome]");
+        var index = 0;
+        function reveal() {
+          if (index < years.length) { years[index].classList.add("show"); index += 1; return; }
+          if (outcome) outcome.classList.add("show");
+          if (view.epilogueTimer) clearInterval(view.epilogueTimer);
+          view.epilogueTimer = null;
+        }
+        reveal();
+        view.epilogueTimer = setInterval(reveal, 3400);
+      }
+
       function finishedHtml(room) {
         var survivors = (room.players || []).filter(function (player) { return player.is_alive; });
         var survivorChips = survivors.map(function (player) {
@@ -8984,11 +9054,12 @@ function profileCardHtml() {
             '<div class="door-light"></div>' +
           '</div>' +
           '<div class="epilogue-body">' +
-            '<p class="epilogue-kicker">Bunker eşigi yopildi</p>' +
+            '<p class="epilogue-kicker">Bunker eşigi yopildi · 10 yillik simulyatsiya</p>' +
             '<h2>Omon qolgan qahramonlar</h2>' +
             (survivorChips
               ? '<div class="survivors">' + survivorChips + '</div>'
               : '<p class="muted" style="margin-bottom:14px">Heç kim omon qolmadi.</p>') +
+            epilogueYearsHtml(room) +
             '<p class="epilogue-text">' + esc(epilogueText(room, survivors)) + '</p>' +
             '<div class="epilogue-stats">' +
               '<span>' + icon("radiation") + ' ' + esc((room.catastrophe && room.catastrophe.name) || "Falokat") + '</span>' +
@@ -9425,6 +9496,8 @@ function profileCardHtml() {
           loadBombState(false);
         } else if (act === "bomb-start") {
           bombPost("start", {}, "Öyin boşlandi!");
+        } else if (act === "bomb-defuse") {
+          bombPost("defuse", { position: button.getAttribute("data-position") || "middle" }, "");
         } else if (act === "bomb-draw") {
           bombPost("draw", {}, "");
         } else if (act === "bomb-preview") {

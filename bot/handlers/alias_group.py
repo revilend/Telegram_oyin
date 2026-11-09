@@ -114,6 +114,8 @@ def lobby_text(room: AliasRoom) -> str:
         f"👥 <b>Öyinçilar ({len(room.players)}/{MAX_PLAYERS}):</b>\n{players}\n\n"
         f"🔑 Xona kodi: <code>{room.code}</code>\n"
         f"⏱ Har raund {ROUND_SECONDS} soniya · kamida {MIN_PLAYERS} kişi kerak.\n"
+        f"💤 {ROUND_SECONDS} soniya faollik bölmasa navbat avtomatik keyingi öyinçiga ötadi.\n"
+        "💬 Sözni çatda töğri yozgan öyinçi darhol topadi va oçko oladi.\n"
         f"🔁 Har bir iştirokçi {ROUNDS_PER_PLAYER} martadan tuşuntiradi "
         f"(jami {room.total_rounds} raund).\n"
         f"🏆 Topgan öyinçiga +{GUESS_REWARD}, tuşuntiruvçiga "

@@ -443,9 +443,119 @@ class GameManager:
         self._sync_vote_counts(room)
         if len(room.alive_players) <= room.bunker_capacity:
             room.status = RoomStatus.FINISHED
+            self._build_epilogue(room)
         else:
             room.status = RoomStatus.PLAYING
             room.current_round += 1
+
+    def _build_epilogue(self, room: GameRoom) -> None:
+        """Bunker yopilgach 10 yillik navbatli epilogni tayyorlaydi."""
+        alive = room.alive_players
+
+        def professions() -> list[str]:
+            values: list[str] = []
+            for player in alive:
+                card = player.get_card(CardType.PROFESSION)
+                if card is None:
+                    continue
+                values.append(f"{card.title} {card.description}".casefold())
+            return values
+
+        def has_any(words: tuple[str, ...]) -> bool:
+            return any(any(word in value for word in words) for value in professions())
+
+        def biology_text() -> list[str]:
+            values: list[str] = []
+            for player in alive:
+                card = player.get_card(CardType.BIOLOGY)
+                if card is not None:
+                    values.append(f"{card.title} {card.description}".casefold())
+            return values
+
+        tech = has_any(
+            ("muhandis", "mexanik", "elektrik", "quruvchi", "dasturchi", "svarchik")
+        )
+        food = has_any(
+            ("agronom", "dehqon", "biolog", "oshpaz", "novvoy", "chorvador", "baliqchi")
+        )
+        doctor = has_any(
+            ("shifokor", "jarroh", "hamshira", "farmatsevt", "stomatolog")
+        )
+        psychologist = has_any(
+            ("psixolog", "aktyor", "o'qituvchi", "huquqshunos", "jurnalist", "sartarosh")
+        )
+        genders = " ".join(biology_text())
+        male = "erkak" in genders
+        female = "ayol" in genders
+        fertile = "bola ko'rish qobiliyati: bor" in genders
+
+        events: list[dict[str, Any]] = [
+            {
+                "year": 1,
+                "icon": "🛠️",
+                "title": "1-yil — Texnik inqiroz",
+                "tone": "ok" if tech else "risk",
+                "text": (
+                    "Muhandis yoki svarchik havo filtrini tuzatdi. Bunker nafas "
+                    "oladigan havo bilan ta'minlandi."
+                    if tech
+                    else "Havo filtri buzildi. Texnik mutaxassis yo'qligi sababli "
+                    "bunker ichida kislorod kamaydi."
+                ),
+            },
+            {
+                "year": 3,
+                "icon": "🌱",
+                "title": "3-yil — Oziq-ovqat va salomatlik",
+                "tone": "ok" if food and doctor else "risk",
+                "text": (
+                    "Agronom yoki biolog oziq-ovqat yetishtirdi, shifokor "
+                    "epidemiyani to'xtatdi. Jamoa omon qoldi."
+                    if food and doctor
+                    else (
+                        "Oziq-ovqat yetishtirish yo'lga qo'yildi, ammo "
+                        "epidemiya tarqaldi."
+                        if food
+                        else "Zaxira kamaydi va kasallik tarqaldi; tibbiy yordam "
+                        "yetarli bo'lmadi."
+                    )
+                ),
+            },
+            {
+                "year": 5,
+                "icon": "🫂",
+                "title": "5-yil — Ruhiyat va mojaro",
+                "tone": "ok" if psychologist else "risk",
+                "text": (
+                    "Psixolog yoki san'atkor qo'rquv va tajovuzni bosdi. Jamoa "
+                    "yana birlashdi."
+                    if psychologist
+                    else "Fobiya va tajovuzkor xarakterlar janjal chiqardi. "
+                    "Guruh ichida ishonch buzildi."
+                ),
+            },
+            {
+                "year": 10,
+                "icon": "🚪",
+                "title": "10-yil — Eshik ochilishi va reproduktsiya",
+                "tone": "ok" if male and female and fertile else "risk",
+                "text": (
+                    "Erkak va ayol tirik qoldi, yangi avlod dunyoga keldi. "
+                    "Bunker eshigi ochilib, insoniyat tashqariga qaytdi."
+                    if male and female and fertile
+                    else "Eshik ochildi, ammo yangi avlod uchun erkak, ayol "
+                    "yoki reproduktiv imkoniyat yetarli emas edi."
+                ),
+            },
+        ]
+        survived = tech and food and doctor and psychologist and male and female and fertile
+        room.epilogue = events
+        room.epilogue_survived = survived
+        room.epilogue_outcome = (
+            "🎉 Insoniyat sivilizatsiyasi qayta tiklandi!"
+            if survived
+            else "💀 Jamoa ichkarida omon qolmadi!"
+        )
 
     def prune_lobbies(self, max_age_seconds: int = 30 * 60) -> int:
         """Uzoq vaqt harakatsiz qolgan lobby xonalarini yopadi."""

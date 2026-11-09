@@ -89,6 +89,7 @@ class DrawResult:
     winner_id: int | None = None
     deck_size: int = 0
     game_over: bool = False
+    awaiting_defuse: bool = False
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,9 @@ class BombRoom:
         self.last_eliminated_id: int | None = None
         self.last_future_owner: int | None = None
         self.last_future_cards: tuple[CardType, ...] = ()
+        # Defuse tanlovi kutilayotgan bomba va hujumlar zanjiri.
+        self.pending_defuse: int | None = None
+        self.attack_stack = 0
         self.winner_reward = max(0, int(winner_reward))
         self._rng = rng or random.Random()
         self._coin_award = coin_award or _default_coin_award
@@ -243,6 +247,8 @@ class BombRoom:
             self.last_eliminated_id = None
             self.last_future_owner = None
             self.last_future_cards = ()
+            self.pending_defuse = None
+            self.attack_stack = 0
             self._reward_paid = False
 
     # ------------------------------------------------------------------
@@ -291,6 +297,7 @@ class BombRoom:
         """Bitta tortishni hisoblaydi; navbat tugasa keyingisiga o'tadi."""
         player.draws_left = max(0, player.draws_left - 1)
         if player.draws_left == 0:
+            self.attack_stack = 0
             self._advance_turn()
 
     def _discard(self, card: CardType) -> None:
@@ -303,6 +310,8 @@ class BombRoom:
         """Joriy o'yinchi dastadan eng yuqori kartani tortadi."""
         with self._lock:
             player = self._require_turn(user_id)
+            if self.pending_defuse is not None:
+                raise BombError("Avval bombani zararsizlantirish joyini tanlang")
             if not self.deck:
                 self._finish_without_winner()
                 return DrawResult(
@@ -322,12 +331,16 @@ class BombRoom:
 
             if card is CardType.BOMB:
                 if player.has(CardType.DEFUSE):
-                    player.take(CardType.DEFUSE)
-                    self._discard(CardType.DEFUSE)
-                    returned_index = self._rng.randint(0, len(self.deck))
-                    self.deck.insert(returned_index, card)
-                    defused = True
-                    self._consume_draw(player)
+                    # Defuse darhol ishlamaydi: o'yinchi bombani kolodaning
+                    # tepasiga, o'rtasiga yoki tagiga yashirishni tanlaydi.
+                    self.pending_defuse = player.user_id
+                    return DrawResult(
+                        player_id=player.user_id,
+                        card=card,
+                        next_player_id=self.current_player_id,
+                        deck_size=len(self.deck),
+                        awaiting_defuse=True,
+                    )
                 else:
                     player.is_alive = False
                     player.hand.clear()
@@ -375,6 +388,8 @@ class BombRoom:
                 raise BombError(f"{card.value} kartasini qo'ldan o'ynab bo'lmaydi")
 
             player = self._require_turn(user_id)
+            if self.pending_defuse is not None:
+                raise BombError("Avval bombani zararsizlantirish joyini tanlang")
             if not player.has(card):
                 raise BombError(f"{card.value} kartasi qo'lingizda yo'q")
 
@@ -395,7 +410,10 @@ class BombRoom:
 
             if card is CardType.ATTACK:
                 assert target is not None
-                target.draw_turns_left = 2
+                self.attack_stack += 1
+                # Birinchi hujum 2 ta, zanjirdagi keyingi hujum 4 ta,
+                # undan keyingisi 6 ta karta tortishga majbur qiladi.
+                target.draw_turns_left = 2 * self.attack_stack
                 self._advance_turn()
             elif card is CardType.SKIP:
                 self._end_turn()
@@ -419,6 +437,45 @@ class BombRoom:
                 future_cards=future_cards,
                 next_player_id=self.current_player_id,
                 winner_id=winner_id,
+                game_over=self.status is BombStatus.FINISHED,
+            )
+
+    def defuse_bomb(self, user_id: int, position: str = "middle") -> DrawResult:
+        """Bombani Defuse bilan zararsizlantirib, kolodaga yashiradi.
+
+        ``position`` — ``top`` (tepa), ``middle`` (o'rta) yoki ``bottom``
+        (tag). Bomba qayta chiqishi mumkin, lekin hozirgi o'yinchi xavfsiz.
+        """
+        with self._lock:
+            player = self._require_turn(user_id)
+            if self.pending_defuse != player.user_id:
+                raise BombError("Hozir zararsizlantiriladigan bomba yo'q")
+            if not player.has(CardType.DEFUSE):
+                raise BombError("Defuse kartasi qo'lingizda yo'q")
+            key = str(position or "middle").strip().lower()
+            if key not in {"top", "middle", "bottom"}:
+                raise BombError("Joylashuv: top, middle yoki bottom bo'lishi kerak")
+            player.take(CardType.DEFUSE)
+            self._discard(CardType.DEFUSE)
+            if key == "top":
+                index = 0
+            elif key == "bottom":
+                index = len(self.deck)
+            else:
+                index = len(self.deck) // 2
+            self.deck.insert(index, CardType.BOMB)
+            self.pending_defuse = None
+            self.last_eliminated_id = None
+            self._consume_draw(player)
+            winner_id = self.check_winner()
+            return DrawResult(
+                player_id=player.user_id,
+                card=CardType.BOMB,
+                defused=True,
+                returned_index=index,
+                next_player_id=self.current_player_id,
+                winner_id=winner_id,
+                deck_size=len(self.deck),
                 game_over=self.status is BombStatus.FINISHED,
             )
 
@@ -527,6 +584,8 @@ class BombRoom:
             "last_eliminated_id": self.last_eliminated_id,
             "last_future_owner": self.last_future_owner,
             "last_future_cards": [card.value for card in self.last_future_cards],
+            "pending_defuse": self.pending_defuse,
+            "attack_stack": self.attack_stack,
             "winner_reward": self.winner_reward,
             "reward_paid": self._reward_paid,
             "result_recorded": self._result_recorded,
@@ -581,6 +640,12 @@ class BombRoom:
             _coerce_card_type(card)
             for card in state.get("last_future_cards") or []
         )
+        room.pending_defuse = (
+            int(state["pending_defuse"])
+            if state.get("pending_defuse") is not None
+            else None
+        )
+        room.attack_stack = int(state.get("attack_stack") or 0)
         room._reward_paid = bool(state.get("reward_paid", False))
         room._result_recorded = bool(state.get("result_recorded", False))
         return room
@@ -613,6 +678,8 @@ class BombRoom:
             "winner_id": self.winner_id,
             "winner_reward": self.winner_reward,
             "last_eliminated_id": self.last_eliminated_id,
+            "pending_defuse": self.pending_defuse,
+            "attack_stack": self.attack_stack,
             "cards": {
                 card.value: {
                     "name": card_info(card).name,
@@ -726,6 +793,15 @@ def play_action_card(
     )
 
 
+def defuse_bomb(
+    room_code: str | BombRoom,
+    user_id: int,
+    position: str = "middle",
+) -> DrawResult:
+    """Modul darajasidagi qulaylik: bombani joyiga yashirish."""
+    return _resolve_room(room_code).defuse_bomb(user_id, position)
+
+
 def check_winner(room: str | BombRoom | None = None) -> int | None:
     """G'olibni tekshiradi.
 
@@ -755,6 +831,7 @@ __all__ = [
     "WINNER_REWARD",
     "check_winner",
     "create_room",
+    "defuse_bomb",
     "draw_card",
     "drop_room",
     "get_room",

@@ -47,6 +47,12 @@ class BombPlayIn(BombPlayerIn):
     target_id: int | None = None
 
 
+class BombDefuseIn(BombPlayerIn):
+    """Bombani kolodaning qaysi joyiga yashirish."""
+
+    position: str = "middle"
+
+
 def _identity(payload: BombPlayerIn, user: TelegramUser | None) -> tuple[int, str]:
     user_id = resolve_room_user_id(user, payload.user_id)
     name = (user.full_name or user.username) if user is not None else payload.name
@@ -86,6 +92,7 @@ def _action_payload(result: DrawResult | ActionResult) -> dict[str, Any]:
             "next_player_id": result.next_player_id,
             "winner_id": result.winner_id,
             "game_over": result.game_over,
+            "awaiting_defuse": result.awaiting_defuse,
         }
     return {
         "kind": "play",
@@ -209,6 +216,26 @@ async def draw(
     return response
 
 
+@router.post("/{code}/defuse")
+async def defuse(
+    code: str,
+    payload: BombDefuseIn,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Bombani Defuse bilan tanlangan chuqurlikka yashiradi."""
+    user_id, _ = _identity(payload, user)
+    room = _room(code)
+    try:
+        result = room.defuse_bomb(user_id, payload.position)
+    except BombError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    get_default_manager().save(room)
+    _announce(room, result)
+    response = _response(room, user_id)
+    response["action"] = _action_payload(result)
+    return response
+
+
 @router.post("/{code}/play")
 async def play(
     code: str,
@@ -234,6 +261,7 @@ async def play(
 
 
 __all__ = [
+    "BombDefuseIn",
     "BombPlayIn",
     "BombPlayerIn",
     "router",

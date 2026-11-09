@@ -38,8 +38,8 @@ DOUBLE_SPY_MIN_PLAYERS = 7
 DEFAULT_ROUND_SECONDS = 300
 HINT_PRICE = 20
 HINT_ELIMINATIONS = 3
-PLAYER_WIN_REWARD = 25
-SPY_WIN_REWARD = 35
+PLAYER_WIN_REWARD = 30
+SPY_WIN_REWARD = 60
 
 SPY_WARNING = (
     "🕵️ SIZ JOSUSSIZ! Vazifangiz: savol-javoblar orqali qayerda "
@@ -72,6 +72,9 @@ WIN_REASONS: dict[Winner, str] = {
     Winner.PLAYERS: "Josus topildi — tinch aholi g'alaba qozondi!",
     Winner.SPIES: "Josus sezilmay qoldi — u g'alaba qozondi!",
 }
+
+# Har bir tinch aholi josusni foş qilsa 30 tanga, josus o'zi g'alaba
+# qozonsa 60 tanga oladi. Bu qiymatlar manager va e'lonlarda ishlatiladi.
 
 
 @dataclass

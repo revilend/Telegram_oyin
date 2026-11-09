@@ -135,6 +135,11 @@ class GameRoom(BaseModel):
     eliminated_players: list[int] = Field(default_factory=list)
     vote_weights: dict[int, int] = Field(default_factory=dict)
     pending_shield: ShieldOffer | None = None
+    # Yakuniy 10 yillik hayot simulyatsiyasi. Har bir element:
+    # {"year": 1, "title": ..., "text": ..., "tone": "ok|risk"}.
+    epilogue: list[dict[str, Any]] = Field(default_factory=list)
+    epilogue_outcome: str = ""
+    epilogue_survived: bool = False
 
     @field_validator("code")
     @classmethod

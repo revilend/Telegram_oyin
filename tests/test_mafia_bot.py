@@ -411,7 +411,7 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
 
         execution = mafia_group.execution_text(game, game.room.get_player(1))
         self.assertIn("@ali", execution)
-        self.assertIn("Sherif", execution)
+        self.assertIn("Komissar Katani", execution)
         self.assertIn("qatl qilindi", execution)
 
         bot = FakeBot()
@@ -499,7 +499,7 @@ class AnnouncementTest(unittest.IsolatedAsyncioTestCase):
             }
         )
         text = mafia_group.role_text(game, game.room.get_player(1))
-        self.assertIn("Sherif", text)
+        self.assertIn("Komissar Katani", text)
         self.assertIn("Şahar aholisi", text)
         self.assertIn("Tunda harakat qilasiz", text)
         self.assertIn(game.code, text)

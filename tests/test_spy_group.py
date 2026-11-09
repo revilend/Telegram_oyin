@@ -144,7 +144,7 @@ class SpyGroupLobbyTest(unittest.TestCase):
         self.assertEqual(chat_id, -100777)
         self.assertIn("TINÇ AHOLI", text)
         self.assertIn(started.location.name, text)
-        self.assertIn("+25", text)
+        self.assertIn("+30", text)
         self.assertIn(started.players[spy_id].display_name(), text)
 
     def test_announcement_is_skipped_without_chat(self) -> None:

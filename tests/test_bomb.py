@@ -113,10 +113,17 @@ class BombTurnTest(unittest.TestCase):
 
         result = room.draw_card(1)
 
-        self.assertTrue(result.defused)
-        self.assertFalse(result.exploded)
+        self.assertTrue(result.awaiting_defuse)
+        self.assertFalse(result.defused)
         self.assertIs(result.card, CardType.BOMB)
         self.assertTrue(room.players[1].is_alive)
+        self.assertEqual(room.pending_defuse, 1)
+        self.assertEqual(room.deck, [])
+        self.assertEqual(room.current_player_id, 1)
+
+        resolved = room.defuse_bomb(1, "middle")
+        self.assertTrue(resolved.defused)
+        self.assertFalse(resolved.awaiting_defuse)
         self.assertNotIn(CardType.DEFUSE, room.players[1].hand)
         self.assertEqual(room.deck, [CardType.BOMB])
         self.assertEqual(room.current_player_id, 2)
@@ -147,6 +154,19 @@ class BombTurnTest(unittest.TestCase):
         self.assertIn(CardType.ATTACK, room.players[1].hand)
         self.assertEqual(room.current_player_id, 2)
         self.assertEqual(result.deck_size, 0)
+
+    def test_attack_chain_forces_four_draws(self) -> None:
+        room = make_room(3)
+        room.players[1].hand = [CardType.ATTACK]
+        room.players[2].hand = [CardType.ATTACK]
+        room.deck = [CardType.SKIP, CardType.SKIP, CardType.SKIP, CardType.SKIP]
+
+        room.play_action_card(1, CardType.ATTACK)
+        self.assertEqual(room.players[2].draw_turns_left, 2)
+        room.play_action_card(2, CardType.ATTACK)
+
+        self.assertEqual(room.players[3].draw_turns_left, 4)
+        self.assertEqual(room.current_player_id, 3)
 
     def test_attack_gives_next_player_two_draws(self) -> None:
         room = make_room(3)
@@ -268,6 +288,23 @@ class BombTurnTest(unittest.TestCase):
         self.assertEqual(room.check_winner(), 1)
         self.assertEqual(room.winner_id, 1)
         self.assertEqual(awards, [(1, 30)])
+
+
+class BombDefusePlacementTest(unittest.TestCase):
+    def test_defuse_can_hide_bomb_at_top_middle_or_bottom(self) -> None:
+        for position, expected in (
+            ("top", 0),
+            ("bottom", 2),
+            ("middle", 1),
+        ):
+            with self.subTest(position=position):
+                room = make_room(2)
+                room.deck = [CardType.BOMB, CardType.SKIP, CardType.ATTACK]
+                room.players[1].hand = [CardType.DEFUSE]
+                room.draw_card(1)
+                result = room.defuse_bomb(1, position)
+                self.assertEqual(result.returned_index, expected)
+                self.assertIs(room.deck[expected], CardType.BOMB)
 
 
 class BombRegistryTest(unittest.TestCase):

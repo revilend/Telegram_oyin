@@ -186,7 +186,7 @@ async def announce_room(bot: Bot, room: SpyfallRoom, event: str) -> None:
             )
         text += f"🕵️ <b>Josus:</b> {', '.join(spies) or '—'}\n"
         text += (
-            f"🪙 <b>Mukofot:</b> {'+35' if winner == Winner.SPIES.value else '+25'} "
+            f"🪙 <b>Mukofot:</b> {'+60' if winner == Winner.SPIES.value else '+30'} "
             "tanga (ğoliblarga)\n\n"
             "Yangi öyin uçun guruhda <code>/spy</code> yuboring."
         )

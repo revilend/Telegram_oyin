@@ -325,6 +325,9 @@ def public_state(room: GameRoom, viewer_id: int = 0) -> dict[str, Any]:
             if room.pending_shield is not None
             else None
         ),
+        "epilogue": list(room.epilogue),
+        "epilogue_outcome": room.epilogue_outcome,
+        "epilogue_survived": room.epilogue_survived,
         "players": [_player_payload(player, viewer_id) for player in room.players.values()],
     }
 
@@ -2129,9 +2132,11 @@ async def get_mafia_public_state(
         "kill": "Nishonni tanlash",
         "heal": "Davolash",
         "protect": "Himoya qilish",
-        "block": "Harakatini bloklash",
+        "block": "Mehmonga borish (harakatni muzlatish)",
         "snipe": "Nishonga olish",
-        "investigate": "Tekshirish",
+        "shoot": "O'q uzish (o'ldirish)",
+        "investigate": "O'yinchini tekshirish",
+        "don_search": "Komissarni qidirish",
         "frame": "Tekshiruvdan yashirish",
         "witch_kill": "O'ldirish",
         "witch_heal": "Tiriltirish",
@@ -2139,11 +2144,11 @@ async def get_mafia_public_state(
         "copy": "Rolini egallash",
     }
     report = room.last_report
-    private_result = (
-        report.sheriff_results.get(resolved_id)
-        if report is not None
-        else None
-    )
+    private_result = None
+    if report is not None:
+        private_result = report.sheriff_results.get(resolved_id)
+        if private_result is None:
+            private_result = report.don_results.get(resolved_id)
     return {
         "state": {
             "code": game.code,
@@ -2259,15 +2264,6 @@ async def tally_mafia_votes(
         raise HTTPException(status_code=403, detail="Ovozlarni faqat xona egasi sanaydi")
     try:
         eliminated_id = game.room.tally_votes()
-        if (
-            eliminated_id is not None
-            and game.room.players[eliminated_id].role is MafiaRole.KAMIKAZE
-            and payload.kamikaze_target_id is None
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail="Kamikadze haydaldi. U bilan birga ketadigan o'yinchini tanlang.",
-            )
         winner = resolve_day_vote(
             game.room,
             eliminated_id,
