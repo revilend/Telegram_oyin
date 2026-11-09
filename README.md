@@ -7,7 +7,7 @@
 Bitta Telegram bot, bitta FastAPI server va bitta zamonaviy Mini App — Bunker, Mafiya, Josus, Alias va Portlovchi Bomba uchun to‘liq o‘yin, iqtisodiyot va turnir ekotizimi.
 
 [![Telegram Bot](https://img.shields.io/badge/Telegram-@revilend__gamesbot-26A5E4?logo=telegram&logoColor=white)](https://t.me/revilend_gamesbot)
-[![Mini App](https://img.shields.io/badge/Mini%20App-revilend.games-8B5CF6?logo=googlechrome&logoColor=white)](https://revilend.games)
+[![Mini App](https://img.shields.io/badge/Mini%20App-@revilend__gamesbot-8B5CF6?logo=telegram&logoColor=white)](https://t.me/revilend_gamesbot?startapp)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![aiogram](https://img.shields.io/badge/aiogram-3.x-2CA5E0?logo=telegram&logoColor=white)](https://docs.aiogram.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -26,20 +26,20 @@ Bitta Telegram bot, bitta FastAPI server va bitta zamonaviy Mini App — Bunker,
 
 - [Loyiha haqida](#-loyiha-haqida)
 - [Mini App](#-mini-app)
-- [O‘yinlar katalogi](#-o‘yinlar-katalogi)
+- [O‘yinlar katalogi](#-oyinlar-katalogi)
 - [Iqtisodiyot va monetizatsiya](#-iqtisodiyot-va-monetizatsiya)
 - [Kibersport va turnirlar](#-kibersport-va-turnirlar)
-- [Texnik arxitektura](#-texnik-arxitektura)
+- [Texnik arxitektura](#️-texnik-arxitektura)
 - [Xavfsizlik](#-xavfsizlik)
-- [O‘rnatish](#-o‘rnatish)
-- [Muhit o‘zgaruvchilari](#-muhit-o‘zgaruvchilari)
-- [Ishga tushirish](#-ishga-tushirish)
-- [Render’ga deploy](#-renderga-deploy)
-- [VPS’da ishga tushirish](#-vpsda-ishga-tushirish)
+- [O‘rnatish](#️-ornatish)
+- [Muhit o‘zgaruvchilari](#-muhit-ozgaruvchilari)
+- [Ishga tushirish](#️-ishga-tushirish)
+- [Render’ga deploy](#️-renderga-deploy)
+- [VPS’da ishga tushirish](#️-vpsda-ishga-tushirish)
 - [Testlar](#-testlar)
 - [Loyiha tuzilishi](#-loyiha-tuzilishi)
 - [API va WebSocket](#-api-va-websocket)
-- [Admin panel](#-admin-panel)
+- [Admin panel](#️-admin-panel)
 - [Litsenziya va aloqa](#-litsenziya-va-aloqa)
 
 ---
@@ -85,6 +85,11 @@ Mini App Telegram ichida ochiladi va mobil ekranga moslashadi. Quyida lokal demo
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/mini-app-home.png" alt="Mini App o‘yinlar ekrani" width="240"> | <img src="docs/screenshots/mini-app-shop.png" alt="Mini App do‘kon ekrani" width="240"> | <img src="docs/screenshots/mini-app-profile.png" alt="Mini App profil ekrani" width="240"> |
 | 5 ta o‘yin, xona kodi va jamoa bilan o‘ynash | Tanga paketlari, boosterlar, ramkalar va unvonlar | Balans, daraja, statistika va do‘stlarni taklif qilish |
+
+| Reyting | O‘yin xonasi |
+|:---:|:---:|
+| <img src="docs/screenshots/mini-app-rating.png" alt="Mini App reyting ekrani" width="240"> | <img src="docs/screenshots/mini-app-bunker.png" alt="Mini App Bunker o‘yin xonasi" width="240"> |
+| Haftalik liga, turnir va eng yaxshi o‘yinchilar | Bunker xonasi, o‘yin kartalari va ovoz berish |
 
 ---
 
@@ -630,7 +635,7 @@ Admin huquqi:
 Bu — **Revilend Games**ning xususiy loyihasi. Kod va kontentdan ruxsatsiz tijoriy foydalanish taqiqlanadi.
 
 - 🤖 Bot: [@revilend_gamesbot](https://t.me/revilend_gamesbot)
-- 🌐 Mini App: [revilend.games](https://revilend.games)
+- 🌐 Mini App: [Telegram botda ochish](https://t.me/revilend_gamesbot?startapp)
 - 💻 GitHub: [revilend/Telegram_oyin](https://github.com/revilend/Telegram_oyin)
 - 📬 Aloqa: Telegram orqali admin bilan bog‘laning.
 
