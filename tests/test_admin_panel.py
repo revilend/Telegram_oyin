@@ -408,6 +408,47 @@ class AdminPanelTest(unittest.TestCase):
         self.assertEqual(store.get_user(88300).coins, START_COINS + 200)
         self.assertIn("−50", message.answers[-1])
 
+    def test_block_unblock_and_role_actions(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        store.ensure_user(88400, "ali", "Ali")
+        callback = FakeCallback(data="admin_player_block_88400")
+        state = FakeState()
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.block_player(callback, state))
+        self.assertIs(state.state, admin.AdminStates.waiting_block_reason)
+        self.assertIn("Blok sababini yozing", callback.bot.messages[-1][1])
+
+        reason_message = FakeMessage(text="Spam va haqorat")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.save_block_reason(reason_message, state))
+        self.assertTrue(store.get_user(88400).is_blocked)
+        self.assertEqual(store.get_user(88400).block_reason, "Spam va haqorat")
+        self.assertIn("bloklandi", reason_message.answers[-1])
+        self.assertIn("Spam va haqorat", reason_message.answers[-1])
+        self.assertEqual(reason_message.bot.messages[-1][0], 88400)
+        self.assertIn("Spam va haqorat", reason_message.bot.messages[-1][1])
+        self.assertIn("Murojaat", reason_message.bot.messages[-1][1])
+        self.assertIn("tg://user?id=424242", reason_message.bot.messages[-1][1])
+
+        callback = FakeCallback(data="admin_player_unblock_88400")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.unblock_player(callback))
+        self.assertFalse(store.get_user(88400).is_blocked)
+        self.assertEqual(store.get_user(88400).block_reason, "")
+        self.assertIn("blokdan çiqarildi", callback.bot.messages[-1][1])
+
+        callback = FakeCallback(data="admin_player_role_admin_88400")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.make_player_admin(callback))
+        self.assertEqual(store.get_role(88400), "admin")
+        self.assertIn("Admin roli berildi", callback.bot.messages[-1][1])
+
+        callback = FakeCallback(data="admin_player_role_user_88400")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.make_player_user(callback))
+        self.assertEqual(store.get_role(88400), "user")
+        self.assertIn("User roli berildi", callback.bot.messages[-1][1])
+
     def test_back_button_returns_to_panel(self) -> None:
         callback = FakeCallback()
         state = FakeState()

@@ -101,6 +101,9 @@ class UserAccount:
     referral_count: int = 0
     last_bonus_at: str = ""
     bonus_streak: int = 0
+    is_blocked: bool = False
+    block_reason: str = ""
+    role: str = "user"
 
 
 @dataclass(frozen=True)
@@ -264,6 +267,9 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         referral_count=int(row.get("referral_count") or 0),
         last_bonus_at=str(row.get("last_bonus_at") or ""),
         bonus_streak=int(row.get("bonus_streak") or 0),
+        is_blocked=bool(row.get("is_blocked")),
+        block_reason=str(row.get("block_reason") or ""),
+        role=str(row.get("role") or "user").strip().lower(),
     )
 
 
@@ -447,6 +453,8 @@ class EconomyStore:
                         "bomb_wins": 0,
                         "referral_count": 0,
                         "role": "user",
+                        "is_blocked": False,
+                        "block_reason": "",
                         "created_at": _now(),
                     }
                     self._users[uid] = row
@@ -474,6 +482,7 @@ class EconomyStore:
                     "bomb_wins": 0,
                     "referral_count": 0,
                     "role": "user",
+                    "is_blocked": False,
                     "created_at": _now(),
                 }
                 try:
@@ -517,8 +526,46 @@ class EconomyStore:
         return str((row or {}).get("role") or "user").strip().lower()
 
     def is_admin_user(self, user_id: int) -> bool:
-        """`users` jadvalida shu telegram id uchun rol ``admin`` mi?"""
-        return self.get_role(user_id) == "admin"
+        """Bloklanmagan adminni tekshiradi."""
+        return self.get_role(user_id) == "admin" and not self.is_blocked(user_id)
+
+    def is_blocked(self, user_id: int) -> bool:
+        """Foydalanuvchi bloklanganmi (yangi yozuv yaratmasdan)."""
+        account = self.find_user(user_id)
+        return bool(account is not None and account.is_blocked)
+
+    def set_blocked(
+        self, user_id: int, blocked: bool, reason: str = ""
+    ) -> UserAccount:
+        """Foydalanuvchini sabab bilan bloklaydi yoki blokdan çiqaradi."""
+        account = self.find_user(user_id)
+        if account is None:
+            raise EconomyError("Foydalanuvçi topilmadi")
+        uid = account.user_id
+        reason_text = str(reason or "").strip()[:500] if blocked else ""
+        changes = {"is_blocked": bool(blocked), "block_reason": reason_text}
+        with self._lock:
+            if not self.enabled:
+                self._users[uid].update(changes)
+                return _row_to_account(self._users[uid])
+            self._update_user_row(uid, changes)
+        return replace(account, **changes)
+
+    def set_role(self, user_id: int, role: str) -> UserAccount:
+        """Foydalanuvchi rolini ``admin`` yoki ``user`` qiladi."""
+        new_role = str(role or "").strip().lower()
+        if new_role not in {"admin", "user"}:
+            raise EconomyError("Rol faqat admin yoki user bölişi mumkin")
+        account = self.find_user(user_id)
+        if account is None:
+            raise EconomyError("Foydalanuvçi topilmadi")
+        uid = account.user_id
+        with self._lock:
+            if not self.enabled:
+                self._users[uid]["role"] = new_role
+                return _row_to_account(self._users[uid])
+            self._update_user_row(uid, {"role": new_role})
+        return replace(account, role=new_role)
 
     def find_user(self, user_id: int) -> UserAccount | None:
         """Foydalanuvchini yaratmasdan qaytaradi; yo'q bo'lsa ``None``."""

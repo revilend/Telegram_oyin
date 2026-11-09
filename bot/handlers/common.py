@@ -22,6 +22,7 @@ from aiogram.types import (
     WebAppInfo,
 )
 
+from bot.blocking import blocked_text
 from bot.config import get_config
 from bot.handlers.admin import is_admin
 from bot.keyboards.main_menu import (
@@ -318,6 +319,20 @@ async def start_command(message: Message, command: CommandObject | None = None) 
     economy = get_economy()
     notes: list[str] = []
     account: UserAccount | None = None
+
+    if user is not None:
+        try:
+            blocked_account = economy.find_user(user.id)
+            if blocked_account is not None and blocked_account.is_blocked:
+                await message.answer(
+                    blocked_text(
+                        blocked_account.block_reason,
+                        int(get_config().admin_id or 0),
+                    )
+                )
+                return
+        except Exception:
+            logger.exception("Blok holatini tekşirib bölmadi: %s", user.id)
 
     if user is not None:
         inviter_id = parse_referral_arg(command.args if command is not None else None)

@@ -25,6 +25,7 @@ Bitta Telegram bot, bitta FastAPI server va bitta zamonaviy Mini App — Bunker,
 ## 📚 Mundarija
 
 - [Loyiha haqida](#-loyiha-haqida)
+- [Mini App](#-mini-app)
 - [O‘yinlar katalogi](#-o‘yinlar-katalogi)
 - [Iqtisodiyot va monetizatsiya](#-iqtisodiyot-va-monetizatsiya)
 - [Kibersport va turnirlar](#-kibersport-va-turnirlar)
@@ -69,6 +70,21 @@ Platforma bitta jarayonda ishlaydi:
 - 🛠️ To‘liq admin panel
 - 💾 Har kuni avtomatik JSON zaxira
 - 🔐 Telegram `initData` HMAC tekshiruvi
+
+---
+
+## 📱 Mini App
+
+Mini App Telegram ichida ochiladi va mobil ekranga moslashadi. Quyida lokal demo foydalanuvchisi bilan olingan haqiqiy interfeys skrinshotlari keltirilgan.
+
+<p align="center">
+  <img src="docs/screenshots/mini-app-demo.gif" alt="Revilend Games Mini App: o‘yinlar, do‘kon va profil ekranlari" width="320">
+</p>
+
+| O‘yinlar | Do‘kon | Profil |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/mini-app-home.png" alt="Mini App o‘yinlar ekrani" width="240"> | <img src="docs/screenshots/mini-app-shop.png" alt="Mini App do‘kon ekrani" width="240"> | <img src="docs/screenshots/mini-app-profile.png" alt="Mini App profil ekrani" width="240"> |
+| 5 ta o‘yin, xona kodi va jamoa bilan o‘ynash | Tanga paketlari, boosterlar, ramkalar va unvonlar | Balans, daraja, statistika va do‘stlarni taklif qilish |
 
 ---
 

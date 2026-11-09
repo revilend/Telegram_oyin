@@ -72,6 +72,8 @@ create table if not exists public.users (
     equipped_title   text not null default '',
     referral_count   integer not null default 0,
     role             text not null default 'user',
+    is_blocked       boolean not null default false,
+    block_reason     text not null default '',
     created_at       timestamptz not null default now(),
     updated_at       timestamptz not null default now(),
     last_free_spin_at timestamptz null default null
@@ -80,6 +82,10 @@ create table if not exists public.users (
 -- Eski jadvallar uchun migratsiya: rol ustuni keyin qo'shilgan bo'lsa ham ishlaydi.
 alter table public.users
     add column if not exists role text not null default 'user';
+alter table public.users
+    add column if not exists is_blocked boolean not null default false;
+alter table public.users
+    add column if not exists block_reason text not null default '';
 alter table public.users
     add column if not exists referral_count integer not null default 0;
 alter table public.users

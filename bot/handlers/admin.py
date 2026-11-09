@@ -28,6 +28,7 @@ from aiogram.types import (
     Message,
 )
 
+from bot.blocking import notify_blocked_user
 from bot.config import get_config
 from core.backup import (
     BackupError,
@@ -72,6 +73,10 @@ PLAYERS_PAGE_PREFIX = "admin_players_page_"
 PLAYERS_SEARCH_CALLBACK = "admin_players_find"
 PLAYER_ADD_PREFIX = "admin_player_add_"
 PLAYER_SUB_PREFIX = "admin_player_sub_"
+PLAYER_BLOCK_PREFIX = "admin_player_block_"
+PLAYER_UNBLOCK_PREFIX = "admin_player_unblock_"
+PLAYER_ROLE_ADMIN_PREFIX = "admin_player_role_admin_"
+PLAYER_ROLE_USER_PREFIX = "admin_player_role_user_"
 GIVE_CALLBACK = "admin_give"
 PROMO_CALLBACK = "admin_promo"
 BROADCAST_CALLBACK = "admin_broadcast"
@@ -128,6 +133,7 @@ class AdminStates(StatesGroup):
     waiting_card = State()
     waiting_player_search = State()
     waiting_player_amount = State()
+    waiting_block_reason = State()
     waiting_give = State()
     waiting_promo = State()
     waiting_broadcast = State()
@@ -539,6 +545,13 @@ def player_profile_text(account: UserAccount) -> str:
             f"💣 Bomba: <b>{account.bomb_wins}</b> | "
             f"🏅 Jami ğalaba: <b>{total_wins}</b>",
             f"👥 Taklif qilganlar: <b>{account.referral_count}</b>",
+            f"🛡 Rol: <b>{escape(account.role or 'user')}</b> · "
+            f"Holat: <b>{'🚫 Bloklangan' if account.is_blocked else '✅ Faol'}</b>",
+            *(
+                [f"📋 Blok sababi: <i>{escape(account.block_reason)}</i>"]
+                if account.is_blocked and account.block_reason
+                else []
+            ),
             "",
             f"🎒 <b>Inventar:</b> {inventory_count} xil",
             *inventory,
@@ -546,8 +559,32 @@ def player_profile_text(account: UserAccount) -> str:
     )
 
 
-def player_profile_keyboard(user_id: int) -> InlineKeyboardMarkup:
-    """Profil ostidagi tanga amallari."""
+def player_profile_keyboard(
+    user_id: int, *, is_blocked: bool = False, role: str = "user"
+) -> InlineKeyboardMarkup:
+    """Profil ostidagi tanga, bloklash va rol tugmalari."""
+    block_button = (
+        InlineKeyboardButton(
+            text="✅ Blokdan çiqariş",
+            callback_data=f"{PLAYER_UNBLOCK_PREFIX}{user_id}",
+        )
+        if is_blocked
+        else InlineKeyboardButton(
+            text="🚫 Bloklaş",
+            callback_data=f"{PLAYER_BLOCK_PREFIX}{user_id}",
+        )
+    )
+    role_button = (
+        InlineKeyboardButton(
+            text="👤 User qiliş",
+            callback_data=f"{PLAYER_ROLE_USER_PREFIX}{user_id}",
+        )
+        if role == "admin"
+        else InlineKeyboardButton(
+            text="👑 Admin qiliş",
+            callback_data=f"{PLAYER_ROLE_ADMIN_PREFIX}{user_id}",
+        )
+    )
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -560,6 +597,7 @@ def player_profile_keyboard(user_id: int) -> InlineKeyboardMarkup:
                     callback_data=f"{PLAYER_SUB_PREFIX}{user_id}",
                 ),
             ],
+            [block_button, role_button],
             [
                 InlineKeyboardButton(
                     text="⬅️ Öyinçilar röyxati",
@@ -678,7 +716,11 @@ async def search_player(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer(
         player_profile_text(account),
-        reply_markup=player_profile_keyboard(account.user_id),
+        reply_markup=player_profile_keyboard(
+            account.user_id,
+            is_blocked=account.is_blocked,
+            role=account.role,
+        ),
     )
 
 
@@ -787,8 +829,228 @@ async def apply_player_coins(message: Message, state: FSMContext) -> None:
     await message.answer(
         f"✅ <code>{user_id}</code> balansi <b>{sign}{format_price(amount)}</b> "
         "tanga özgärtirildi.\n\n" + player_profile_text(account),
-        reply_markup=player_profile_keyboard(user_id),
+        reply_markup=player_profile_keyboard(
+            user_id,
+            is_blocked=account.is_blocked,
+            role=account.role,
+        ),
     )
+
+
+async def _player_action(
+    callback: CallbackQuery, prefix: str
+) -> tuple[UserAccount, int] | None:
+    """Profil amali uchun nishonni tekshiradi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return None
+    raw = (callback.data or "")[len(prefix) :]
+    try:
+        user_id = int(raw)
+    except ValueError:
+        await callback.answer("Öyinçi ID notöğri", show_alert=True)
+        return None
+    config = get_config()
+    if config.admin_id and user_id == int(config.admin_id):
+        await callback.answer(
+            "⛔ Baş adminni bloklab yoki rolini özgärtirib bölmaydi.",
+            show_alert=True,
+        )
+        return None
+    if user_id == int(callback.from_user.id):
+        await callback.answer(
+            "⛔ Özingizni bloklay yoki öz rolingizni özgärtira olmaysiz.",
+            show_alert=True,
+        )
+        return None
+    try:
+        account = get_economy().find_user(user_id)
+    except Exception:
+        logger.exception("Öyinçini yuklab bölmadi: %s", user_id)
+        await callback.answer("Öyinçi yuklanmadi", show_alert=True)
+        return None
+    if account is None:
+        await callback.answer("Öyinçi topilmadi", show_alert=True)
+        return None
+    return account, user_id
+
+
+async def _refresh_player(
+    callback: CallbackQuery, account: UserAccount, prefix: str = ""
+) -> None:
+    await _edit_admin_message(
+        callback,
+        (prefix + "\n\n" if prefix else "") + player_profile_text(account),
+        player_profile_keyboard(
+            account.user_id,
+            is_blocked=account.is_blocked,
+            role=account.role,
+        ),
+    )
+
+
+async def _set_player_blocked(
+    callback: CallbackQuery, prefix: str, blocked: bool
+) -> None:
+    target = await _player_action(callback, prefix)
+    if target is None:
+        return
+    account, _user_id = target
+    try:
+        updated = get_economy().set_blocked(account.user_id, blocked)
+    except EconomyError as exc:
+        await callback.answer(escape(str(exc)), show_alert=True)
+        return
+    except Exception:
+        logger.exception("Bloklaşda xatolik: %s", account.user_id)
+        await callback.answer("Bloklaşda xatolik", show_alert=True)
+        return
+    await callback.answer()
+    await _refresh_player(
+        callback,
+        updated,
+        "🚫 <b>Öyinçi bloklandi.</b>"
+        if blocked
+        else "✅ <b>Öyinçi blokdan çiqarildi.</b>",
+    )
+
+
+@router.callback_query(F.data.startswith(PLAYER_BLOCK_PREFIX))
+async def block_player(callback: CallbackQuery, state: FSMContext) -> None:
+    """Bloklashdan öldin sababni söraydi."""
+    target = await _player_action(callback, PLAYER_BLOCK_PREFIX)
+    if target is None:
+        return
+    account, user_id = target
+    await state.set_state(AdminStates.waiting_block_reason)
+    await state.update_data(player_id=user_id)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id,
+        "🚫 <b>Öyinçini bloklaş</b>\n\n"
+        f"👤 {_player_label(account)} (ID: <code>{user_id}</code>)\n\n"
+        "Blok sababini yozing. Foydalanuvçiga bu sabab va admin bilan "
+        "böğlaniş yöli avtomatik yuboriladi:",
+        reply_markup=back_keyboard(),
+    )
+
+
+@router.message(AdminStates.waiting_block_reason)
+async def save_block_reason(message: Message, state: FSMContext) -> None:
+    """Sababni saqlaydi, bloklaydi va foydalanuvchini xabardor qiladi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    data = await state.get_data()
+    try:
+        user_id = int(data.get("player_id"))
+    except (TypeError, ValueError):
+        await state.clear()
+        await message.answer(
+            "⚠️ Öyinçi aniqlanmadi. Qaytadan qidiring.",
+            reply_markup=panel_keyboard(),
+        )
+        return
+    reason = (message.text or "").strip()
+    if not reason:
+        await message.answer(
+            "⚠️ Blok sababini yozing.", reply_markup=back_keyboard()
+        )
+        return
+    try:
+        updated = get_economy().set_blocked(user_id, True, reason)
+    except EconomyError as exc:
+        await message.answer(
+            f"⚠️ {escape(str(exc))}", reply_markup=back_keyboard()
+        )
+        return
+    except Exception:
+        logger.exception("Bloklaşda xatolik: %s", user_id)
+        await message.answer(
+            "⚠️ Bloklanmadi. Qayta urinib köring.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    await state.clear()
+    config = get_config()
+    delivered = await notify_blocked_user(
+        message.bot, user_id, updated.block_reason, config.admin_id
+    )
+    note = (
+        "📨 Sabab foydalanuvçiga yuborildi."
+        if delivered
+        else "ℹ️ Foydalanuvçiga xabar yuborilmadi (botni bloklagan bölgan)."
+    )
+    await message.answer(
+        f"🚫 <b>Öyinçi bloklandi.</b>\n{note}\n\n"
+        + player_profile_text(updated),
+        reply_markup=player_profile_keyboard(
+            user_id, is_blocked=True, role=updated.role
+        ),
+    )
+
+
+@router.callback_query(F.data.startswith(PLAYER_UNBLOCK_PREFIX))
+async def unblock_player(callback: CallbackQuery) -> None:
+    target = await _player_action(callback, PLAYER_UNBLOCK_PREFIX)
+    if target is None:
+        return
+    account, user_id = target
+    try:
+        updated = get_economy().set_blocked(user_id, False)
+    except EconomyError as exc:
+        await callback.answer(escape(str(exc)), show_alert=True)
+        return
+    await callback.answer()
+    config = get_config()
+    try:
+        await callback.bot.send_message(
+            user_id,
+            "✅ <b>Hisobingiz blokdan çiqarildi.</b>\n\n"
+            "Endi botdan yana foydalana olasiz.",
+        )
+    except TelegramAPIError:
+        logger.info("Blokdan çiqarilgan foydalanuvçiga xabar yuborilmadi: %s", user_id)
+    await _refresh_player(
+        callback, updated, "✅ <b>Öyinçi blokdan çiqarildi.</b>"
+    )
+
+
+async def _set_player_role(
+    callback: CallbackQuery, prefix: str, role: str
+) -> None:
+    target = await _player_action(callback, prefix)
+    if target is None:
+        return
+    account, _user_id = target
+    try:
+        updated = get_economy().set_role(account.user_id, role)
+    except EconomyError as exc:
+        await callback.answer(escape(str(exc)), show_alert=True)
+        return
+    except Exception:
+        logger.exception("Rolni özgärtirişda xatolik: %s", account.user_id)
+        await callback.answer("Rol özgärtirilmadi", show_alert=True)
+        return
+    await callback.answer()
+    await _refresh_player(
+        callback,
+        updated,
+        "👑 <b>Admin roli berildi.</b>"
+        if role == "admin"
+        else "👤 <b>User roli berildi.</b>",
+    )
+
+
+@router.callback_query(F.data.startswith(PLAYER_ROLE_ADMIN_PREFIX))
+async def make_player_admin(callback: CallbackQuery) -> None:
+    await _set_player_role(callback, PLAYER_ROLE_ADMIN_PREFIX, "admin")
+
+
+@router.callback_query(F.data.startswith(PLAYER_ROLE_USER_PREFIX))
+async def make_player_user(callback: CallbackQuery) -> None:
+    await _set_player_role(callback, PLAYER_ROLE_USER_PREFIX, "user")
 
 
 # ----------------------------------------------------------------------

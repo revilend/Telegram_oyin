@@ -14,6 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from bot.config import get_config
+from bot.middlewares import BlockedUserMiddleware
 from core.daily_backup import start_daily_backup, stop_daily_backup
 from bot.handlers import (
     testlab,
@@ -64,6 +65,12 @@ BOT_COMMANDS = [
 def build_dispatcher() -> Dispatcher:
     """Routerlarni ulab, tayyor Dispatcher qaytaradi."""
     dispatcher = Dispatcher(storage=MemoryStorage())
+    # Bloklangan foydalanuvchi heç bir handlerga yetib bormaydi.
+    blocker = BlockedUserMiddleware()
+    if hasattr(dispatcher, "message"):
+        dispatcher.message.outer_middleware(blocker)
+    if hasattr(dispatcher, "callback_query"):
+        dispatcher.callback_query.outer_middleware(blocker)
     # /cancel har qanday FSM holatida ishlashi uchun birinchi ulanadi.
     dispatcher.include_router(common.cancel_router)
     # /start shop_... deep linki umumiy /start handleridan oldin ushlanishi kerak.

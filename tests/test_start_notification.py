@@ -115,6 +115,15 @@ class StartNotificationTest(unittest.TestCase):
         self.assertIn("<code>99002</code>", text)
         self.assertIn("2 kişi", text)
 
+    def test_blocked_user_gets_no_welcome_or_notification(self) -> None:
+        self.store.ensure_user(99005, "blocked", "Blocked User")
+        self.store.set_blocked(99005, True)
+        message = self._start(99005)
+        self.assertIn("bloklangan", message.answers[-1])
+        self.assertEqual(
+            [t for c, t in message.bot.messages if c == 424242], []
+        )
+
     def test_notification_failure_does_not_break_start(self) -> None:
         message = self._start(99004, fail_bot=True)
         self.assertIn("Salom", message.answers[-1])
