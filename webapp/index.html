@@ -5684,13 +5684,16 @@ function profileCardHtml() {
           : inner;
 }
 
-      function leaderboardHtml() {
+      function isLeaderboardBot(p){if(!p)return false;if(p.is_bot===true)return true;if(Number(p.user_id)>=9000000000)return true;var u=String(p.username||'').toLowerCase();if(u.indexOf('bot')!==-1)return true;return String(p.name||'').toLowerCase().indexOf('bot')!==-1;}
+function leaderboardHtml() {
         var activity = activityState();
         var period = boardPeriod();
         var board = period === "week"
           ? (activity.week || { top: [], me: null })
           : { top: activity.top || [], me: activity.me };
-        var top = board.top || [];
+        var top = (board.top || []).filter(function(player){return !isLeaderboardBot(player);});
+        var rawMe = board.me;
+        var me = (rawMe && !isLeaderboardBot(rawMe)) ? rawMe : null;
         var tabs = '<div class="board-tabs">' +
           '<button class="board-tab' + (period === "all" ? " active" : "") +
             '" data-act="board-period" data-period="all">' + icon("star") + ' Barça davrlar</button>' +
@@ -5718,7 +5721,7 @@ function profileCardHtml() {
               (titleLabel(player.title_slug || player.title) ? '<span class="t-title">' + esc(titleLabel(player.title_slug || player.title)) + '</span>' : '') +
             '</div></div>';
         }).join("");
-        var me = board.me;
+        // me: tepada filtrlangan, shu yerda qayta yozilmaydi
         if (me && Number(me.rank) > top.length) {
           rows += '<div class="top-row me">' + medalBadge(me.medal, me.rank) +
             boardAvatarHtml(me) +

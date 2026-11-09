@@ -169,6 +169,41 @@ class LeaderboardTest(unittest.TestCase):
         self.assertEqual(board["top"][0]["points"], 3)
         self.assertTrue(board["me"]["is_me"])
 
+    def test_all_time_board_excludes_test_bots(self) -> None:
+        self.store.ensure_user(81010, "ali", "Ali")
+        self.store.record_finished_game("BNKBOT", [81010, 9_000_000_002], [9_000_000_002])
+        self.store.record_finished_game("BNKBOT2", [81010, 9_000_000_003], [9_000_000_003])
+        board = build_leaderboard("all", 10, 81010, economy=self.store)
+        ids = [row["user_id"] for row in board["top"]]
+        self.assertEqual(ids, [81010])
+        self.assertNotIn(9_000_000_002, ids)
+        self.assertNotIn(9_000_000_003, ids)
+        self.assertTrue(board["top"][0]["is_me"])
+
+    def test_top_users_filters_id_bot_and_username(self) -> None:
+        self.store.ensure_user(81020, "real", "Real")
+        self.store.record_finished_game("BNKREAL", [81020], [81020])
+        self.store.ensure_user(9_000_000_002, "bot2", "Bot")
+        self.store.record_finished_game("BNKBOTID", [9_000_000_002], [9_000_000_002])
+        self.store.ensure_user(81021, "mybot", "Fake")
+        self.store.record_finished_game("BNKBOTNAME", [81021], [81021])
+        tops = [u.user_id for u in self.store.top_users(10)]
+        self.assertEqual(tops, [81020])
+
+    def test_weekly_board_excludes_test_bots(self) -> None:
+        self.store.record_finished_game("BNKWEEK", [81030, 9_000_000_004], [9_000_000_004])
+        board = build_leaderboard("week", 10, 81030, economy=self.store)
+        ids = [row["user_id"] for row in board["top"]]
+        self.assertEqual(ids, [81030])
+
+    def test_test_lab_marks_bots_as_is_bot(self) -> None:
+        from engine.test_lab import BOT_IDS, TEST_HOST_ID, run_game
+
+        with patch("engine.test_lab.get_economy", return_value=self.store):
+            run_game("bunker")
+        for uid in (TEST_HOST_ID, *BOT_IDS):
+            self.assertTrue(self.store.get_user(uid).is_bot)
+
 
 class ApiFeatureTest(unittest.TestCase):
     def setUp(self) -> None:

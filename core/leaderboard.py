@@ -10,7 +10,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from core.economy import EconomyStore, get_economy, player_rating
+from core.economy import EconomyStore, get_economy, is_rating_bot, player_rating
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,13 @@ def _cosmetics(user_id: int) -> dict[str, str]:
 
 def _all_time(economy: EconomyStore, limit: int, viewer_id: int | None) -> dict[str, Any]:
     """Umumiy reyting: reyting va tangalar bo'yicha."""
-    accounts = economy.top_users(limit=1000)
+    # Test botlar (`id >= 9000000000`, `is_bot` yoki `*bot*` username)
+    # reytingdan butunlay chiqariladi.
+    accounts = [
+        account
+        for account in economy.top_users(limit=1000)
+        if not is_rating_bot(account)
+    ]
     rows: list[dict[str, Any]] = []
     for index, account in enumerate(accounts, start=1):
         rows.append(

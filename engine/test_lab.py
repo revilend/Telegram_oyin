@@ -44,6 +44,14 @@ BUNKER_CARDS = ("profession", "health", "hobby", "phobia", "baggage", "fact")
 GAMES = ("bunker", "mafia", "spyfall", "alias", "bomb")
 
 
+def _mark_test_bot(economy: Any, uid: int) -> None:
+    """Virtual bot hisobini ``is_bot=TRUE`` bilan belgilaydi."""
+    try:
+        economy.ensure_user(int(uid), is_bot=True)
+    except Exception:  # test hisobi yozilmasa ham simulyatsiya to'xtamaydi
+        logger.exception("Test bot hisobini belgilab bo'lmadi: %s", uid)
+
+
 def _snapshot(economy: Any, ids: list[int]) -> dict[int, dict[str, int]]:
     """O'yinchilarning tanga/statistika holatini yozib oladi."""
     data: dict[int, dict[str, int]] = {}
@@ -52,6 +60,8 @@ def _snapshot(economy: Any, ids: list[int]) -> dict[int, dict[str, int]]:
             user = economy.get_user(int(uid))
         except Exception:  # hisob hali yaratilmagan bo'lishi mumkin
             user = economy.ensure_user(int(uid))
+        if int(uid) >= 9_000_000_000:
+            _mark_test_bot(economy, int(uid))
         data[int(uid)] = {
             "coins": int(getattr(user, "coins", 0) or 0),
             "games_played": int(getattr(user, "games_played", 0) or 0),
@@ -368,6 +378,13 @@ def run_game(name: str = "all") -> dict[str, Any]:
     """Bitta yoki barcha o'yinlarni virtual botlar bilan sinaydi."""
     key = (name or "all").strip().lower()
     targets = list(GAMES) if key in ("all", "", "hammasi") else [key]
+    # Virtual botlar umumiy reytingga kirmasligi uchun avvaldan belgilanadi.
+    try:
+        economy = get_economy()
+        for uid in (TEST_HOST_ID, *BOT_IDS):
+            _mark_test_bot(economy, uid)
+    except Exception:
+        logger.exception("Test botlarini belgilab bo'lmadi")
     reports: list[dict[str, Any]] = []
     for game in targets:
         runner = RUNNERS.get(game)

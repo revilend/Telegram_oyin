@@ -39,6 +39,11 @@ REFERRALS_TABLE = "referrals"
 WEEKLY_WIN_POINTS = 3
 WEEKLY_PLAY_POINTS = 1
 
+# Virtual /test_game botlari 900 bilan boshlanadigan ID larda yaratiladi
+# (9_000_000_000 ...). Faqat `id < 9000000000` bo'lgan haqiqiy Telegram
+# foydalanuvchilari reytingga kiritiladi.
+TEST_BOT_ID_THRESHOLD = 9_000_000_000
+
 PENDING = "PENDING"
 APPROVED = "APPROVED"
 REJECTED = "REJECTED"
@@ -104,6 +109,7 @@ class UserAccount:
     is_blocked: bool = False
     block_reason: str = ""
     role: str = "user"
+    is_bot: bool = False
 
 
 @dataclass(frozen=True)
@@ -270,6 +276,7 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         is_blocked=bool(row.get("is_blocked")),
         block_reason=str(row.get("block_reason") or ""),
         role=str(row.get("role") or "user").strip().lower(),
+        is_bot=bool(row.get("is_bot")),
     )
 
 
@@ -345,6 +352,33 @@ def format_price(amount: int) -> str:
 def player_rating(account: UserAccount) -> int:
     """O'yinchi reytingi: 1000 ball + har bir g'alaba uchun 50 ball."""
     return RATING_BASE + int(account.wins) * RATING_WIN_BONUS
+
+
+def is_test_bot_id(user_id: Any) -> bool:
+    """``/test_game`` virtual boti ID simi (``id >= 9000000000``)."""
+    try:
+        return int(user_id) >= TEST_BOT_ID_THRESHOLD
+    except (TypeError, ValueError):
+        return False
+
+
+def is_rating_bot(account: Any) -> bool:
+    """Reytingdan chiqariladigan hisob: soxta ID, ``is_bot`` yoki ``*bot*``.
+
+    Faqat haqiqiy Telegram foydalanuvchilari reyting jadvaliga kiritiladi.
+    """
+    user_id = getattr(account, "user_id", 0)
+    if is_test_bot_id(user_id):
+        return True
+    if bool(getattr(account, "is_bot", False)):
+        return True
+    username = str(getattr(account, "username", "") or "").lower()
+    if "bot" in username:
+        return True
+    full_name = str(getattr(account, "full_name", "") or "").lower()
+    if "bot" in full_name:
+        return True
+    return False
 
 
 def referral_earnings(account: UserAccount) -> int:
@@ -426,13 +460,21 @@ class EconomyStore:
         user_id: int,
         username: str = "",
         full_name: str = "",
+        *,
+        is_bot: bool = False,
     ) -> UserAccount:
-        """Foydalanuvchini yaratadi yoki ismini yangilab, hisobni qaytaradi."""
+        """Foydalanuvchini yaratadi yoki ismini yangilab, hisobni qaytaradi.
+
+        ``is_bot=True`` bo'lsa hisob ``is_bot`` belgisi bilan yoziladi va
+        reytingga kiritilmaydi (``/test_game`` virtual botlari uchun).
+        """
         uid = int(user_id)
         if uid <= 0:
             raise EconomyError("Foydalanuvchi id musbat bo'lishi kerak")
         username = (username or "").strip()
         full_name = (full_name or "").strip()
+        # Test ID simiga kirgan har qanday hisob avtomatik bot hisoblanadi.
+        is_bot = bool(is_bot) or is_test_bot_id(uid)
 
         with self._lock:
             if not self.enabled:
@@ -455,6 +497,7 @@ class EconomyStore:
                         "role": "user",
                         "is_blocked": False,
                         "block_reason": "",
+                        "is_bot": is_bot,
                         "created_at": _now(),
                     }
                     self._users[uid] = row
@@ -463,6 +506,8 @@ class EconomyStore:
                         row["username"] = username
                     if full_name:
                         row["full_name"] = full_name
+                    if is_bot:
+                        row["is_bot"] = True
                 return _row_to_account(row)
 
             row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
@@ -483,6 +528,7 @@ class EconomyStore:
                     "referral_count": 0,
                     "role": "user",
                     "is_blocked": False,
+                    "is_bot": is_bot,
                     "created_at": _now(),
                 }
                 try:
@@ -498,6 +544,8 @@ class EconomyStore:
                     changes["username"] = username
                 if full_name and full_name != row.get("full_name"):
                     changes["full_name"] = full_name
+                if is_bot and not bool(row.get("is_bot")):
+                    changes["is_bot"] = True
                 if changes:
                     self._update_user_row(uid, changes)
                     row.update(changes)
@@ -623,14 +671,27 @@ class EconomyStore:
         return [_row_to_account(row) for row in rows]
 
     def top_users(self, limit: int = 10) -> list[UserAccount]:
-        """Eng ko'p g'alaba qozongan o'yinchilarni qaytaradi."""
+        """Eng ko'p g'alaba qozongan o'yinchilarni qaytaradi.
+
+        Test botlar qat'iy filtrlanadi: ``id < 9000000000``,
+        ``is_bot`` aniq ``False`` bo'lishi va username ``%bot%`` emas.
+        Faqat haqiqiy Telegram foydalanuvchilari reytingga kiritiladi.
+        """
         limit = max(1, int(limit))
         with self._lock:
             if not self.enabled:
                 rows = list(self._users.values())
             else:
-                rows = self.client.table(USERS_TABLE).select("*").execute().data or []
-        accounts = [_row_to_account(row) for row in rows]
+                query = self.client.table(USERS_TABLE).select("*")
+                # Eskirgan test mijozlari ``lt`` ni qo'llamasligi mumkin.
+                if hasattr(query, "lt"):
+                    query = query.lt(USERS_ID_COLUMN, TEST_BOT_ID_THRESHOLD)
+                rows = query.execute().data or []
+        accounts = [
+            account
+            for account in (_row_to_account(row) for row in rows)
+            if not is_rating_bot(account)
+        ]
         accounts.sort(
             key=lambda acc: (player_rating(acc), acc.coins),
             reverse=True,
@@ -1385,7 +1446,7 @@ class EconomyStore:
             if created and not (week_start.isoformat() <= created < week_end.isoformat()):
                 continue
             uid = int(row.get("user_id") or 0)
-            if uid <= 0:
+            if uid <= 0 or is_test_bot_id(uid):
                 continue
             item = totals.setdefault(uid, {"points": 0, "wins": 0, "games": 0})
             won = bool(row.get("won"))
@@ -1395,7 +1456,11 @@ class EconomyStore:
 
         ranked: list[dict[str, Any]] = []
         for uid, item in totals.items():
+            if is_test_bot_id(uid):
+                continue
             account = self.ensure_user(uid)
+            if is_rating_bot(account):
+                continue
             points = int(item["points"])
             ranked.append(
                 {
