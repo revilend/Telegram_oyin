@@ -462,10 +462,12 @@ class PurchaseResult:
     def as_dict(self) -> dict[str, Any]:
         return {
             "ok": True,
+            "success": True,
             "item": self.item.as_dict(),
             "quantity": self.quantity,
             "total_price": self.total_price,
             "coins": self.account.coins,
+            "new_balance": self.account.coins,
             "inventory": self.entry.as_dict(),
             "loot": [prize.as_dict() for prize in self.loot],
         }
@@ -711,7 +713,13 @@ class ShopStore:
                 ) from exc
 
     def _record_transaction(
-        self, user_id: int, item: ShopItem, quantity: int, total: int
+        self,
+        user_id: int,
+        item: ShopItem,
+        quantity: int,
+        total: int,
+        *,
+        strict: bool = False,
     ) -> None:
         # Ikkala Supabase sxemasini ham qo'llab-quvvatlaymiz: joriy
         # `item_slug/total_price` va eski `item_id/item_title/price_coins`.
@@ -756,6 +764,11 @@ class ShopStore:
                     user_id,
                 )
         logger.error("Xarid tarixi saqlanmadi: %s", user_id)
+        if strict:
+            raise ShopError(
+                "Xarid tarixini Supabase'ga saqlab bo'lmadi. "
+                "Qayta urinib ko'ring."
+            )
 
     # ------------------------------------------------------------------
     # Katalog va inventar
@@ -918,7 +931,21 @@ class ShopStore:
                     )
                 raise
             last_entry: InventoryEntry | None = saved[-1][1] if saved else None
-            self._record_transaction(uid, item, count, total)
+            try:
+                self._record_transaction(uid, item, count, total, strict=True)
+            except ShopError:
+                for prize_slug, entry_to_save in saved:
+                    self._save_entry(
+                        uid,
+                        InventoryEntry(
+                            item_slug=prize_slug,
+                            quantity=entry_to_save.quantity
+                            - (bag[prize_slug]),
+                            is_equipped=entry_to_save.is_equipped,
+                        ),
+                    )
+                self.economy.add_coins(uid, total)
+                raise
             prizes = tuple(CATALOG_BY_SLUG[slug] for slug in bag)
             assert last_entry is not None
             return PurchaseResult(
@@ -951,7 +978,21 @@ class ShopStore:
                 ),
             )
             raise
-        self._record_transaction(uid, item, count, total)
+        try:
+            self._record_transaction(uid, item, count, total, strict=True)
+        except ShopError:
+            # Tarix yozilmadi — tangani qaytaramiz va inventarni asl
+            # holatga keltiramiz, shunda xarid butunlay bekor bo'ladi.
+            self._save_entry(
+                uid,
+                InventoryEntry(
+                    item_slug=item.slug,
+                    quantity=current.quantity,
+                    is_equipped=current.is_equipped,
+                ),
+            )
+            self.economy.add_coins(uid, total)
+            raise
         return PurchaseResult(
             item=item,
             quantity=count,

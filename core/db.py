@@ -169,7 +169,12 @@ class SupabaseStore:
         client: Any | None = None,
     ) -> None:
         self.url = (url if url is not None else _env("SUPABASE_URL")).strip()
-        self.key = (key if key is not None else _env("SUPABASE_KEY")).strip()
+        # Backend yozuvlari admin huquqi bilan: service_role ustuvor.
+        self.key = (
+            key
+            if key is not None
+            else _env("SUPABASE_SERVICE_ROLE_KEY") or _env("SUPABASE_KEY")
+        ).strip()
         self._client = client
         self._client_lock = threading.Lock()
         self._closed = False

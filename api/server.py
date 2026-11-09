@@ -1074,9 +1074,16 @@ async def get_shop() -> dict[str, Any]:
 
 
 class ShopBuyRequest(BaseModel):
-    """Do'kondan buyum sotib olish so'rovi."""
+    """Do'kondan buyum sotib olish so'rovi.
 
-    item_slug: str
+    Narx faqat backend katalogidan olinadi — mijoz yuborgan ``price``
+    ishonchsiz hisoblanib e'tiborsiz qoldiriladi. ``item_id`` ham
+    qabul qilinadi (``item_slug`` alias'i).
+    """
+
+    item_slug: str = ""
+    item_id: str | None = None
+    price: int | None = None
     quantity: int = 1
     user_id: int | None = None
 
@@ -1120,10 +1127,18 @@ async def shop_buy(
     payload: ShopBuyRequest,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Buyumni tangalarga sotib oladi va inventarga qo'shadi."""
+    """Buyumni tangalarga sotib oladi va inventarga qo'shadi.
+
+    Frontend brauzerdan Supabase'ga yozmaydi: barcha yozuv backend
+    ``service_role`` kaliti bilan ``user_inventory`` va
+    ``shop_transactions`` ga amalga oshiriladi.
+    """
+    slug = (payload.item_slug or payload.item_id or "").strip()
+    if not slug:
+        raise HTTPException(status_code=400, detail="Item tanlanmagan")
     resolved_id = resolve_client_user_id(user, payload.user_id)
     metrics.user(resolved_id)
-    result = get_shop_store().buy(resolved_id, payload.item_slug, payload.quantity)
+    result = get_shop_store().buy(resolved_id, slug, payload.quantity)
     record_daily_event(get_economy(), resolved_id, "shop")
     data = result.as_dict()
     data["inventory"] = [entry.as_dict() for entry in get_shop_store().inventory(resolved_id)]

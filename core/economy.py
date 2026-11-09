@@ -443,7 +443,15 @@ class EconomyStore:
         client: Any | None = None,
     ) -> None:
         self.url = (url if url is not None else os.getenv("SUPABASE_URL") or "").strip()
-        self.key = (key if key is not None else os.getenv("SUPABASE_KEY") or "").strip()
+        # Backend yozuvlari admin huquqi bilan: service_role ustuvor —
+        # anon kalit RLS'da `user_inventory` ga yozolmaydi.
+        self.key = (
+            key
+            if key is not None
+            else os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+            or os.getenv("SUPABASE_KEY")
+            or ""
+        ).strip()
         self._client = client
         self._lock = threading.RLock()
         self._users: dict[int, dict[str, Any]] = {}
