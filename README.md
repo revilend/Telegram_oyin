@@ -1,1 +1,629 @@
-# Telegram_oyin
+<div align="center">
+
+# 🎮 Revilend Games
+
+### Telegram Bot + Mini App (TMA) ko‘p o‘yinchi stol o‘yinlari platformasi
+
+Bitta Telegram bot, bitta FastAPI server va bitta zamonaviy Mini App — Bunker, Mafiya, Josus, Alias va Portlovchi Bomba uchun to‘liq o‘yin, iqtisodiyot va turnir ekotizimi.
+
+[![Telegram Bot](https://img.shields.io/badge/Telegram-@revilend__gamesbot-26A5E4?logo=telegram&logoColor=white)](https://t.me/revilend_gamesbot)
+[![Mini App](https://img.shields.io/badge/Mini%20App-revilend.games-8B5CF6?logo=googlechrome&logoColor=white)](https://revilend.games)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![aiogram](https://img.shields.io/badge/aiogram-3.x-2CA5E0?logo=telegram&logoColor=white)](https://docs.aiogram.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-UI-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Vanilla JS](https://img.shields.io/badge/Vanilla%20JS-ES2023-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/docs/Web/JavaScript)
+[![Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)](https://render.com/)
+
+**O‘zbek tilida · Real vaqt · Telegram WebApp · Server-side iqtisodiyot**
+
+</div>
+
+---
+
+## 📚 Mundarija
+
+- [Loyiha haqida](#-loyiha-haqida)
+- [O‘yinlar katalogi](#-o‘yinlar-katalogi)
+- [Iqtisodiyot va monetizatsiya](#-iqtisodiyot-va-monetizatsiya)
+- [Kibersport va turnirlar](#-kibersport-va-turnirlar)
+- [Texnik arxitektura](#-texnik-arxitektura)
+- [Xavfsizlik](#-xavfsizlik)
+- [O‘rnatish](#-o‘rnatish)
+- [Muhit o‘zgaruvchilari](#-muhit-o‘zgaruvchilari)
+- [Ishga tushirish](#-ishga-tushirish)
+- [Render’ga deploy](#-renderga-deploy)
+- [VPS’da ishga tushirish](#-vpsda-ishga-tushirish)
+- [Testlar](#-testlar)
+- [Loyiha tuzilishi](#-loyiha-tuzilishi)
+- [API va WebSocket](#-api-va-websocket)
+- [Admin panel](#-admin-panel)
+- [Litsenziya va aloqa](#-litsenziya-va-aloqa)
+
+---
+
+## 🚀 Loyiha haqida
+
+**Revilend Games** — Telegram ichida ishlaydigan ko‘p o‘yinchi stol o‘yinlari platformasi. Foydalanuvchi bot orqali o‘yin yaratadi, do‘stlarini taklif qiladi, Mini App’da kartalar va ovoz berish bilan real vaqtda o‘ynaydi.
+
+Platforma bitta jarayonda ishlaydi:
+
+- **aiogram 3.x** — Telegram bot, buyruqlar, inline tugmalar va admin panel;
+- **FastAPI** — Mini App API, autentifikatsiya va WebSocket;
+- **Telegram Mini App** — mobil qurilmaga moslashgan o‘yin interfeysi;
+- **Supabase (PostgreSQL)** — foydalanuvchilar, inventar, tranzaksiyalar, turnirlar va tarix;
+- **Render / VPS** — yagona web service sifatida deploy.
+
+> Bot va API bitta FastAPI `lifespan` ichida ishlaydi. Shu sababli alohida bot processi shart emas.
+
+### Asosiy imkoniyatlar
+
+- 🎮 5 ta to‘liq o‘yin rejimi
+- ⚡ WebSocket orqali real vaqt yangilanishlari
+- 🪙 Server-side tanga balansi va xarid tarixi
+- 🛍️ Do‘kon, boosterlar, ramkalar va unvonlar
+- 🎡 Omad g‘ildiragi va kunlik streak
+- 🏆 Haftalik turnirlar va avtomatik bracket
+- 👥 Referal tizimi
+- 🛠️ To‘liq admin panel
+- 💾 Har kuni avtomatik JSON zaxira
+- 🔐 Telegram `initData` HMAC tekshiruvi
+
+---
+
+## 🎲 O‘yinlar katalogi
+
+| O‘yin | O‘yinchilar | Tavsif |
+|:---|:---:|---|
+| 🛡️ **Bunker** | 4–16 | Katastrofadan keyin xarakteristikalarni ochib, bunkerga kim kirishini bahslashish. |
+| 🕵️ **Mafiya** | 4–20 | 15+ ta boyitilgan rol, tun/kun fazalari, komissar, shifokor, don va boshqalar. |
+| 🕶️ **Josus (Spyfall)** | 3–12 | 25+ lokatsiya, niqoblanish, savol-javob va josusni topish. |
+| 🐊 **Alias / Krokodil** | 2–20 | Guruhda tezkor so‘z tushuntirish, taqiqlangan so‘zlar va ochkolar poygasi. |
+| 💣 **Portlovchi Bomba** | 2–8 | Exploding Kittens uslubidagi xavfli karta o‘yini. |
+
+### 🛡️ Bunker
+
+- Har bir o‘yinchi 6 ta xarakteristika kartasini oladi: kasb, biologiya, sog‘liq, bagaj, xobbi va fakt.
+- Falokat hamda maxsus kartalar har raundda vaziyatni o‘zgartiradi.
+- Bunker sig‘imi, tirik o‘yinchilar va ovoz berish tartibi serverda boshqariladi.
+- Bunker Qalqoni, 2x ovoz va boshqa boosterlar o‘yin ichida ishlaydi.
+
+### 🕵️ Mafiya
+
+- 15+ ta rol va 3 ta asosiy fraksiya: tinch aholi, mafiya va yolqizlar.
+- Tun fazasida maxsus harakatlar, kunduzgi muhokama va interaktiv ovoz berish.
+- Komissar, shifokor, don, advokat, manyak, masxaraboz va boshqa rollar.
+- Kevlar jilet, rol almashtirish va ovoz boosterlari.
+- Mini App va guruh xabarlari o‘rtasida sinxron holat.
+
+### 🕶️ Josus (Spyfall)
+
+- 25+ lokatsiya va har bir lokatsiya uchun maxsus rollar.
+- 3–6 o‘yinchida 1 ta, 7 va undan ko‘p o‘yinchida 2 ta josus.
+- Josus joyni topishga urinadi, tinch aholi esa savollar orqali uni aniqlaydi.
+- Josus radari noto‘g‘ri variantlarni qisqartiradi.
+
+### 🐊 Alias / Krokodil
+
+- Har raundda bitta tushuntiruvchi va vaqt chegarasi.
+- So‘zning o‘zini, qismlarini yoki taqiqlangan 3 ta so‘zni aytish mumkin emas.
+- To‘g‘ri javob va tushuntiruvchi uchun tanga mukofoti.
+- 2–20 o‘yinchi uchun moslashgan tezkor raundlar.
+
+### 💣 Portlovchi Bomba
+
+- **Bomb, Defuse, Attack, Skip, Future, Shuffle va Steal** kartalari.
+- Har bir o‘yinchida bitta Defuse va to‘rtta harakat kartasi.
+- Qo‘shimcha defuse, ko‘rish va kartani o‘g‘irlash mexanikalari.
+- 2–8 o‘yinchi uchun tez va dinamik partiyalar.
+
+---
+
+## 🪙 Iqtisodiyot va monetizatsiya
+
+### P2P tanga xaridi
+
+1. Foydalanuvchi Mini App yoki botdagi do‘kondan tanga paketini tanlaydi.
+2. **Humo / Uzcard** kartasiga to‘lov qiladi.
+3. To‘lov chekini (screenshot) botga yuklaydi.
+4. Admin chekni tekshirib tasdiqlaydi yoki rad etadi.
+5. Tasdiqlangach tangalar avtomatik balansga qo‘shiladi.
+
+> Karta raqami va egasi `.env`dan emas, bazadagi `system_settings` jadvalidan olinadi. Admin panel orqali o‘zgartiriladi.
+
+### Do‘kon va boosterlar
+
+| Buyum | Vazifasi |
+|:---|:---|
+| 🛡️ **Bunker Qalqoni** | Bunkerda haydalishdan bir marta saqlaydi. |
+| 🦺 **Kevlar Jilet** | Mafiyada bir marta o‘limdan saqlaydi. |
+| ✖️ **2x Ovoz** | Ovozni ikki barobar kuchli qiladi. |
+| 🛰️ **Josus Radari** | Josus o‘yinida 3 ta noto‘g‘ri joyni o‘chiradi. |
+| ⏳ **Vaqt Ustasi** | Vaqt bilan bog‘liq afzallik beradi. |
+| 🧲 **Bomba Magniti** | Portlovchi Bomba o‘yinida kartani boshqarishga yordam beradi. |
+
+### Omad g‘ildiragi — Lucky Spin
+
+- Interaktiv roulette animatsiyasi.
+- Standart aylanish narxi — **20 tanga**.
+- Kunlik bepul aylanish va qo‘shimcha chiptalar.
+- Turli mukofotlar: tangalar, boosterlar, chiptalar va noyob buyumlar.
+
+### Profil ramkalari va unvonlar
+
+**Ramkalar:** Oltin, Neon, Olovli Ajdaho, Kiber Glitch, Olmos VIP.
+
+**Unvonlar:** Mafiya Otaxoni, Daxlsiz, Ko‘rinmas Soya va boshqalar.
+
+Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi.
+
+### Kunlik streak va referallar
+
+- 1–7 kunlik streak: **25 → 35 → 50 → 70 → 100 → 150 → 250 tanga**.
+- Har bir taklif qilingan yangi do‘st uchun **+50 tanga**.
+- Referal havolasi: `https://t.me/revilend_gamesbot?start=ref_<user_id>`.
+- Yangi foydalanuvchi haqida adminga avtomatik bildirishnoma yuboriladi.
+
+---
+
+## 🏆 Kibersport va turnirlar
+
+- Admin panel orqali boshqariladigan haftalik chempionatlar.
+- Avtomatik bracket: qatnashchilar juftliklarga taqsimlanadi.
+- Qatnashchilar chegarasi: **8, 16, 32 yoki 64 kishi**.
+- Jonli qatnashchilar hisoblagichi va ro‘yxatdan o‘tish holati.
+- Sovrin fondi va turnir natijalari bazada saqlanadi.
+- Turnir boshlanganda barcha qatnashchilarga xona havolasi avtomatik yuboriladi.
+- Qo‘shimcha turnir chiptasi do‘kondan sotib olinadi.
+
+### Turnir oqimi
+
+```text
+Admin turnir yaratadi
+        ↓
+O‘yinchilar ro‘yxatdan o‘tadi
+        ↓
+Admin start beradi
+        ↓
+Bracket avtomatik yasaladi
+        ↓
+Xona havolasi barcha qatnashchilarga yuboriladi
+        ↓
+Natijalar va sovrin fondi yangilanadi
+```
+
+---
+
+## 🏗️ Texnik arxitektura
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    Telegram WebApp (TMA)                    │
+│         HTML + Vanilla JS + moslashgan mobil interfeys       │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ HTTPS + initData
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     FastAPI (api/server.py)                 │
+│  REST API · WebSocket · Telegram initData auth · Static     │
+└───────────────┬─────────────────────────────┬───────────────┘
+                │                             │
+                ▼                             ▼
+┌───────────────────────────┐   ┌─────────────────────────────┐
+│   aiogram 3.x Telegram    │   │  Xotira (RAM) o‘yin xonalari │
+│   bot + admin panel       │   │  Bunker / Mafiya / Spy ...   │
+└───────────────┬───────────┘   └──────────────┬──────────────┘
+                │                              │
+                └──────────────┬───────────────┘
+                               ▼
+                ┌─────────────────────────────┐
+                │   Supabase (PostgreSQL)     │
+                │ users · inventory · history │
+                │ tournaments · payments      │
+                └─────────────────────────────┘
+```
+
+### Nega RAM + bazadan foydalaniladi?
+
+- Faol o‘yin xonalari tez ishlashi uchun **xotirada** saqlanadi.
+- Muhim ma’lumotlar — balans, inventar, tranzaksiya, turnir va tarix — **Supabase’da** doimiy saqlanadi.
+- Bu yondashuv Supabase kvotasini tejaydi va WebSocket javoblarini tez qiladi.
+- Xona yo‘qolsa yoki server qayta ishga tushsa, kerakli holat bazadan tiklanadi.
+
+### Asosiy komponentlar
+
+| Qatlam | Fayllar | Vazifasi |
+|:---|:---|:---|
+| Bot | `bot/handlers/`, `bot/main.py` | Buyruqlar, admin panel, guruh oqimlari. |
+| API | `api/server.py`, `api/auth.py` | REST, WebSocket, Telegram auth. |
+| Iqtisod | `core/economy.py`, `core/shop.py` | Balans, to‘lovlar, inventar. |
+| O‘yinlar | `games/` | Mafiya, Spyfall, Alias, Bomba. |
+| Bunker | `engine/game_manager.py` | Xonalar, raundlar, ovoz berish. |
+| Turnirlar | `core/tournaments.py` | Bracket, sovrin, room link. |
+| Mini App | `webapp/index.html` | Foydalanuvchi interfeysi. |
+| Zaxira | `core/backup.py`, `core/daily_backup.py` | JSON export/import. |
+
+---
+
+## 🔐 Xavfsizlik
+
+- **Telegram `initData` HMAC-SHA256** orqali foydalanuvchi imzosi tekshiriladi.
+- `initData` yoshi `INIT_DATA_MAX_AGE` bilan cheklanadi (standart 24 soat).
+- Mehmon rejimi (`ALLOW_GUEST_AUTH`) faqat lokal test uchun; production’da `false`.
+- Admin amallari `ADMIN_ID` yoki `users.role = 'admin'` bilan himoyalangan.
+- Foydalanuvchi balansi va inventari faqat serverda o‘zgartiriladi.
+- Supabase `service_role` kaliti faqat serverda ishlatiladi, brauzerga chiqarilmaydi.
+- To‘lov cheklari admin tasdig‘isiz balansga ta’sir qilmaydi.
+- Har kuni **00:00 (Toshkent)** da to‘liq JSON zaxira admin chatiga yuboriladi.
+- WebSocket ulanishlari xona kodi va foydalanuvchi huquqlari bilan tekshiriladi.
+
+> `.env` faylini hech qachon repozitoriyaga commit qilmang. U `.gitignore` ichida.
+
+---
+
+## ⚙️ O‘rnatish
+
+### Talablar
+
+- Python **3.11+**
+- Telegram bot tokeni ([@BotFather](https://t.me/BotFather))
+- Supabase loyihasi (PostgreSQL)
+- HTTPS domen — Telegram Mini App uchun majburiy
+
+### 1. Repozitoriyani klonlash
+
+```bash
+git clone https://github.com/revilend/Telegram_oyin.git
+cd Telegram_oyin
+```
+
+### 2. Virtual muhit
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate        # Linux / macOS
+# Windows: .venv\Scripts\activate
+```
+
+### 3. Bog‘liqliklarni o‘rnatish
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Testlar uchun:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+### 4. `.env` yaratish
+
+```bash
+cp .env.example .env
+```
+
+So‘ng `.env` ichidagi qiymatlarni to‘ldiring:
+
+```env
+BOT_TOKEN=123456789:AA...
+BOT_USERNAME=revilend_gamesbot
+MINI_APP_URL=https://revilend.games
+ADMIN_ID=123456789
+
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-service-role-key
+
+ALLOW_GUEST_AUTH=false
+INIT_DATA_MAX_AGE=86400
+```
+
+### 5. Supabase sxemasi
+
+Supabase SQL Editor’da `core/schema.sql` faylini ishga tushiring. Bu quyidagi jadvallarni yaratadi:
+
+- `users`
+- `user_inventory`
+- `shop_transactions`
+- `payment_requests`
+- `player_boosters`
+- `tournaments`
+- `referrals`
+- `system_settings`
+- `rooms` va boshqa yordamchi jadvallar
+
+> Supabase bo‘sh bo‘lsa, ba’zi xonalar vaqtincha xotirada ishlaydi, lekin doimiy ma’lumotlar saqlanmaydi.
+
+---
+
+## 🔑 Muhit o‘zgaruvchilari
+
+| O‘zgaruvchi | Majburiy | Tavsif |
+|:---|:---:|:---|
+| `BOT_TOKEN` | ✅ | Telegram bot tokeni. |
+| `BOT_USERNAME` | ➖ | Bot username’i, standart `revilend_gamesbot`. |
+| `MINI_APP_URL` | ✅ | Mini App HTTPS manzili. |
+| `ADMIN_ID` | ✅ | Bosh adminning Telegram ID’si. |
+| `SUPABASE_URL` | ➖ | Supabase loyiha URL’i. |
+| `SUPABASE_KEY` | ➖ | Supabase service role kaliti. |
+| `ALLOW_GUEST_AUTH` | ➖ | Mehmon rejimi; production’da `false`. |
+| `INIT_DATA_MAX_AGE` | ➖ | `initData` amal qilish muddati, soniyada. |
+| `WEB_HOST` | ➖ | Server hosti, standart `0.0.0.0`. |
+| `WEB_PORT` | ➖ | Server porti, standart `8000`. |
+| `PORT` | ➖ | Render beradigan port; `run.py` avtomatik oladi. |
+
+> `CARD_NUMBER` va `CARD_HOLDER` endi ishlatilmaydi. To‘lov kartasi admin panel → **💳 Karta raqamini sozlash** orqali bazaga yoziladi.
+
+---
+
+## ▶️ Ishga tushirish
+
+### Yagona buyruq bilan
+
+```bash
+python run.py
+```
+
+`run.py` FastAPI’ni ishga tushiradi, bot esa `lifespan` ichida avtomatik ulanadi.
+
+### Uvicorn bilan
+
+```bash
+uvicorn api.server:app --host 0.0.0.0 --port 8000
+```
+
+### Tekshirish
+
+```bash
+curl http://127.0.0.1:8000/api/health
+```
+
+Kutilgan javob:
+
+```json
+{"status": "ok"}
+```
+
+Mini App:
+
+```text
+http://127.0.0.1:8000/
+```
+
+> Telegram Mini App faqat HTTPS manzilda ishlaydi. Lokal test uchun ngrok yoki Cloudflare Tunnel’dan foydalaning.
+
+---
+
+## ☁️ Render’ga deploy
+
+### Web Service sozlamalari
+
+| Sozlama | Qiymat |
+|:---|:---|
+| Environment | Python 3 |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `python run.py` |
+| Health Check Path | `/api/health` |
+
+Muqobil start buyrug‘i:
+
+```bash
+uvicorn api.server:app --host 0.0.0.0 --port $PORT
+```
+
+### Render environment variables
+
+Quyidagilarni Render dashboard → **Environment** bo‘limiga qo‘shing:
+
+```text
+BOT_TOKEN
+BOT_USERNAME
+MINI_APP_URL
+ADMIN_ID
+SUPABASE_URL
+SUPABASE_KEY
+ALLOW_GUEST_AUTH=false
+INIT_DATA_MAX_AGE=86400
+```
+
+### Muhim eslatmalar
+
+- Bot polling va API bitta processda ishlaydi — alohida bot worker kerak emas.
+- Faol o‘yin xonalari RAM’da bo‘lgani uchun **bir nechta worker ishlatmang**.
+- Mini App domeni HTTPS bo‘lishi va `MINI_APP_URL` bilan mos kelishi shart.
+- Render bepul rejimida service uxlab qolishi mumkin; production uchun doimiy reja tavsiya etiladi.
+
+---
+
+## 🖥️ VPS’da ishga tushirish
+
+```bash
+cd /opt/Telegram_oyin
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn api.server:app --host 0.0.0.0 --port 8000 --workers 1
+```
+
+Production uchun `systemd` xizmati:
+
+```ini
+[Unit]
+Description=Revilend Games
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/Telegram_oyin
+EnvironmentFile=/opt/Telegram_oyin/.env
+ExecStart=/opt/Telegram_oyin/.venv/bin/uvicorn api.server:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now revilend-games
+sudo systemctl status revilend-games
+```
+
+Nginx orqali HTTPS’ga ulang va `MINI_APP_URL`ni shu domenga moslang.
+
+---
+
+## 🧪 Testlar
+
+To‘liq test to‘plami:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Alohida modul:
+
+```bash
+python -m unittest tests.test_economy -v
+python -m unittest tests.test_tournaments -v
+python -m unittest tests.test_admin_panel -v
+```
+
+GitHub Actions har bir `push` va `pull_request`da Python 3.11 bilan testlarni avtomatik yurgizadi.
+
+---
+
+## 📁 Loyiha tuzilishi
+
+```text
+Telegram_oyin/
+├── api/
+│   ├── auth.py              # Telegram initData HMAC autentifikatsiya
+│   └── server.py            # FastAPI, REST API, WebSocket, static Mini App
+├── bot/
+│   ├── handlers/            # /start, admin, o‘yinlar, do‘kon, turnirlar
+│   ├── keyboards/           # Telegram klaviaturalar
+│   ├── config.py            # .env konfiguratsiyasi
+│   ├── middlewares.py       # Global foydalanuvchi himoyasi
+│   └── main.py              # Dispatcher va polling
+├── core/
+│   ├── economy.py           # Balans, to‘lovlar, referallar
+│   ├── shop.py              # Do‘kon, inventar, Lucky Spin
+│   ├── tournaments.py       # Turnirlar va bracket
+│   ├── backup.py            # JSON zaxira
+│   ├── daily_backup.py      # Har kuni 00:00 zaxira
+│   └── schema.sql           # Supabase sxemasi
+├── engine/
+│   ├── game_manager.py      # Bunker xonalari
+│   ├── chat.py              # WebSocket chat
+│   └── matchmaking.py       # Global o‘yin qidiruvi
+├── games/
+│   ├── mafia/               # Mafiya engine, rollar, API
+│   ├── spyfall/             # Josus engine va lokatsiyalar
+│   ├── alias/               # Alias engine
+│   └── bomb/                # Portlovchi Bomba engine
+├── webapp/
+│   ├── index.html           # Telegram Mini App
+│   └── assets/              # Rasmlar va statik fayllar
+├── tests/                   # 590+ unit va integratsion test
+├── run.py                   # Uvicorn ishga tushirish nuqtasi
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## 🔌 API va WebSocket
+
+### Asosiy endpointlar
+
+| Metod | Endpoint | Vazifasi |
+|:---|:---|:---|
+| `GET` | `/api/health` | Server holati. |
+| `GET` | `/api/games` | O‘yinlar katalogi. |
+| `GET` | `/api/me` | Joriy foydalanuvchi profili. |
+| `POST` | `/api/auth/login` | Telegram WebApp autentifikatsiyasi. |
+| `GET` | `/api/shop` | Do‘kon va inventar. |
+| `POST` | `/api/shop/buy` | Buyum sotib olish. |
+| `POST` | `/api/spin/wheel` | Lucky Spin. |
+| `GET` | `/api/tournaments/active` | Faol turnirlar. |
+| `POST` | `/api/tournaments/join` | Turnirga qo‘shilish. |
+| `GET` | `/api/bonus` | Kunlik bonus holati. |
+| `POST` | `/api/bonus` | Kunlik bonusni olish. |
+| `GET` | `/api/top` | Reyting. |
+| `GET` | `/api/history` | O‘yinlar tarixi. |
+| `GET` | `/api/mafia/{code}/state` | Mafiya xonasi holati. |
+| `POST` | `/api/mafia/{code}/vote` | Mafiyada ovoz berish. |
+| `GET` | `/api/room/{code}` | Bunker xonasi holati. |
+| `POST` | `/api/room/{code}/action` | Bunker harakati. |
+
+### WebSocket
+
+```text
+wss://<domen>/ws/<room_code>
+```
+
+WebSocket orqali quyidagilar real vaqtda yangilanadi:
+
+- xona holati va o‘yinchilar;
+- taymer va fazalar;
+- chat xabarlari;
+- ovoz berish natijalari;
+- o‘yin tugash holati.
+
+---
+
+## 🛠️ Admin panel
+
+`/admin` buyrug‘i orqali ochiladi. Asosiy imkoniyatlar:
+
+- 📊 Statistika: foydalanuvchilar, tangalar, faol xonalar, o‘yinlar.
+- 💳 To‘lov kartasini sozlash.
+- 📥 Kutilayotgan cheklarni tasdiqlash yoki rad etish.
+- 👥 O‘yinchilar ro‘yxati, ID bo‘yicha qidiruv va profil.
+- ➕ Foydalanuvchiga tanga qo‘shish yoki ayirish.
+- 🎟 Promo kod yaratish.
+- 🏆 Turnir yaratish, vaqt/sovrin/o‘yin turi va xona havolasini sozlash.
+- 📢 Barcha foydalanuvchilarga broadcast.
+- 💾 Bazadan JSON zaxira olish va tiklash.
+
+Admin huquqi:
+
+- `.env`dagi `ADMIN_ID`; yoki
+- `users.role = 'admin'`.
+
+---
+
+## 🧭 Yo‘l xaritasi
+
+- [x] 5 ta asosiy o‘yin
+- [x] Telegram Mini App
+- [x] Supabase persistence
+- [x] Tanga iqtisodiyoti va do‘kon
+- [x] Turnirlar va bracket
+- [x] Kunlik zaxira
+- [ ] Avtomatik to‘lov integratsiyasi
+- [ ] Ko‘p tilli interfeys
+- [ ] Mobil ilova ko‘rinishidagi PWA
+
+---
+
+## 📄 Litsenziya va aloqa
+
+Bu — **Revilend Games**ning xususiy loyihasi. Kod va kontentdan ruxsatsiz tijoriy foydalanish taqiqlanadi.
+
+- 🤖 Bot: [@revilend_gamesbot](https://t.me/revilend_gamesbot)
+- 🌐 Mini App: [revilend.games](https://revilend.games)
+- 💻 GitHub: [revilend/Telegram_oyin](https://github.com/revilend/Telegram_oyin)
+- 📬 Aloqa: Telegram orqali admin bilan bog‘laning.
+
+---
+
+<div align="center">
+
+**Revilend Games — har bir o‘yin yangi hikoya.** 🎲
+
+Made with ❤️ in Uzbekistan
+
+</div>
