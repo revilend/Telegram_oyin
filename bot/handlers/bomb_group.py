@@ -50,38 +50,39 @@ def _player_names(room: BombRoom) -> str:
     return ", ".join(labels) or "—"
 
 
-def lobby_text(room: BombRoom) -> str:
+def _room_language(room: BombRoom) -> str:
+    host_id = int(getattr(room, "host_id", 0) or 0)
+    return resolve_language(host_id) if host_id else "uz"
+
+
+def lobby_text(room: BombRoom, language: str = "uz") -> str:
     """Guruhdagi lobbi xabari."""
-    return (
-        "💣 <b>PORTLOVÇI BOMBA</b>\n"
-        "Bombani zararsizlantir, raqiblarga hujum qil va tirik qol!\n\n"
-        f"👥 Qatnaşuvçilar: {_player_names(room)}\n"
-        f"🔢 Jami: {len(room.players)}/{MAX_PLAYERS} kişi\n"
-        f"🔑 Xona kodi: <code>{room.code}</code>\n\n"
-        f"ℹ️ {MIN_PLAYERS}–{MAX_PLAYERS} kişi. Xona egasi öyinni boşlaydi, "
-        "qolganlar Mini App'dagi qöllarini oçadi."
+    return t(
+        language, "bomb_lobby",
+        players=_player_names(room), count=len(room.players), maximum=MAX_PLAYERS,
+        code=room.code, minimum=MIN_PLAYERS,
     )
 
 
-def lobby_keyboard(room: BombRoom) -> InlineKeyboardMarkup:
+def lobby_keyboard(room: BombRoom, language: str = "uz") -> InlineKeyboardMarkup:
     """Mini App havolasi, qo'shilish va boshlash."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚪 Bombaga kiriş",
+                    text=t(language, "btn_enter_bomb"),
                     url=_startapp(room.code),
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="➕ Qöşiliş",
+                    text=t(language, "btn_join"),
                     callback_data=f"{JOIN_PREFIX}{room.code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="▶️ Öyinni boşlaş",
+                    text=t(language, "btn_start"),
                     callback_data=f"{START_PREFIX}{room.code}",
                 )
             ],
@@ -89,13 +90,13 @@ def lobby_keyboard(room: BombRoom) -> InlineKeyboardMarkup:
     )
 
 
-def playing_keyboard(room: BombRoom) -> InlineKeyboardMarkup:
+def playing_keyboard(room: BombRoom, language: str = "uz") -> InlineKeyboardMarkup:
     """O'yin davomida Mini App'ga olib kiruvchi tugma."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🃏 Qölni oçiş / karta öynaş",
+                    text=t(language, "btn_open_hand"),
                     url=_startapp(room.code),
                 )
             ]
@@ -264,7 +265,7 @@ async def create_bomb_game(message: Message) -> None:
             user.full_name,
             chat_id=message.chat.id,
         )
-        await message.answer(lobby_text(room), reply_markup=lobby_keyboard(room))
+        await message.answer(lobby_text(room, _room_language(room)), reply_markup=lobby_keyboard(room, _room_language(room)))
     except BombRoomError as exc:
         await message.reply(f"⚠️ {escape(str(exc))}")
     except Exception:
@@ -296,7 +297,7 @@ async def join_bomb_game(callback: CallbackQuery) -> None:
         return
     language = resolve_language(user.id, getattr(user, "language_code", None))
     await callback.answer(t(language, "room_joined", name=escape(user.full_name)))
-    await _edit_or_send(callback, lobby_text(room), lobby_keyboard(room))
+    await _edit_or_send(callback, lobby_text(room, _room_language(room)), lobby_keyboard(room, _room_language(room)))
 
 
 @router.callback_query(F.data.startswith(START_PREFIX))

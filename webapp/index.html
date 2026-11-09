@@ -6587,15 +6587,15 @@ function leaderboardHtml() {
             '<div class="auth-logo" aria-hidden="true">' + icon("crown") + '</div>' +
             '<p class="eyebrow">REVILEND GAMES</p>' +
             '<h1>Revilend Games</h1>' +
-            '<p class="auth-lede">Öyinlarni boşlaş va tangalaringizni boşqariş uçun profilingizga kiring.</p>' +
-            '<button class="btn primary block auth-main" data-act="login-telegram">' + icon("send") + ' Telegram Bot orqali kiriş</button>' +
-            '<div class="auth-divider"><span>yoki</span></div>' +
+            '<p class="auth-lede">" + tr("login_lede", "Öyinlarni boşlaş va tangalaringizni boşqariş uçun profilingizga kiring.") + "</p>' +
+            '<button class="btn primary block auth-main" data-act="login-telegram">' + icon("send") + ' ' + tr("login_telegram", "Telegram Bot orqali kiriş") + '</button>' +
+            '<div class="auth-divider"><span>" + tr("login_or", "yoki") + "</span></div>' +
             '<form id="login-form" class="auth-form" autocomplete="off">' +
-              '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Bot bergan 6 xonali kiriş kodini (yoki Telegram ID’ingizni) kiriting" aria-label="Kiriş kodi yoki Telegram ID" />' +
-              '<button type="submit" class="btn block" id="login-submit">' + icon("lock") + ' Kiriş</button>' +
+              '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="" + tr("login_ph", "Bot bergan 6 xonali kiriş kodini (yoki Telegram ID’ingizni) kiriting") + " aria-label="Kiriş kodi yoki Telegram ID" />' +
+              '<button type="submit" class="btn block" id="login-submit">' + icon("lock") + ' ' + tr("login_button", "Kiriş") + '</button>' +
             '</form>' +
             '<p class="auth-error" id="login-error" role="alert">' + esc(view.loginError || "") + '</p>' +
-            '<p class="muted tiny auth-note">Kodni botda /start yoki /login buyruği bilan oling. Kod 10 daqiqa amal qiladi va bir marta işlatiladi.</p>' +
+            '<p class="muted tiny auth-note">" + tr("login_note", "Kodni botda /start yoki /login buyruği bilan oling. Kod 10 daqiqa amal qiladi va bir marta işlatiladi.") + "</p>' +
           '</section>';
 }
 
@@ -8162,7 +8162,7 @@ function leaderboardHtml() {
 }
 
       function renderHubMain(tab) {
-        var brandSub = tab === "games" ? "STOL ÖYINLARI" : tab === "shop" ? "MEGA STORE" : tab === "rating" ? "HAFTALIK LIGA" : "PROFIL";
+        var brandSub = tab === "games" ? tr("brand_games", "STOL ÖYINLARI") : tab === "shop" ? tr("brand_shop", "MEGA STORE") : tab === "rating" ? tr("brand_rating", "HAFTALIK LIGA") : tr("nav_profile", "PROFIL");
         var main = document.querySelector(".hub-main");
         if (main) {
           try {

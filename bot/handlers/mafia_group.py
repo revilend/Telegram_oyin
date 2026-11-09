@@ -428,35 +428,36 @@ def players_list(game: MafiaGame) -> str:
     return ", ".join(labels) or "—"
 
 
-def lobby_text(game: MafiaGame) -> str:
+def _game_language(game: MafiaGame) -> str:
+    """Xona egasining tili (e'lonlar shu tilda chiqadi)."""
+    host_id = int(getattr(getattr(game, "room", None), "host_id", 0) or 0)
+    return resolve_language(host_id) if host_id else "uz"
+
+
+def lobby_text(game: MafiaGame, language: str = "uz") -> str:
     """Guruhdagi xona e'loni."""
-    return (
-        "🕵️‍♂️ <b>MAFIYA ÖYINI BOŞLANMOQDA!</b>\n"
-        "Şahar mafiyalar çangalida qoldi. Kim omon qoladi?\n\n"
-        f"👥 Qatnaşuvçilar: {players_list(game)} "
-        f"(jami {len(game.room.players)} kişi)"
-    )
+    return t(language, "mafia_lobby", players=players_list(game), total=len(game.room.players))
 
 
-def lobby_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
+def lobby_keyboard(game: MafiaGame, language: str = "uz") -> InlineKeyboardMarkup:
     """Mini App havolasi, qo'shilish va boshlash tugmalari."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚪 Mafiyaga kiriş",
+                    text=t(language, "btn_enter_mafia"),
                     url=_startapp(game.code),
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="➕ Qöşiliş",
+                    text=t(language, "btn_join"),
                     callback_data=f"{JOIN_PREFIX}{game.code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="▶️ Öyinni boşlaş",
+                    text=t(language, "btn_start"),
                     callback_data=f"{START_PREFIX}{game.code}",
                 )
             ],
@@ -464,16 +465,12 @@ def lobby_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
     )
 
 
-def night_text(game: MafiaGame) -> str:
+def night_text(game: MafiaGame, language: str = "uz") -> str:
     """Tun boshlanganidagi guruh xabari."""
-    return (
-        "🌃 <b>ŞAHARGA TUN ÇÖKDI!</b>\n"
-        "Hamma uxladi. Öz vazifangizni bajariş uçun pastdagi "
-        "tugmani bosing:"
-    )
+    return t(language, "mafia_night")
 
 
-def night_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
+def night_keyboard(game: MafiaGame, language: str = "uz") -> InlineKeyboardMarkup:
     """Tungi harakat va (egasi uchun) tunni yakunlash tugmalari."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -493,33 +490,34 @@ def night_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
     )
 
 
-def day_text(game: MafiaGame) -> str:
+def day_text(game: MafiaGame, language: str = "uz") -> str:
     """Tonggi hisobot matni."""
     report = game.room.last_report
     if report is None or not report.deaths:
-        result = "Tunda heç kim halok bölmadi."
+        result = t(language, "mafia_day_none")
     else:
         names = ", ".join(
             _player_label(game, game.room.players[user_id])
             for user_id in report.deaths
             if user_id in game.room.players
         )
-        result = f"Tunda halok böldilar: {names}."
+        result = t(language, "mafia_day_deaths", names=names)
     return (
-        "🌅 <b>TONG OTDI!</b>\n"
-        "Şahar uyğondi. Tungi natijalar:\n"
-        f"{result}\n\n"
-        "⚖️ Guruhda muhokama boşlandi!"
+        t(language, "mafia_day_head")
+        + "\n"
+        + result
+        + "\n\n"
+        + t(language, "mafia_day_tail")
     )
 
 
-def day_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
+def day_keyboard(game: MafiaGame, language: str = "uz") -> InlineKeyboardMarkup:
     """Mini App'dagi ovoz berish havolasi."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🗳 Ovoz beriş",
+                    text=t(language, "btn_vote"),
                     url=_startapp(game.code),
                 )
             ]
@@ -527,7 +525,7 @@ def day_keyboard(game: MafiaGame) -> InlineKeyboardMarkup:
     )
 
 
-def execution_text(game: MafiaGame, player: MafiaPlayer) -> str:
+def execution_text(game: MafiaGame, player: MafiaPlayer, language: str = "uz") -> str:
     """Kunduzgi qatl e'loni."""
     username = game.usernames.get(player.user_id, "")
     if username:
@@ -535,40 +533,38 @@ def execution_text(game: MafiaGame, player: MafiaPlayer) -> str:
     else:
         who = escape(player.name or f"ID {player.user_id}")
     role_name = (
-        get_role_profile(player.role).name_uz
+        t(language, f"role_name_{player.role.value}")
         if player.role is not None
-        else "Noma'lum"
+        else t(language, "mafia_role_unknown")
     )
-    return (
-        "⚰️ Şahar aholisi qaroriga köra "
-        f"{who} qatl qilindi! Uning roli: <b>{role_name}</b> edi!"
-    )
+    return t(language, "mafia_execution", who=who, role=role_name)
 
 
-def finish_text(winner: Winner) -> str:
+def finish_text(winner: Winner, language: str = "uz") -> str:
     """G'alaba e'loni."""
-    return (
-        "🏆 <b>ÖYIN YAKUNLANDI!</b>\n"
-        f"{WINNER_LABELS.get(winner, winner.value.upper())} ğalaba qozondi!"
-    )
+    label = WINNER_LABELS.get(winner, winner.value.upper())
+    return t(language, "mafia_end", winner=label)
 
 
-def role_text(game: MafiaGame, player: MafiaPlayer) -> str:
+def role_text(game: MafiaGame, player: MafiaPlayer, language: str = "uz") -> str:
     """O'yinchiga shaxsiy xabar bilan yuboriladigan rol kartasi."""
     if player.role is None:
         raise MafiaGameError("Rol hali berilmagan")
     profile = get_role_profile(player.role)
+    slug = player.role.value
     action = (
         "Tunda harakat qilasiz."
         if profile.has_night_action
         else "Tunda maxsus harakatingiz yöq."
     )
-    return (
-        f"🕵️ <b>Sizning rolingiz: {profile.name_uz}</b>\n\n"
-        f"{profile.description}\n\n"
-        f"🎯 Jamoa: <b>{FACTION_LABELS[profile.faction]}</b>\n"
-        f"🌙 {action}\n"
-        f"🔑 Xona kodi: <code>{game.code}</code>"
+    return t(
+        language,
+        "mafia_role",
+        name=t(language, f"role_name_{slug}"),
+        description=t(language, f"role_desc_{slug}"),
+        faction=FACTION_LABELS[profile.faction],
+        action=action,
+        code=game.code,
     )
 
 
@@ -580,8 +576,8 @@ async def announce_night(bot: Bot, game: MafiaGame) -> None:
     await bot.send_photo(
         game.chat_id,
         FSInputFile(image_path(NIGHT_IMAGE)),
-        caption=night_text(game),
-        reply_markup=night_keyboard(game),
+        caption=night_text(game, _game_language(game)),
+        reply_markup=night_keyboard(game, _game_language(game)),
     )
     await send_kevlar_offers(bot, game)
 
@@ -641,8 +637,8 @@ async def announce_day(bot: Bot, game: MafiaGame) -> None:
     await bot.send_photo(
         game.chat_id,
         FSInputFile(image_path(DAY_IMAGE)),
-        caption=day_text(game),
-        reply_markup=day_keyboard(game),
+        caption=day_text(game, _game_language(game)),
+        reply_markup=day_keyboard(game, _game_language(game)),
     )
     if game.room.winner is not None:
         await announce_finish(bot, game)
@@ -655,7 +651,7 @@ async def announce_execution(
     await bot.send_photo(
         game.chat_id,
         FSInputFile(image_path(ELIMINATED_IMAGE)),
-        caption=execution_text(game, player),
+        caption=execution_text(game, player, _game_language(game)),
     )
 
 
@@ -664,7 +660,7 @@ async def announce_finish(bot: Bot, game: MafiaGame) -> None:
     if game.room.winner is None:
         return
     game.clear_phase_timer()
-    caption = finish_text(game.room.winner)
+    caption = finish_text(game.room.winner, _game_language(game))
     try:
         rewarded = get_economy().record_mafia_game(
             game.code,
@@ -689,7 +685,7 @@ async def send_role_cards(bot: Bot, game: MafiaGame) -> list[int]:
     failed: list[int] = []
     for player in game.room.players.values():
         try:
-            await bot.send_message(player.user_id, role_text(game, player))
+            await bot.send_message(player.user_id, role_text(game, player, resolve_language(player.user_id)))
         except Exception:
             logger.exception(
                 "Rol xabarini yuborib bölmadi: %s", player.user_id
@@ -768,7 +764,7 @@ async def create_mafia_game(message: Message) -> None:
         )
         sent = await message.answer_photo(
             FSInputFile(image_path(COVER_IMAGE)),
-            caption=lobby_text(game),
+            caption=lobby_text(game, _game_language(game)),
             reply_markup=lobby_keyboard(game),
         )
         game.lobby_message_id = getattr(sent, "message_id", None)
@@ -826,7 +822,7 @@ async def join_mafia_game(callback: CallbackQuery) -> None:
 
     language = resolve_language(user.id, getattr(user, "language_code", None))
     await callback.answer(t(language, "room_joined", name=escape(user.full_name)))
-    await _edit_lobby(callback, lobby_text(game), lobby_keyboard(game))
+    await _edit_lobby(callback, lobby_text(game, _game_language(game)), lobby_keyboard(game, _game_language(game)))
 
 
 @router.callback_query(F.data.startswith(START_PREFIX))

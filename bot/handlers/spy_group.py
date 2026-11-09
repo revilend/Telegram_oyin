@@ -61,40 +61,42 @@ def spy_count_for(player_count: int) -> int:
     return 2 if int(player_count) >= DOUBLE_SPY_MIN_PLAYERS else 1
 
 
-def lobby_text(room: SpyfallRoom) -> str:
+def _room_language(room: SpyfallRoom) -> str:
+    host_id = int(getattr(room, "host_id", 0) or 0)
+    return resolve_language(host_id) if host_id else "uz"
+
+
+def lobby_text(room: SpyfallRoom, language: str = "uz") -> str:
     """Guruhdagi lobby xabari."""
     count = len(room.players)
     spies = spy_count_for(count)
-    return (
-        "🕶️ <b>JOSUS (SPYFALL) ÖYINI!</b>\n"
-        "Hamma joyni biladi — faqat Josus bilmaydi. Savol-javob orqali uni toping!\n\n"
-        f"👥 Qatnaşuvçilar: {_players_list(room)}\n"
-        f"🔢 Jami: {count}/{MAX_PLAYERS} kişi\n"
-        f"🕵️ Josuslar: {spies} ta\n"
-        f"🔑 Xona kodi: <code>{room.code}</code>\n\n"
-        f"ℹ️ {MIN_PLAYERS}–6 kişida 1 ta, {DOUBLE_SPY_MIN_PLAYERS}+ kişida 2 ta Josus böladi."
+    return t(
+        language, "spy_lobby",
+        players=_players_list(room), count=count, maximum=MAX_PLAYERS,
+        spies=spies, code=room.code, minimum=MIN_PLAYERS,
+        double_min=DOUBLE_SPY_MIN_PLAYERS,
     )
 
 
-def lobby_keyboard(room: SpyfallRoom) -> InlineKeyboardMarkup:
+def lobby_keyboard(room: SpyfallRoom, language: str = "uz") -> InlineKeyboardMarkup:
     """Mini App havolasi, qo'shilish va boshlash tugmalari."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚪 Josusga kiriş",
+                    text=t(language, "btn_enter_spy"),
                     url=_startapp(room.code),
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="➕ Qöşiliş",
+                    text=t(language, "btn_join"),
                     callback_data=f"{JOIN_PREFIX}{room.code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="▶️ Öyinni boşlaş",
+                    text=t(language, "btn_start"),
                     callback_data=f"{START_PREFIX}{room.code}",
                 )
             ],
@@ -102,13 +104,13 @@ def lobby_keyboard(room: SpyfallRoom) -> InlineKeyboardMarkup:
     )
 
 
-def playing_keyboard(room: SpyfallRoom) -> InlineKeyboardMarkup:
+def playing_keyboard(room: SpyfallRoom, language: str = "uz") -> InlineKeyboardMarkup:
     """O'yin davomidagi tugma: karta va ovoz berish Mini App'da."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🃏 Kartani oçiş / ovoz beriş",
+                    text=t(language, "btn_open_card"),
                     url=_startapp(room.code),
                 )
             ]
@@ -216,7 +218,7 @@ async def create_spy_game(message: Message) -> None:
             user.full_name,
             chat_id=message.chat.id,
         )
-        await message.answer(lobby_text(room), reply_markup=lobby_keyboard(room))
+        await message.answer(lobby_text(room, _room_language(room)), reply_markup=lobby_keyboard(room, _room_language(room)))
     except SpyfallRoomError as exc:
         await message.reply(f"⚠️ {escape(str(exc))}")
     except Exception:
@@ -250,7 +252,7 @@ async def join_spy_game(callback: CallbackQuery) -> None:
 
     language = resolve_language(user.id, getattr(user, "language_code", None))
     await callback.answer(t(language, "room_joined", name=escape(user.full_name)))
-    await _edit_or_send(callback, lobby_text(room), lobby_keyboard(room))
+    await _edit_or_send(callback, lobby_text(room, _room_language(room)), lobby_keyboard(room, _room_language(room)))
 
 
 @router.callback_query(F.data.startswith(START_PREFIX))

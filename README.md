@@ -645,6 +645,7 @@ Bot barcha xabarlarni uch tilda beradi: 🇺🇿 `uz` (yangi lotin: ö, ğ, ş, 
 | Pastki menyu | `bot/keyboards/main_menu.py::build_main_menu(language=...)` |
 | Profil → Tilni o‘zgartirish | `bot/handlers/profile.py` (`set_lang:uz|ru|en`) |
 | Guruh xona e’lonlari | 5 ta group handlerda `room_created`/`room_joined`/`room_started` kalitlari |
+| Dvigatel e’lonlari | `core/i18n.py` — `mafia_lobby/night/day/execution/end/role`, `spy_lobby`, `alias_lobby/round_started/explainer_dm`, `bomb_lobby`, `bunker_*`, `btn_*`, `role_name_*/role_desc_*` (16 ta Mafiya roli) |
 
 Qoidalar:
 

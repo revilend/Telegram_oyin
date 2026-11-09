@@ -40,7 +40,7 @@ START_FILTER = r"^start_BNK\d{3}$"
 # ----------------------------------------------------------------------
 # Matn va tugmalar
 # ----------------------------------------------------------------------
-def _room_text(room: GameRoom, *, started: bool = False) -> str:
+def _room_text(room: GameRoom, *, started: bool = False, language: str = "uz") -> str:
     """Xona haqidagi guruh xabarini tayyorlaydi."""
     catastrophe = room.catastrophe or {}
     supplies = "\n".join(
@@ -51,28 +51,30 @@ def _room_text(room: GameRoom, *, started: bool = False) -> str:
     )
 
     lines = [
-        "🎬 <b>Öyin boşlandi!</b>" if started else "🆘 <b>Yangi Bunker öyini</b>",
+        t(language, "bunker_started_head")
+        if started
+        else t(language, "bunker_new_head"),
         "",
         f"☢️ <b>{escape(str(catastrophe.get('name', 'Falokat')))}</b>",
         "",
         escape(str(catastrophe.get("description", ""))),
         "",
-        "📦 <b>Bunkerdagi zaxiralar:</b>",
+        t(language, "bunker_supplies"),
         supplies or "• —",
         "",
-        "✅ <b>Omon qoliş talablari:</b>",
+        t(language, "bunker_requirements"),
         requirements or "• —",
         "",
-        f"🔑 <b>Xona kodi:</b> <code>{room.code}</code>",
-        f"👥 <b>Öyinçilar:</b> {len(room.players)}/{room.max_players}",
-        f"🏠 <b>Bunker siğimi:</b> {room.bunker_capacity} kişi",
+        t(language, "bunker_room_code", code=room.code),
+        t(language, "bunker_players", count=len(room.players), maximum=room.max_players),
+        t(language, "bunker_capacity", capacity=room.bunker_capacity),
     ]
     if started or room.current_round:
-        lines.append(f"🔄 <b>Raund:</b> {room.current_round}")
+        lines.append(t(language, "bunker_round", number=room.current_round))
     return "\n".join(lines)
 
 
-def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMarkup:
+def _room_keyboard(room: GameRoom, *, started: bool = False, language: str = "uz") -> InlineKeyboardMarkup:
     """Mini App va guruh harakatlari uchun inline tugmalar.
 
     Guruhlarda Telegram ``web_app`` tugmasini qabul qilmaydi
@@ -83,7 +85,7 @@ def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMa
     rows = [
         [
             InlineKeyboardButton(
-                text="🚪 Bunkerga kiriş",
+                text=t(language, "btn_enter_bunker"),
                 url=f"https://t.me/{config.bot_username}?startapp={room.code}",
             )
         ]
@@ -92,7 +94,7 @@ def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMa
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="➕ Guruh orqali qöşiliş",
+                    text=t(language, "btn_join_group"),
                     callback_data=f"{JOIN_PREFIX}{room.code}",
                 )
             ]
@@ -100,7 +102,7 @@ def _room_keyboard(room: GameRoom, *, started: bool = False) -> InlineKeyboardMa
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="▶️ Öyinni boşlaş",
+                    text=t(language, "btn_start"),
                     callback_data=f"{START_PREFIX}{room.code}",
                 )
             ]
@@ -127,7 +129,13 @@ def _callback_code(data: str | None, prefix: str) -> str | None:
 
 async def _refresh_room_message(callback: CallbackQuery, room: GameRoom) -> None:
     """Xona kartasini yangilaydi; imkoni bo'lmasa yangi xabar yuboradi."""
-    text = _room_text(room, started=_is_started(room))
+    text = _room_text(
+        room,
+        started=_is_started(room),
+        language=resolve_language(
+            int(getattr(room, "host_id", 0) or 0)
+        ),
+    )
     keyboard = _room_keyboard(room, started=_is_started(room))
     message = callback.message
 

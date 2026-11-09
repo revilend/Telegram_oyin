@@ -102,43 +102,42 @@ def _player_label(room: AliasRoom, user_id: int) -> str:
     return player.label()
 
 
-def lobby_text(room: AliasRoom) -> str:
+def _room_language(room: AliasRoom) -> str:
+    host_id = int(getattr(room, "host_id", 0) or 0)
+    return resolve_language(host_id) if host_id else "uz"
+
+
+def lobby_text(room: AliasRoom, language: str = "uz") -> str:
     """Lobby xabari matni."""
     players = "\n".join(
         f"{index}. {player.label()} — {player.score} oçko"
         for index, player in enumerate(room.players.values(), start=1)
     ) or "hali heç kim qöşilmadi"
-    return (
-        "🐊 <b>ALIAS / KROKODIL</b>\n\n"
-        "Tuşuntiruvçi sözni aytmasdan, taqiqlangan sözlarsiz "
-        "tuşuntiradi. Qolganlar birinçi bölib topişga harakat qiladi.\n\n"
-        f"👥 <b>Öyinçilar ({len(room.players)}/{MAX_PLAYERS}):</b>\n{players}\n\n"
-        f"🔑 Xona kodi: <code>{room.code}</code>\n"
-        f"⏱ Har raund {ROUND_SECONDS} soniya · kamida {MIN_PLAYERS} kişi kerak.\n"
-        f"💤 {ROUND_SECONDS} soniya faollik bölmasa navbat avtomatik keyingi öyinçiga ötadi.\n"
-        "💬 Sözni çatda töğri yozgan öyinçi darhol topadi va oçko oladi.\n"
-        f"🔁 Har bir iştirokçi {ROUNDS_PER_PLAYER} martadan tuşuntiradi "
-        f"(jami {room.total_rounds} raund).\n"
-        f"🏆 Topgan öyinçiga +{GUESS_REWARD}, tuşuntiruvçiga "
-        f"+{EXPLAINER_REWARD} tanga, umumiy ğolibga +{WINNER_REWARD} tanga."
+    return t(
+        language, "alias_lobby",
+        count=len(room.players), maximum=MAX_PLAYERS, players=players,
+        code=room.code, round_seconds=ROUND_SECONDS, minimum=MIN_PLAYERS,
+        rounds=ROUNDS_PER_PLAYER, total=room.total_rounds,
+        guess_reward=GUESS_REWARD, explainer_reward=EXPLAINER_REWARD,
+        winner_reward=WINNER_REWARD,
     )
 
 
-def lobby_keyboard(room: AliasRoom) -> InlineKeyboardMarkup:
+def lobby_keyboard(room: AliasRoom, language: str = "uz") -> InlineKeyboardMarkup:
     """Lobby tugmalari."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Qöşiliş", callback_data=f"{JOIN_PREFIX}{room.code}"
+                    text=t(language, "btn_join"), callback_data=f"{JOIN_PREFIX}{room.code}"
                 ),
                 InlineKeyboardButton(
-                    text="▶️ Boşlaş", callback_data=f"{START_PREFIX}{room.code}"
+                    text=t(language, "btn_alias_start"), callback_data=f"{START_PREFIX}{room.code}"
                 ),
             ],
             [
                 InlineKeyboardButton(
-                    text="🛑 Öyinni tugatiş",
+                    text=t(language, "btn_end"),
                     callback_data=f"{END_PREFIX}{room.code}",
                 )
             ],
@@ -149,35 +148,35 @@ def lobby_keyboard(room: AliasRoom) -> InlineKeyboardMarkup:
 def round_announcement(room: AliasRoom, current: AliasRound) -> str:
     """Raund boshlanganda guruhga chiqadigan xabar (so'zsiz)."""
     explainer = _player_label(room, current.explainer_id)
-    return (
-        "🐊 <b>ALIAS ÖYINI BOŞLANDI!</b>\n"
-        f"🎤 Hozir <b>{explainer}</b> söz tuşuntirmoqda! "
-        f"({current.number}/{room.total_rounds}-raund)\n"
-        f"⏳ Sizda {current.duration} soniya bor. Sözni birinçi bölib toping!"
+    return t(
+        _room_language(room), "alias_round_started",
+        explainer=explainer, number=current.number, total=room.total_rounds,
+        duration=current.duration,
     )
 
 
-def explainer_message(room: AliasRoom, current: AliasRound) -> str:
+def explainer_message(room: AliasRoom, current: AliasRound, language: str = "uz") -> str:
     """Tushuntiruvchiga shaxsiy xabar."""
     forbidden = current.word.forbidden or ()
-    lines = [
-        "🎯 <b>Sizning sözingiz:</b>",
-        f"<b>{current.word.word}</b>",
-        "",
-    ]
-    if forbidden:
-        lines.append("🚫 <b>Taqiqlangan sözlar:</b>")
-        lines.extend(f"• {word}" for word in forbidden)
-        lines.append("")
-    lines.extend(
-        [
-            f"⏳ {current.duration} soniya. Sözni va taqiqlangan sözlarni "
-            "aytmasdan tuşuntiring!",
-            f"🔑 Xona: <code>{room.code}</code> · "
-            f"{current.number}/{room.total_rounds}-raund",
-        ]
+    forbid_text = (
+        t(
+            language,
+            "alias_forbidden",
+            words="\n".join(f"• {word}" for word in forbidden),
+        )
+        if forbidden
+        else ""
     )
-    return "\n".join(lines)
+    return t(
+        language,
+        "alias_explainer_dm",
+        word=current.word.word,
+        forbidden=forbid_text,
+        duration=current.duration,
+        code=room.code,
+        number=current.number,
+        total=room.total_rounds,
+    )
 
 
 
@@ -354,7 +353,12 @@ async def stop_alias_for_chat(bot: Bot, chat_id: int, user_id: int) -> bool:
 async def _send_private_word(bot: Bot, room: AliasRoom, current: AliasRound) -> bool:
     """Tushuntiruvchiga so'zni shaxsiy xabarda yuboradi."""
     try:
-        await bot.send_message(current.explainer_id, explainer_message(room, current))
+        await bot.send_message(
+            current.explainer_id,
+            explainer_message(
+                room, current, resolve_language(current.explainer_id)
+            ),
+        )
         return True
     except Exception:
         logger.info(
