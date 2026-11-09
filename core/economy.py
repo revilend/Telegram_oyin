@@ -105,7 +105,9 @@ class UserAccount:
     bomb_wins: int = 0
     referral_count: int = 0
     last_bonus_at: str = ""
+    last_daily_claim: str = ""
     bonus_streak: int = 0
+    streak_days: int = 0
     is_blocked: bool = False
     block_reason: str = ""
     role: str = "user"
@@ -137,6 +139,8 @@ class DailyBonusStatus:
     streak: int
     seconds_left: int
     next_amount: int = 0
+    streak_days: int = 0
+    last_daily_claim: str = ""
 
 
 @dataclass(frozen=True)
@@ -147,6 +151,8 @@ class DailyBonusClaim:
     streak: int
     account: UserAccount
     next_amount: int = 0
+    streak_days: int = 0
+    last_daily_claim: str = ""
 
 
 @dataclass(frozen=True)
@@ -253,6 +259,36 @@ def _daily_bonus_plan(
     return available, amount, streak, max(0, seconds_left)
 
 
+def _bonus_streak(row: dict[str, Any]) -> int:
+    """Seriyani ikki ustun nomidan ham oldi (``bonus_streak``/``streak_days``)."""
+    try:
+        old = int(row.get("bonus_streak") or 0)
+    except (TypeError, ValueError):
+        old = 0
+    try:
+        new = int(row.get("streak_days") or 0)
+    except (TypeError, ValueError):
+        new = 0
+    return max(old, new)
+
+
+def _bonus_last(row: dict[str, Any]) -> str:
+    """Oxirgi bonus vaqti: ikki ustun nomidan eng so'nggisini beradi."""
+    candidates = [
+        str(row.get("last_bonus_at") or "").strip(),
+        str(row.get("last_daily_claim") or "").strip(),
+    ]
+    picked = ""
+    picked_moment = None
+    for value in candidates:
+        if not value:
+            continue
+        parsed = _parse_moment(value)
+        if parsed is not None and (picked_moment is None or parsed > picked_moment):
+            picked, picked_moment = value, parsed
+    return picked or (candidates[0] or candidates[1] or "")
+
+
 def _row_to_account(row: dict[str, Any]) -> UserAccount:
     raw_id = row.get(USERS_ID_COLUMN)
     if raw_id is None:
@@ -271,8 +307,10 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         alias_wins=int(row.get("alias_wins") or 0),
         bomb_wins=int(row.get("bomb_wins") or 0),
         referral_count=int(row.get("referral_count") or 0),
-        last_bonus_at=str(row.get("last_bonus_at") or ""),
-        bonus_streak=int(row.get("bonus_streak") or 0),
+        last_bonus_at=_bonus_last(row),
+        last_daily_claim=_bonus_last(row),
+        bonus_streak=_bonus_streak(row),
+        streak_days=_bonus_streak(row),
         is_blocked=bool(row.get("is_blocked")),
         block_reason=str(row.get("block_reason") or ""),
         role=str(row.get("role") or "user").strip().lower(),
@@ -494,6 +532,10 @@ class EconomyStore:
                         "alias_wins": 0,
                         "bomb_wins": 0,
                         "referral_count": 0,
+                        "last_bonus_at": "",
+                        "last_daily_claim": "",
+                        "bonus_streak": 0,
+                        "streak_days": 0,
                         "role": "user",
                         "is_blocked": False,
                         "block_reason": "",
@@ -526,6 +568,10 @@ class EconomyStore:
                     "alias_wins": 0,
                     "bomb_wins": 0,
                     "referral_count": 0,
+                    "last_bonus_at": "",
+                    "last_daily_claim": "",
+                    "bonus_streak": 0,
+                    "streak_days": 0,
                     "role": "user",
                     "is_blocked": False,
                     "is_bot": is_bot,
@@ -1006,6 +1052,8 @@ class EconomyStore:
             streak=streak,
             seconds_left=seconds_left,
             next_amount=next_daily_bonus_amount(streak),
+            streak_days=streak,
+            last_daily_claim=account.last_bonus_at,
         )
 
     def claim_daily_bonus(
@@ -1028,10 +1076,20 @@ class EconomyStore:
             if not self.enabled:
                 row = self._users[uid]
                 row["last_bonus_at"] = claimed_at
+                row["last_daily_claim"] = claimed_at
                 row["bonus_streak"] = streak
+                row["streak_days"] = streak
             else:
+                # Ikki nom ham yoziladi: eski baza (`bonus_streak`) ham,
+                # yangi baza (`streak_days`) ham shu yerda yangilanadi.
                 self._update_user_row(
-                    uid, {"last_bonus_at": claimed_at, "bonus_streak": streak}
+                    uid,
+                    {
+                        "last_bonus_at": claimed_at,
+                        "last_daily_claim": claimed_at,
+                        "bonus_streak": streak,
+                        "streak_days": streak,
+                    },
                 )
             updated = self.add_coins(uid, amount)
         return DailyBonusClaim(
@@ -1039,6 +1097,8 @@ class EconomyStore:
             streak=streak,
             account=updated,
             next_amount=next_daily_bonus_amount(streak),
+            streak_days=streak,
+            last_daily_claim=claimed_at,
         )
 
     # ------------------------------------------------------------------

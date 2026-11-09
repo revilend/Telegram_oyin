@@ -197,10 +197,18 @@ create table if not exists public.game_results (
 -- Kunlik bonus, promo kodlar va missiyalar
 -- ---------------------------------------------------------------------
 -- Kunlik bonus oxirgi olingan vaqt va ketma-ket kunlar soni `users`da turadi.
+-- Ikkita nom ham qo'llab-quvvatlanadi (`bonus_streak`/`streak_days`,
+-- `last_bonus_at`/`last_daily_claim`): o'qishda ikkalasi ham o'qiladi,
+-- yozishda ikkalasi ham yangilanadi. Yangi o'rnatish ham, eski baza ham
+-- shu bilan streakni yo'qotmaydi.
 alter table public.users
     add column if not exists last_bonus_at timestamptz;
 alter table public.users
     add column if not exists bonus_streak integer not null default 0;
+alter table public.users
+    add column if not exists last_daily_claim timestamptz;
+alter table public.users
+    add column if not exists streak_days integer not null default 0;
 
 create table if not exists public.promo_codes (
     code        text primary key,

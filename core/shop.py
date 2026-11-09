@@ -649,9 +649,16 @@ class ShopStore:
                 .data
                 or []
             )
-        except Exception:
-            logger.exception("Inventarni öqib bölmadi: %s", uid)
-            return self._memory_rows(uid)
+        except Exception as exc:
+            # Supabase o'qilmasa xotiraga fallback qilinmaydi: deploydan
+            # keyin xotira bo'sh bo'lib, inventar "bo'sh" ko'rinardi.
+            # Balki xatoni foydalanuvchiga ulashish kerak — bo'sh inventar
+            # bilan davom etish inventarni ko'zdan yo'qotadi.
+            logger.exception("Inventarni Supabase'dan öqib bölmadi: %s", uid)
+            raise ShopError(
+                "Inventarni baza ma'lumotlaridan yuklab bo'lmadi. "
+                "Iltimos, sahifani yangilab qayta urinib köring."
+            ) from exc
 
         # Supabase javobi bir zum kechiksa ham, shu jarayonda yozilgan
         # xarid profilda darhol ko'rinadi. Bazadagi qator ustuvor turadi.
@@ -699,7 +706,7 @@ class ShopStore:
             logger.exception("Inventarga yozib bölmadi: %s %s", uid, entry.item_slug)
             if strict:
                 raise ShopError(
-                    "Taqilgan buyumni Supabase'ga saqlab bo'lmadi. "
+                    "Buyumni Supabase'ga saqlab bo'lmadi. "
                     "Qayta urinib köring."
                 ) from exc
 
@@ -870,16 +877,47 @@ class ShopStore:
             for _ in range(count):
                 prize = CATALOG_BY_SLUG[random.choice(LOOTBOX_POOL)]
                 bag[prize.slug] = bag.get(prize.slug, 0) + 1
-            account = self.economy.spend_coins(uid, total)
-            last_entry: InventoryEntry | None = None
-            for prize_slug, extra in bag.items():
-                prize_current = self.entry(uid, prize_slug)
-                last_entry = InventoryEntry(
-                    item_slug=prize_slug,
-                    quantity=prize_current.quantity + extra,
-                    is_equipped=prize_current.is_equipped,
-                )
-                self._save_entry(uid, last_entry)
+            # Sovg'alar tanga yechilishidan oldin qat'iy saqlanadi:
+            # yozuv muvaffaqiyatsiz bo'lsa, tanga ham yechilmaydi va
+            # buyum deploydan keyin yo'qolmaydi.
+            saved: list[tuple[str, InventoryEntry]] = []
+            try:
+                for prize_slug, extra in bag.items():
+                    prize_current = self.entry(uid, prize_slug)
+                    entry_to_save = InventoryEntry(
+                        item_slug=prize_slug,
+                        quantity=prize_current.quantity + extra,
+                        is_equipped=prize_current.is_equipped,
+                    )
+                    self._save_entry(
+                        uid, entry_to_save, strict=True
+                    )
+                    saved.append((prize_slug, entry_to_save))
+            except ShopError:
+                for prize_slug, entry_to_save in saved:
+                    self._save_entry(
+                        uid,
+                        InventoryEntry(
+                            item_slug=prize_slug,
+                            quantity=entry_to_save.quantity - (bag[prize_slug]),
+                            is_equipped=entry_to_save.is_equipped,
+                        ),
+                    )
+                raise
+            try:
+                account = self.economy.spend_coins(uid, total)
+            except EconomyError:
+                for prize_slug, entry_to_save in saved:
+                    self._save_entry(
+                        uid,
+                        InventoryEntry(
+                            item_slug=prize_slug,
+                            quantity=entry_to_save.quantity - (bag[prize_slug]),
+                            is_equipped=entry_to_save.is_equipped,
+                        ),
+                    )
+                raise
+            last_entry: InventoryEntry | None = saved[-1][1] if saved else None
             self._record_transaction(uid, item, count, total)
             prizes = tuple(CATALOG_BY_SLUG[slug] for slug in bag)
             assert last_entry is not None
@@ -899,7 +937,7 @@ class ShopStore:
             quantity=current.quantity + grant,
             is_equipped=current.is_equipped,
         )
-        self._save_entry(uid, updated)
+        self._save_entry(uid, updated, strict=True)
         try:
             account = self.economy.spend_coins(uid, total)
         except EconomyError:
@@ -993,6 +1031,7 @@ class ShopStore:
                         quantity=ticket.quantity - 1,
                         is_equipped=ticket.is_equipped,
                     ),
+                    strict=True,
                 )
                 ticket_used = True
             else:
@@ -1037,7 +1076,7 @@ class ShopStore:
                 quantity=current.quantity + 1,
                 is_equipped=current.is_equipped,
             )
-            self._save_entry(uid, entry)
+            self._save_entry(uid, entry, strict=True)
             account = self.economy.ensure_user(uid)
 
         return SpinResult(

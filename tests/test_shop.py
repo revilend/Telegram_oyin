@@ -472,5 +472,81 @@ class CosmeticsUiWiringTest(unittest.TestCase):
         self.assertEqual(on_conflict, "telegram_id")
 
 
+class InventoryPersistenceTest(unittest.TestCase):
+    """Deploy/restartda inventar va streak yo'qolmasligi."""
+
+    def _economy(self):
+        economy = EconomyStore(url="", key="", client=None)
+        economy.ensure_user(999001)
+        return economy
+
+    def test_buy_fails_without_spending_when_supabase_write_fails(self) -> None:
+        class FailingClient:
+            def table(self, name: str):
+                class Query:
+                    def select(self, *_a, **_k):
+                        return self
+
+                    def eq(self, *_a, **_k):
+                        return self
+
+                    def upsert(self, *_a, **_k):
+                        return self
+
+                    def execute(self):
+                        return SimpleNamespace(data=[])
+
+                return Query()
+
+        class FailingUpsertQuery(FailingClient):
+            def table(self, name: str):
+                class Query:
+                    def select(self, *_a, **_k):
+                        return self
+
+                    def eq(self, *_a, **_k):
+                        return self
+
+                    def upsert(self, *_a, **_k):
+                        return self
+
+                    def insert(self, *_a, **_k):
+                        return self
+
+                    def update(self, *_a, **_k):
+                        return self
+
+                    def execute(self):
+                        raise RuntimeError("supabase ishlamayapti")
+
+                return Query()
+
+        economy = self._economy()
+        before = economy.get_user(999001).coins
+        store = ShopStore(economy=economy, client=FailingUpsertQuery())
+        with self.assertRaises(Exception):
+            store.buy(999001, "frame_gold")
+        self.assertEqual(economy.get_user(999001).coins, before)
+
+    def test_inventory_read_failure_raises_not_empty(self) -> None:
+        class FailingSelectQuery:
+            def select(self, *_a, **_k):
+                return self
+
+            def eq(self, *_a, **_k):
+                return self
+
+            def execute(self):
+                raise RuntimeError("supabase ishlamayapti")
+
+        class FailingClient:
+            def table(self, name: str):
+                return FailingSelectQuery()
+
+        store = ShopStore(economy=self._economy(), client=FailingClient())
+        with self.assertRaises(Exception):
+            store.inventory(999001)
+
+
 if __name__ == "__main__":
     unittest.main()

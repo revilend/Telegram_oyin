@@ -72,6 +72,19 @@ class DailyBonusTest(unittest.TestCase):
         self.assertEqual(claim.streak, 1)
         self.assertEqual(claim.amount, DAILY_BONUS_BASE)
 
+    def test_streak_alias_columns_are_synced(self) -> None:
+        """``users``da ikki nom ham yoziladi va o'qiladi (streak_days / last_daily_claim)."""
+        self.store.ensure_user(71005)
+        claim = self.store.claim_daily_bonus(71005, NOW)
+        account = self.store.get_user(71005)
+        self.assertEqual(account.streak_days, account.bonus_streak)
+        self.assertEqual(account.last_daily_claim, account.last_bonus_at)
+        self.assertEqual(claim.streak_days, claim.streak)
+        self.assertEqual(claim.last_daily_claim, claim.account.last_bonus_at)
+        status = self.store.daily_bonus_status(71005, NOW + timedelta(hours=1))
+        self.assertEqual(status.streak_days, status.streak)
+        self.assertEqual(status.last_daily_claim, account.last_bonus_at)
+
     def test_bonus_fields_survive_coin_operations(self) -> None:
         self.store.ensure_user(71004)
         self.store.claim_daily_bonus(71004, NOW)

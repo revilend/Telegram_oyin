@@ -4348,7 +4348,17 @@
         if (!account) return;
         try {
           var cached = readProfileCache() || {};
-          if (Number(cached.user_id) !== Number(account.user_id)) cached = {};
+          var sameUser = Number(cached.user_id) === Number(account.user_id);
+          if (!sameUser) cached = {};
+          // Inventar manbai Supabase: serverdan kelgan inventar keshga
+          // ustun hisoblanadi, bo'sh kesh hech qachon uni bosib ketmaydi.
+          var freshInventory = Array.isArray(account.inventory)
+            ? account.inventory
+            : ((typeof profile !== "undefined" && profile && Array.isArray(profile.inventory))
+              ? profile.inventory
+              : (sameUser && Array.isArray(cached.inventory) ? cached.inventory : []));
+          var freshFrame = String(account.frame || account.equipped_frame || (sameUser ? cached.frame : ""));
+          var freshTitle = String(account.title || account.equipped_title || (sameUser ? cached.title : ""));
           window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
             user_id: Number(account.user_id) || 0,
             full_name: String(account.full_name || ""),
@@ -4361,9 +4371,9 @@
             spy_wins: Number(account.spy_wins) || 0,
             alias_wins: Number(account.alias_wins) || 0,
             bomb_wins: Number(account.bomb_wins) || 0,
-            inventory: Array.isArray(cached.inventory) ? cached.inventory : [],
-            frame: String(cached.frame || ""),
-            title: String(cached.title || "")
+            inventory: freshInventory,
+            frame: freshFrame,
+            title: freshTitle
           }));
         } catch (error) {
           /* Kesh yozilmasa ham profil ishlaydi. */
@@ -4557,7 +4567,7 @@ function applyServerEquipped(equipped, inventory) {
   if (typeof profile === "undefined" || !profile) return;
   profile.frame = String((equipped && equipped.frame) || "");
   profile.title = String((equipped && equipped.title) || "");
-  if (inventory) {
+  if (Array.isArray(inventory)) {
     profile.inventory = inventory;
     if (typeof view !== "undefined" && view.items) view.items.inventory = inventory;
   }
@@ -4656,12 +4666,18 @@ function profileCardHtml() {
 
       }
       function inventoryMap() {
+        // Manba Supabase: profile (keshlangan server javobi) va do'kon
+        // javobi ikkalasi ham birlashtiriladi — biri bo'sh bo'lsa ham
+        // ikkinchisidagi buyumlar saqlanib qoladi.
         var map = {};
-        var source = (profile && profile.inventory && profile.inventory.length)
-          ? profile.inventory
-          : ((view.items && view.items.inventory) || []);
-        source.forEach(function (entry) {
-          map[entry.slug] = entry;
+        var sources = [
+          (profile && profile.inventory) || [],
+          (view.items && view.items.inventory) || []
+        ];
+        sources.forEach(function (source) {
+          (source || []).forEach(function (entry) {
+            if (entry && entry.slug) map[entry.slug] = entry;
+          });
         });
         return map;
 }
@@ -5503,11 +5519,26 @@ function profileCardHtml() {
       function syncTelegramProfile() {
         var u = getTgUser();
         if (!u || !u.id) return;
+        // Telegram ID asosiy kalit: kesh/?uid'dan kelgan eski ID qoldirilmaydi.
+        var tgId = Number(u.id);
+        if (tgId && Number(profile.id) !== tgId) {
+          var oldId = Number(profile.id) || 0;
+          var changed = oldId > 0;
+          profile.id = tgId;
+          if (changed) {
+            // Boshqa akkaunt: boshqa odamning balans/inventarini ko'rsatmaymiz.
+            profile.balance = 0;
+            profile.inventory = [];
+            profile.frame = "";
+            profile.title = "";
+          }
+        }
         var tgName = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
         if (tgName) profile.name = tgName;
         if (u.username) profile.username = u.username;
         profile.photo = u.photo_url || profile.photo || "";
         profile.guest = false;
+        profile.authenticated = true;
 }
 
       function accountPath() {
@@ -5520,7 +5551,7 @@ function profileCardHtml() {
         if (!data || !data.user) return false;
         updateProfileFromAccount(data.user);
         if (data.equipped) applyServerEquipped(data.equipped, data.inventory);
-        else if (data.inventory) profile.inventory = data.inventory;
+        else if (Array.isArray(data.inventory)) profile.inventory = data.inventory;
         storeInventoryCache();
         view.history = data.history || view.history || [];
         if (view.shopOpen) view.shop = data.shop || view.shop;
