@@ -180,6 +180,20 @@ async def change_language(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.message(F.chat.type == "private", F.text.in_(all_button_texts("change_language")))
+async def language_button(message: Message) -> None:
+    """Pastki menyudagi til tugmasi: uch tilli inline klaviaturani ochadi."""
+    user = message.from_user
+    language = (
+        resolve_language(user.id, getattr(user, "language_code", None))
+        if user is not None
+        else "uz"
+    )
+    await message.answer(
+        t(language, "language_prompt"), reply_markup=language_keyboard(language)
+    )
+
+
 @router.callback_query(F.data.startswith(SET_LANGUAGE_PREFIX))
 async def choose_language(callback: CallbackQuery) -> None:
     """Tanlangan tilni saqlab, botni shu tilga o'tkazadi."""

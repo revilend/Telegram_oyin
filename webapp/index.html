@@ -3732,7 +3732,7 @@
 }
   
     /* ---------- Til almashtirgich (i18n) ---------- */
-    .lang-switcher { display: inline-flex; gap: 6px; }
+    .lang-switcher { display: flex; justify-content: flex-end; gap: 6px; }
     .lang-btn { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border, rgba(255,255,255,.14)); background: rgba(255,255,255,.06); color: var(--text); font-weight: 700; font-size: 13px; cursor: pointer; }
     .lang-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; }
   </style>
@@ -3800,6 +3800,7 @@
       if (window.I18N) {
         window.__onLanguageChanged__ = function (lang) {
           try {
+            document.documentElement.setAttribute("lang", lang);
             if (typeof renderHubMain === "function") renderHubMain(view.hubTab || "games");
             var oldNav = document.querySelector(".bottom-nav");
             if (oldNav) {
@@ -4786,7 +4787,7 @@ function profileCardHtml() {
           '<button class="btn block" data-act="shop">🛍️ Dökonga ötiş</button>';
 }
         return '<section class="panel inventory-card fade">' +
-          '<div class="section-title"><h2>🎒 " + tr("my_inventory", "Mening inventarim") + "</h2><span>' +
+          '<div class="section-title"><h2>🎒 ' + tr("my_inventory", "Mening inventarim") + '</h2><span>' +
             (items.length ? items.length + ' ta buyum' : 'boş') + '</span></div>' +
           body + '</section>';
 }
@@ -5193,7 +5194,7 @@ function profileCardHtml() {
         } else {
           html = '<div class="buy-confirm-overlay"><section class="buy-confirm-card" role="dialog" aria-modal="true" aria-label="Xaridni tasdiqlang">' +
             '<button class="buy-confirm-x" type="button" data-act="buy-cancel" aria-label="Yopiş" title="Yopiş">✕</button>' +
-            '<h2 class="buy-confirm-title">🛍️ " + tr("buy_confirm_title", "Xaridni tasdiqlang") + "</h2>' +
+            '<h2 class="buy-confirm-title">🛍️ ' + tr("buy_confirm_title", "Xaridni tasdiqlang") + '</h2>' +
             '<div class="buy-confirm-item">' +
               '<span class="buy-confirm-emoji">' + badge + '</span>' +
               '<div class="buy-confirm-meta"><b>' + esc(c.title) + '</b>' +
@@ -5861,7 +5862,7 @@ function leaderboardHtml() {
         var toggle = '<button class="purchase-toggle" type="button" data-act="purchase-history" aria-expanded="' +
           (view.purchasesOpen ? "true" : "false") + '">' +
           '<span class="purchase-toggle-ico">📜</span>' +
-          '<span class="purchase-toggle-body"><b>" + tr("purchase_history", "Xaridlar tarixi") + "</b><small>' + esc(label) + '</small></span>' +
+          '<span class="purchase-toggle-body"><b>' + tr("purchase_history", "Xaridlar tarixi") + '</b><small>' + esc(label) + '</small></span>' +
           '<span class="purchase-toggle-meta">' + esc(count) + '</span>' +
           '<span class="purchase-chev" aria-hidden="true">⌄</span></button>';
         if (!view.purchasesOpen) {
@@ -6587,15 +6588,15 @@ function leaderboardHtml() {
             '<div class="auth-logo" aria-hidden="true">' + icon("crown") + '</div>' +
             '<p class="eyebrow">REVILEND GAMES</p>' +
             '<h1>Revilend Games</h1>' +
-            '<p class="auth-lede">" + tr("login_lede", "Öyinlarni boşlaş va tangalaringizni boşqariş uçun profilingizga kiring.") + "</p>' +
+            '<p class="auth-lede">' + tr("login_lede", "Öyinlarni boşlaş va tangalaringizni boşqariş uçun profilingizga kiring.") + '</p>' +
             '<button class="btn primary block auth-main" data-act="login-telegram">' + icon("send") + ' ' + tr("login_telegram", "Telegram Bot orqali kiriş") + '</button>' +
-            '<div class="auth-divider"><span>" + tr("login_or", "yoki") + "</span></div>' +
+            '<div class="auth-divider"><span>' + tr("login_or", "yoki") + '</span></div>' +
             '<form id="login-form" class="auth-form" autocomplete="off">' +
-              '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="" + tr("login_ph", "Bot bergan 6 xonali kiriş kodini (yoki Telegram ID’ingizni) kiriting") + " aria-label="Kiriş kodi yoki Telegram ID" />' +
+              '<input id="login-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" spellcheck="false" placeholder="' + tr("login_ph", "Bot bergan 6 xonali kiriş kodini (yoki Telegram ID’ingizni) kiriting") + ' aria-label="Kiriş kodi yoki Telegram ID" />' +
               '<button type="submit" class="btn block" id="login-submit">' + icon("lock") + ' ' + tr("login_button", "Kiriş") + '</button>' +
             '</form>' +
             '<p class="auth-error" id="login-error" role="alert">' + esc(view.loginError || "") + '</p>' +
-            '<p class="muted tiny auth-note">" + tr("login_note", "Kodni botda /start yoki /login buyruği bilan oling. Kod 10 daqiqa amal qiladi va bir marta işlatiladi.") + "</p>' +
+            '<p class="muted tiny auth-note">' + tr("login_note", "Kodni botda /start yoki /login buyruği bilan oling. Kod 10 daqiqa amal qiladi va bir marta işlatiladi.") + '</p>' +
           '</section>';
 }
 
@@ -8086,13 +8087,13 @@ function leaderboardHtml() {
 
       function gamesTabHtml() {
         return tabHeadHtml("STOL ÖYINLARI", tr("games_title", "Öyinlar"), tr("games_sub", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.")) +
-          '<div class="section-title flex items-center justify-between px-1"><h2>" + tr("games_count", "5 ta öyin mavjud") + "</h2><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">Faol (5)</span></div>' +
+          '<div class="section-title flex items-center justify-between px-1"><h2>' + tr("games_count", "5 ta öyin mavjud") + '</h2><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">Faol (5)</span></div>' +
           GAMES.map(gameCardHtml).join("") +
           '<section class="card-glass overflow-hidden w-full p-4 join-card" id="join-panel">' +
-            '<div class="block-head" style="margin-top:0"><h2>" + tr("join_by_code", "Xona kodi bilan kiriş") + "</h2><span>' + lucideIcon("key-round") + '</span></div>' +
+            '<div class="block-head" style="margin-top:0"><h2>' + tr("join_by_code", "Xona kodi bilan kiriş") + '</h2><span>' + lucideIcon("key-round") + '</span></div>' +
             '<form id="join-form" class="join-form">' +
               '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123 / SPY123 / BMB123" aria-label="Xona kodi" />' +
-              '<button type="submit" class="btn primary">" + tr("join_button", "Kiriş") + "</button>' +
+              '<button type="submit" class="btn primary">' + tr("join_button", "Kiriş") + '</button>' +
             '</form>' +
             '<p class="muted tiny text-slate-300" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya», «Josus», «Alias» yoki «Bomba» xabaridan oling.</p>' +
           '</section>';
@@ -8114,12 +8115,12 @@ function leaderboardHtml() {
             '</section>' +
             '<button class="glass-card wheel-cta" data-act="wheel-open">' +
               '<span class="wheel-orb">' + lucideIcon("sparkles") + '</span>' +
-              '<span><b class="text-white font-extrabold text-sm sm:text-base">" + tr("wheel_banner", "Omad gʻildiragi") + "</b>' +
+              '<span><b class="text-white font-extrabold text-sm sm:text-base">' + tr("wheel_banner", "Omad gʻildiragi") + '</b>' +
                 '<small class="text-purple-200 text-xs font-medium">' + esc(spinLabel) + ' · kuniga bir bepul</small></span>' +
               '<span class="arrow">' + lucideIcon("chevron-right") + '</span>' +
             '</button>' +
             '<section class="glass-card shop-block">' +
-              '<div class="block-head"><h2>" + tr("boosters", "Boosterlar") + "</h2><span>' + lucideIcon("shield") + ' Öyin kuchi</span></div>' +
+              '<div class="block-head"><h2>' + tr("boosters", "Boosterlar") + '</h2><span>' + lucideIcon("shield") + ' Öyin kuchi</span></div>' +
               boosterBody +
             '</section>' +
             '<section class="glass-card shop-block">' +
@@ -8167,6 +8168,8 @@ function leaderboardHtml() {
         if (main) {
           try {
             main.innerHTML = hubContentHtml(tab);
+          // Profil bo'limidagi til almashtirgich hostini qayta to'ldiramiz.
+          try { if (window.I18N) window.I18N.renderSwitcher(); } catch (i18nError) {}
           } catch (renderError) {
             console.error("Bo'limni çizib bölmadi:", renderError);
             main.innerHTML = '<section class="panel"><h2>Bo\'lim yuklanmadi</h2>' +
@@ -9695,6 +9698,12 @@ function leaderboardHtml() {
 }
 
       function handleClick(event) {
+        // Til tugmalarida data-act yo'q — ularni alohida ushlaymiz.
+        var langButton = event.target.closest("[data-i18n-lang]");
+        if (langButton) {
+          if (window.I18N) window.I18N.setLanguage(langButton.getAttribute("data-i18n-lang"));
+          return;
+        }
         var button = event.target.closest("[data-act]");
         if (!button) return;
         if (!app.contains(button) && !button.closest("#bomb-overlays, .mvp-overlay, .bomb-boom-overlay")) return;

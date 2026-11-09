@@ -86,31 +86,33 @@ class MainMenuKeyboardTest(MenuTestCase):
         self.assertEqual(rows[2], ["🛍️ Dökon", "🏆 Turnirlar"])
         self.assertEqual(rows[3], ["👤 Profilim", "👑 Reyting"])
         self.assertEqual(rows[4], ["🎟️ Promo kod", "👥 Döstlar"])
-        self.assertEqual(rows[5], ["🌐 Mini App (Portal)"])
-        self.assertEqual(len(rows), 6)
+        self.assertEqual(rows[5], ["🌐 Tilni özgartiriş"])
+        self.assertEqual(rows[6], ["🌐 Mini App (Portal)"])
+        self.assertEqual(len(rows), 7)
         self.assertTrue(markup.resize_keyboard)
         self.assertTrue(markup.is_persistent)
         for row in markup.keyboard[2:5]:
             self.assertEqual(len(row), 2)
         self.assertEqual(len(markup.keyboard[5]), 1)
+        self.assertEqual(len(markup.keyboard[6]), 1)
 
     def test_games_button_opens_mini_app(self) -> None:
         markup = main_menu.build_main_menu()
-        games = markup.keyboard[5][0]
+        games = markup.keyboard[6][0]
         self.assertIsNotNone(games.web_app)
         self.assertEqual(games.web_app.url, get_config().mini_app_url)
 
     def test_web_app_button_can_be_disabled(self) -> None:
         # Telegram noto'g'ri HTTPS manzilni rad etadi: zaxira menyuda oddiy tugma.
         markup = main_menu.build_main_menu(include_web_app=False)
-        self.assertIsNone(markup.keyboard[5][0].web_app)
-        self.assertEqual(markup.keyboard[5][0].text, "🌐 Mini App (Portal)")
+        self.assertIsNone(markup.keyboard[6][0].web_app)
+        self.assertEqual(markup.keyboard[6][0].text, "🌐 Mini App (Portal)")
 
     def test_admin_button_is_only_for_admins(self) -> None:
         for_admin = main_menu.build_main_menu(is_admin=True)
-        texts = [button.text for button in for_admin.keyboard[6]]
+        texts = [button.text for button in for_admin.keyboard[7]]
         self.assertEqual(texts, ["👑 Admin panel"])
-        self.assertEqual(len(for_admin.keyboard), 7)
+        self.assertEqual(len(for_admin.keyboard), 8)
 
         for_player = main_menu.build_main_menu(is_admin=False)
         self.assertNotIn(
@@ -359,7 +361,7 @@ class MiniAppUrlTest(unittest.TestCase):
             markup = main_menu.build_main_menu(
                 user_id=555, username="vali", full_name="Vali Karimov"
             )
-        button = markup.keyboard[5][0]
+        button = markup.keyboard[6][0]
         self.assertIsNotNone(button.web_app)
         self.assertIn("uid=555", button.web_app.url)
         self.assertIn("uname=vali", button.web_app.url)

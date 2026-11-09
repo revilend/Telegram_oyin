@@ -157,6 +157,7 @@ def build_main_menu(
             KeyboardButton(text=label("promo")),
             KeyboardButton(text=label("invite")),
         ],
+        [KeyboardButton(text=label("change_language"))],
         [portal_button],
     ]
     if is_admin:

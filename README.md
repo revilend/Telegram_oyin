@@ -635,6 +635,8 @@ Admin huquqi:
 
 ## 🌐 Ko‘p tillilik (i18n)
 
+> **Mini App almashtirgichi va bot tugmasi:** «Profilim» sahifasining yuqori o‘ng burchagida 🇺🇿 UZ · 🇷🇺 RU · 🇬🇧 EN tugmalari bor — bosilganda sahifa qayta yuklanmasdan tarjima bo‘ladi, tanlov `localStorage` (`lang`) va `users.language_code` ga yoziladi. Botning pastki klaviaturasida ham «🌐 Tilni özgartiriş / Сменить язык / Change language» qatori bor, u uch tilli inline klaviaturani ochadi.
+
 Bot barcha xabarlarni uch tilda beradi: 🇺🇿 `uz` (yangi lotin: ö, ğ, ş, ç), 🇷🇺 `ru`, 🇬🇧 `en`.
 
 | Element | Joyi |
