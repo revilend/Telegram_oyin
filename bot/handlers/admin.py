@@ -69,6 +69,7 @@ router = Router(name="admin")
 CARD_CALLBACK = "admin_card"
 PENDING_CALLBACK = "admin_pending"
 PLAYERS_CALLBACK = "admin_players"
+PURCHASES_CALLBACK = "admin_orders"
 PLAYERS_PAGE_PREFIX = "admin_players_page_"
 PLAYERS_SEARCH_CALLBACK = "admin_players_find"
 PLAYER_ADD_PREFIX = "admin_player_add_"
@@ -186,6 +187,12 @@ def panel_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="👥 Öyinçilar",
                     callback_data=PLAYERS_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🧾 Xaridlar tarixi",
+                    callback_data=PURCHASES_CALLBACK,
                 )
             ],
             [
@@ -608,6 +615,67 @@ def player_profile_keyboard(
     )
 
 
+def purchases_keyboard() -> InlineKeyboardMarkup:
+    """Xaridlar tarixini yangilash va panelga qaytish tugmalari."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🔄 Yangila", callback_data=PURCHASES_CALLBACK
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Admin panel", callback_data=BACK_CALLBACK
+                )
+            ],
+        ]
+    )
+
+
+def _purchase_date(value: object) -> str:
+    """Supabase vaqtini admin panel uchun qisqa ko'rinishga keltiradi."""
+    text = str(value or "").strip()
+    if not text:
+        return "—"
+    return text.replace("T", " ")[:16]
+
+
+def purchases_text(limit: int = 20) -> str:
+    """Oxirgi xaridlarni sana, öyinçi, buyum va narx bilan qaytaradi."""
+    from core.shop import CATALOG_BY_SLUG, get_shop_store
+
+    rows = get_shop_store().recent_transactions(limit)
+    lines = ["🧾 <b>Oxirgi xaridlar</b>", ""]
+    if not rows:
+        lines.append("<i>Hozirça xaridlar mavjud emas.</i>")
+    else:
+        for index, row in enumerate(rows, 1):
+            slug = str(row.get("item_slug") or row.get("item_id") or "")
+            item = CATALOG_BY_SLUG.get(slug)
+            title = (
+                item.title
+                if item is not None
+                else str(row.get("item_title") or slug or "Noma’lum")
+            )
+            emoji = item.emoji if item is not None else "🛍"
+            quantity = int(row.get("quantity") or 1)
+            price = int(row.get("total_price") or row.get("price_coins") or 0)
+            user_id = int(row.get("user_id") or 0)
+            lines.append(
+                f"{index}. <b>{_purchase_date(row.get('created_at'))}</b> · "
+                f"ID <code>{user_id}</code>"
+            )
+            lines.append(
+                f"   {emoji} {escape(str(title))} ×{quantity} — "
+                f"<b>-{format_price(price)}</b> 🪙"
+            )
+    lines.extend(
+        ["", f"Jami: <b>{len(rows)}</b> ta oxirgi xarid"]
+    )
+    return "\n".join(lines)
+
+
 async def _edit_admin_message(
     callback: CallbackQuery, text: str, keyboard: InlineKeyboardMarkup
 ) -> None:
@@ -622,6 +690,26 @@ async def _edit_admin_message(
     await callback.bot.send_message(
         callback.from_user.id, text, reply_markup=keyboard
     )
+
+
+@router.callback_query(F.data == PURCHASES_CALLBACK)
+async def show_purchases(callback: CallbackQuery) -> None:
+    """Admin panelda oxirgi do'kon xaridlarini ko'rsatadi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await callback.answer()
+    try:
+        text = purchases_text()
+    except Exception:
+        logger.exception("Xaridlar tarixini yuklab bölmadi")
+        await callback.bot.send_message(
+            callback.from_user.id,
+            "⚠️ Xaridlar tarixini yuklab bölmadi.",
+            reply_markup=purchases_keyboard(),
+        )
+        return
+    await _edit_admin_message(callback, text, purchases_keyboard())
 
 
 @router.callback_query(F.data == PLAYERS_CALLBACK)

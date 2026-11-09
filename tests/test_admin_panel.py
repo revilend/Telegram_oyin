@@ -120,6 +120,7 @@ class AdminPanelTest(unittest.TestCase):
                 ["💳 Karta raqamini sozlaş"],
                 ["📥 Kutilayotgan tölovlar (Çeklar)"],
                 ["👥 Öyinçilar"],
+                ["🧾 Xaridlar tarixi"],
                 ["➕ Foydalanuvçiga tanga beriş"],
                 ["🎟 Promo kod yaratiş"],
                 ["🏆 Turnir sozlamalari"],
@@ -137,6 +138,7 @@ class AdminPanelTest(unittest.TestCase):
                 "admin_card",
                 "admin_pending",
                 "admin_players",
+                "admin_orders",
                 "admin_give",
                 "admin_promo",
                 "admin_tournament",
@@ -231,6 +233,40 @@ class AdminPanelTest(unittest.TestCase):
         self.assertIn("16-19 xonali", message.answers[-1])
         self.assertIsNotNone(state.state)  # holat saqlanib qoladi
         self.assertEqual(self.settings.payment_card(), ("", ""))
+
+    def test_purchases_panel_lists_date_item_and_price(self) -> None:
+        from core.shop import ShopStore, set_shop_store
+
+        economy = EconomyStore(url="", key="", client=None)
+        store = ShopStore(economy=economy)
+        set_shop_store(store)
+        self.addCleanup(set_shop_store, None)
+        economy.add_coins(777001, 1000)
+        store.buy(777001, "frame_fire")
+
+        recent = store.recent_transactions()
+        self.assertTrue(recent)
+        purchase_date = str(recent[0]["created_at"]).replace("T", " ")[:16]
+
+        text = admin.purchases_text()
+        self.assertIn("Oxirgi xaridlar", text)
+        self.assertIn(purchase_date, text)
+        self.assertIn("777001", text)
+        self.assertIn("Olovli Ajdaho", text)
+        self.assertIn("-260", text)
+        self.assertIn("ta oxirgi xarid", text)
+
+        callback = FakeCallback(data=admin.PURCHASES_CALLBACK)
+        asyncio.run(admin.show_purchases(callback))
+        self.assertEqual(len(callback.bot.messages), 1)
+        self.assertIn("Oxirgi xaridlar", callback.bot.messages[-1][1])
+        callbacks = [
+            button.callback_data
+            for row in admin.purchases_keyboard().inline_keyboard
+            for button in row
+        ]
+        self.assertIn(admin.PURCHASES_CALLBACK, callbacks)
+        self.assertIn(admin.BACK_CALLBACK, callbacks)
 
     def test_pending_payments_are_listed_with_review_buttons(self) -> None:
         store = EconomyStore(url="", key="", client=None)

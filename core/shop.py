@@ -1170,6 +1170,45 @@ class ShopStore:
         rows, _ = self.transactions_page(user_id, limit=limit)
         return rows
 
+    def recent_transactions(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Admin panel uchun barcha foydalanuvchilarning oxirgi xaridlari."""
+        cap = max(1, min(int(limit), 100))
+        rows: list[dict[str, Any]] = []
+        if self.enabled:
+            for table in (TRANSACTIONS_TABLE, LEGACY_TRANSACTIONS_TABLE):
+                try:
+                    rows.extend(
+                        self.client.table(table)
+                        .select("*")
+                        .order("created_at", desc=True)
+                        .limit(cap)
+                        .execute()
+                        .data
+                        or []
+                    )
+                except Exception:
+                    logger.exception(
+                        "Admin uchun xarid tarixini %s jadvalidan öqib bölmadi",
+                        table,
+                    )
+        with self._lock:
+            rows.extend(dict(row) for row in self._transactions)
+        unique: dict[tuple[int, str, str, int], dict[str, Any]] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            clean = _normalize_transaction(row)
+            key = (
+                int(clean.get("user_id") or 0),
+                str(clean.get("item_slug") or ""),
+                str(clean.get("created_at") or ""),
+                int(clean.get("total_price") or 0),
+            )
+            unique.setdefault(key, clean)
+        result = list(unique.values())
+        result.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
+        return result[:cap]
+
 
 _store: ShopStore | None = None
 _store_lock = threading.Lock()

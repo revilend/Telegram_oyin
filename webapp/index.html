@@ -223,6 +223,18 @@
       font-size: 12px;
       color: var(--muted);
 }
+    .section-title .section-badge {
+      display: inline-flex;
+      align-items: center;
+      min-width: max-content;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(34, 211, 238, 0.12);
+      border: 1px solid rgba(34, 211, 238, 0.22);
+      color: #a5f3fc;
+      font-size: 11px;
+      font-weight: 700;
+}
 
     .game-card {
       position: relative;
@@ -7875,7 +7887,7 @@ function profileCardHtml() {
 
       function gamesTabHtml() {
         return tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
-          '<div class="section-title"><h2>5 ta öyin mavjud</h2><span>Faol</span></div>' +
+          '<div class="section-title"><h2>5 ta öyin mavjud</h2><span class="section-badge">Faol</span></div>' +
           GAMES.map(gameCardHtml).join("") +
           '<section class="glass-card join-card" id="join-panel">' +
             '<div class="block-head" style="margin-top:0"><h2>Xona kodi bilan kiriş</h2><span>' + lucideIcon("key-round") + '</span></div>' +
@@ -8025,7 +8037,7 @@ function profileCardHtml() {
             '</header>' +
             '<main class="fade hub-main pb-24">' +
               tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
-              '<div class="section-title"><h2>5 ta öyin mavjud</h2><span>Faol</span></div>' +
+              '<div class="section-title"><h2>5 ta öyin mavjud</h2><span class="section-badge">Faol</span></div>' +
               cards +
             '</main>' + bottomNavHtml();
           refreshLucide();
