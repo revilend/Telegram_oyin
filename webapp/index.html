@@ -6,7 +6,8 @@
   <meta name="theme-color" content="#0b0713" />
   <title>Revilend Games</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="js/i18n.js"></script>
+  <script src="js/i18n.js?v=5"></script>
+  <script src="js/i18n-phrases.js?v=5"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
     (function () {
@@ -3797,6 +3798,8 @@
         try { if (window.I18N) return window.I18N.t(key); } catch (e) {}
         return fallback;
       }
+      // Birinchi ochilishda til: localStorage → Telegram → uz.
+      try { if (window.I18N) window.I18N.bootstrap(); } catch (e) {}
       if (window.I18N) {
         window.__onLanguageChanged__ = function (lang) {
           try {
@@ -4657,7 +4660,7 @@ function profileCardHtml() {
             '<button class="coin-btn" data-act="shop">' + icon("plus") + ' Dökon</button>' +
           '</div>' +
           '<div class="profile-stats">' +
-            '<div class="pstat"><span>' + icon("star") + ' Daraja</span><b>Level ' + esc(profile.level) + '</b></div>' +
+            '<div class="pstat"><span>' + icon("star") + ' Daraja</span><b>' + esc(profile.level) + '-daraja</b></div>' +
             '<div class="pstat"><span>' + icon("gamepad") + ' Öyinlar</span><b>' + esc(profile.games_played || 0) + '</b></div>' +
           '</div>' +
           '<div class="win-grid">' +
@@ -6621,6 +6624,8 @@ function leaderboardHtml() {
         profile.guest = false;
         profile.authenticated = true;
         profile.fromCache = false;
+        // Telegram'dan aniqlangan tilni profil ma'lum bo'lgach serverga yozamiz.
+        try { window.__USER_ID__ = profile.id; if (window.I18N) window.I18N.syncPending(profile.id); } catch (e) {}
         storeProfileCache(account);
         // Eski Telegram akkaunt yoki eski ?uid= havolasi yangi login'ni
         // bosib ketmasligi uchun ularni tozalaymiz.
@@ -7808,7 +7813,7 @@ function leaderboardHtml() {
         var first = list[0];
         var line = first
           ? esc(first.title) + " · sovrin " + esc(money(first.prize_pool)) + " 🪙 · " + esc(first.starts_at_local)
-          : "Haftalik chempionat: sovrin fondi, bracket va qatnaşiş — barchasi şu yerda.";
+          : tr("tournament_sub", "Haftalik çempionat: sovrin fondi, bracket va qatnaşiş — barçasi şu yerda.");
         return '<button class="tour-banner" data-act="tournaments">' +
           '<b>🏆 Turnir poygasi</b>' +
           '<small>' + line + '</small>' +
@@ -8131,7 +8136,7 @@ function leaderboardHtml() {
 }
 
       function ratingTabHtml() {
-        return tabHeadHtml("LIGA", tr("nav_rating", "Reyting"), tr("weekly_league", "Haftalik liga") + ", top öyinçilar va turnir afishasi.") +
+        return tabHeadHtml("LIGA", tr("nav_rating", "Reyting"), tr("weekly_league_sub", "Haftalik liga, top öyinçilar va turnir afişasi.")) +
           tournamentBannerHtml() + leaderboardHtml();
 }
 
@@ -10290,6 +10295,8 @@ function leaderboardHtml() {
 
       function localizeTextNode(node) {
         if (!node || node.nodeType !== Node.TEXT_NODE) return;
+        // Yangi alifbo faqat o'zbek tili uchun: ru/en matnlarini buzmaslik kerak.
+        try { if (window.I18N && window.I18N.getLanguage() !== "uz") return; } catch (err) {}
         var current = node.textContent;
         if (!current) return;
         var next = toNewAlphabet(current);

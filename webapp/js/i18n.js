@@ -40,6 +40,8 @@
       missions: "Missiyalar",
       purchase_history: "Xaridlar tarixi",
       weekly_league: "Haftalik liga",
+      tournament_sub: "Haftalik çempionat: sovrin fondi, bracket va qatnaşiş — barçasi şu yerda.",
+      weekly_league_sub: "Haftalik liga, top öyinçilar va turnir afişasi.",
       all_periods: "Barcha davrlar",
       tournament_race: "Turnir poygasi",
       lang_label: "Til",
@@ -93,6 +95,8 @@
       missions: "Задания",
       purchase_history: "История покупок",
       weekly_league: "Недельная лига",
+      tournament_sub: "Недельный чемпионат: призовой фонд, сетка и участие — всё здесь.",
+      weekly_league_sub: "Недельная лига, топ игроков и афиша турниров.",
       all_periods: "Все периоды",
       tournament_race: "Гонка турнира",
       lang_label: "Язык",
@@ -146,6 +150,8 @@
       missions: "Missions",
       purchase_history: "Purchase History",
       weekly_league: "Weekly League",
+      tournament_sub: "Weekly championship: prize pool, bracket and entry — all here.",
+      weekly_league_sub: "Weekly league, top players and the tournament poster.",
       all_periods: "All Time",
       tournament_race: "Tournament Race",
       lang_label: "Language",
@@ -170,6 +176,195 @@
       game_bomb_desc: "Draw a card, defuse the bomb and dodge your rivals. Surprise twists guaranteed."
     }
   };
+
+  /* --- Inline matnlar uchun jumla jadvali ------------------------------
+   * index.html ichida tr() ga o'girilmagan inline matnlar juda ko'p.
+   * Ularni renderdan keyin jadval bo'yicha almashtiramiz: manba (uz) matn
+   * WeakMap'da saqlanadi, shuning uchun tilni qayta almashtirish ham,
+   * uz'ga qaytish ham to'g'ri ishlaydi.
+   */
+  var phraseIndex = {};
+  var patternRules = [];
+  var textOrigins = typeof WeakMap === "function" ? new WeakMap() : null;
+  var attrOrigins = typeof WeakMap === "function" ? new WeakMap() : null;
+  var LOCALIZED_ATTRS = ["placeholder", "title", "aria-label"];
+  var _observer = null;
+  var trackedTextNodes = [];
+
+  /* Til almashganda tarjima qilingan tugunlarni asl (uz) holatiga qaytaramiz. */
+  function restoreOriginals() {
+    trackedTextNodes.forEach(function (node) {
+      if (!textOrigins || !textOrigins.has(node)) return;
+      var base = textOrigins.get(node);
+      textOrigins.delete(node);
+      if (node.nodeValue !== base) node.nodeValue = base;
+    });
+    trackedTextNodes = [];
+  }
+  var _pendingSync = false;
+
+  /* Server o'zbek matnini eski (ASCII) ko'rinishda yuboradi (o'yin, g'alaba),
+   * Mini App esa yangi alifboda ko'rsatadi (öyin, ğalaba). Ikkala shaklni
+   * ham jadvalga qo'shamiz, shunda tarjima har qanday holatda topiladi.
+   */
+  function asciiVariant(text) {
+    return String(text)
+      .replace(/Ö/g, "O'").replace(/ö/g, "o'")
+      .replace(/Ğ/g, "G'").replace(/ğ/g, "g'")
+      .replace(/Ş/g, "Sh").replace(/ş/g, "sh")
+      .replace(/Ç/g, "Ch").replace(/ç/g, "ch");
+  }
+
+  /* Manba matnlar ikki alifboda keladi: "do'kon" va "dökon". */
+  function newAlphabetVariant(text) {
+    return String(text)
+      .replace(/o[\u2018\u2019\u02BB']/g, "\u00f6")
+      .replace(/O[\u2018\u2019\u02BB']/g, "\u00d6")
+      .replace(/g[\u2018\u2019\u02BB']/g, "\u011f")
+      .replace(/G[\u2018\u2019\u02BB']/g, "\u011e")
+      .replace(/sh/g, "\u015f")
+      .replace(/Sh/g, "\u015e")
+      .replace(/SH/g, "\u015e")
+      .replace(/ch/g, "\u00e7")
+      .replace(/Ch/g, "\u00c7")
+      .replace(/CH/g, "\u00c7");
+  }
+
+  function registerPhrases(list) {
+    (list || []).forEach(function (row) {
+      if (!row || row.length < 2) return;
+      var uz = String(row[0]).trim();
+      if (!uz) return;
+      var entry = { ru: String(row[1] || uz), en: String(row[2] || uz) };
+      phraseIndex[uz] = entry;
+      var ascii = asciiVariant(uz);
+      if (ascii !== uz && !phraseIndex[ascii]) phraseIndex[ascii] = entry;
+      var modern = newAlphabetVariant(uz);
+      if (modern !== uz && !phraseIndex[modern]) phraseIndex[modern] = entry;
+      var modernAscii = newAlphabetVariant(ascii);
+      if (modernAscii !== uz && modernAscii !== ascii && !phraseIndex[modernAscii]) {
+        phraseIndex[modernAscii] = entry;
+      }
+    });
+  }
+
+  /* Dinamik matnlar: "500 tanga", "3/8 oçilgan" kabi qoliplar. */
+  function registerPatterns(list) {
+    (list || []).forEach(function (row) {
+      if (!row || row.length < 3) return;
+      try {
+        patternRules.push({ re: new RegExp(row[0]), ru: String(row[1]), en: String(row[2]) });
+      } catch (e) {}
+    });
+  }
+
+  function phraseFor(text) {
+    if (!text) return null;
+    var direct = phraseIndex[text];
+    if (direct) return direct;
+    for (var i = 0; i < patternRules.length; i++) {
+      var rule = patternRules[i];
+      if (!rule.re.test(text)) continue;
+      return {
+        ru: text.replace(rule.re, rule.ru),
+        en: text.replace(rule.re, rule.en)
+      };
+    }
+    return null;
+  }
+
+  function localizeTextNode(node) {
+    if (!node || node.nodeType !== 3) return;
+    // O'zbek tilida tarjima qilinadigan matn yo'q: yangi alifbo pass'i o'zi ishlaydi.
+    if (getLanguage() === "uz") return;
+    var base = textOrigins && textOrigins.has(node) ? textOrigins.get(node) : node.nodeValue;
+    if (!base) return;
+    var core = base.trim();
+    var map = phraseFor(core);
+    if (!map) return;
+    if (textOrigins && !textOrigins.has(node)) {
+      textOrigins.set(node, base);
+      if (trackedTextNodes.length < 20000) trackedTextNodes.push(node);
+    }
+    var lang = getLanguage();
+    var translated = lang === "uz" ? core : (map[lang] || core);
+    var next = base.split(core).join(translated);
+    if (node.nodeValue !== next) node.nodeValue = next;
+  }
+
+  function localizeAttributes(el) {
+    if (!el || el.nodeType !== 1 || !attrOrigins) return;
+    var store = attrOrigins.get(el) || {};
+    var lang = getLanguage();
+    LOCALIZED_ATTRS.forEach(function (name) {
+      if (!el.hasAttribute || !el.hasAttribute(name)) return;
+      if (store[name] === undefined) store[name] = el.getAttribute(name) || "";
+      var core = String(store[name]).trim();
+      var map = phraseFor(core);
+      if (!map) return;
+      var next = lang === "uz" ? store[name] : (map[lang] || store[name]);
+      // Bir xil qiymatni qayta yozish MutationObserver'ni cheksiz aylantiradi.
+      if (el.getAttribute(name) === next) return;
+      el.setAttribute(name, next);
+    });
+    attrOrigins.set(el, store);
+  }
+
+  function localizeNode(node) {
+    if (!node) return;
+    if (node.nodeType === 3) { localizeTextNode(node); return; }
+    if (node.nodeType !== 1) return;
+    localizeAttributes(node);
+    localizeTree(node);
+  }
+
+  function localizeTree(root) {
+    var el = root || (typeof document !== "undefined" ? document.body : null);
+    if (!el || typeof el.querySelectorAll !== "function" || typeof document === "undefined") return;
+    var scope = el.nodeType === 1 ? el : document.body;
+    if (!scope) return;
+    var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+      acceptNode: function (node) {
+        if (node.nodeType === 1) {
+          var tag = node.tagName;
+          if (tag === "SCRIPT" || tag === "STYLE") return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    }, false);
+    var node = walker.nextNode();
+    while (node) {
+      if (node.nodeType === 3) localizeTextNode(node);
+      else localizeAttributes(node);
+      node = walker.nextNode();
+    }
+  }
+
+  function startObserver() {
+    if (_observer || typeof MutationObserver !== "function" || typeof document === "undefined") return;
+    if (!document.body) return;
+    _observer = new MutationObserver(function (records) {
+      for (var i = 0; i < records.length; i++) {
+        var record = records[i];
+        if (record.type === "characterData") {
+          if (textOrigins && textOrigins.has(record.target)) localizeTextNode(record.target);
+        } else if (record.type === "attributes") {
+          localizeAttributes(record.target);
+        } else {
+          for (var j = 0; j < record.addedNodes.length; j++) localizeNode(record.addedNodes[j]);
+        }
+      }
+    });
+    _observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: LOCALIZED_ATTRS
+    });
+    localizeTree(document.body);
+  }
 
   function normalizeLanguage(code) {
     if (!code) return DEFAULT;
@@ -199,9 +394,44 @@
     return null;
   }
 
+  function telegramLanguageStrict() {
+    try {
+      var wa = global.Telegram && global.Telegram.WebApp;
+      var raw = wa && wa.initDataUnsafe && wa.initDataUnsafe.user && wa.initDataUnsafe.user.language_code;
+      if (!raw) return null;
+      var c = String(raw).toLowerCase().replace("_", "-").split("-")[0];
+      return SUPPORTED.indexOf(c) >= 0 ? c : null;
+    } catch (e) {}
+    return null;
+  }
+
   function getLanguage() {
     if (_current) return _current;
     return initialFromStorage() || telegramLanguage() || DEFAULT;
+  }
+
+  /* Birinchi ochilish: saqlangan tanlov yo'q bo'lsa Telegram tilini olamiz. */
+  function bootstrap() {
+    if (_current) return _current;
+    var stored = initialFromStorage();
+    if (stored) { _current = stored; return _current; }
+    var tg = telegramLanguageStrict();
+    if (tg) { _current = tg; _pendingSync = true; }
+    if (typeof document !== "undefined" && document.documentElement) {
+      document.documentElement.setAttribute("lang", getLanguage());
+    }
+    return getLanguage();
+  }
+
+  /* Telegram'dan aniqlangan tilni profil ma'lum bo'lgach serverga yozamiz. */
+  function syncPending(userId) {
+    if (!_pendingSync) return;
+    var id = userId || global.__USER_ID__;
+    if (!id) return;
+    global.__USER_ID__ = id;
+    _pendingSync = false;
+    persist(getLanguage());
+    saveToServer(getLanguage());
   }
 
   function t(key, params) {
@@ -269,7 +499,9 @@
     if (!opts || opts.save !== false) {
       try { saveToServer(lang); } catch (e) {}
     }
+    restoreOriginals();
     applyI18n();
+    localizeTree(document.body);
     renderSwitcher();
     if (typeof global.__onLanguageChanged__ === "function") {
       global.__onLanguageChanged__(lang);
@@ -279,8 +511,9 @@
   /* server'dan kelgan saqlangan tilni birinchi render'dan oldin qo'llash */
   function initFromServer(code) {
     var stored = initialFromStorage();
-    if (stored) { _current = stored; return; }
-    if (code) { _current = normalizeLanguage(code); persist(_current); }
+    if (stored) { _current = normalizeLanguage(stored); _pendingSync = false; return; }
+    if (code) { _current = normalizeLanguage(code); persist(_current); _pendingSync = false; return; }
+    bootstrap();
   }
 
   global.I18N = {
@@ -291,8 +524,25 @@
     t: t,
     applyI18n: applyI18n,
     initFromServer: initFromServer,
+    bootstrap: bootstrap,
+    syncPending: syncPending,
+    registerPhrases: registerPhrases,
+    registerPatterns: registerPatterns,
+    localizeTree: localizeTree,
+    restoreOriginals: restoreOriginals,
+    startObserver: startObserver,
+    hasPhrase: function (text) { return !!phraseFor(String(text || "").trim()); },
+    lookup: function (text) { return phraseFor(String(text || "").trim()); },
     switcherHtml: switcherHtml,
     renderSwitcher: renderSwitcher,
     SUPPORTED: SUPPORTED
   };
+
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () { startObserver(); });
+    } else {
+      startObserver();
+    }
+  }
 })(typeof window !== "undefined" ? window : this);

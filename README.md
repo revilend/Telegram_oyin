@@ -635,6 +635,25 @@ Admin huquqi:
 
 ## 🌐 Ko‘p tillilik (i18n)
 
+### Mini App tarjimasi qanday ishlaydi
+
+| Qatlam | Fayl | Vazifa |
+| --- | --- | --- |
+| Kalitli lug‘at (`tr('key', 'matn')`) | `webapp/js/i18n.js` | Sarlavhalar, tugmalar, bo‘limlar |
+| Jumla jadvali (inline matnlar) | `webapp/js/i18n-phrases.js` | Renderdan keyin matn tugunlari lug‘at bo‘yicha almashtiriladi (`I18N.localizeTree`) |
+| Sonli qoliplar | `webapp/js/i18n-phrases.js` → `registerPatterns` | `500 tanga`, `3/8 oçilgan`, `🎟 Qatnaşiş (50 🪙)` kabi dinamik matnlar |
+
+- `I18N.startObserver()` `MutationObserver` orqali yangi chizilgan ekranlarni ham avtomatik tarjima qiladi, shuning uchun o‘yin xonalari va modallar ham qamrab olinadi.
+- Yangi alifbo (`o‘ → ö`, `sh → ş`, `ch → ç`) faqat **o‘zbek** tilida qo‘llanadi; rus/ingliz matnlari buzilmaydi.
+- Serverdan kelgan o‘zbekcha matnlar (missiya, nishon, do‘kon buyumi) ikkala alifbo shaklida ham jadvalda qidiriladi (`I18N.registerPhrases` avtomatik `o‘/g‘/sh/ch` variantini ham qo‘shadi).
+
+### Til avtomatik aniqlash
+
+1. `localStorage.lang` (foydalanuvchi tanlagan til) — eng ustuvor.
+2. `users.language_code` (Supabase’dagi saqlangan til).
+3. `Telegram.WebApp.initDataUnsafe.user.language_code` — birinchi ochilishda avtomatik olinadi va profil yuklangach `POST /api/profile/language` bilan serverga yoziladi.
+4. Hech biri bo‘lmasa — `uz`.
+
 > **Mini App almashtirgichi va bot tugmasi:** «Profilim» sahifasining yuqori o‘ng burchagida 🇺🇿 UZ · 🇷🇺 RU · 🇬🇧 EN tugmalari bor — bosilganda sahifa qayta yuklanmasdan tarjima bo‘ladi, tanlov `localStorage` (`lang`) va `users.language_code` ga yoziladi. Botning pastki klaviaturasida ham «🌐 Tilni özgartiriş / Сменить язык / Change language» qatori bor, u uch tilli inline klaviaturani ochadi.
 
 Bot barcha xabarlarni uch tilda beradi: 🇺🇿 `uz` (yangi lotin: ö, ğ, ş, ç), 🇷🇺 `ru`, 🇬🇧 `en`.
