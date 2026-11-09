@@ -399,9 +399,12 @@ class CosmeticsUiWiringTest(unittest.TestCase):
         self.assertIn(".avatar-frame.frame-gold", html)
         self.assertIn("Taqilgan ✅", html)
         self.assertIn("title_slug", html)
-        self.assertIn("text-white font-bold text-base", html)
-        self.assertIn("text-purple-200 text-xs", html)
+        self.assertIn("text-white font-extrabold text-sm sm:text-base", html)
+        self.assertIn("text-purple-200 text-xs font-medium", html)
         self.assertIn("5 ta öyin mavjud", html)
+        self.assertIn("Faol (5)", html)
+        self.assertIn("hub-main pb-28", html)
+        self.assertIn("card-glass overflow-hidden w-full p-4 join-card", html)
         self.assertIn("Sinxronlash keyinroq bajariladi", html)
 
 

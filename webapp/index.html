@@ -229,12 +229,40 @@
       min-width: max-content;
       padding: 2px 7px;
       border-radius: 999px;
-      background: rgba(34, 211, 238, 0.12);
-      border: 1px solid rgba(34, 211, 238, 0.22);
-      color: #a5f3fc;
-      font-size: 11px;
-      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
 }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .px-1 { padding-left: 4px; padding-right: 4px; }
+    [class~="px-2.5"] { padding-left: 10px; padding-right: 10px; }
+    .py-1 { padding-top: 4px; padding-bottom: 4px; }
+    .text-xs { font-size: 12px !important; line-height: 16px !important; }
+    .text-sm { font-size: 14px !important; line-height: 20px !important; }
+    .text-base { font-size: 16px !important; line-height: 24px !important; }
+    .font-semibold { font-weight: 600; }
+    .font-medium { font-weight: 500; }
+    .font-extrabold { font-weight: 800; }
+    .rounded-full { border-radius: 999px; }
+    [class~="bg-emerald-500/15"] { background-color: rgba(16, 185, 129, 0.15); }
+    .text-emerald-300 { color: #6ee7b7 !important; }
+    .border { border-width: 1px; border-style: solid; }
+    [class~="border-emerald-500/30"] { border-color: rgba(16, 185, 129, 0.3); }
+    .whitespace-nowrap { white-space: nowrap; }
+    .overflow-hidden { overflow: hidden; }
+    .w-full { width: 100%; }
+    .p-4 { padding: 16px !important; }
+    .pb-28 { padding-bottom: 110px; }
+    .text-white { color: #ffffff !important; }
+    .text-purple-200 { color: #e9d5ff !important; }
+    .text-slate-100 { color: #f1f5f9 !important; }
+    .text-slate-300 { color: #cbd5e1 !important; }
+    @media (min-width: 640px) { [class~="sm:text-base"] { font-size: 16px !important; line-height: 24px !important; } }
 
     .game-card {
       position: relative;
@@ -2521,6 +2549,7 @@
       padding: 8px 16px calc(112px + env(safe-area-inset-bottom));
 }
     .pb-24 { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+    .pb-28 { padding-bottom: 110px; }
     .brand {
       background: rgba(13, 7, 20, 0.55);
       
@@ -2583,10 +2612,13 @@
 }
     .wheel-orb .lucide-icon { width: 23px; height: 23px; }
     .wheel-cta b, .wheel-cta .text-white {
-      display: block; color: #ffffff !important; font-size: 16px; font-weight: 800;
+      display: block; color: #ffffff !important; font-size: 14px !important; font-weight: 800 !important; line-height: 20px !important;
 }
     .wheel-cta small, .wheel-cta .text-purple-200 {
-      display: block; color: #e9d5ff !important; font-size: 12px; margin-top: 3px;
+      display: block; color: #e9d5ff !important; font-size: 12px !important; font-weight: 500 !important; margin-top: 3px;
+}
+    @media (min-width: 640px) {
+      .wheel-cta b, .wheel-cta .text-white { font-size: 16px !important; line-height: 24px !important; }
 }
     .wheel-cta .arrow { margin-left: auto; color: #e9d5ff; }
     .shop-block { padding: 16px; }
@@ -4737,9 +4769,9 @@ function profileCardHtml() {
                   ? '<img src="' + esc(shopItemImage(item.slug)) + '" alt="' +
                     esc(item.title) + '" loading="lazy" onerror="this.remove()" />'
                   : '') + '</span>' +
-              '<div class="item-main"><b>' + esc(item.title) + '</b>' +
+              '<div class="item-main"><b class="text-slate-300 text-xs">' + esc(item.title) + '</b>' +
                 (count > 0 ? '<span class="item-owned">' + (count > 1 ? "×" + count : "✓") + '</span>' : '') +
-                '<small class="item-desc">' + esc(item.description) + '</small>' +
+                '<small class="item-desc text-slate-300 text-xs">' + esc(item.description) + '</small>' +
               '</div>' +
               '<div class="item-side">' + action + '</div>' +
             '</div>' +
@@ -5458,13 +5490,13 @@ function profileCardHtml() {
               action = '<button class="btn small" data-act="claim-mission" data-mission="' +
                 esc(mission.key) + '">+' + esc(money(mission.reward)) + ' ' + icon("coin") + '</button>';
             } else {
-              action = '<span class="m-progress">' + esc(mission.progress) + '/' + esc(mission.target) + '</span>';
+              action = '<span class="m-progress text-slate-100">' + esc(mission.progress) + '/' + esc(mission.target) + '</span>';
 }
             return '<div class="mission' + (mission.claimable ? " ready" : "") + '">' +
               '<div class="m-emoji">' + icon(MISSION_ICONS[mission.key] || "target") + '</div>' +
               '<div class="m-body"><div class="m-title">' + esc(mission.title) +
                 '<span class="m-reward">+' + esc(money(mission.reward)) + ' ' + icon("coin") + '</span></div>' +
-                '<div class="m-desc">' + esc(mission.description) + '</div>' +
+                '<div class="m-desc text-slate-100">' + esc(mission.description) + '</div>' +
                 '<div class="m-bar"><i style="width:' + Math.max(4, Number(mission.percent) || 0) + '%"></i></div></div>' +
               action +
             '</div>';
@@ -5488,14 +5520,14 @@ function profileCardHtml() {
             action = '<button class="btn small" data-act="claim-quest" data-quest="' +
               esc(item.key) + '">+' + esc(money(item.reward)) + ' ' + icon("coin") + '</button>';
           } else {
-            action = '<span class="q-progress">' + esc(item.progress) + '/' + esc(item.target) + '</span>';
+            action = '<span class="q-progress text-slate-100">' + esc(item.progress) + '/' + esc(item.target) + '</span>';
 }
           return '<div class="daily-quest' + (item.claimable ? " ready" : "") +
             (item.claimed ? " done" : "") + '">' +
             '<div class="q-emoji">' + esc(item.emoji) + '</div>' +
             '<div class="q-body"><div class="q-title">' + esc(item.title) +
               '<span class="q-reward">+' + esc(money(item.reward)) + ' ' + icon("coin") + '</span></div>' +
-              '<div class="q-desc">' + esc(item.description) + '</div>' +
+              '<div class="q-desc text-slate-100">' + esc(item.description) + '</div>' +
               '<div class="q-bar"><i style="width:' + Math.max(4, Number(item.percent) || 0) + '%"></i></div></div>' +
             action + '</div>';
         }).join("");
@@ -5699,7 +5731,7 @@ function profileCardHtml() {
             return '<div class="purchase-row">' +
               '<span class="purchase-ico"><span>' + esc(entry.emoji || "🛍") + '</span></span>' +
               '<span class="h-body"><b>' + esc(entry.title || entry.item_slug) + (qty > 1 ? " ×" + qty : "") + '</b>' +
-                '<span class="muted tiny">' + esc(purchaseDateTime(entry.created_at)) + ' · ' + esc(purchaseKindLabel(entry.kind)) + '</span></span>' +
+                '<span class="muted tiny text-slate-100">' + esc(purchaseDateTime(entry.created_at)) + ' · ' + esc(purchaseKindLabel(entry.kind)) + '</span></span>' +
               '<span class="purchase-cost">−' + esc(money(entry.total_price)) + ' 🪙</span></div>';
           }).join("");
           body = '<div class="purchase-list">' + list + '</div>' +
@@ -5718,7 +5750,7 @@ function profileCardHtml() {
           return '<div class="history-row ' + (won ? "win" : "lose") + '">' +
             '<span class="h-ico">' + icon(won ? "trophy" : "close") + '</span>' +
             '<span class="h-body"><b>' + esc(title) + '</b>' +
-            '<span class="muted tiny">' + esc(item.room_code || "") + ' · ' +
+            '<span class="muted tiny text-slate-100">' + esc(item.room_code || "") + ' · ' +
             esc(shortDate(item.created_at)) + ' · ' + esc(item.players_count || 0) +
             ' öyinçi</span></span>' +
             '<span class="h-res">' + (won ? "Yutdi" : "Yutqazdi") + '</span></div>';
@@ -7887,15 +7919,15 @@ function profileCardHtml() {
 
       function gamesTabHtml() {
         return tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
-          '<div class="section-title"><h2>5 ta öyin mavjud</h2><span class="section-badge">Faol</span></div>' +
+          '<div class="section-title flex items-center justify-between px-1"><h2>5 ta öyin mavjud</h2><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">Faol (5)</span></div>' +
           GAMES.map(gameCardHtml).join("") +
-          '<section class="glass-card join-card" id="join-panel">' +
+          '<section class="card-glass overflow-hidden w-full p-4 join-card" id="join-panel">' +
             '<div class="block-head" style="margin-top:0"><h2>Xona kodi bilan kiriş</h2><span>' + lucideIcon("key-round") + '</span></div>' +
             '<form id="join-form" class="join-form">' +
               '<input id="room-code" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="6" placeholder="BNK482 / MAF123 / SPY123 / BMB123" aria-label="Xona kodi" />' +
               '<button type="submit" class="btn primary">Kiriş</button>' +
             '</form>' +
-            '<p class="muted tiny" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya», «Josus», «Alias» yoki «Bomba» xabaridan oling.</p>' +
+            '<p class="muted tiny text-slate-300" style="margin-top:10px">Kodni guruhdagi «Bunker», «Mafiya», «Josus», «Alias» yoki «Bomba» xabaridan oling.</p>' +
           '</section>';
 }
 
@@ -7915,8 +7947,8 @@ function profileCardHtml() {
             '</section>' +
             '<button class="glass-card wheel-cta" data-act="wheel-open">' +
               '<span class="wheel-orb">' + lucideIcon("sparkles") + '</span>' +
-              '<span><b class="text-white font-bold text-base">Omad gʻildiragi</b>' +
-                '<small class="text-purple-200 text-xs">' + esc(spinLabel) + ' · kuniga bir bepul</small></span>' +
+              '<span><b class="text-white font-extrabold text-sm sm:text-base">Omad gʻildiragi</b>' +
+                '<small class="text-purple-200 text-xs font-medium">' + esc(spinLabel) + ' · kuniga bir bepul</small></span>' +
               '<span class="arrow">' + lucideIcon("chevron-right") + '</span>' +
             '</button>' +
             '<section class="glass-card shop-block">' +
@@ -8035,9 +8067,9 @@ function profileCardHtml() {
                 '<div class="brand-sub">STOL ÖYINLARI</div></div></div>' +
               '<span class="badge live">ONLINE</span>' +
             '</header>' +
-            '<main class="fade hub-main pb-24">' +
+            '<main class="fade hub-main pb-28">' +
               tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
-              '<div class="section-title"><h2>5 ta öyin mavjud</h2><span class="section-badge">Faol</span></div>' +
+              '<div class="section-title flex items-center justify-between px-1"><h2>5 ta öyin mavjud</h2><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">Faol (5)</span></div>' +
               cards +
             '</main>' + bottomNavHtml();
           refreshLucide();
@@ -8131,7 +8163,7 @@ function profileCardHtml() {
             '<div class="brand-right"><span class="glass-pill">' + lucideIcon("coins") + ' ' + money(profile.balance) + '</span>' +
               '<span class="badge live">ONLINE</span></div>' +
           '</header>' +
-          '<main class="fade hub-main pb-24">' + hubContentHtml(tab) + '</main>' +
+          '<main class="fade hub-main pb-28">' + hubContentHtml(tab) + '</main>' +
           bottomNavHtml() +
           '<div id="hub-overlays">' + wheelModalHtml() + tournamentsModalHtml() +
             spyEntryHtml() + aliasEntryHtml() + bombEntryHtml() + '</div>';
