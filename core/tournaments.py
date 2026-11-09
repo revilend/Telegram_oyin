@@ -311,6 +311,8 @@ class Tournament:
     max_players: int = MAX_PARTICIPANTS
     created_by: int = 0
     reminded_at: str = ""
+    room_link: str = ""
+    room_sent_at: str = ""
     bracket_data: list[dict[str, Any]] = field(default_factory=list)
 
     @property
@@ -352,6 +354,8 @@ class Tournament:
             "max_participants": self.max_players,
             "created_by": self.created_by,
             "reminded_at": self.reminded_at,
+            "room_link": self.room_link,
+            "room_sent_at": self.room_sent_at,
             "bracket_data": list(self.bracket_data),
         }
 
@@ -430,6 +434,8 @@ def _tournament_from_row(row: dict[str, Any]) -> Tournament:
         ),
         created_by=int(row.get("created_by") or 0),
         reminded_at=str(row.get("reminded_at") or ""),
+        room_link=str(_first(row.get("room_link"), row.get("room_url"), default="")),
+        room_sent_at=str(row.get("room_sent_at") or ""),
         bracket_data=_load_bracket(
             _first(row.get("bracket_data"), row.get("bracket"), default=[])
         ),
@@ -526,6 +532,9 @@ class TournamentStore:
             "entry_fee": tournament.entry_fee,
             "created_by": tournament.created_by,
         }
+        # Eski jadvalda ustun bölmasa ham yangi turnir yaratilaveradi.
+        if tournament.room_link:
+            row["room_link"] = tournament.room_link
 
     def _save_tournament(self, tournament: Tournament) -> None:
         row = self._tournament_row(tournament)
@@ -1011,6 +1020,31 @@ class TournamentStore:
         self._update_tournament(tournament.id, {"game": game})
         return self.get(tournament.id) or tournament
 
+    def set_room_link(self, tournament_id: str, value: Any) -> Tournament:
+        """Admin panelidan turnir xonasi havolasini yangilaydi."""
+        tournament = self.get(tournament_id)
+        if tournament is None:
+            raise TournamentNotFoundError("Turnir topilmadi.")
+        link = str(value or "").strip()
+        if link in {"", "-", "—", "yoq", "yo'q"}:
+            link = ""
+        elif link.startswith("t.me/"):
+            link = f"https://{link}"
+        if link:
+            if any(char.isspace() for char in link):
+                raise TournamentError("Xona havolasida bo'sh joy bo'lmaydi.")
+            if not link.startswith(("https://", "http://")):
+                raise TournamentError(
+                    "Xona havolasi https:// yoki http:// bilan boshlanishi kerak."
+                )
+            if len(link) > 500:
+                raise TournamentError("Xona havolasi juda uzun.")
+        self._update_tournament(
+            tournament.id,
+            {"room_link": link, "room_sent_at": None},
+        )
+        return self.get(tournament.id) or tournament
+
     def start(self, tournament_id: str) -> Tournament:
         """Ro'yxatdan o'tganlardan bracket yasab, turnirni ACTIVE qiladi."""
         tournament = self.get(tournament_id)
@@ -1060,6 +1094,37 @@ class TournamentStore:
         self._update_tournament(
             tournament.id,
             {"reminded_at": moment},
+        )
+
+    def due_room_links(self, now: datetime | None = None) -> list[Tournament]:
+        """Xona havolasi yuborilishi kerak bo'lgan boshlangan turnirlar.
+
+        Faqat yaqinda boshlangan (24 soat ichida) va havolasi hali
+        yuborilmagan faol turnirlar qaytariladi. Bu bot qayta ishga
+        tushganda eski turnirlar uchun havola yuborilishining oldini oladi.
+        """
+        moment = now or _now()
+        result = []
+        for tournament in self.all():
+            if tournament.status != ACTIVE:
+                continue
+            if not tournament.room_link or tournament.room_sent_at:
+                continue
+            if tournament.starts_moment > moment + timedelta(minutes=1):
+                continue
+            if moment - tournament.starts_moment > timedelta(hours=24):
+                continue
+            result.append(tournament)
+        return result
+
+    def mark_room_sent(self, tournament_id: str) -> None:
+        """Xona havolasi qatnashchilarga yuborilganini belgilaydi."""
+        tournament = self.get(tournament_id)
+        if tournament is None:
+            return
+        self._update_tournament(
+            tournament.id,
+            {"room_sent_at": _now().isoformat()},
         )
 
 

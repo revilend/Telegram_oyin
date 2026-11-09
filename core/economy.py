@@ -520,6 +520,61 @@ class EconomyStore:
         """`users` jadvalida shu telegram id uchun rol ``admin`` mi?"""
         return self.get_role(user_id) == "admin"
 
+    def find_user(self, user_id: int) -> UserAccount | None:
+        """Foydalanuvchini yaratmasdan qaytaradi; yo'q bo'lsa ``None``."""
+        uid = int(user_id)
+        with self._lock:
+            if not self.enabled:
+                row = self._users.get(uid)
+            else:
+                row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+        return _row_to_account(row) if row is not None else None
+
+    def count_users(self) -> int:
+        """Bazadagi jami foydalanuvchilar soni."""
+        with self._lock:
+            if not self.enabled:
+                return len(self._users)
+            rows = (
+                self.client.table(USERS_TABLE)
+                .select(USERS_ID_COLUMN)
+                .execute()
+                .data
+                or []
+            )
+            return len({int(row[USERS_ID_COLUMN]) for row in rows})
+
+    def recent_users(self, limit: int = 10, offset: int = 0) -> list[UserAccount]:
+        """Eng oxirgi qo'shilgan foydalanuvchilarni qaytaradi."""
+        limit = min(max(1, int(limit)), 100)
+        offset = max(0, int(offset))
+        with self._lock:
+            if not self.enabled:
+                rows = sorted(
+                    self._users.values(),
+                    key=lambda row: str(row.get("created_at") or ""),
+                    reverse=True,
+                )[offset : offset + limit]
+                return [_row_to_account(row) for row in rows]
+            query = self.client.table(USERS_TABLE).select("*")
+            try:
+                response = (
+                    query.order("created_at", desc=True)
+                    .range(offset, offset + limit - 1)
+                    .execute()
+                )
+                rows = response.data or []
+            except Exception:
+                # Eski/test mijozi ``order`` yoki ``range``ni qo'llamasligi mumkin.
+                logger.info("users jadvalini sahifalab o'qib bo'lmadi, zaxira usul")
+                rows = query.execute().data or []
+                rows.sort(
+                    key=lambda row: str(row.get("created_at") or ""),
+                    reverse=True,
+                )
+                rows = rows[offset : offset + limit]
+        return [_row_to_account(row) for row in rows]
+
     def top_users(self, limit: int = 10) -> list[UserAccount]:
         """Eng ko'p g'alaba qozongan o'yinchilarni qaytaradi."""
         limit = max(1, int(limit))

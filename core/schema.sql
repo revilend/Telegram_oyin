@@ -378,6 +378,8 @@ create table if not exists public.tournaments (
     entry_fee        integer not null default 50,
     created_by       bigint not null default 0,
     reminded_at      timestamptz,
+    room_link        text not null default '',
+    room_sent_at     timestamptz,
     created_at       timestamptz not null default now(),
     -- Eski mini-app/bot nusxalari bilan moslik uchun saqlanadi.
     game             text not null default 'mixed',
@@ -394,6 +396,10 @@ alter table public.tournaments
     add column if not exists bracket_data jsonb not null default '[]'::jsonb;
 alter table public.tournaments
     add column if not exists start_time timestamptz;
+alter table public.tournaments
+    add column if not exists room_link text not null default '';
+alter table public.tournaments
+    add column if not exists room_sent_at timestamptz;
 
 update public.tournaments
 set game_type = game

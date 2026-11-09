@@ -71,6 +71,9 @@ class FakeState:
         self.state = None
         self.data = {}
 
+    async def update_data(self, **kwargs: object) -> None:
+        self.data.update(kwargs)
+
     async def get_data(self) -> dict[str, object]:
         return dict(self.data)
 
@@ -116,6 +119,7 @@ class AdminPanelTest(unittest.TestCase):
             [
                 ["💳 Karta raqamini sozlaş"],
                 ["📥 Kutilayotgan tölovlar (Çeklar)"],
+                ["👥 Öyinçilar"],
                 ["➕ Foydalanuvçiga tanga beriş"],
                 ["🎟 Promo kod yaratiş"],
                 ["🏆 Turnir sozlamalari"],
@@ -132,6 +136,7 @@ class AdminPanelTest(unittest.TestCase):
             [
                 "admin_card",
                 "admin_pending",
+                "admin_players",
                 "admin_give",
                 "admin_promo",
                 "admin_tournament",
@@ -174,7 +179,19 @@ class AdminPanelTest(unittest.TestCase):
         self.assertIn(admin.TOUR_TIME_CALLBACK, callbacks)
         self.assertIn(admin.TOUR_PRIZE_CALLBACK, callbacks)
         self.assertIn(admin.TOUR_GAME_CALLBACK, callbacks)
+        self.assertIn(admin.TOUR_ROOM_CALLBACK, callbacks)
         self.assertIn(admin.TOUR_START_CALLBACK, callbacks)
+
+        with_room = store.set_room_link(
+            tournament.id, "https://t.me/+TurnirXona"
+        )
+        self.assertIn("https://t.me/+TurnirXona", admin.tournament_status_text(with_room))
+        callbacks = [
+            button.callback_data
+            for row in admin.tournament_keyboard(with_room).inline_keyboard
+            for button in row
+        ]
+        self.assertIn(admin.TOUR_ROOM_CLEAR_CALLBACK, callbacks)
 
     def test_panel_shows_stats_and_buttons(self) -> None:
         message = FakeMessage()
@@ -317,6 +334,79 @@ class AdminPanelTest(unittest.TestCase):
             asyncio.run(admin.save_promo(message, state))
         self.assertIn("Format", message.answers[-1])
         self.assertIsNotNone(state.state)
+
+    def test_players_list_paginates_and_opens_search(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        for index in range(1, 13):
+            store.ensure_user(88100 + index, f"user{index}", f"User {index}")
+        callback = FakeCallback()
+        state = FakeState()
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.show_players(callback, state))
+        text, keyboard = callback.bot.messages[-1][1], callback.bot.messages[-1][2]
+        self.assertIn("Oxirgi röyxatdan ötgan öyinçilar", text)
+        self.assertIn("@user12", text)
+        self.assertIn("Level 1", text)
+        self.assertIn("Sahifa: <b>1/2</b>", text)
+        callbacks = [
+            button.callback_data
+            for row in keyboard.inline_keyboard
+            for button in row
+        ]
+        self.assertIn("admin_players_page_2", callbacks)
+        self.assertIn(admin.PLAYERS_SEARCH_CALLBACK, callbacks)
+
+        page_callback = FakeCallback(data="admin_players_page_2")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.paginate_players(page_callback))
+        page_text = page_callback.bot.messages[-1][1]
+        self.assertIn("Sahifa: <b>2/2</b>", page_text)
+        self.assertIn("@user2", page_text)
+
+    def test_search_shows_full_profile_and_coin_buttons(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        store.ensure_user(88200, "ali", "Ali Valiyev")
+        state = FakeState()
+        message = FakeMessage(text="88200")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.search_player(message, state))
+        self.assertIsNone(state.state)
+        self.assertIn("Öyinçi profili", message.answers[-1])
+        self.assertIn("Ali Valiyev", message.answers[-1])
+        self.assertIn("Balans", message.answers[-1])
+        self.assertIn("Inventar", message.answers[-1])
+        callbacks = [
+            button.callback_data
+            for row in message.markups[-1].inline_keyboard
+            for button in row
+        ]
+        self.assertIn("admin_player_add_88200", callbacks)
+        self.assertIn("admin_player_sub_88200", callbacks)
+
+    def test_profile_buttons_change_player_balance(self) -> None:
+        store = EconomyStore(url="", key="", client=None)
+        store.ensure_user(88300, "ali", "Ali")
+        state = FakeState()
+        callback = FakeCallback(data="admin_player_add_88300")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.ask_add_player_coins(callback, state))
+            self.assertIs(state.state, admin.AdminStates.waiting_player_amount)
+            self.assertEqual(state.data["player_id"], 88300)
+            self.assertIn("Tanga qöşiş", callback.bot.messages[-1][1])
+
+            message = FakeMessage(text="250")
+            asyncio.run(admin.apply_player_coins(message, state))
+        self.assertEqual(store.get_user(88300).coins, START_COINS + 250)
+        self.assertIn("+250", message.answers[-1])
+        self.assertIsNone(state.state)
+
+        callback = FakeCallback(data="admin_player_sub_88300")
+        with patch.object(admin, "get_economy", return_value=store):
+            asyncio.run(admin.ask_subtract_player_coins(callback, state))
+            message = FakeMessage(text="50")
+            asyncio.run(admin.apply_player_coins(message, state))
+        self.assertEqual(store.get_user(88300).coins, START_COINS + 200)
+        self.assertIn("−50", message.answers[-1])
 
     def test_back_button_returns_to_panel(self) -> None:
         callback = FakeCallback()

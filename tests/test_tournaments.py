@@ -583,6 +583,117 @@ class TournamentBotTest(TournamentTestBase):
         self.assertIn("30 daqiqa", text)
         self.assertIn(tournament.title, text)
 
+    def test_room_link_is_sent_once_after_start(self) -> None:
+        import asyncio
+        from datetime import datetime, timedelta, timezone
+
+        from bot.handlers import tournaments as handler
+
+        tournament_id = self.create_tournament(minutes=120)
+        self.store.set_room_link(tournament_id, "https://t.me/+TurnirXona")
+        self.store.join(98024, tournament_id, "ali", "Ali")
+        self.store.join(98025, tournament_id, "vali", "Vali")
+        started = self.store.start(tournament_id)
+        self.assertEqual(started.room_link, "https://t.me/+TurnirXona")
+        self.assertEqual(self.store.due_room_links(), [])
+
+        self.store._update_tournament(
+            tournament_id,
+            {
+                "starts_at": (
+                    datetime.now(timezone.utc) - timedelta(minutes=1)
+                ).isoformat()
+            },
+        )
+        due = self.store.due_room_links()
+        self.assertEqual([item.id for item in due], [tournament_id])
+
+        class FakeBot:
+            def __init__(self) -> None:
+                self.messages: list[tuple[int, str, object]] = []
+
+            async def send_message(
+                self, chat_id, text, reply_markup=None, **_kwargs
+            ) -> None:
+                self.messages.append((chat_id, text, reply_markup))
+
+        bot = FakeBot()
+        delivered = asyncio.run(handler.send_room_links(bot, self.store))
+        self.assertEqual(delivered, 2)
+        self.assertEqual({chat_id for chat_id, _, _ in bot.messages}, {98024, 98025})
+        for _chat_id, text, keyboard in bot.messages:
+            self.assertIn("Xona havolasi", text)
+            self.assertIn("https://t.me/+TurnirXona", text)
+            self.assertEqual(
+                keyboard.inline_keyboard[0][0].url, "https://t.me/+TurnirXona"
+            )
+
+        self.assertEqual(self.store.due_room_links(), [])
+        self.assertEqual(asyncio.run(handler.send_room_links(bot, self.store)), 0)
+
+    def test_admin_start_sends_room_link_to_every_participant(self) -> None:
+        import asyncio
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from bot.handlers import admin
+
+        tournament_id = self.create_tournament(minutes=120)
+        self.store.set_room_link(tournament_id, "https://t.me/+TurnirXona")
+        self.store.join(98026, tournament_id, "ali", "Ali")
+        self.store.join(98027, tournament_id, "vali", "Vali")
+
+        class FakeBot:
+            def __init__(self) -> None:
+                self.messages: list[tuple[int, str, object]] = []
+
+            async def send_message(
+                self, chat_id, text, reply_markup=None, **_kwargs
+            ) -> None:
+                self.messages.append((chat_id, text, reply_markup))
+
+        class FakeCallback:
+            def __init__(self) -> None:
+                self.from_user = SimpleNamespace(
+                    id=424242, username="admin", full_name="Admin"
+                )
+                self.data = admin.TOUR_START_CALLBACK
+                self.bot = FakeBot()
+                self.answers: list[str] = []
+
+            async def answer(self, text: str = "", **_kwargs) -> None:
+                self.answers.append(text)
+
+        callback = FakeCallback()
+        with patch.object(admin, "is_admin", return_value=True):
+            asyncio.run(admin.start_tournament(callback))
+
+        recipients = {
+            chat_id for chat_id, _, _ in callback.bot.messages if chat_id != 424242
+        }
+        self.assertEqual(recipients, {98026, 98027})
+        self.assertTrue(
+            any(
+                "Xona havolasi" in text and "https://t.me/+TurnirXona" in text
+                for _chat_id, text, _ in callback.bot.messages
+            )
+        )
+        self.assertIn("Turnir boşlandi", callback.answers[0])
+        self.assertTrue(
+            any("2 qatnaşçiga yuborildi" in text for _, text, _ in callback.bot.messages)
+        )
+
+    def test_room_link_validation_and_clear(self) -> None:
+        from core.tournaments import TournamentError
+
+        tournament_id = self.create_tournament()
+        with self.assertRaises(TournamentError):
+            self.store.set_room_link(tournament_id, "t.me/not-a-link-with-space x")
+        updated = self.store.set_room_link(tournament_id, "t.me/revilend_games")
+        self.assertEqual(updated.room_link, "https://t.me/revilend_games")
+        cleared = self.store.set_room_link(tournament_id, "-")
+        self.assertEqual(cleared.room_link, "")
+
 
 if __name__ == "__main__":
     unittest.main()

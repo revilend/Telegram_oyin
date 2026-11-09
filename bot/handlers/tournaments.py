@@ -402,6 +402,74 @@ async def tournaments_noop(callback: CallbackQuery) -> None:
     await callback.answer("Ma'lumot yangilandi")
 
 
+def room_link_text(tournament: Tournament) -> str:
+    """Turnir boşlanganda qatnaşçilarga yuboriladigan xona havolasi."""
+    link = escape(tournament.room_link, quote=False)
+    return (
+        "🏆 <b>Turnir boşlandi!</b>\n\n"
+        f"🔥 <b>{escape(tournament.title, quote=False)}</b>\n"
+        f"🎮 Öyin: <b>{escape(tournament.game_title, quote=False)}</b>\n"
+        f"🕒 Boşlaniş: <b>{format_local(tournament.starts_at)}</b>\n"
+        f"💰 Sovrin fondi: <b>{format_price(tournament.prize_pool)} tanga</b>\n\n"
+        f"🔗 <b>Xona havolasi:</b> {link}\n\n"
+        "Xonaga kirib, öyinni başlang. Omad! 🍀"
+    )
+
+
+def room_link_keyboard(tournament: Tournament) -> InlineKeyboardMarkup:
+    """Xona havolasiga ötiş tugmasi."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🚪 Xonaga kiriş", url=tournament.room_link
+                )
+            ]
+        ]
+    )
+
+
+async def send_room_links(
+    bot: Bot,
+    store: TournamentStore | None = None,
+    tournament: Tournament | None = None,
+) -> int:
+    """Faol turnirning barcha qatnaşçilariga xona havolasini yuboradi.
+
+    ``tournament`` berilmasa, vaqti kelgan va havolasi hali yuborilmagan
+    turnirlar tanlanadi.  Yuborilgani ``room_sent_at`` bilan belgilanadi,
+    shuning uchun sikl qayta işga tushsa ham takroriy xabar ketmaydi.
+    """
+    storehouse = store or get_tournament_store()
+    targets = [tournament] if tournament is not None else storehouse.due_room_links()
+    delivered = 0
+    for item in targets:
+        if item is None or not item.room_link:
+            continue
+        keyboard = room_link_keyboard(item)
+        for participant in storehouse.participants(item.id):
+            try:
+                await bot.send_message(
+                    participant.user_id,
+                    room_link_text(item),
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True,
+                )
+                delivered += 1
+            except TelegramAPIError:
+                logger.info(
+                    "Turnir xona havolasini yuborib bölmadi: %s",
+                    participant.user_id,
+                )
+            except Exception:
+                logger.exception(
+                    "Turnir xona havolasida kutilmagan xatolik: %s",
+                    participant.user_id,
+                )
+        storehouse.mark_room_sent(item.id)
+    return delivered
+
+
 def reminder_text(tournament: Tournament) -> str:
     """Turnir boşlanişidan öldin yuboriladigan eslatma."""
     return (
@@ -415,10 +483,11 @@ def reminder_text(tournament: Tournament) -> str:
 
 
 async def reminder_loop(bot: Bot, interval: int = REMINDER_INTERVAL_SECONDS) -> None:
-    """Har daqiqada 30 daqiqa qolgan turnirlar uchun eslatma yuboradi."""
+    """Har daqiqada eslatma va turnir xonasi havolalarini yuboradi."""
     while True:
         try:
             store = get_tournament_store()
+            await send_room_links(bot, store)
             for tournament in store.due_reminders():
                 store.mark_reminded(tournament.id)
                 for participant in store.participants(tournament.id):

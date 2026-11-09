@@ -16,7 +16,7 @@ import logging
 from html import escape
 
 from aiogram import F, Router
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -37,7 +37,13 @@ from core.backup import (
     get_backup_store,
     restore_caption,
 )
-from core.economy import EconomyError, format_price, get_economy
+from core.economy import (
+    EconomyError,
+    UserAccount,
+    format_price,
+    get_economy,
+    player_rating,
+)
 from core.metrics import metrics
 from core.settings import (
     SettingsError,
@@ -61,6 +67,11 @@ router = Router(name="admin")
 
 CARD_CALLBACK = "admin_card"
 PENDING_CALLBACK = "admin_pending"
+PLAYERS_CALLBACK = "admin_players"
+PLAYERS_PAGE_PREFIX = "admin_players_page_"
+PLAYERS_SEARCH_CALLBACK = "admin_players_find"
+PLAYER_ADD_PREFIX = "admin_player_add_"
+PLAYER_SUB_PREFIX = "admin_player_sub_"
 GIVE_CALLBACK = "admin_give"
 PROMO_CALLBACK = "admin_promo"
 BROADCAST_CALLBACK = "admin_broadcast"
@@ -74,6 +85,8 @@ TOUR_TIME_CALLBACK = "admin_tour_time"
 TOUR_PRIZE_CALLBACK = "admin_tour_prize"
 TOUR_GAME_CALLBACK = "admin_tour_game"
 TOUR_GAME_PREFIX = "admin_tour_game_"
+TOUR_ROOM_CALLBACK = "admin_tour_room"
+TOUR_ROOM_CLEAR_CALLBACK = "admin_tour_room_clear"
 TOUR_START_CALLBACK = "admin_tour_start"
 TOUR_REFRESH_CALLBACK = "admin_tour_yangila"
 TOUR_BACK_CALLBACK = "admin_tour_back"
@@ -113,6 +126,8 @@ class AdminStates(StatesGroup):
     """Admin panel ichidagi kiritish holatlari."""
 
     waiting_card = State()
+    waiting_player_search = State()
+    waiting_player_amount = State()
     waiting_give = State()
     waiting_promo = State()
     waiting_broadcast = State()
@@ -120,6 +135,7 @@ class AdminStates(StatesGroup):
     waiting_tournament_max = State()
     waiting_tournament_time = State()
     waiting_tournament_prize = State()
+    waiting_tournament_room = State()
 
 
 def is_admin(user_id: int) -> bool:
@@ -158,6 +174,12 @@ def panel_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="📥 Kutilayotgan tölovlar (Çeklar)",
                     callback_data=PENDING_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👥 Öyinçilar",
+                    callback_data=PLAYERS_CALLBACK,
                 )
             ],
             [
@@ -376,6 +398,397 @@ async def show_pending_payments(callback: CallbackQuery) -> None:
             await callback.bot.send_message(
                 chat_id, caption, reply_markup=keyboard
             )
+
+
+# ----------------------------------------------------------------------
+# 👥 O'yinchilar ro'yxati va qidirish
+# ----------------------------------------------------------------------
+PLAYERS_PER_PAGE = 10
+
+
+def player_level(account: UserAccount) -> int:
+    """G'alabalar sonidan ko'rsatiladigan darajani hisoblaydi."""
+    return 1 + max(0, int(account.wins)) // 5
+
+
+def _player_label(account: UserAccount) -> str:
+    """Ro'yxatda ko'rsatiladigan qisqa ism."""
+    if account.username:
+        return f"@{escape(account.username)}"
+    return escape(account.full_name.strip() or "Noma'lum")
+
+
+def players_page_text(page: int = 1) -> tuple[str, int, int]:
+    """Oxirgi qo'shilgan o'yinchilar sahifasini tayyorlaydi."""
+    economy = get_economy()
+    total = economy.count_users()
+    pages = max(1, (total + PLAYERS_PER_PAGE - 1) // PLAYERS_PER_PAGE)
+    page = min(max(1, int(page)), pages)
+    accounts = economy.recent_users(
+        PLAYERS_PER_PAGE, (page - 1) * PLAYERS_PER_PAGE
+    )
+    lines = ["👥 <b>Oxirgi röyxatdan ötgan öyinçilar:</b>", ""]
+    if accounts:
+        for index, account in enumerate(
+            accounts, start=(page - 1) * PLAYERS_PER_PAGE + 1
+        ):
+            lines.append(
+                f"{index}. {_player_label(account)} "
+                f"(ID: <code>{account.user_id}</code>) — "
+                f"<b>{format_price(account.coins)}</b> 🪙 | "
+                f"Level {player_level(account)}"
+            )
+    else:
+        lines.append("<i>Hozirça öyinçilar yöq.</i>")
+    lines.extend(
+        [
+            "",
+            f"📄 Sahifa: <b>{page}/{pages}</b> · "
+            f"Jami: <b>{format_price(total)}</b> kişi",
+        ]
+    )
+    return "\n".join(lines), page, pages
+
+
+def players_keyboard(page: int, pages: int) -> InlineKeyboardMarkup:
+    """Sahifalash va qidirish tugmalari."""
+    previous = max(1, page - 1)
+    following = min(pages, page + 1)
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Oldingi",
+                    callback_data=f"{PLAYERS_PAGE_PREFIX}{previous}",
+                ),
+                InlineKeyboardButton(
+                    text="Keyingi ➡️",
+                    callback_data=f"{PLAYERS_PAGE_PREFIX}{following}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔍 ID böyiça qidiriş",
+                    callback_data=PLAYERS_SEARCH_CALLBACK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Admin panel", callback_data=BACK_CALLBACK
+                )
+            ],
+        ]
+    )
+
+
+def _inventory_lines(account: UserAccount) -> tuple[list[str], int]:
+    """Profil uchun inventar qatorlari va buyum turlari soni."""
+    try:
+        from core.shop import get_shop_store
+
+        entries = get_shop_store().inventory(account.user_id)
+    except Exception:
+        logger.exception("Inventarni öqib bölmadi: %s", account.user_id)
+        return ["  • <i>inventar yuklanmadi</i>"], 0
+    if not entries:
+        return ["  • <i>boş</i>"], 0
+    lines = []
+    for entry in entries[:10]:
+        item = entry.item
+        title = item.title if item is not None else entry.item_slug
+        emoji = item.emoji if item is not None else "🛍"
+        equipped = " ✅" if entry.is_equipped else ""
+        lines.append(
+            f"  • {emoji} {escape(str(title))} ×{entry.quantity}{equipped}"
+        )
+    if len(entries) > 10:
+        lines.append(f"  • … yana {len(entries) - 10} xil buyum")
+    return lines, len(entries)
+
+
+def player_profile_text(account: UserAccount) -> str:
+    """Admin uchun to'liq o'yinchi profili."""
+    name = escape(account.full_name.strip() or "Noma'lum")
+    username = f"@{escape(account.username)}" if account.username else "—"
+    total_wins = (
+        int(account.bunker_wins)
+        + int(account.mafia_wins)
+        + int(account.spy_wins)
+        + int(account.alias_wins)
+        + int(account.bomb_wins)
+    )
+    inventory, inventory_count = _inventory_lines(account)
+    return "\n".join(
+        [
+            "╭───────────────────────╮",
+            "    👤 <b>Öyinçi profili</b>",
+            "╰───────────────────────╯",
+            "",
+            f"👤 İsm: <b>{name}</b>",
+            f"🔗 Username: {username}",
+            f"🆔 ID: <code>{account.user_id}</code>",
+            f"🪙 Balans: <b>{format_price(account.coins)}</b> tanga",
+            f"🏅 Level: <b>{player_level(account)}</b> · "
+            f"Reyting: <b>{format_price(player_rating(account))}</b>",
+            f"🎮 Öyinlar: <b>{account.games_played}</b> | "
+            f"🥇 Ğalabalar: <b>{account.wins}</b>",
+            f"🛡 Bunker: <b>{account.bunker_wins}</b> | "
+            f"🕵 Mafiya: <b>{account.mafia_wins}</b>",
+            f"🕶 Josus: <b>{account.spy_wins}</b> | "
+            f"🐊 Alias: <b>{account.alias_wins}</b>",
+            f"💣 Bomba: <b>{account.bomb_wins}</b> | "
+            f"🏅 Jami ğalaba: <b>{total_wins}</b>",
+            f"👥 Taklif qilganlar: <b>{account.referral_count}</b>",
+            "",
+            f"🎒 <b>Inventar:</b> {inventory_count} xil",
+            *inventory,
+        ]
+    )
+
+
+def player_profile_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    """Profil ostidagi tanga amallari."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="➕ Tanga beriş",
+                    callback_data=f"{PLAYER_ADD_PREFIX}{user_id}",
+                ),
+                InlineKeyboardButton(
+                    text="➖ Tanga ayiriş",
+                    callback_data=f"{PLAYER_SUB_PREFIX}{user_id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Öyinçilar röyxati",
+                    callback_data=PLAYERS_CALLBACK,
+                )
+            ],
+        ]
+    )
+
+
+async def _edit_admin_message(
+    callback: CallbackQuery, text: str, keyboard: InlineKeyboardMarkup
+) -> None:
+    """Mavjud xabarni tahrirlaydi, imkoni bo'lmasa yangisini yuboradi."""
+    message = callback.message
+    if message is not None and hasattr(message, "edit_text"):
+        try:
+            await message.edit_text(text, reply_markup=keyboard)
+            return
+        except TelegramBadRequest:
+            logger.debug("Admin xabarini tahrirlab bölmadi")
+    await callback.bot.send_message(
+        callback.from_user.id, text, reply_markup=keyboard
+    )
+
+
+@router.callback_query(F.data == PLAYERS_CALLBACK)
+async def show_players(callback: CallbackQuery, state: FSMContext) -> None:
+    """Oxirgi qo'shilgan o'yinchilar ro'yxatini ko'rsatadi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.clear()
+    await callback.answer()
+    try:
+        text, page, pages = players_page_text(1)
+    except Exception:
+        logger.exception("Öyinçilar röyxatini yuklab bölmadi")
+        await callback.bot.send_message(
+            callback.from_user.id, "⚠️ Öyinçilar röyxatini yuklab bölmadi."
+        )
+        return
+    await _edit_admin_message(callback, text, players_keyboard(page, pages))
+
+
+@router.callback_query(F.data.startswith(PLAYERS_PAGE_PREFIX))
+async def paginate_players(callback: CallbackQuery) -> None:
+    """Ro'yxat sahifasini almashtiradi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    raw = (callback.data or "")[len(PLAYERS_PAGE_PREFIX) :]
+    try:
+        page = int(raw)
+    except ValueError:
+        await callback.answer("Sahifa notöğri", show_alert=True)
+        return
+    await callback.answer()
+    try:
+        text, current, pages = players_page_text(page)
+    except Exception:
+        logger.exception("Öyinçilar sahifasini yuklab bölmadi")
+        await callback.bot.send_message(
+            callback.from_user.id, "⚠️ Sahifani yuklab bölmadi."
+        )
+        return
+    await _edit_admin_message(
+        callback, text, players_keyboard(current, pages)
+    )
+
+
+@router.callback_query(F.data == PLAYERS_SEARCH_CALLBACK)
+async def ask_player_search(callback: CallbackQuery, state: FSMContext) -> None:
+    """ID bo'yicha qidirish uchun ID so'raydi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_player_search)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id,
+        "🔍 <b>Öyinçini ID böyiça qidiriş</b>\n\n"
+        "Öyinçining Telegram ID raqamini yuboring:",
+        reply_markup=back_keyboard(),
+    )
+
+
+@router.message(AdminStates.waiting_player_search)
+async def search_player(message: Message, state: FSMContext) -> None:
+    """Kiritilgan ID bo'yicha to'liq profilni ko'rsatadi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    raw = (message.text or "").strip().lstrip("@")
+    if not raw.isdigit():
+        await message.answer(
+            "⚠️ ID faqat raqamlardan iborat bölişi kerak.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    try:
+        account = get_economy().find_user(int(raw))
+    except Exception:
+        logger.exception("Öyinçini qidirib bölmadi: %s", raw)
+        await message.answer(
+            "⚠️ Qidiruvda xatolik yuz berdi.", reply_markup=back_keyboard()
+        )
+        return
+    if account is None:
+        await message.answer(
+            f"❌ <code>{raw}</code> ID bilan öyinçi topilmadi.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    await state.clear()
+    await message.answer(
+        player_profile_text(account),
+        reply_markup=player_profile_keyboard(account.user_id),
+    )
+
+
+async def _ask_player_amount(
+    callback: CallbackQuery, state: FSMContext, action: str
+) -> None:
+    """Profil tugmasidan tanga miqdorini so'raydi."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    prefix = PLAYER_ADD_PREFIX if action == "add" else PLAYER_SUB_PREFIX
+    raw = (callback.data or "")[len(prefix) :]
+    try:
+        user_id = int(raw)
+    except ValueError:
+        await callback.answer("Öyinçi ID notöğri", show_alert=True)
+        return
+    try:
+        account = get_economy().find_user(user_id)
+    except Exception:
+        logger.exception("Öyinçini yuklab bölmadi: %s", user_id)
+        await callback.answer("Öyinçi yuklanmadi", show_alert=True)
+        return
+    if account is None:
+        await callback.answer("Öyinçi topilmadi", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_player_amount)
+    await state.update_data(player_id=user_id, player_action=action)
+    await callback.answer()
+    verb = "qöşiş" if action == "add" else "ayiriş"
+    await callback.bot.send_message(
+        callback.from_user.id,
+        f"{'➕' if action == 'add' else '➖'} <b>Tanga {verb}</b>\n\n"
+        f"👤 {_player_label(account)} "
+        f"(ID: <code>{user_id}</code>)\n"
+        f"🪙 Joriy balans: <b>{format_price(account.coins)}</b> tanga\n\n"
+        "Miqdorni butun son sifatida yuboring:",
+        reply_markup=back_keyboard(),
+    )
+
+
+@router.callback_query(F.data.startswith(PLAYER_ADD_PREFIX))
+async def ask_add_player_coins(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    await _ask_player_amount(callback, state, "add")
+
+
+@router.callback_query(F.data.startswith(PLAYER_SUB_PREFIX))
+async def ask_subtract_player_coins(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    await _ask_player_amount(callback, state, "sub")
+
+
+@router.message(AdminStates.waiting_player_amount)
+async def apply_player_coins(message: Message, state: FSMContext) -> None:
+    """Profil orqali tanlangan öyinçining balansini özgartiradi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    raw = (message.text or "").strip().replace(" ", "")
+    try:
+        amount = int(raw)
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        await message.answer(
+            "⚠️ Miqdor musbat butun son bölişi kerak.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    data = await state.get_data()
+    try:
+        user_id = int(data.get("player_id"))
+    except (TypeError, ValueError):
+        await state.clear()
+        await message.answer(
+            "⚠️ Öyinçi aniqlanmadi. Qaytadan qidiring.",
+            reply_markup=panel_keyboard(),
+        )
+        return
+    action = str(data.get("player_action") or "add")
+    economy = get_economy()
+    try:
+        account = (
+            economy.add_coins(user_id, amount)
+            if action == "add"
+            else economy.spend_coins(user_id, amount)
+        )
+    except EconomyError as exc:
+        await message.answer(
+            f"⚠️ {escape(str(exc))}", reply_markup=back_keyboard()
+        )
+        return
+    except Exception:
+        logger.exception("Balansni özgärtirib bölmadi: %s", user_id)
+        await message.answer(
+            "⚠️ Balans özgärtirilmadi. Qayta urinib köring.",
+            reply_markup=back_keyboard(),
+        )
+        return
+    await state.clear()
+    sign = "+" if action == "add" else "−"
+    await message.answer(
+        f"✅ <code>{user_id}</code> balansi <b>{sign}{format_price(amount)}</b> "
+        "tanga özgärtirildi.\n\n" + player_profile_text(account),
+        reply_markup=player_profile_keyboard(user_id),
+    )
 
 
 # ----------------------------------------------------------------------
@@ -792,6 +1205,13 @@ TOUR_PRIZE_PROMPT = (
     "💰 <b>Sovrin miqdorini sozlaş</b>\n\n"
     "Yangi sovrin miqdorini tangada yuboring:"
 )
+TOUR_ROOM_PROMPT = (
+    "🔗 <b>Xona havolasini sozlaş</b>\n\n"
+    "Turnir boşlanganda barça qatnaşçilarga avtomatik yuboriladigan "
+    "havolani kiriting. Masalan: <code>https://t.me/+AbCdEf</code> "
+    "yoki <code>https://t.me/revilend_games</code>.\n\n"
+    "Havolani öçiriş uçun <code>-</code> yuboring."
+)
 
 
 def _current_tournament() -> Tournament | None:
@@ -818,14 +1238,20 @@ def tournament_status_text(tournament: Tournament | None = None) -> str:
         joined = store.participant_count(item.id)
     except Exception:
         joined = 0
-    return (
-        "🏆 <b>Faol Turnir Holati:</b>\n"
-        f"🎮 Öyin: <b>{escape(item.game_title)}</b>\n"
-        f"💰 Sovrin: <b>{format_price(item.prize_pool)} tanga</b>\n"
-        f"👥 Qatnaşçilar: <b>{joined} / {item.max_participants} kişi</b>\n"
-        f"⏰ Boşlaniş vaqti: <b>{escape(format_local(item.starts_at) or '—')}</b>\n"
-        f"📌 Holati: <b>{escape(item.status)}</b>"
+    lines = [
+        "🏆 <b>Faol Turnir Holati:</b>",
+        f"🎮 Öyin: <b>{escape(item.game_title)}</b>",
+        f"💰 Sovrin: <b>{format_price(item.prize_pool)} tanga</b>",
+        f"👥 Qatnaşçilar: <b>{joined} / {item.max_participants} kişi</b>",
+        f"⏰ Boşlaniş vaqti: <b>{escape(format_local(item.starts_at) or '—')}</b>",
+        f"📌 Holati: <b>{escape(item.status)}</b>",
+    ]
+    lines.append(
+        f"🔗 Xona havolasi: {escape(item.room_link)}"
+        if item.room_link
+        else "🔗 Xona havolasi: <i>belgilanmagan</i>"
     )
+    return "\n".join(lines)
 
 
 def tournament_back_keyboard() -> InlineKeyboardMarkup:
@@ -897,6 +1323,23 @@ def tournament_keyboard(tournament: Tournament | None = None) -> InlineKeyboardM
                 text="🎮 Öyin turi", callback_data=TOUR_GAME_CALLBACK
             ),
         ],
+        [
+            InlineKeyboardButton(
+                text="🔗 Xona havolasi", callback_data=TOUR_ROOM_CALLBACK
+            )
+        ],
+        *(
+            [
+                [
+                    InlineKeyboardButton(
+                        text="🗑 Xona havolasini öçiriş",
+                        callback_data=TOUR_ROOM_CLEAR_CALLBACK,
+                    )
+                ]
+            ]
+            if item is not None and item.room_link
+            else []
+        ),
         [
             InlineKeyboardButton(
                 text=(
@@ -1088,6 +1531,47 @@ async def set_tournament_game(callback: CallbackQuery) -> None:
     )
 
 
+@router.callback_query(F.data == TOUR_ROOM_CALLBACK)
+async def ask_tournament_room(callback: CallbackQuery, state: FSMContext) -> None:
+    """Xona havolasini kiritishni söraydi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    item = _current_tournament()
+    if item is None:
+        await callback.answer("Faol turnir topilmadi", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_tournament_room)
+    await callback.answer()
+    await callback.bot.send_message(
+        callback.from_user.id, TOUR_ROOM_PROMPT, reply_markup=tournament_back_keyboard()
+    )
+
+
+@router.callback_query(F.data == TOUR_ROOM_CLEAR_CALLBACK)
+async def clear_tournament_room(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    """Xona havolasini öçiradi."""
+    if not _check_tournament_admin(callback):
+        await callback.answer("⛔ Bu amal faqat admin uçun.", show_alert=True)
+        return
+    await state.clear()
+    item = _current_tournament()
+    if item is None:
+        await callback.answer("Faol turnir topilmadi", show_alert=True)
+        return
+    try:
+        updated = get_tournament_store().set_room_link(item.id, "")
+    except TournamentError as exc:
+        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        return
+    await callback.answer("Havola öçirildi")
+    await _send_tournament_status(
+        callback, prefix="✅ Xona havolasi öçirildi.", tournament=updated
+    )
+
+
 @router.callback_query(F.data == TOUR_START_CALLBACK)
 async def start_tournament(callback: CallbackQuery) -> None:
     """Qatnaşçilardan bracket yasab, turnirni boshlaydi."""
@@ -1103,10 +1587,26 @@ async def start_tournament(callback: CallbackQuery) -> None:
     except TournamentError as exc:
         await callback.answer(f"⚠️ {exc}", show_alert=True)
         return
+
+    sent = 0
+    if updated.room_link:
+        from bot.handlers.tournaments import send_room_links
+
+        sent = await send_room_links(
+            callback.bot, get_tournament_store(), updated
+        )
     await callback.answer("Turnir boşlandi")
+    prefix = "✅ <b>Turnir boşlandi!</b> Bracket bazaga saqlandi."
+    if updated.room_link:
+        prefix += f"\n📨 Xona havolasi {sent} qatnaşçiga yuborildi."
+    else:
+        prefix += (
+            "\n⚠️ Xona havolasi belgilanmagan — qatnaşçilarga yuborilmadi."
+            " «🔗 Xona havolasi» orqali kiriting."
+        )
     await _send_tournament_status(
         callback,
-        prefix="✅ <b>Turnir boşlandi!</b> Bracket bazaga saqlandi.",
+        prefix=prefix,
         tournament=updated,
     )
 
@@ -1151,6 +1651,33 @@ async def save_tournament_time(message: Message, state: FSMContext) -> None:
         return
     try:
         updated = get_tournament_store().set_start_time(
+            item.id, (message.text or "").strip()
+        )
+    except TournamentError as exc:
+        await message.answer(
+            f"⚠️ {escape(str(exc))}", reply_markup=tournament_back_keyboard()
+        )
+        return
+    await state.clear()
+    await message.answer(
+        tournament_status_text(updated), reply_markup=tournament_keyboard(updated)
+    )
+
+
+@router.message(AdminStates.waiting_tournament_room)
+async def save_tournament_room(message: Message, state: FSMContext) -> None:
+    """Admin kiritgan xona havolasini saqlaydi."""
+    if message.from_user is None or not is_admin(message.from_user.id):
+        await state.clear()
+        await _reply_denied(message)
+        return
+    item = _current_tournament()
+    if item is None:
+        await state.clear()
+        await message.answer("⚠️ Faol turnir topilmadi.", reply_markup=panel_keyboard())
+        return
+    try:
+        updated = get_tournament_store().set_room_link(
             item.id, (message.text or "").strip()
         )
     except TournamentError as exc:

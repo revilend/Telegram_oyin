@@ -187,6 +187,58 @@ async def send_login_code(
     await message.answer(login_text(code), reply_markup=login_keyboard(account))
 
 
+def new_user_admin_text(
+    user, inviter: UserAccount | None, total_users: int
+) -> str:
+    """Yangi o'yinchi haqida bosh adminga yuboriladigan xabar."""
+    username = f"@{escape(user.username)}" if user.username else "yöq"
+    language = escape(str(getattr(user, "language_code", None) or "noma'lum"))
+    if inviter is None:
+        inviter_text = "Töğridan-töğri"
+    elif inviter.username:
+        inviter_text = (
+            f"@{escape(inviter.username)} "
+            f"(ID: <code>{inviter.user_id}</code>)"
+        )
+    else:
+        inviter_text = (
+            f"{escape(inviter.full_name or 'Nomaʼlum')} "
+            f"(ID: <code>{inviter.user_id}</code>)"
+        )
+    return (
+        "🎉 <b>Yangi foydalanuvçi qöşildi!</b>\n\n"
+        f"👤 <b>İsm:</b> {escape(user.full_name)}\n"
+        f"🔗 <b>Username:</b> {username}\n"
+        f"🆔 <b>ID:</b> <code>{user.id}</code>\n"
+        f"🌐 <b>Til:</b> {language}\n"
+        f"👥 <b>Referal (Kim taklif qildi):</b> {inviter_text}\n\n"
+        f"📊 <b>Jami öyinçilar soni:</b> {format_price(total_users)} kişi"
+    )
+
+
+async def notify_admin_new_user(
+    message: Message, economy, inviter_id: int | None = None
+) -> None:
+    """Yangi ro'yxatdan o'tgan o'yinchi haqida ADMIN_ID'ga xabar beradi."""
+    user = message.from_user
+    if user is None:
+        return
+    try:
+        admin_id = int(get_config().admin_id or 0)
+        if admin_id <= 0:
+            return
+        inviter = None
+        if inviter_id is not None and int(inviter_id) != int(user.id):
+            inviter = economy.find_user(int(inviter_id))
+        text = new_user_admin_text(user, inviter, economy.count_users())
+        await message.bot.send_message(admin_id, text)
+    except TelegramAPIError:
+        logger.info("Yangi öyinçi haqida adminga xabar yuborilmadi")
+    except Exception:
+        # Bildirishnoma xatosi foydalanuvçining /start oqimini buzmasin.
+        logger.exception("Yangi öyinçi bildirişida xatolik")
+
+
 async def _notify_inviter(
     bot: Bot, result, invited_name: str
 ) -> None:
@@ -283,6 +335,7 @@ async def start_command(message: Message, command: CommandObject | None = None) 
                     result = economy.register_referral(inviter_id, user.id)
                     if result is not None:
                         await _notify_inviter(message.bot, result, user.full_name)
+                await notify_admin_new_user(message, economy, inviter_id)
         except EconomyError as exc:
             logger.exception("Foydalanuvçini saqlab bölmadi: %s", user.id)
             notes.append(f"⚠️ {escape(str(exc))}")
