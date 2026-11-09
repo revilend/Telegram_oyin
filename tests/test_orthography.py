@@ -14,6 +14,8 @@ MACHINE_WORDS = {
     "bot",
     "callback",
     "catch",
+    "change",
+    "changed",
     "ch",
     "chat",
     "check",

@@ -14,8 +14,8 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from bot.handlers.profile import display_name, safe_int
-from bot.keyboards.main_menu import LEADERBOARD_BUTTON
 from core.economy import UserAccount, format_price, get_economy, player_rating
+from core.i18n import all_button_texts, resolve_language, t
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,15 @@ def cosmetics_badges(user_id: int) -> tuple[str, str]:
 
 
 def leaderboard_text(
-    top: list[UserAccount], me: UserAccount | None = None
+    top: list[UserAccount],
+    me: UserAccount | None = None,
+    language: str | None = None,
 ) -> str:
     """Reyting jadvali matni."""
-    lines = [TITLE, ""]
+    lang = language or (getattr(me, 'language_code', None) if me is not None else None)
+    lines = [t(lang, "leaderboard_title"), ""]
     if not top:
-        lines.append(EMPTY_TEXT)
+        lines.append(t(lang, "leaderboard_empty"))
         return "\n".join(lines)
 
     for place, account in enumerate(top, start=1):
@@ -83,10 +86,16 @@ def leaderboard_text(
 
 
 @router.message(Command("top", "leaderboard", "reyting"))
-@router.message(F.chat.type == "private", F.text == LEADERBOARD_BUTTON)
+@router.message(
+    F.chat.type == "private", F.text.in_(all_button_texts("leaderboard"))
+)
 async def show_leaderboard(message: Message) -> None:
     """Top o'yinchilar ro'yxatini yuboradi."""
     user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
     try:
         economy = get_economy()
         top = economy.top_users(TOP_LIMIT)
@@ -95,4 +104,4 @@ async def show_leaderboard(message: Message) -> None:
         logger.exception("Reyting xatosi")
         await message.answer(f"⚠️ Reyting xatosi: {escape(str(exc))}")
         return
-    await message.answer(leaderboard_text(top, me))
+    await message.answer(leaderboard_text(top, me, language))

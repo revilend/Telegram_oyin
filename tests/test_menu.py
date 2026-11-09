@@ -196,8 +196,9 @@ class MenuHandlerTest(MenuTestCase):
         message = FakeMessage(text=main_menu.GAME_LIST_BUTTON)
         asyncio.run(menu.menu_game_list(message))
         answer = message.answers[-1]
-        for command in ("/bunker", "/mafia", "/spy", "/alias", "/bomb"):
-            self.assertIn(command, answer)
+        self.assertIn("Öyinlar röyxati", answer)
+        for name in ("Bunker", "Mafiya", "Josus", "Alias", "Bomba"):
+            self.assertIn(name, answer)
         self.assertIn("guruh", answer.lower())
         keyboard = message.markups[-1].inline_keyboard
         self.assertEqual(len(keyboard), 7)

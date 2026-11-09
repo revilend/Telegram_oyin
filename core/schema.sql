@@ -103,6 +103,9 @@ alter table public.users
     add column if not exists equipped_frame text not null default '';
 alter table public.users
     add column if not exists equipped_title text not null default '';
+-- Bot tili: uz / ru / en (bo'sh — default uz).
+alter table public.users
+    add column if not exists language_code text not null default '';
 
 -- Referal tizimi: kim kimni taklif qilgani (har bir taklif bir marta).
 create table if not exists public.referrals (

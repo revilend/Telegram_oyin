@@ -112,6 +112,7 @@ class UserAccount:
     block_reason: str = ""
     role: str = "user"
     is_bot: bool = False
+    language_code: str = ""
 
 
 @dataclass(frozen=True)
@@ -315,6 +316,7 @@ def _row_to_account(row: dict[str, Any]) -> UserAccount:
         block_reason=str(row.get("block_reason") or ""),
         role=str(row.get("role") or "user").strip().lower(),
         is_bot=bool(row.get("is_bot")),
+        language_code=str(row.get("language_code") or "").strip(),
     )
 
 
@@ -548,6 +550,7 @@ class EconomyStore:
                         "is_blocked": False,
                         "block_reason": "",
                         "is_bot": is_bot,
+                        "language_code": "",
                         "created_at": _now(),
                     }
                     self._users[uid] = row
@@ -583,6 +586,7 @@ class EconomyStore:
                     "role": "user",
                     "is_blocked": False,
                     "is_bot": is_bot,
+                    "language_code": "",
                     "created_at": _now(),
                 }
                 try:
@@ -668,6 +672,22 @@ class EconomyStore:
                 return _row_to_account(self._users[uid])
             self._update_user_row(uid, {"role": new_role})
         return replace(account, role=new_role)
+
+    def set_language(self, user_id: int, language: str) -> UserAccount:
+        """Foydalanuvchi tilini ``users.language_code`` ga saqlaydi."""
+        from core.i18n import normalize_language
+
+        normalized = normalize_language(language)
+        account = self.find_user(user_id)
+        if account is None:
+            account = self.ensure_user(user_id)
+        uid = account.user_id
+        with self._lock:
+            if not self.enabled:
+                self._users[uid]["language_code"] = normalized
+                return _row_to_account(self._users[uid])
+            self._update_user_row(uid, {"language_code": normalized})
+        return replace(account, language_code=normalized)
 
     def find_user(self, user_id: int) -> UserAccount | None:
         """Foydalanuvchini yaratmasdan qaytaradi; yo'q bo'lsa ``None``."""

@@ -20,6 +20,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.i18n import resolve_language, t
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +184,12 @@ def detail_keyboard() -> InlineKeyboardMarkup:
 
 async def show_games(message: Message) -> None:
     """O'yinlar vitrinasini yuboradi."""
-    await message.answer(CATALOG_TEXT, reply_markup=catalog_keyboard())
+    user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
+    await message.answer(t(language, "catalog_title"), reply_markup=catalog_keyboard())
 
 
 async def _edit_or_send(
@@ -212,40 +218,46 @@ async def games_command(message: Message) -> None:
 @router.callback_query(F.data == BUNKER_CALLBACK)
 async def show_bunker(callback: CallbackQuery) -> None:
     """Bunker qoidalari va guruhda boshlash yo'riqnomasi."""
+    language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, BUNKER_TEXT, detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_bunker"), detail_keyboard())
 
 
 @router.callback_query(F.data == MAFIA_CALLBACK)
 async def show_mafia(callback: CallbackQuery) -> None:
     """Mafiya qoidalari va guruhda boshlash yo'riqnomasi."""
+    language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, MAFIA_TEXT, detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_mafia"), detail_keyboard())
 
 
 @router.callback_query(F.data == SPY_CALLBACK)
 async def show_spy(callback: CallbackQuery) -> None:
     """Josus qoidalari va guruhda boshlash yo'riqnomasi."""
+    language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, SPY_TEXT, detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_spy"), detail_keyboard())
 
 
 @router.callback_query(F.data == ALIAS_CALLBACK)
 async def show_alias(callback: CallbackQuery) -> None:
     """Alias qoidalari va guruhda boshlash yo'riqnomasi."""
+    language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, ALIAS_TEXT, detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_alias"), detail_keyboard())
 
 
 @router.callback_query(F.data == BOMB_CALLBACK)
 async def show_bomb(callback: CallbackQuery) -> None:
     """Portlovçi Bomba qoidalari va guruhda boshlash yo'riqnomasi."""
+    language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, BOMB_TEXT, detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_bomb"), detail_keyboard())
 
 
 @router.callback_query(F.data == BACK_CALLBACK)
 async def back_to_catalog(callback: CallbackQuery) -> None:
     """Katalogga qaytish."""
+    language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, CATALOG_TEXT, catalog_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_title"), catalog_keyboard())

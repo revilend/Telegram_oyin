@@ -276,7 +276,7 @@ class ProfileSplitTest(unittest.TestCase):
         self.assertIn("🐊 Alias: <b>4</b>", text)
         self.assertIn("💣 Bomba: <b>5</b>", text)
         # Umumiy g'alabalar barcha besh o'yin yig'indisidan hisoblanadi.
-        self.assertIn("Umumiy ğalabalar: <b>15</b>", text)
+        self.assertIn("Umumiy g'alabalar: <b>15</b>", text)
 
 
 class PhaseTimerTest(unittest.TestCase):

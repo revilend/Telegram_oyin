@@ -15,7 +15,11 @@ from urllib.parse import quote
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
 from bot.config import get_config
+from core.i18n import BUTTONS, LANGUAGES, STRINGS, default_label, normalize_language
 
+STRINGS_PLACEHOLDER = {lang: STRINGS["menu_placeholder"][lang] for lang in LANGUAGES}
+
+# Eski UZ konstantalar (orqaga moslik); tilga xos matnlar BUTTONS'dan olinadi.
 GAMES_BUTTON = "🌐 Mini App (Portal)"
 GAME_LIST_BUTTON = "📋 Öyinlar"
 # «Tezkor öyin» global navbatni ochadi; uzun matchmaking yozuvi yo'q.
@@ -31,25 +35,36 @@ INVITE_BUTTON = "👥 Döstlar"
 BONUS_BUTTON = "🎁 Kunlik bonus"
 PROMO_BUTTON = "🎟️ Promo kod"
 ADMIN_BUTTON = "👑 Admin panel"
+CHANGE_LANGUAGE_BUTTON = default_label("change_language", language="uz")
+
+_BUTTON_KEYS = (
+    "games",
+    "quick_game",
+    "games_list",
+    "missions",
+    "bonus",
+    "shop",
+    "tournaments",
+    "profile",
+    "leaderboard",
+    "promo",
+    "invite",
+    "rules",
+    "admin",
+    "change_language",
+)
 
 # Handlerlar shu to'plam orqali menyu tugmalarini taniydi.
-BUTTON_TEXTS: frozenset[str] = frozenset(
-    {
-        GAMES_BUTTON,
-        GAME_LIST_BUTTON,
-        MATCHMAKING_BUTTON,
-        MISSIONS_BUTTON,
-        SHOP_BUTTON,
-        TOURNAMENTS_BUTTON,
-        PROFILE_BUTTON,
-        LEADERBOARD_BUTTON,
-        RULES_BUTTON,
-        INVITE_BUTTON,
-        BONUS_BUTTON,
-        PROMO_BUTTON,
-        ADMIN_BUTTON,
-    }
-)
+# Barcha uch tildagi matnlar qo'llab-quvvatlanadi.
+def _all_button_texts() -> frozenset[str]:
+    return frozenset(
+        BUTTONS[key][lang]
+        for key in _BUTTON_KEYS
+        for lang in LANGUAGES
+    )
+
+
+BUTTON_TEXTS: frozenset[str] = _all_button_texts()
 
 INPUT_PLACEHOLDER = "Menyudan tanlang yoki /bunker, /mafia, /spy, /alias, /bomb yozing"
 
@@ -90,6 +105,7 @@ def build_main_menu(
     *,
     is_admin: bool = False,
     include_web_app: bool = True,
+    language: str | None = None,
     user_id: int | None = None,
     username: str = "",
     full_name: str = "",
@@ -105,6 +121,8 @@ def build_main_menu(
         user_id, username, full_name: Mini App havolasiga qo'shiladigan
             foydalanuvchi ma'lumotlari (``?uid=...&uname=...&fname=...``).
     """
+    language = normalize_language(language)
+    label = lambda key: default_label(key, language)  # noqa: E731
     config = get_config()
     mini_app_url = mini_app_url_for(
         config.mini_app_url or "",
@@ -112,41 +130,41 @@ def build_main_menu(
         username=username,
         full_name=full_name,
     )
-    portal_button = KeyboardButton(text=GAMES_BUTTON)
+    portal_button = KeyboardButton(text=label("games"))
     if include_web_app and mini_app_url.startswith("https://"):
         portal_button = KeyboardButton(
-            text=GAMES_BUTTON,
+            text=label("games"),
             web_app=WebAppInfo(url=mini_app_url),
         )
     rows: list[list[KeyboardButton]] = [
         [
-            KeyboardButton(text=MATCHMAKING_BUTTON),
-            KeyboardButton(text=GAME_LIST_BUTTON),
+            KeyboardButton(text=label("quick_game")),
+            KeyboardButton(text=label("games_list")),
         ],
         [
-            KeyboardButton(text=MISSIONS_BUTTON),
-            KeyboardButton(text=BONUS_BUTTON),
+            KeyboardButton(text=label("missions")),
+            KeyboardButton(text=label("bonus")),
         ],
         [
-            KeyboardButton(text=SHOP_BUTTON),
-            KeyboardButton(text=TOURNAMENTS_BUTTON),
+            KeyboardButton(text=label("shop")),
+            KeyboardButton(text=label("tournaments")),
         ],
         [
-            KeyboardButton(text=PROFILE_BUTTON),
-            KeyboardButton(text=LEADERBOARD_BUTTON),
+            KeyboardButton(text=label("profile")),
+            KeyboardButton(text=label("leaderboard")),
         ],
         [
-            KeyboardButton(text=PROMO_BUTTON),
-            KeyboardButton(text=INVITE_BUTTON),
+            KeyboardButton(text=label("promo")),
+            KeyboardButton(text=label("invite")),
         ],
         [portal_button],
     ]
     if is_admin:
-        rows.append([KeyboardButton(text=ADMIN_BUTTON)])
+        rows.append([KeyboardButton(text=label("admin"))])
 
     return ReplyKeyboardMarkup(
         keyboard=rows,
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder=INPUT_PLACEHOLDER,
+        input_field_placeholder=STRINGS_PLACEHOLDER[language],
     )

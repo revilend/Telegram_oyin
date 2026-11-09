@@ -15,8 +15,8 @@ from aiogram.types import (
     Message,
 )
 
-from bot.keyboards.main_menu import MISSIONS_BUTTON
 from core.economy import EconomyError, format_price, get_economy
+from core.i18n import all_button_texts
 from core.missions import (
     MissionStatus,
     claim_mission,
@@ -107,7 +107,7 @@ async def show_missions(message: Message) -> None:
 
 
 @router.message(PRIVATE, Command("missions"))
-@router.message(PRIVATE, F.text == MISSIONS_BUTTON)
+@router.message(PRIVATE, F.text.in_(all_button_texts("missions")))
 async def missions_command(message: Message) -> None:
     """🎯 Missiyalar tugmasi va /missions buyrug'i."""
     await show_missions(message)

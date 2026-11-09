@@ -25,12 +25,9 @@ from aiogram.types import (
 from bot.blocking import blocked_text
 from bot.config import get_config
 from bot.handlers.admin import is_admin
-from bot.keyboards.main_menu import (
-    INVITE_BUTTON,
-    RULES_BUTTON,
-    build_main_menu,
-    mini_app_url_for,
-)
+from bot.keyboards.main_menu import build_main_menu, mini_app_url_for
+from bot.handlers.profile import language_keyboard
+from core.i18n import all_button_texts, resolve_language, t
 from core.economy import (
     REFERRAL_BONUS,
     EconomyError,
@@ -55,6 +52,13 @@ CANCEL_TEXTS: frozenset[str] = frozenset(
     {"❌ Bekor qiliş", "/cancel", "Bekor qiliş", "❌ Tölov bekor qilindi."}
 )
 CANCELLED_TEXT = "❌ Jarayon bekor qilindi."
+CANCELLED_TEXTS = frozenset(
+    {
+        "❌ Jarayon bekor qilindi.",
+        "❌ Процесс отменён.",
+        "❌ Process cancelled.",
+    }
+)
 
 WELCOME_TEXT = (
     "Salom, <b>{name}</b>! 👋\n\n"
@@ -103,14 +107,17 @@ def invite_text(account: UserAccount, bot_username: str) -> str:
     """«👥 Do'stlarni taklif qilish» xabari."""
     link = referral_link(bot_username, account.user_id)
     count = account.referral_count
+    language = getattr(account, 'language_code', None) or "uz"
     return (
-        "👥 <b>Döstlarni taklif qiling va tanga işlang!</b>\n\n"
-        f"Har bir taklif qilgan yangi döstingiz uçun "
-        f"<b>+{REFERRAL_BONUS} tanga</b> olasiz!\n\n"
-        "🔗 <b>Sizning taklif havolangiz:</b>\n"
-        f"<code>{link}</code>\n\n"
-        f"📊 Siz taklif qilganlar: <b>{format_price(count)}</b> kişi\n"
-        f"🪙 Işlangan tangalar: <b>{format_price(referral_earnings(account))}</b> tanga"
+        f"{t(language, 'invite_title')}\n\n"
+        + t(
+            language,
+            "invite_body",
+            bonus=REFERRAL_BONUS,
+            link=link,
+            count=format_price(count),
+            earned=format_price(referral_earnings(account)),
+        )
     )
 
 
@@ -140,14 +147,10 @@ def invite_keyboard(account: UserAccount, bot_username: str) -> InlineKeyboardMa
 LOGIN_START_ARG = "login"
 
 
-def login_text(code: str) -> str:
+def login_text(code: str, language: str | None = None) -> str:
     """Mini App'ga kirish kodi va avtomatik kirish haqidagi xabar."""
-    return (
-        "🔐 <b>Profilingizga kiriş tayyor!</b>\n\n"
-        f"🔑 Kiriş kodingiz: <code>{code}</code>\n"
-        "(Yoki kod terib ötirmasdan pastdagi tugmani bosing — avtomatik "
-        "profilingiz bilan oçiladi)"
-    )
+    lang = language or "uz"
+    return f"{t(lang, 'login_title')}\n\n{t(lang, 'login_body', code=code)}"
 
 
 def login_keyboard(user: UserAccount) -> InlineKeyboardMarkup | None:
@@ -185,7 +188,10 @@ async def send_login_code(
             user.id, user.username or "", user.full_name
         )
     code = issue_login_code(user.id)
-    await message.answer(login_text(code), reply_markup=login_keyboard(account))
+    language = resolve_language(user.id, getattr(user, 'language_code', None))
+    await message.answer(
+        login_text(code, language), reply_markup=login_keyboard(account)
+    )
 
 
 def new_user_admin_text(
@@ -279,11 +285,17 @@ async def cancel_process(message: Message, state: FSMContext) -> None:
             )
             return
 
+    user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
+    cancelled_text = t(language, "cancelled") or CANCELLED_TEXT
     if message.chat.type == "private":
-        user = message.from_user
         try:
             menu_kwargs: dict[str, object] = {
-                "is_admin": is_admin(user.id) if user is not None else False
+                "is_admin": is_admin(user.id) if user is not None else False,
+                "language": language,
             }
             if user is not None:
                 menu_kwargs.update(
@@ -292,13 +304,13 @@ async def cancel_process(message: Message, state: FSMContext) -> None:
                     full_name=user.full_name,
                 )
             await message.answer(
-                CANCELLED_TEXT,
+                cancelled_text,
                 reply_markup=build_main_menu(**menu_kwargs),
             )
             return
         except TelegramAPIError:
             logger.exception("Bekor qiliş xabarini menyu bilan yuborib bölmadi")
-    await message.answer(CANCELLED_TEXT)
+    await message.answer(cancelled_text)
 
 
 # ----------------------------------------------------------------------
@@ -309,12 +321,17 @@ async def start_command(message: Message, command: CommandObject | None = None) 
     """/start — xush kelibsiz xabari, doimiy menyu va referal hisobi."""
     user = message.from_user
     if message.chat.type != "private":
-        await message.answer(
-            "Öyin oçiş uçun /bunker, /mafia, /spy, /alias yoki /bomb "
-            "buyruğini yuboring."
+        language = resolve_language(
+            user.id if user is not None else None,
+            getattr(user, "language_code", None) if user is not None else None,
         )
+        await message.answer(t(language, "welcome_group_only"))
         return
 
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
     name = escape(user.full_name if user else "döstim")
     economy = get_economy()
     notes: list[str] = []
@@ -343,8 +360,11 @@ async def start_command(message: Message, command: CommandObject | None = None) 
             )
             if is_new:
                 notes.append(
-                    f"🎁 Röyxatdan ötganingiz uçun <b>{format_price(account.coins)}</b> "
-                    "bepul tanga berildi!"
+                    t(
+                        language,
+                        "registered_bonus",
+                        amount=format_price(account.coins),
+                    )
                 )
                 if inviter_id is not None and inviter_id != user.id:
                     result = economy.register_referral(inviter_id, user.id)
@@ -364,21 +384,31 @@ async def start_command(message: Message, command: CommandObject | None = None) 
         await send_login_code(message, account)
         return
 
-    text = WELCOME_TEXT.format(name=name)
+    # Yangi foydalanuvchi uchun birinchi til tanlash oynasi.
+    if account is not None and not getattr(account, 'language_code', None):
+        await message.answer(
+            t(language, "language_prompt"),
+            reply_markup=language_keyboard(language),
+        )
+    text = t(language, "welcome", name=name)
     if notes:
         text = f"{text}\n\n" + "\n".join(notes)
 
-    await _send_welcome(message, text, is_admin(user.id) if user else False)
+    await _send_welcome(
+        message, text, is_admin(user.id) if user else False, language
+    )
 
 
-async def _send_welcome(message: Message, text: str, admin: bool) -> None:
+async def _send_welcome(
+    message: Message, text: str, admin: bool, language: str | None = None
+) -> None:
     """Menyuni yuboradi; web_app tugmasi rad etilsa, oddiy menyuga qaytadi.
 
     Mini App havolasiga foydalanuvchi id'si va ismi qo'shiladi, shuning uchun
     pastki klaviaturadan ochilganda ham profil haqiqiy ma'lumot bilan to'ladi.
     """
     user = message.from_user
-    menu_kwargs: dict[str, object] = {"is_admin": admin}
+    menu_kwargs: dict[str, object] = {"is_admin": admin, "language": language}
     if user is not None:
         menu_kwargs.update(
             user_id=user.id,
@@ -421,7 +451,7 @@ async def login_command(message: Message) -> None:
     await send_login_code(message, account)
 
 
-@router.message(F.chat.type == "private", F.text == INVITE_BUTTON)
+@router.message(F.chat.type == "private", F.text.in_(all_button_texts("invite")))
 async def invite_friends(message: Message) -> None:
     """👥 Do'stlarni taklif qilish — shaxsiy havola va ishlangan tangalar."""
     user = message.from_user
@@ -683,10 +713,17 @@ async def _edit_or_send(
 
 
 @router.message(Command("help", "rules"))
-@router.message(F.chat.type == "private", F.text == RULES_BUTTON)
+@router.message(F.chat.type == "private", F.text.in_(all_button_texts("rules")))
 async def menu_rules(message: Message) -> None:
     """ℹ️ Qoidalar / Yordam — barcha o'yinlar bo'yicha inline menyu."""
-    await message.answer(HELP_TEXT, reply_markup=rules_keyboard())
+    user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
+    await message.answer(
+        t(language, "help_text"), reply_markup=rules_keyboard()
+    )
 
 
 @router.callback_query(F.data == RULES_BUNKER)

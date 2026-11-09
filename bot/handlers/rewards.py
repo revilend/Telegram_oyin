@@ -11,7 +11,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
-from bot.keyboards.main_menu import BONUS_BUTTON, PROMO_BUTTON
 from core.economy import (
     DAILY_BONUS_TABLE,
     DailyBonusClaim,
@@ -20,6 +19,7 @@ from core.economy import (
     format_price,
     get_economy,
 )
+from core.i18n import all_button_texts
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def bonus_wait_text(reason: str, status: DailyBonusStatus) -> str:
 
 
 @router.message(PRIVATE, Command("bonus"))
-@router.message(PRIVATE, F.text == BONUS_BUTTON)
+@router.message(PRIVATE, F.text.in_(all_button_texts("bonus")))
 async def claim_bonus(message: Message) -> None:
     """Kunlik bonusni oladi yoki qolgan vaqtni aytadi."""
     user = message.from_user
@@ -106,7 +106,7 @@ async def claim_bonus(message: Message) -> None:
 
 
 @router.message(PRIVATE, Command("promo"))
-@router.message(PRIVATE, F.text == PROMO_BUTTON)
+@router.message(PRIVATE, F.text.in_(all_button_texts("promo")))
 async def ask_promo(message: Message, state: FSMContext) -> None:
     """Promo kod kiritishni so'raydi."""
     await state.set_state(RewardStates.waiting_promo)

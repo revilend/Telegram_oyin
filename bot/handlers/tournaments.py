@@ -47,6 +47,8 @@ logger = logging.getLogger(__name__)
 
 router = Router(name="tournaments")
 
+from core.i18n import all_button_texts, resolve_language, t
+
 TOURNAMENTS_BUTTON = "🏆 Turnirlar"
 OPEN_CALLBACK = "tournaments_open"
 REFRESH_CALLBACK = "tour_update"
@@ -333,7 +335,7 @@ async def new_tournament_command(message: Message, command: CommandObject) -> No
 
 @router.message(Command("tournaments"))
 @router.message(Command("turnir"))
-@router.message(F.text == TOURNAMENTS_BUTTON)
+@router.message(F.text.in_(all_button_texts("tournaments")))
 async def tournaments_command(message: Message) -> None:
     """/tournaments — haftalik turnirlar afishasi."""
     await show_tournaments(message)

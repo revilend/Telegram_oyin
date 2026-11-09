@@ -1,8 +1,4 @@
-"""«👤 Mening profilim» kartochkasi.
-
-Foydalanuvchi ``users`` jadvalida bo'lmasa, xatolik bermay avtomatik
-yaratiladi (``core.economy.START_COINS`` — 100 bepul tanga).
-"""
+"""«👤 Profilim / Мой профиль / My Profile» kartochkasi (3 til)."""
 
 from __future__ import annotations
 
@@ -11,9 +7,13 @@ from html import escape
 
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
-from bot.keyboards.main_menu import PROFILE_BUTTON
 from core.economy import (
     START_COINS,
     UserAccount,
@@ -21,10 +21,21 @@ from core.economy import (
     get_economy,
     player_rating,
 )
+from core.i18n import (
+    LANGUAGE_NAMES,
+    all_button_texts,
+    normalize_language,
+    resolve_language,
+    set_language,
+    t,
+)
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="profile")
+
+CHANGE_LANGUAGE_CALLBACK = "change_language"
+SET_LANGUAGE_PREFIX = "set_lang:"
 
 
 def safe_int(value: object, default: int = 0) -> int:
@@ -59,8 +70,11 @@ def equipped_title(user_id: int) -> str:
         return ""
 
 
-def profile_text(account: UserAccount, title: str = "") -> str:
+def profile_text(
+    account: UserAccount, title: str = "", language: str | None = None
+) -> str:
     """Chiroyli profil kartochkasi (barcha maydonlar xavfsiz)."""
+    lang = normalize_language(language or getattr(account, 'language_code', None))
     name = escape(display_name(account))
     username = f"@{escape(account.username)}" if account.username else "—"
     coins = safe_int(account.coins, START_COINS)
@@ -72,52 +86,112 @@ def profile_text(account: UserAccount, title: str = "") -> str:
     alias_wins = safe_int(account.alias_wins)
     bomb_wins = safe_int(account.bomb_wins)
     total_wins = bunker_wins + mafia_wins + spy_wins + alias_wins + bomb_wins
-    title_line = f"\n👑 Unvon: <b>{escape(title)}</b>" if title else ""
+    title_line = (
+        f"\n👑 {t(lang, 'profile_title_label')}: <b>{escape(title)}</b>"
+        if title
+        else ""
+    )
+    title_block = t(lang, "profile_title")
     return (
         "╭───────────────────────╮\n"
-        "    👤 <b>Mening profilim</b>\n"
+        f"    {title_block}\n"
         "╰───────────────────────╯\n\n"
-        f"👤 Ism: <b>{name}</b>{title_line}\n"
-        f"🔗 Username: {username}\n"
+        f"👤 {t(lang, 'profile_name')}: <b>{name}</b>{title_line}\n"
+        f"🔗 {t(lang, 'profile_username')}: {username}\n"
         f"🆔 ID: <code>{account.user_id}</code>\n"
-        f"🪙 Tangalar: <b>{format_price(coins)}</b>\n"
-        f"🎮 Öynalgan öyinlar: <b>{games}</b> | "
-        f"🥇 Ğalabalar: <b>{wins}</b>\n"
-        f"🛡️ Bunker: <b>{bunker_wins}</b> | 🕵️ Mafiya: <b>{mafia_wins}</b>\n"
-        f"🕶️ Josus: <b>{spy_wins}</b> | 🐊 Alias: <b>{alias_wins}</b>\n"
-        f"💣 Bomba: <b>{bomb_wins}</b>\n"
-        f"🏅 Umumiy ğalabalar: <b>{total_wins}</b>\n"
-        f"🏆 Reyting: <b>{format_price(player_rating(account))}</b>"
+        f"🪙 {t(lang, 'profile_coins')}: <b>{format_price(coins)}</b>\n"
+        f"🎮 {t(lang, 'profile_games')}: <b>{games}</b> | "
+        f"🥇 {t(lang, 'profile_wins')}: <b>{wins}</b>\n"
+        f"🛡️ {t(lang, 'profile_bunker')}: <b>{bunker_wins}</b> | "
+        f"🕵️ {t(lang, 'profile_mafia')}: <b>{mafia_wins}</b>\n"
+        f"🕶️ {t(lang, 'profile_spy')}: <b>{spy_wins}</b> | "
+        f"🐊 {t(lang, 'profile_alias')}: <b>{alias_wins}</b>\n"
+        f"💣 {t(lang, 'profile_bomb')}: <b>{bomb_wins}</b>\n"
+        f"🏅 {t(lang, 'profile_total_wins')}: <b>{total_wins}</b>\n"
+        f"🏆 {t(lang, 'profile_rating')}: "
+        f"<b>{format_price(player_rating(account))}</b>"
     )
 
 
 def load_account(user) -> UserAccount:
     """Hisobni qaytaradi; yo'q bo'lsa 100 tanga bilan yaratadi."""
-    return get_economy().ensure_user(
-        user.id, user.username or "", user.full_name or ""
+    return get_economy().ensure_user(user.id, user.username or "", user.full_name or "")
+
+
+def language_keyboard(language: str) -> InlineKeyboardMarkup:
+    """Tilni almashtirish inline klaviaturasi."""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=LANGUAGE_NAMES[code],
+                callback_data=f"{SET_LANGUAGE_PREFIX}{code}",
+            )
+            for code in ("uz", "ru", "en")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def profile_keyboard(language: str) -> InlineKeyboardMarkup:
+    """Profil ostidagi inline tugmalar: tilni almashtirish."""
+    from core.i18n import default_label
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=default_label("change_language", language),
+                    callback_data=CHANGE_LANGUAGE_CALLBACK,
+                )
+            ]
+        ]
     )
 
 
 @router.message(Command("profile", "me"))
-@router.message(F.chat.type == "private", F.text == PROFILE_BUTTON)
+@router.message(F.chat.type == "private", F.text.in_(all_button_texts("profile")))
 async def show_profile(message: Message) -> None:
     """Profil kartochkasini yuboradi."""
     user = message.from_user
     if user is None:
         return
+    language = resolve_language(user.id, getattr(user, 'language_code', None))
     try:
-        # `users` jadvali `telegram_id` bo'yicha qidiriladi; topilmasa
-        # 100 tanga bilan yangi yozuv yaratiladi.
         account = load_account(user)
     except Exception as exc:  # xatoni yashirmaymiz
         logger.exception("Profil xatosi: %s", user.id)
-        await message.answer(f"⚠️ Profil xatosi: {escape(str(exc))}")
+        await message.answer(t(language, "profile_error", error=escape(str(exc))))
         return
 
-    text = profile_text(account, equipped_title(user.id))
+    text = profile_text(account, equipped_title(user.id), language)
     if account.coins == START_COINS and account.games_played == 0:
-        text += (
-            f"\n\n🎁 Röyxatdan ötganingiz uçun <b>{START_COINS}</b> bepul "
-            "tanga berildi!"
-        )
-    await message.answer(text)
+        text += f"\n\n{t(language, 'profile_free_coins', amount=START_COINS)}"
+    await message.answer(text, reply_markup=profile_keyboard(language))
+
+
+@router.callback_query(F.data == CHANGE_LANGUAGE_CALLBACK)
+async def change_language(callback: CallbackQuery) -> None:
+    """Profil menyusidan til almashtirish oynasi."""
+    user = callback.from_user
+    language = resolve_language(user.id, getattr(user, 'language_code', None)) if user else "uz"
+    await callback.message.answer(
+        t(language, "language_prompt"), reply_markup=language_keyboard(language)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith(SET_LANGUAGE_PREFIX))
+async def choose_language(callback: CallbackQuery) -> None:
+    """Tanlangan tilni saqlab, botni shu tilga o'tkazadi."""
+    user = callback.from_user
+    code = (callback.data or "").removeprefix(SET_LANGUAGE_PREFIX)
+    normalized = normalize_language(code)
+    if user is not None:
+        try:
+            set_language(user.id, normalized)
+        except Exception:
+            logger.exception("Til saqlanmadi: %s", user.id)
+    await callback.message.answer(
+        t(normalized, "language_changed", language=LANGUAGE_NAMES[normalized])
+    )
+    await callback.answer(t(normalized, "language_changed", language=LANGUAGE_NAMES[normalized]))
