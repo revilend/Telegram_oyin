@@ -16,6 +16,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.i18n import resolve_language, t
 from engine.game_manager import GameError, GameRoom, get_default_manager
 from models.game import RoomStatus
 
@@ -161,7 +162,8 @@ async def create_game(message: Message) -> None:
             host_name=user.full_name,
             host_username=user.username or "",
         )
-        await message.answer(_room_text(room), reply_markup=_room_keyboard(room))
+        header = t(resolve_language(user.id, getattr(user, "language_code", None)), "room_created", game="Bunker", waiting=len(room.players))
+        await message.answer(header + "\n\n" + _room_text(room), reply_markup=_room_keyboard(room))
     except Exception as exc:  # bitta xato butun buyruqni jim yutmasligi kerak
         logger.exception("Guruhda /bunker buyruğini bajarişda xatolik: %s", exc)
         await message.reply(f"⚠️ Xatolik yuz berdi: {escape(str(exc))}")
@@ -198,7 +200,8 @@ async def join_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Xonaga qöşildingiz!")
+    language = resolve_language(user.id, getattr(user, "language_code", None))
+    await callback.answer(t(language, "room_joined", name=escape(player.full_name)))
     await callback.bot.send_message(
         _chat_id(callback),
         f"➕ <b>{escape(player.full_name)}</b> qöşildi "
@@ -230,7 +233,8 @@ async def start_game_callback(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Öyin boşlandi!")
+    language = resolve_language(user.id, getattr(user, "language_code", None))
+    await callback.answer(t(language, "room_started", game="Bunker"))
     announcement = (
         "🎬 <b>Öyin boşlandi!</b>\n\n"
         f"🔑 Xona kodi: <code>{room.code}</code>\n"

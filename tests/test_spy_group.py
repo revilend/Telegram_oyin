@@ -97,7 +97,7 @@ class SpyGroupLobbyTest(unittest.TestCase):
         callback = FakeCallback(f"{spy_group.JOIN_PREFIX}{room.code}", user_id=702, name="Vali")
         asyncio.run(spy_group.join_spy_game(callback))
 
-        self.assertIn("qöşildingiz", callback.answered[-1])
+        self.assertIn("öyinga qöşildi", callback.answered[-1])
         updated = manager.get_room(room.code)
         self.assertIn(702, updated.players)
         sent = callback.bot.messages[-1][1]

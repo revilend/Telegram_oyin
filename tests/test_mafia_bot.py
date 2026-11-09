@@ -276,7 +276,7 @@ class GroupCommandTest(unittest.IsolatedAsyncioTestCase):
         await mafia_group.join_mafia_game(callback)
 
         self.assertIn(502, game.room.players)
-        self.assertEqual(callback.answers[-1][0], "Mafiyaga qöşildingiz!")
+        self.assertIn("öyinga qöşildi", callback.answers[-1][0])
         self.assertTrue(message.edits)
         self.assertIn("(jami 2 kişi)", message.edits[-1][0])
         self.assertEqual(len(message.edits[-1][1].inline_keyboard), 3)
@@ -319,7 +319,7 @@ class StartGameHandlerTest(unittest.IsolatedAsyncioTestCase):
         await mafia_group.start_mafia_game(callback)
 
         self.assertIs(game.room.phase, GamePhase.NIGHT)
-        self.assertEqual(callback.answers[-1][0], "Öyin boşlandi!")
+        self.assertIn("boşlandi", callback.answers[-1][0].lower())
         self.assertTrue(message.edits)
         self.assertIn("BOŞLANDI", message.edits[0][0])
         self.assertIsNotNone(game.phase_deadline)

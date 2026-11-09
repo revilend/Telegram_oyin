@@ -32,6 +32,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.i18n import resolve_language, t
 from core import room_store
 from core.economy import MAFIA_WIN_REWARD, get_economy
 from games.mafia.boosters import KEVLAR
@@ -823,7 +824,8 @@ async def join_mafia_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Mafiyaga qöşildingiz!")
+    language = resolve_language(user.id, getattr(user, "language_code", None))
+    await callback.answer(t(language, "room_joined", name=escape(user.full_name)))
     await _edit_lobby(callback, lobby_text(game), lobby_keyboard(game))
 
 
@@ -842,7 +844,10 @@ async def start_mafia_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Öyin boşlandi!")
+    language = resolve_language(
+        callback.from_user.id, getattr(callback.from_user, "language_code", None)
+    )
+    await callback.answer(t(language, "room_started", game="Mafiya"))
     await _edit_lobby(
         callback,
         "🕵️‍♂️ <b>MAFIYA ÖYINI BOŞLANDI!</b>\n\n"

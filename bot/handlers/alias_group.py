@@ -34,6 +34,7 @@ from aiogram.types import (
 from aiogram.types import WebAppInfo
 
 from bot.config import get_config
+from core.i18n import resolve_language, t
 from bot.keyboards.main_menu import mini_app_url_for
 from bot.handlers.admin import is_admin
 from core.economy import get_economy
@@ -531,7 +532,8 @@ async def join_alias_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Aliasga qöşildingiz!")
+    language = resolve_language(user.id, getattr(user, "language_code", None))
+    await callback.answer(t(language, "room_joined", name=escape(user.full_name)))
     try:
         if callback.message is not None:
             await callback.message.edit_text(
@@ -561,7 +563,10 @@ async def start_alias_game(callback: CallbackQuery) -> None:
         await callback.answer("Raund boşlanmadi.", show_alert=True)
         return
 
-    await callback.answer("Öyin boşlandi!")
+    language = resolve_language(
+        callback.from_user.id, getattr(callback.from_user, "language_code", None)
+    )
+    await callback.answer(t(language, "room_started", game="Alias"))
     try:
         if callback.message is not None:
             await callback.message.edit_text(

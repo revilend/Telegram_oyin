@@ -21,6 +21,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.i18n import resolve_language, t
 from games.spyfall.engine import (
     DOUBLE_SPY_MIN_PLAYERS,
     MAX_PLAYERS,
@@ -247,7 +248,8 @@ async def join_spy_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Josusga qöşildingiz!")
+    language = resolve_language(user.id, getattr(user, "language_code", None))
+    await callback.answer(t(language, "room_joined", name=escape(user.full_name)))
     await _edit_or_send(callback, lobby_text(room), lobby_keyboard(room))
 
 
@@ -265,7 +267,10 @@ async def start_spy_game(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Öyin boşlandi!")
+    language = resolve_language(
+        callback.from_user.id, getattr(callback.from_user, "language_code", None)
+    )
+    await callback.answer(t(language, "room_started", game="Josus"))
     await announce_room(callback.bot, room, "start")
     await _edit_or_send(
         callback,

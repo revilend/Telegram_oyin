@@ -20,6 +20,7 @@ from aiogram.types import (
 )
 
 from bot.config import get_config
+from core.i18n import resolve_language, t
 from games.bomb.cards import CardType, card_name, card_symbol
 from games.bomb.engine import ActionResult, BombRoom, DrawResult
 from games.bomb.generator import MAX_PLAYERS, MIN_PLAYERS
@@ -293,7 +294,8 @@ async def join_bomb_game(callback: CallbackQuery) -> None:
     except BombRoomError as exc:
         await callback.answer(str(exc), show_alert=True)
         return
-    await callback.answer("Bombaga qöşildingiz!")
+    language = resolve_language(user.id, getattr(user, "language_code", None))
+    await callback.answer(t(language, "room_joined", name=escape(user.full_name)))
     await _edit_or_send(callback, lobby_text(room), lobby_keyboard(room))
 
 
@@ -309,7 +311,10 @@ async def start_bomb_game(callback: CallbackQuery) -> None:
     except BombRoomError as exc:
         await callback.answer(str(exc), show_alert=True)
         return
-    await callback.answer("Öyin boşlandi!")
+    language = resolve_language(
+        callback.from_user.id, getattr(callback.from_user, "language_code", None)
+    )
+    await callback.answer(t(language, "room_started", game="Bomba"))
     await announce_room(callback.bot, room, "start")
     await _edit_or_send(
         callback,

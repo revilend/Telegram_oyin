@@ -40,6 +40,7 @@ Bitta Telegram bot, bitta FastAPI server va bitta zamonaviy Mini App — Bunker,
 - [Loyiha tuzilishi](#-loyiha-tuzilishi)
 - [API va WebSocket](#-api-va-websocket)
 - [Admin panel](#️-admin-panel)
+- [Ko‘p tillilik (i18n)](#-kop-tillilik-i18n)
 - [Litsenziya va aloqa](#-litsenziya-va-aloqa)
 
 ---
@@ -335,7 +336,8 @@ MINI_APP_URL=https://revilend.games
 ADMIN_ID=123456789
 
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-service-role-key
+SUPABASE_KEY=your-service-role-key   # anon kalit bo‘lsa RLS user_inventory yozishni bloklaydi!
+SUPABASE_SERVICE_ROLE_KEY=            # alias (ixtiyoriy)
 
 ALLOW_GUEST_AUTH=false
 INIT_DATA_MAX_AGE=86400
@@ -367,8 +369,9 @@ Supabase SQL Editor’da `core/schema.sql` faylini ishga tushiring. Bu quyidagi 
 | `BOT_USERNAME` | ➖ | Bot username’i, standart `revilend_gamesbot`. |
 | `MINI_APP_URL` | ✅ | Mini App HTTPS manzili. |
 | `ADMIN_ID` | ✅ | Bosh adminning Telegram ID’si. |
-| `SUPABASE_URL` | ➖ | Supabase loyiha URL’i. |
-| `SUPABASE_KEY` | ➖ | Supabase service role kaliti. |
+| `SUPABASE_URL` | ✅ (prod) | Supabase loyiha URL’i. |
+| `SUPABASE_KEY` | ✅ (prod) | Supabase **service_role** kaliti (anon emas). Backend yozuvlari faqat shu kalit bilan amalga oshiriladi. |
+| `SUPABASE_SERVICE_ROLE_KEY` | ➖ | `SUPABASE_KEY` alias’i — to‘ldirilmagan bo‘lsa `SUPABASE_KEY` ishlatiladi. |
 | `ALLOW_GUEST_AUTH` | ➖ | Mehmon rejimi; production’da `false`. |
 | `INIT_DATA_MAX_AGE` | ➖ | `initData` amal qilish muddati, soniyada. |
 | `WEB_HOST` | ➖ | Server hosti, standart `0.0.0.0`. |
@@ -620,13 +623,49 @@ Admin huquqi:
 
 - [x] 5 ta asosiy o‘yin
 - [x] Telegram Mini App
-- [x] Supabase persistence
+- [x] Supabase persistence (Database-First)
 - [x] Tanga iqtisodiyoti va do‘kon
 - [x] Turnirlar va bracket
-- [x] Kunlik zaxira
+- [x] Kunlik zaxira (Daily Auto-Backup)
+- [x] Ko‘p tilli interfeys (UZ / RU / EN)
 - [ ] Avtomatik to‘lov integratsiyasi
-- [ ] Ko‘p tilli interfeys
 - [ ] Mobil ilova ko‘rinishidagi PWA
+
+---
+
+## 🌐 Ko‘p tillilik (i18n)
+
+Bot barcha xabarlarni uch tilda beradi: 🇺🇿 `uz` (yangi lotin: ö, ğ, ş, ç), 🇷🇺 `ru`, 🇬🇧 `en`.
+
+| Element | Joyi |
+|:---|:---|
+| Markaziy lug‘at | `core/i18n.py` (STRINGS, BUTTONS) |
+| Til saqlash | `users.language_code` (Supabase), `core/economy.py::set_language` |
+| `/start` tanlash oynasi | `bot/handlers/common.py` — yangi foydalanuvchiga birinchi marta |
+| Pastki menyu | `bot/keyboards/main_menu.py::build_main_menu(language=...)` |
+| Profil → Tilni o‘zgartirish | `bot/handlers/profile.py` (`set_lang:uz|ru|en`) |
+| Guruh xona e’lonlari | 5 ta group handlerda `room_created`/`room_joined`/`room_started` kalitlari |
+
+Qoidalar:
+
+- Til topilmasa default **`uz`** ishlaydi.
+- Pastki menyu filtrlari uch tildagi matnlarni ham qabul qiladi (`all_button_texts`).
+- Callback ma’lumotlari hech qachon tilga bog‘liq emas — tugmalar matni o‘zgaradi, callback o‘zgarmaydi.
+- Yangi xabarlar uchun matnni `core/i18n.py` ga kalit bilan qo‘shing va handlerda `t(lang, "kalit")` dan oling.
+
+---
+
+## 🗄️ Supabase Database-First arxitekturasi
+
+Server xotirasi (RAM) faqat jonli o‘yin holatining WebSocket oqimi uchun ishlatiladi. Doimiy ma’lumotlar — tangalar, g‘alabalar, streak (`streak_days`/`bonus_streak`), inventar, xaridlar, turnir ishtiroklari — har kirishda Supabase’dan o‘qiladi va unga yoziladi.
+
+- **Single Source of Truth:** Supabase yoqilgan bo‘lsa, RAM fallback ishlatilmaydi.
+- **Fail-fast:** Supabase sozlanmagan prod server ishga tushmaydi (sinov uchun `ALLOW_GUEST_AUTH=true` / `ALLOW_IN_MEMORY_FALLBACK=true`).
+- **Admin huquq:** yozuvlar `SUPABASE_SERVICE_ROLE_KEY` (yoki `SUPABASE_KEY`) backend kaliti bilan — brauzer anon kalit bilan yozmaydi (RLS bloklash oldini oladi).
+- **Xarid oqimi:** Mini App → faqat `POST /api/shop/buy` → backend `user_inventory` (quantity +1) va `shop_transactions` ga yozadi; xatoda xarid rollback bo‘ladi.
+- **Zaxira:** `core/daily_backup.py` har kuni 00:00 (Toshkent) to‘liq JSON zaxirani admin chatiga yuboradi; `core/backup.py` eksport/import.
+
+> QAT’IY QOIDA: Har bir feature commit `README.md` ni ham parallel yangilab boradi.
 
 ---
 
