@@ -324,6 +324,65 @@ class MegaStoreTest(unittest.TestCase):
         self.assertFalse(self.store.entry(88011, "frame_cyber").is_equipped)
 
 
+class EquipResilienceTest(unittest.TestCase):
+    """Supabase yozuvi yiqilsa ham taqish jarayoni davom etishini tekshiradi."""
+
+    def test_equip_keeps_new_frame_when_inventory_write_fails(self) -> None:
+        class FailingQuery:
+            def __init__(self, table: str) -> None:
+                self.table = table
+                self.operation = "select"
+
+            def select(self, *_args, **_kwargs):
+                self.operation = "select"
+                return self
+
+            def eq(self, *_args, **_kwargs):
+                return self
+
+            def update(self, *_args, **_kwargs):
+                self.operation = "update"
+                return self
+
+            def upsert(self, *_args, **_kwargs):
+                self.operation = "upsert"
+                return self
+
+            def execute(self):
+                if self.operation == "select" and self.table == "user_inventory":
+                    return SimpleNamespace(
+                        data=[
+                            {
+                                "user_id": 777,
+                                "item_slug": "frame_fire",
+                                "quantity": 1,
+                                "is_equipped": True,
+                            },
+                            {
+                                "user_id": 777,
+                                "item_slug": "frame_gold",
+                                "quantity": 1,
+                                "is_equipped": False,
+                            },
+                        ]
+                    )
+                if self.operation == "upsert":
+                    raise RuntimeError("supabase ishlamayapti")
+                return SimpleNamespace(data=[])
+
+        class FailingClient:
+            def table(self, name: str):
+                return FailingQuery(name)
+
+        store = ShopStore(client=FailingClient())
+        result = store.equip(777, "frame_gold")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["equipped"]["frame"], "frame_gold")
+        self.assertEqual(store.equipped(777)["frame"], "frame_gold")
+        self.assertFalse(store.entry(777, "frame_fire").is_equipped)
+        self.assertTrue(store.entry(777, "frame_gold").is_equipped)
+
+
 class CosmeticsUiWiringTest(unittest.TestCase):
     """Mini App ramka/unvon oqimi backend bilan bog'langanini tekshiradi."""
 
@@ -340,6 +399,10 @@ class CosmeticsUiWiringTest(unittest.TestCase):
         self.assertIn(".avatar-frame.frame-gold", html)
         self.assertIn("Taqilgan ✅", html)
         self.assertIn("title_slug", html)
+        self.assertIn("text-white font-bold text-base", html)
+        self.assertIn("text-purple-200 text-xs", html)
+        self.assertIn("5 ta öyin mavjud", html)
+        self.assertIn("Sinxronlash keyinroq bajariladi", html)
 
 
 if __name__ == "__main__":

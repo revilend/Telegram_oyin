@@ -76,6 +76,10 @@ class ShopApiTest(unittest.TestCase):
         inventory = {entry["slug"]: entry for entry in payload["inventory"]}
         self.assertEqual(inventory["booster_double_vote"]["quantity"], 1)
         self.assertEqual(len(store.transactions()), 1)
+        transaction = store.transactions()[0]
+        self.assertEqual(transaction["item_id"], "booster_double_vote")
+        self.assertEqual(transaction["item_title"], "2x Ovoz")
+        self.assertEqual(transaction["price_coins"], 15)
 
         self.client.post(
             "/api/shop/buy",
@@ -402,6 +406,30 @@ class ShopPurchaseHistoryTest(unittest.TestCase):
         self.assertTrue(store.enabled)
         rows = store.transactions_for_user(7, 5)
         self.assertEqual([row["item_slug"] for row in rows], ["frame_gold", "booster_shield"])
+
+    def test_history_reads_alternate_supabase_columns(self) -> None:
+        fake = _FakeClient(
+            [
+                {
+                    "user_id": 7,
+                    "item_id": "frame_fire",
+                    "item_title": "Olovli Ajdaho",
+                    "price_coins": 260,
+                    "quantity": 1,
+                    "created_at": "2026-01-03T10:00:00+00:00",
+                }
+            ]
+        )
+        store = ShopStore(economy=self.economy, client=fake)
+        set_shop_store(store)
+        response = self.client.get("/api/shop/history", params={"user_id": 7})
+        self.assertEqual(response.status_code, 200)
+        history = response.json()["history"]
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["item_slug"], "frame_fire")
+        self.assertEqual(history[0]["title"], "Olovli Ajdaho")
+        self.assertEqual(history[0]["total_price"], 260)
+        self.assertTrue(history[0]["created_at"])
 
     def test_history_falls_back_to_memory_when_supabase_fails(self) -> None:
         store = ShopStore(economy=self.economy, client=_FakeClient([], fail=True))

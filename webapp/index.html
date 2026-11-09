@@ -210,13 +210,19 @@
 
     .section-title {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
+      gap: 10px;
       margin: 24px 2px 12px;
 }
 
-    .section-title h2 { font-size: 16px; letter-spacing: -0.2px; }
-    .section-title span { font-size: 12px; color: var(--muted); }
+    .section-title h2 { font-size: 16px; letter-spacing: -0.2px; min-width: 0; }
+    .section-title span {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      font-size: 12px;
+      color: var(--muted);
+}
 
     .game-card {
       position: relative;
@@ -2564,9 +2570,13 @@
       box-shadow: 0 0 24px rgba(139, 92, 246, 0.5); color: #fff;
 }
     .wheel-orb .lucide-icon { width: 23px; height: 23px; }
-    .wheel-cta b { display: block; font-size: 15px; }
-    .wheel-cta small { display: block; color: #c4b5fd; font-size: 11px; margin-top: 3px; }
-    .wheel-cta .arrow { margin-left: auto; color: #c4b5fd; }
+    .wheel-cta b, .wheel-cta .text-white {
+      display: block; color: #ffffff !important; font-size: 16px; font-weight: 800;
+}
+    .wheel-cta small, .wheel-cta .text-purple-200 {
+      display: block; color: #e9d5ff !important; font-size: 12px; margin-top: 3px;
+}
+    .wheel-cta .arrow { margin-left: auto; color: #e9d5ff; }
     .shop-block { padding: 16px; }
     .shop-block .block-head { margin-top: 0; }
     .shop-screen .shop-chips { padding-bottom: 4px; }
@@ -5147,6 +5157,7 @@ function profileCardHtml() {
             if (data.equipped) applyServerEquipped(data.equipped, data.inventory);
             else if (view.items) view.items.inventory = data.inventory || view.items.inventory;
             storeInventoryCache();
+            view.purchases = null;
             var bought = (data.loot && data.loot.length) ? data.loot[0].title : data.item.title;
             toast("✅ " + bought + " olindi!", "success");
             haptic("success");
@@ -5241,8 +5252,20 @@ function profileCardHtml() {
           haptic("success");
           if (view.activity) await loadActivity(true);
         } catch (error) {
-          toast(error.message || "Taqib bo'lmadi", "error");
-          await restoreEquippedFromServer();
+          // Supabase xatosi taqishni bekor qilmasligi kerak: ramka
+          // localStorage'da qoladi va avatarda darhol ko'rinadi.
+          if (kind === "frame") applyAvatarFrame(slug);
+          else applyProfileTitle(slug);
+          markEquippedLocally(slug, kind);
+          var ownershipError = error && error.status === 400 &&
+            /sotib oling|taqib bo'lmaydi/i.test(error.message || "");
+          if (ownershipError) {
+            await restoreEquippedFromServer();
+            toast(error.message || "Taqib bo'lmadi", "error");
+          } else {
+            toast("✅ Ramka saqlandi. Sinxronlash keyinroq bajariladi.", "success");
+            haptic("success");
+          }
         } finally {
           view.itemBusy = false;
           renderHub(); // Inventarda "Taqilgan ✅" holati.
@@ -7852,7 +7875,7 @@ function profileCardHtml() {
 
       function gamesTabHtml() {
         return tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
-          '<div class="section-title"><h2>5 ta öyin</h2><span>Faol</span></div>' +
+          '<div class="section-title"><h2>5 ta öyin mavjud</h2><span>Faol</span></div>' +
           GAMES.map(gameCardHtml).join("") +
           '<section class="glass-card join-card" id="join-panel">' +
             '<div class="block-head" style="margin-top:0"><h2>Xona kodi bilan kiriş</h2><span>' + lucideIcon("key-round") + '</span></div>' +
@@ -7880,7 +7903,8 @@ function profileCardHtml() {
             '</section>' +
             '<button class="glass-card wheel-cta" data-act="wheel-open">' +
               '<span class="wheel-orb">' + lucideIcon("sparkles") + '</span>' +
-              '<span><b>Omad gʻildiragi</b><small>' + esc(spinLabel) + ' · kuniga bir bepul</small></span>' +
+              '<span><b class="text-white font-bold text-base">Omad gʻildiragi</b>' +
+                '<small class="text-purple-200 text-xs">' + esc(spinLabel) + ' · kuniga bir bepul</small></span>' +
               '<span class="arrow">' + lucideIcon("chevron-right") + '</span>' +
             '</button>' +
             '<section class="glass-card shop-block">' +
@@ -7969,6 +7993,11 @@ function profileCardHtml() {
           await loadShopItems();
           if (view.hubTab === tab) renderHubMain(tab);
 }
+        if (tab === "profile" && profile.id && view.purchases === null && !view.purchasesLoading) {
+          loadPurchaseHistory().then(function () {
+            if (view.hubTab === "profile") renderHubMain("profile");
+          });
+        }
         // Reyting kosmetikasi (ramka/unvon) boshqa qurilmada taqilgan
         // bo'lsa ham, tabga kirganda yangilanadi.
         if (tab === "rating" && profile.id && !view.activityLoading) {
@@ -7996,7 +8025,7 @@ function profileCardHtml() {
             '</header>' +
             '<main class="fade hub-main pb-24">' +
               tabHeadHtml("STOL ÖYINLARI", "Öyinlar", "Döstlar bilan birga öynang. Xona kodi yoki guruh havolasi orqali kiring.") +
-              '<div class="section-title"><h2>5 ta öyin</h2><span>Faol</span></div>' +
+              '<div class="section-title"><h2>5 ta öyin mavjud</h2><span>Faol</span></div>' +
               cards +
             '</main>' + bottomNavHtml();
           refreshLucide();

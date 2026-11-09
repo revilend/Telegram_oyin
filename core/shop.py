@@ -522,6 +522,49 @@ def _parse_moment(value: Any) -> datetime | None:
     return moment.astimezone(timezone.utc)
 
 
+def _normalize_transaction(row: dict[str, Any]) -> dict[str, Any]:
+    """Tranzaksiya qatorini eski va yangi Supabase sxemalaridan bir ko'rinishga keltiradi.
+
+    Ba'zi o'rnatishlarda ``shop_transactions`` ustunlari ``item_id``,
+    ``item_title`` va ``price_coins`` deb nomlangan. Kod ikkala nomlash
+    uslubini ham o'qiydi, shuning uchun xaridlar tarixi bo'sh ko'rinmaydi.
+    """
+    result = dict(row)
+    slug = str(result.get("item_slug") or result.get("item_id") or "")
+    try:
+        quantity = int(result.get("quantity") or 1)
+    except (TypeError, ValueError):
+        quantity = 1
+    total = result.get("total_price")
+    if total is None:
+        total = result.get("price_coins")
+    if total is None:
+        total = result.get("amount")
+    try:
+        total_price = int(total or 0)
+    except (TypeError, ValueError):
+        total_price = 0
+    unit = result.get("unit_price")
+    if unit is None:
+        unit = result.get("price_coins")
+    try:
+        unit_price = int(unit or 0)
+    except (TypeError, ValueError):
+        unit_price = 0
+    result.update(
+        {
+            "item_slug": slug,
+            "item_id": slug,
+            "item_title": str(result.get("item_title") or ""),
+            "quantity": max(1, quantity),
+            "unit_price": unit_price,
+            "total_price": total_price,
+            "price_coins": total_price,
+        }
+    )
+    return result
+
+
 def pick_segment(rng: random.Random | None = None) -> WheelSegment:
     """Og'irlik bo'yicha ğildirak sektorini tanlaydi."""
     generator = rng or random
@@ -597,7 +640,14 @@ class ShopStore:
             if isinstance(row, dict) and row.get("item_slug")
         }
         for row in self._memory_rows(uid):
-            merged.setdefault(str(row["item_slug"]), row)
+            slug = str(row.get("item_slug") or "")
+            if slug in merged:
+                # Joriy jarayondagi taqish/yeçish eng so'nggi holat. Supabase
+                # yozuvi kechiksa yoki xato bersa, eski `is_equipped` yangi
+                # tanlovni bosib ketmasligi kerak.
+                merged[slug]["is_equipped"] = bool(row.get("is_equipped"))
+            elif slug:
+                merged[slug] = row
         return list(merged.values())
 
     def _save_entry(
@@ -635,12 +685,18 @@ class ShopStore:
     def _record_transaction(
         self, user_id: int, item: ShopItem, quantity: int, total: int
     ) -> None:
+        # Ikkala Supabase sxemasini ham qo'llab-quvvatlaymiz: joriy
+        # `item_slug/total_price` va eski `item_id/item_title/price_coins`.
+        # `safe_insert` mavjud bo'lmagan ustunlarni avtomatik olib tashlaydi.
         row = {
             "user_id": int(user_id),
             "item_slug": item.slug,
+            "item_id": item.slug,
+            "item_title": item.title,
             "quantity": int(quantity),
             "unit_price": int(item.price),
             "total_price": int(total),
+            "price_coins": int(total),
             "currency": "coins",
             "kind": "buy",
         }
@@ -650,11 +706,20 @@ class ShopStore:
                 self._transactions = self._transactions[-500:]
         if not self.enabled:
             return
+        legacy_row = {
+            "user_id": int(user_id),
+            "item_slug": item.slug,
+            "kind": "buy",
+            "amount": int(total),
+        }
         # Yangi `shop_transactions` jadvali; eski o'rnatishlar uchun
         # `transactions`ga ham qayta urinamiz.
-        for table in (TRANSACTIONS_TABLE, LEGACY_TRANSACTIONS_TABLE):
+        for table, payload in (
+            (TRANSACTIONS_TABLE, row),
+            (LEGACY_TRANSACTIONS_TABLE, legacy_row),
+        ):
             try:
-                safe_insert(self.client, table, row)
+                safe_insert(self.client, table, payload)
                 return
             except Exception:
                 logger.warning(
@@ -983,7 +1048,6 @@ class ShopStore:
                             quantity=other.quantity,
                             is_equipped=False,
                         ),
-                        strict=True,
                     )
         self._save_entry(
             uid,
@@ -992,7 +1056,6 @@ class ShopStore:
                 quantity=entry.quantity,
                 is_equipped=bool(equip),
             ),
-            strict=True,
         )
         equipped = self.equipped(uid)
         self._sync_equipped_columns(uid, equipped)
@@ -1043,29 +1106,42 @@ class ShopStore:
         from_bound = _history_bound(from_date)
         to_bound = _history_bound(to_date, end=True)
         fetch = cap + 1
+        rows: list[dict[str, Any]] = []
         if self.enabled:
-            try:
-                query = (
-                    self.client.table(TRANSACTIONS_TABLE)
-                    .select("*")
-                    .eq("user_id", uid)
+            # Yangi va eski jadvalni birgalikda o'qiymiz: ba'zi o'rnatishlarda
+            # tarix faqat `transactions`da qolgan bo'lishi mumkin.
+            for table in (TRANSACTIONS_TABLE, LEGACY_TRANSACTIONS_TABLE):
+                try:
+                    query = self.client.table(table).select("*").eq("user_id", uid)
+                    if from_bound:
+                        query = query.gte("created_at", from_bound)
+                    if to_bound:
+                        query = query.lte("created_at", to_bound)
+                    query = query.order("created_at", desc=True).limit(start + fetch)
+                    rows.extend(query.execute().data or [])
+                except Exception:
+                    logger.exception(
+                        "Xarid tarixini %s jadvalidan öqib bölmadi: %s", table, uid
+                    )
+            if rows:
+                unique: dict[tuple[str, str, int], dict[str, Any]] = {}
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    if int(row.get("user_id") or 0) != uid:
+                        continue
+                    clean_row = _normalize_transaction(row)
+                    key = (
+                        str(clean_row.get("item_slug") or ""),
+                        str(clean_row.get("created_at") or ""),
+                        int(clean_row.get("total_price") or 0),
+                    )
+                    unique.setdefault(key, clean_row)
+                clean = list(unique.values())
+                clean.sort(
+                    key=lambda row: str(row.get("created_at") or ""), reverse=True
                 )
-                if from_bound:
-                    query = query.gte("created_at", from_bound)
-                if to_bound:
-                    query = query.lte("created_at", to_bound)
-                query = query.order("created_at", desc=True)
-                if start:
-                    query = query.range(start, start + fetch - 1)
-                else:
-                    query = query.limit(fetch)
-                rows = query.execute().data or []
-                clean = [dict(row) for row in rows if int(row.get("user_id") or 0) == uid]
-                clean.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
-                page = clean[:cap]
-                return page, len(clean) > cap
-            except Exception:
-                logger.exception("Xarid tarixini bazadan öqib bölmadi: %s", uid)
+                return clean[start : start + cap], len(clean) > start + cap
         with self._lock:
             rows = [
                 dict(row) for row in self._transactions

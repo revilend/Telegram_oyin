@@ -1143,7 +1143,11 @@ async def shop_history(
         history.append(
             {
                 "item_slug": slug,
-                "title": item.title if item is not None else slug,
+                "title": (
+                    item.title
+                    if item is not None
+                    else str(row.get("item_title") or slug)
+                ),
                 "emoji": item.emoji if item is not None else "\U0001f6cd",
                 "kind": item.kind if item is not None else "",
                 "quantity": int(row.get("quantity") or 1),
