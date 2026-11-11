@@ -114,8 +114,30 @@ def profile_text(
 
 
 def load_account(user) -> UserAccount:
-    """Hisobni qaytaradi; yo'q bo'lsa 100 tanga bilan yaratadi."""
-    return get_economy().ensure_user(user.id, user.username or "", user.full_name or "")
+    """Hisobni qaytaradi; yo'q bo'lsa 100 tanga bilan yaratadi.
+
+    Avval 15 sekundlik kesh, keyin baza tekshiriladi — menyu tugmalari
+    (Profil, Do'kon, Reyting) takror bosilganda Supabase'ga ortiqcha so'rov
+    ketmaydi.
+    """
+    economy = get_economy()
+    user_id = int(user.id)
+    try:
+        peek = getattr(economy, "peek_account", None)
+        if callable(peek):
+            cached = peek(user_id)
+            if cached is not None:
+                return cached
+        finder = getattr(economy, "find_user", None)
+        if callable(finder):
+            found = finder(user_id)
+            if found is not None:
+                return found
+    except Exception:  # kesh/baza xatosi profilni bloklamaydi
+        pass
+    return economy.ensure_user(
+        user_id, user.username or "", user.full_name or ""
+    )
 
 
 def language_keyboard(language: str) -> InlineKeyboardMarkup:

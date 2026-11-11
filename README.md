@@ -183,7 +183,10 @@ Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi
 ### Kunlik streak va referallar
 
 - 1–7 kunlik streak: **25 → 35 → 50 → 70 → 100 → 150 → 250 tanga**.
-- Har bir taklif qilingan yangi do‘st uchun **+50 tanga**.
+- Har bir taklif qilingan yangi do‘st uchun **+75 tanga**.
+- Taklif oqimi nosozlikka chidamli: `users`/`referrals` jadvali xato bersa ham `/start` to‘xtamaydi, yangi o‘yinchi xush kelibsiz xabarini va menyuni oladi, taklif qiluvchi esa baribir mukofot oladi (xato faqat logga yoziladi).
+- Profil 15 sekundlik xotira keshida (`PROFILE_CACHE_TTL`) saqlanadi: `/start` va menyu tugmalari Supabase’ga har safar so‘rov yubormaydi, javob odatda 0.5 sekunddan tez. Har qanday yozuv (tanga, til, blok) keshni darhol tozalaydi.
+- O‘lchov (har bir Supabase so‘rovi 150 ms deb simulyatsiya qilindi): mavjud foydalanuvchi `/start` — 1 so‘rov (~150 ms), takroriy bosishda 0 so‘rov (<5 ms); yangi foydalanuvchi + taklif havolasi — xush kelibsiz xabari va menyu ~300 ms da, taklif mukofoti va admin bildirishnomasi esa undan keyin bajariladi.
 - Referal havolasi: `https://t.me/revilend_gamesbot?start=ref_<user_id>`.
 - Yangi foydalanuvchi haqida adminga avtomatik bildirishnoma yuboriladi.
 

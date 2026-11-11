@@ -30,6 +30,7 @@ from bot.handlers.profile import language_keyboard
 from core.i18n import all_button_texts, resolve_language, t
 from core.economy import (
     REFERRAL_BONUS,
+    START_COINS,
     EconomyError,
     UserAccount,
     format_price,
@@ -223,6 +224,69 @@ def new_user_admin_text(
     )
 
 
+def _create_account(economy, user) -> UserAccount:
+    """Yangi hisobni yaratadi (SELECT'siz, chunki yo'qligi allaqachon ma'lum)."""
+    try:
+        return economy.ensure_user(
+            user.id,
+            user.username or "",
+            user.full_name,
+            known_missing=True,
+        )
+    except TypeError:
+        # Eski/test store'lari ``known_missing``ni bilmasligi mumkin.
+        return economy.ensure_user(
+            user.id, user.username or "", user.full_name
+        )
+
+
+def _lookup_account(economy, user_id: int) -> UserAccount | None:
+    """Hisobni bir marta o'qiydi (yangi yozuv yaratmaydi, keshdan foydalanadi)."""
+    finder = getattr(economy, "find_user", None)
+    if not callable(finder):
+        return None
+    return finder(int(user_id))
+
+
+async def _pay_referral(
+    message: Message, economy, inviter_id: int, user
+) -> None:
+    """Taklif qiluvchiga +bonus tanga beradi va unga xabar yuboradi.
+
+    Supabase ``referrals`` jadvali bilan bog'liq har qanday xato yutiladi:
+    yangi o'yinchi baribir xush kelibsiz xabarini va menyuni oladi.
+    """
+    try:
+        result = economy.register_referral(inviter_id, int(user.id))
+    except Exception:
+        logger.exception(
+            "Taklifni saqlab bölmadi: %s -> %s", inviter_id, user.id
+        )
+        return
+    if result is None:
+        return
+    try:
+        await _notify_inviter(message.bot, result, user.full_name or "")
+    except Exception:
+        logger.exception("Taklif egasiga xabar yuborilmadi: %s", inviter_id)
+
+
+async def _finish_new_user(
+    message: Message,
+    economy,
+    inviter_id: int | None,
+    user,
+    is_new: bool,
+    account: UserAccount | None,
+) -> None:
+    """Yangi foydalanuvchi uchun taklif mukofoti va admin bildirishnomasi."""
+    if user is None or not is_new or account is None:
+        return
+    if inviter_id is not None and int(inviter_id) != int(user.id):
+        await _pay_referral(message, economy, int(inviter_id), user)
+    await notify_admin_new_user(message, economy, inviter_id)
+
+
 async def notify_admin_new_user(
     message: Message, economy, inviter_id: int | None = None
 ) -> None:
@@ -336,29 +400,37 @@ async def start_command(message: Message, command: CommandObject | None = None) 
     economy = get_economy()
     notes: list[str] = []
     account: UserAccount | None = None
+    inviter_id: int | None = None
+    is_new = False
 
     if user is not None:
+        # Bitta o'qish (keshdan yoki bazadan) blok holati va "yangi
+        # foydalanuvchi"mi degan savolga birga javob beradi. Avval bu yerda
+        # ketma-ket 3 ta Supabase so'rovi ketardi — shu sababli /start sekin
+        # javob berardi.
         try:
-            blocked_account = economy.find_user(user.id)
-            if blocked_account is not None and blocked_account.is_blocked:
-                await message.answer(
-                    blocked_text(
-                        blocked_account.block_reason,
-                        int(get_config().admin_id or 0),
-                    )
-                )
-                return
+            account = _lookup_account(economy, user.id)
         except Exception:
-            logger.exception("Blok holatini tekşirib bölmadi: %s", user.id)
+            # Baza javob bermasa ham /start to'xtamaydi.
+            logger.exception("Foydalanuvçi holatini öqib bölmadi: %s", user.id)
+            account = None
 
-    if user is not None:
-        inviter_id = parse_referral_arg(command.args if command is not None else None)
-        try:
-            is_new = not economy.has_user(user.id)
-            account = economy.ensure_user(
-                user.id, user.username or "", user.full_name
+        if account is not None and account.is_blocked:
+            await message.answer(
+                blocked_text(
+                    account.block_reason,
+                    int(get_config().admin_id or 0),
+                )
             )
-            if is_new:
+            return
+
+        inviter_id = parse_referral_arg(
+            command.args if command is not None else None
+        )
+        is_new = account is None
+        if is_new:
+            try:
+                account = _create_account(economy, user)
                 notes.append(
                     t(
                         language,
@@ -366,22 +438,19 @@ async def start_command(message: Message, command: CommandObject | None = None) 
                         amount=format_price(account.coins),
                     )
                 )
-                if inviter_id is not None and inviter_id != user.id:
-                    result = economy.register_referral(inviter_id, user.id)
-                    if result is not None:
-                        await _notify_inviter(message.bot, result, user.full_name)
-                await notify_admin_new_user(message, economy, inviter_id)
-        except EconomyError as exc:
-            logger.exception("Foydalanuvçini saqlab bölmadi: %s", user.id)
-            notes.append(f"⚠️ {escape(str(exc))}")
-        except Exception:
-            logger.exception("Foydalanuvçini saqlab bölmadi: %s", user.id)
+            except EconomyError as exc:
+                logger.exception("Foydalanuvçini saqlab bölmadi: %s", user.id)
+                notes.append(f"⚠️ {escape(str(exc))}")
+            except Exception:
+                # Taklif/jadval xatosi xush kelibsiz xabarini to'xtatmaydi.
+                logger.exception("Foydalanuvçini saqlab bölmadi: %s", user.id)
 
     args = (command.args if command is not None else "") or ""
     if args.strip().split()[:1] == [LOGIN_START_ARG]:
         if user is None:
             return
         await send_login_code(message, account)
+        await _finish_new_user(message, economy, inviter_id, user, is_new, account)
         return
 
     # Yangi foydalanuvchi uchun birinchi til tanlash oynasi.
@@ -397,6 +466,11 @@ async def start_command(message: Message, command: CommandObject | None = None) 
     await _send_welcome(
         message, text, is_admin(user.id) if user else False, language
     )
+
+    # Taklif mukofoti va admin bildirishnomasi — xush kelibsiz xabari
+    # yuborilgandan keyin bajariladi, shuning uchun foydalanuvchi ularni
+    # kutmaydi. Har bir qadam o'z ``try ... except`` ichida.
+    await _finish_new_user(message, economy, inviter_id, user, is_new, account)
 
 
 async def _send_welcome(
@@ -458,16 +532,27 @@ async def invite_friends(message: Message) -> None:
     if user is None:
         return
     config = get_config()
+    economy = get_economy()
+    account = None
     try:
-        account = get_economy().ensure_user(
-            user.id, user.username or "", user.full_name
-        )
+        account = _lookup_account(economy, user.id)
+        if account is None:
+            account = economy.ensure_user(
+                user.id, user.username or "", user.full_name
+            )
     except Exception:
-        logger.exception("Taklif ma'lumotlarini yuklab bölmadi: %s", user.id)
-        await message.answer(
-            "⚠️ Taklif ma'lumotlarini yuklab bölmadi. Birozdan keyin urinib köring."
+        # Baza vaqtincha ishlamasa ham havola körsatiladi — xato xabari yöq.
+        logger.exception("Taklif ma'lumotlarini öqib bölmadi: %s", user.id)
+    if account is None:
+        account = UserAccount(
+            user_id=int(user.id),
+            username=user.username or "",
+            full_name=user.full_name or "",
+            coins=START_COINS,
+            language_code=resolve_language(
+                user.id, getattr(user, "language_code", None)
+            ),
         )
-        return
     await message.answer(
         invite_text(account, config.bot_username),
         reply_markup=invite_keyboard(account, config.bot_username),

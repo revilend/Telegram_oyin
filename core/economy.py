@@ -12,6 +12,7 @@ import math
 import os
 import re
 import threading
+import time
 import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
@@ -44,6 +45,12 @@ WEEKLY_PLAY_POINTS = 1
 # foydalanuvchilari reytingga kiritiladi.
 TEST_BOT_ID_THRESHOLD = 9_000_000_000
 
+# Foydalanuvchi profili keshi: /start va menyu tugmalari bazaga har safar
+# so'rov yubormasligi uchun qisqa muddatli xotira keshi (sekundlarda).
+PROFILE_CACHE_TTL = 15.0
+# Jami foydalanuvchilar soni (admin bildirishnomasi uchun) keshi.
+USER_COUNT_TTL = 30.0
+
 PENDING = "PENDING"
 APPROVED = "APPROVED"
 REJECTED = "REJECTED"
@@ -61,7 +68,7 @@ START_COINS = 100
 RATING_BASE = 1_000
 RATING_WIN_BONUS = 50
 # Har bir muvaffaqiyatli taklif uchun taklif qiluvchiga beriladigan tanga.
-REFERRAL_BONUS = 50
+REFERRAL_BONUS = 75
 # Mafiya o'yinida g'olib bo'lgan har bir tirik o'yinchi uchun mukofot.
 MAFIA_WIN_REWARD = 25
 
@@ -456,6 +463,10 @@ class EconomyStore:
         ).strip()
         self._client = client
         self._lock = threading.RLock()
+        # user_id -> (monotonic vaqt, hisob). Faqat Supabase rejimida ishlaydi.
+        self._profile_cache: dict[int, tuple[float, UserAccount]] = {}
+        # (monotonic vaqt, jami foydalanuvchilar soni).
+        self._count_cache: tuple[float, int] | None = None
         self._users: dict[int, dict[str, Any]] = {}
         self._payments: dict[str, dict[str, Any]] = {}
         self._boosters: set[tuple[str, int, str]] = set()
@@ -470,6 +481,50 @@ class EconomyStore:
     @property
     def enabled(self) -> bool:
         return self._client is not None or bool(self.url and self.key)
+
+    # ------------------------------------------------------------------
+    # Profil keshi
+    # ------------------------------------------------------------------
+    def _cache_drop(self, user_id: int) -> None:
+        """Keshdagi yozuvni o'chiradi (har qanday yozuvdan keyin)."""
+        self._profile_cache.pop(int(user_id), None)
+
+    def _cache_clear(self) -> None:
+        self._profile_cache.clear()
+
+    def _cached_account(self, user_id: int) -> UserAccount | None:
+        """Keshdagi yangi (TTL ichidagi) hisobni qaytaradi yoki ``None``."""
+        if not self.enabled:
+            return None
+        entry = self._profile_cache.get(int(user_id))
+        if entry is None:
+            return None
+        stamp, account = entry
+        if time.monotonic() - stamp > PROFILE_CACHE_TTL:
+            self._profile_cache.pop(int(user_id), None)
+            return None
+        return account
+
+    def _store_cached(self, account: UserAccount) -> None:
+        if not self.enabled:
+            return
+        self._profile_cache[int(account.user_id)] = (
+            time.monotonic(),
+            account,
+        )
+
+    def peek_account(self, user_id: int) -> UserAccount | None:
+        """Faqat keshdan o'qiydi — bazaga so'rov yubormaydi."""
+        with self._lock:
+            return self._cached_account(int(user_id))
+
+    def invalidate_user(self, user_id: int | None = None) -> None:
+        """Keshni tozalaydi (bitta foydalanuvchi yoki butunlay)."""
+        with self._lock:
+            if user_id is None:
+                self._cache_clear()
+            else:
+                self._cache_drop(user_id)
 
     @property
     def client(self) -> Any:
@@ -490,6 +545,7 @@ class EconomyStore:
         return dict(rows[0]) if rows else None
 
     def _update_user_row(self, user_id: int, changes: dict[str, Any]) -> None:
+        self._cache_drop(user_id)
         # ``updated_at`` ataylab qo'shilmaydi: Supabase sxemasida bu ustun
         # bo'lmasa PGRST204 xatosi chiqadi. Qolgan ustunlar ham xavfsiz
         # yoziladi — yetishmayotganlari so'rovdan avtomatik olib tashlanadi.
@@ -510,11 +566,17 @@ class EconomyStore:
         full_name: str = "",
         *,
         is_bot: bool = False,
+        known_missing: bool = False,
     ) -> UserAccount:
         """Foydalanuvchini yaratadi yoki ismini yangilab, hisobni qaytaradi.
 
         ``is_bot=True`` bo'lsa hisob ``is_bot`` belgisi bilan yoziladi va
         reytingga kiritilmaydi (``/test_game`` virtual botlari uchun).
+
+        ``known_missing=True`` — chaqiruvchi bu foydalanuvchi bazada yo'qligini
+        allaqachon biladi (masalan, ``/start`` oldidan ``find_user`` ishlagan):
+        SELECT o'tkazib yuboriladi va darhol INSERT qilinadi. Shu bilan yangi
+        o'yinchiga javob bitta so'rov tezroq ketadi.
         """
         uid = int(user_id)
         if uid <= 0:
@@ -563,7 +625,9 @@ class EconomyStore:
                         row["is_bot"] = True
                 return _row_to_account(row)
 
-            row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+            row = None if known_missing else self._select_one(
+                USERS_TABLE, **{USERS_ID_COLUMN: uid}
+            )
             if row is None:
                 row = {
                     USERS_ID_COLUMN: uid,
@@ -596,6 +660,8 @@ class EconomyStore:
                     row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
                     if row is None:
                         raise
+                self._cache_drop(uid)
+                self._count_cache = None
             else:
                 changes: dict[str, Any] = {}
                 if username and username != row.get("username"):
@@ -619,7 +685,13 @@ class EconomyStore:
         with self._lock:
             if not self.enabled:
                 return uid in self._users
-            return self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid}) is not None
+            if self._cached_account(uid) is not None:
+                return True
+            row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+            if row is None:
+                return False
+            self._store_cached(_row_to_account(row))
+            return True
 
     def get_role(self, user_id: int) -> str:
         """Foydalanuvchi rolini qaytaradi (``admin`` yoki ``user``)."""
@@ -690,20 +762,39 @@ class EconomyStore:
         return replace(account, language_code=normalized)
 
     def find_user(self, user_id: int) -> UserAccount | None:
-        """Foydalanuvchini yaratmasdan qaytaradi; yo'q bo'lsa ``None``."""
+        """Foydalanuvchini yaratmasdan qaytaradi; yo'q bo'lsa ``None``.
+
+        Natija qisqa muddatli keshga yoziladi, shuning uchun /start va menyu
+        tugmalari takror bosilganda Supabase'ga qayta so'rov ketmaydi.
+        """
         uid = int(user_id)
         with self._lock:
             if not self.enabled:
                 row = self._users.get(uid)
-            else:
-                row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
-        return _row_to_account(row) if row is not None else None
+                return _row_to_account(row) if row is not None else None
+            cached = self._cached_account(uid)
+            if cached is not None:
+                return cached
+            row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+            if row is None:
+                return None
+            account = _row_to_account(row)
+            self._store_cached(account)
+            return account
 
     def count_users(self) -> int:
-        """Bazadagi jami foydalanuvchilar soni."""
+        """Bazadagi jami foydalanuvchilar soni (30 sekundlik kesh bilan).
+
+        Bu butun jadvalni o'qiydigan og'ir so'rov; admin bildirishnomasi har
+        yangi o'yinchida uni takrorlamasligi uchun natija keshlanadi.
+        """
         with self._lock:
             if not self.enabled:
                 return len(self._users)
+            if self._count_cache is not None:
+                stamp, value = self._count_cache
+                if time.monotonic() - stamp <= USER_COUNT_TTL:
+                    return value
             rows = (
                 self.client.table(USERS_TABLE)
                 .select(USERS_ID_COLUMN)
@@ -711,7 +802,9 @@ class EconomyStore:
                 .data
                 or []
             )
-            return len({int(row[USERS_ID_COLUMN]) for row in rows})
+            total = len({int(row[USERS_ID_COLUMN]) for row in rows})
+            self._count_cache = (time.monotonic(), total)
+            return total
 
     def recent_users(self, limit: int = 10, offset: int = 0) -> list[UserAccount]:
         """Eng oxirgi qo'shilgan foydalanuvchilarni qaytaradi."""
@@ -791,40 +884,95 @@ class EconomyStore:
         bonus = int(bonus)
         if inviter <= 0 or invited <= 0 or inviter == invited or bonus <= 0:
             return None
+        try:
+            return self._register_referral(inviter, invited, bonus)
+        except Exception:
+            # Baza xatosi /start oqimini hech qachon to'xtatmasligi kerak.
+            logger.exception("Taklif yozilmadi: %s -> %s", inviter, invited)
+            return None
 
+    def _register_referral(
+        self, inviter: int, invited: int, bonus: int
+    ) -> ReferralResult | None:
+        """``register_referral`` ning xato bermaydigan ichki qismi."""
         with self._lock:
             if self.enabled:
-                if self._select_one(
+                inviter_row = self._select_one(
                     USERS_TABLE, **{USERS_ID_COLUMN: inviter}
-                ) is None:
+                )
+                if inviter_row is None:
                     return None
-                row = {
-                    "inviter_id": inviter,
-                    "invited_id": invited,
-                    "bonus": bonus,
-                    "created_at": _now(),
-                }
-                try:
-                    safe_insert(self.client, REFERRALS_TABLE, row)
-                except Exception:
-                    # `invited_id` unikal — takroriy taklif hisobga olinmaydi.
-                    logger.info("Taklif allaqachon yozilgan: %s", invited)
+                if not self._insert_referral(inviter, invited, bonus):
                     return None
+                inviter_account = _row_to_account(inviter_row)
             else:
                 if inviter not in self._users:
                     return None
                 if invited in self._referrals:
                     return None
                 self._referrals[invited] = inviter
+                inviter_account = _row_to_account(self._users[inviter])
 
-            self.add_coins(inviter, bonus)
-            account = self.ensure_user(inviter)
-            new_count = account.referral_count + 1
+            new_coins = inviter_account.coins + bonus
+            new_count = inviter_account.referral_count + 1
             if self.enabled:
-                self._update_user_row(inviter, {"referral_count": new_count})
+                # Bitta so'rovda balans va taklif soni yangilanadi.
+                self._update_user_row(
+                    inviter,
+                    {"coins": new_coins, "referral_count": new_count},
+                )
+                self._store_cached(
+                    replace(
+                        inviter_account,
+                        coins=new_coins,
+                        referral_count=new_count,
+                    )
+                )
             else:
-                self._users[inviter]["referral_count"] = new_count
+                row = self._users[inviter]
+                row["coins"] = new_coins
+                row["referral_count"] = new_count
         return ReferralResult(inviter_id=inviter, invited_id=invited, bonus=bonus)
+
+    def _insert_referral(self, inviter: int, invited: int, bonus: int) -> bool:
+        """``referrals`` jadvaliga yozadi; xatoni yutib ``bool`` qaytaradi.
+
+        Takroriy taklif (``invited_id`` unikal) ``False`` qaytaradi. Jadval
+        yoki sxema bilan bog'liq xatolar taklifni bekor qilmaydi: taklif
+        qiluvchi baribir mukofot oladi (``/start`` faqat yangi foydalanuvchi
+        uchun bir marta ishlaydi, shuning uchun ikki marta berilmaydi).
+        """
+        row = {
+            "inviter_id": inviter,
+            "invited_id": invited,
+            "bonus": bonus,
+            "created_at": _now(),
+        }
+        try:
+            safe_insert(self.client, REFERRALS_TABLE, row)
+            return True
+        except Exception:
+            logger.warning(
+                "Taklif yozuvi saqlanmadi (%s -> %s), holat tekshiriladi",
+                inviter,
+                invited,
+                exc_info=True,
+            )
+        try:
+            existing = self._select_one(
+                REFERRALS_TABLE, invited_id=invited
+            )
+        except Exception:
+            logger.warning(
+                "referrals jadvalini o'qib bo'lmadi — taklif bir marta "
+                "hisoblanadi",
+                exc_info=True,
+            )
+            return True
+        if existing is not None:
+            logger.info("Taklif allaqachon yozilgan: %s", invited)
+            return False
+        return True
 
     def referral_count(self, user_id: int) -> int:
         """Foydalanuvchi taklif qilgan do'stlar soni."""

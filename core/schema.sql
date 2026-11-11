@@ -112,7 +112,7 @@ create table if not exists public.referrals (
     id          bigserial primary key,
     inviter_id  bigint not null,
     invited_id  bigint not null unique,
-    bonus       integer not null default 50,
+    bonus       integer not null default 75,
     created_at  timestamptz not null default now()
 );
 

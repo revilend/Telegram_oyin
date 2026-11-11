@@ -74,9 +74,9 @@ class ReferralLinkTest(unittest.TestCase):
         self.assertIn(
             "https://t.me/revilend_gamesbot?start=ref_12345", text
         )
-        self.assertIn("+50 tanga", text)
+        self.assertIn("+75 tanga", text)
         self.assertIn("taklif qilganlar: <b>1</b> kişi", text)
-        self.assertIn("Işlangan tangalar: <b>50</b> tanga", text)
+        self.assertIn("Işlangan tangalar: <b>75</b> tanga", text)
 
         keyboard = common.invite_keyboard(account, "revilend_gamesbot")
         button = keyboard.inline_keyboard[0][0]
@@ -159,7 +159,7 @@ class StartReferralFlowTest(unittest.TestCase):
 
         # Yangi foydalanuvchi 100 tanga xush kelibsiz sovg'asini oladi.
         self.assertEqual(self.store.get_user(72001).coins, START_COINS)
-        # Taklif qiluvchi +50 tanga va 1 taklif oladi.
+        # Taklif qiluvchi +75 tanga va 1 taklif oladi.
         inviter = self.store.get_user(72000)
         self.assertEqual(inviter.coins, self.inviter_balance + REFERRAL_BONUS)
         self.assertEqual(inviter.referral_count, 1)
@@ -172,7 +172,7 @@ class StartReferralFlowTest(unittest.TestCase):
         notified = [text for chat_id, text in message.bot.messages if chat_id == 72000]
         self.assertTrue(notified)
         self.assertIn("Ali Valiyev", notified[0])
-        self.assertIn("+50 tanga", notified[0])
+        self.assertIn("+75 tanga", notified[0])
 
     def test_second_start_does_not_pay_again(self) -> None:
         self._start(72002, "ref_72000")
@@ -202,6 +202,154 @@ class StartReferralFlowTest(unittest.TestCase):
             asyncio.run(common.start_command(message, None))
         self.assertIn("Salom", message.answers[-1])
         self.assertIsNotNone(message.markups[-1])
+
+
+class _FakeQuery:
+    """Filtrni hisobga oladigan minimal Supabase so'rovi."""
+
+    def __init__(self, client, table, mode, payload=None) -> None:
+        self.client = client
+        self.table = table
+        self.mode = mode
+        self.payload = payload
+        self.filters: list[tuple[str, object]] = []
+
+    def eq(self, column: str, value: object):
+        self.filters.append((column, value))
+        return self
+
+    def limit(self, _count: int):
+        return self
+
+    def select(self, *_args):
+        self.mode = "select"
+        return self
+
+    def execute(self):
+        if self.mode == "select":
+            self.client.selects.append(self.table)
+            rows = [
+                dict(row)
+                for row in self.client.rows.get(self.table, [])
+                if all(row.get(column) == value for column, value in self.filters)
+            ]
+            return SimpleNamespace(data=rows)
+        if self.table in self.client.fail_tables:
+            raise RuntimeError(f"{self.table} jadvali vaqtincha ishlamaydi")
+        self.client.writes.append((self.table, self.mode, dict(self.payload or {})))
+        if self.table == "users" and self.mode == "update":
+            for row in self.client.rows.get("users", []):
+                if all(row.get(c) == v for c, v in self.filters):
+                    row.update(self.payload or {})
+        return SimpleNamespace(data=[])
+
+
+class _FakeTable:
+    def __init__(self, client, name: str) -> None:
+        self.client = client
+        self.name = name
+
+    def insert(self, payload, **_kwargs):
+        return _FakeQuery(self.client, self.name, "insert", payload)
+
+    def upsert(self, payload, **_kwargs):
+        return _FakeQuery(self.client, self.name, "upsert", payload)
+
+    def update(self, payload):
+        return _FakeQuery(self.client, self.name, "update", payload)
+
+    def select(self, *_args):
+        return _FakeQuery(self.client, self.name, "select")
+
+
+class _FakeClient:
+    """Supabase mijozi; kerakli jadvalni ataylab ishlamaydigan qilish mumkin."""
+
+    def __init__(self, rows, fail_tables=None) -> None:
+        self.rows = rows
+        self.fail_tables = set(fail_tables or ())
+        self.writes: list[tuple[str, str, dict]] = []
+        self.selects: list[str] = []
+
+    def table(self, name: str) -> _FakeTable:
+        return _FakeTable(self, name)
+
+
+def _user_row(user_id: int, coins: int = START_COINS, referral_count: int = 0) -> dict:
+    return {
+        "telegram_id": user_id,
+        "username": "",
+        "full_name": "",
+        "coins": coins,
+        "total_purchased": 0,
+        "games_played": 0,
+        "wins": 0,
+        "bunker_wins": 0,
+        "mafia_wins": 0,
+        "spy_wins": 0,
+        "alias_wins": 0,
+        "bomb_wins": 0,
+        "referral_count": referral_count,
+        "role": "user",
+        "is_blocked": False,
+        "block_reason": "",
+        "is_bot": False,
+        "language_code": "uz",
+    }
+
+
+class ReferralResilienceTest(unittest.TestCase):
+    """`referrals` jadvali xato bersa ham /start va taklif ishlashi kerak."""
+
+    def _store(self, rows, fail_tables=None):
+        self.client = _FakeClient(rows, fail_tables)
+        return EconomyStore(client=self.client)
+
+    def test_broken_referrals_table_still_rewards_inviter(self) -> None:
+        store = self._store({"users": [_user_row(73010, coins=100)]}, {"referrals"})
+        with patch.object(common, "get_economy", return_value=store):
+            message = FakeMessage(user_id=73011)
+            asyncio.run(
+                common.start_command(message, CommandObject(args="ref_73010"))
+            )
+
+        # Yangi o'yinchi xush kelibsiz xabari va menyuni oladi.
+        self.assertIn("Salom", message.answers[-1])
+        self.assertIsNotNone(message.markups[-1])
+        self.assertNotIn("Taklif ma'lumotlarini yuklab", "\n".join(message.answers))
+
+        # Taklif qiluvchi baribir mukofot oladi va hisoblagich oshadi.
+        inviter = store.find_user(73010)
+        self.assertEqual(inviter.coins, 100 + REFERRAL_BONUS)
+        self.assertEqual(inviter.referral_count, 1)
+
+    def test_invite_message_never_shows_error_text(self) -> None:
+        class BrokenStore:
+            def find_user(self, _user_id):
+                raise RuntimeError("baza ishlamaydi")
+
+            def ensure_user(self, *_args, **_kwargs):
+                raise RuntimeError("baza ishlamaydi")
+
+        with patch.object(common, "get_economy", return_value=BrokenStore()):
+            message = FakeMessage(user_id=73012)
+            asyncio.run(common.invite_friends(message))
+
+        self.assertEqual(len(message.answers), 1)
+        self.assertNotIn("yuklab", message.answers[0])
+        self.assertIn("ref_73012", message.answers[0])
+
+    def test_profile_reads_use_short_cache(self) -> None:
+        store = self._store({"users": [_user_row(73013, coins=120)]})
+        first = store.find_user(73013)
+        second = store.find_user(73013)
+        self.assertEqual(first.coins, 120)
+        self.assertEqual(second.coins, 120)
+        self.assertEqual(len(self.client.selects), 1)
+
+        # Yozuvdan keyin kesh invalidatsiya qilinadi.
+        store.add_coins(73013, 5)
+        self.assertEqual(store.find_user(73013).coins, 125)
 
 
 if __name__ == "__main__":
