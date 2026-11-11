@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 from html import escape
 
@@ -88,13 +90,31 @@ def _statuses(user_id: int) -> list[MissionStatus]:
     return mission_statuses(get_economy(), user_id)
 
 
+async def _statuses_async(user) -> list[MissionStatus]:
+    """Hisob va missiya yozuvlarini parallel o'qiydi (waterfall yo'q)."""
+    economy = get_economy()
+    account_for = getattr(economy, "account_for", None)
+    claimed_of = getattr(economy, "claimed_missions", None)
+    if not (callable(account_for) and callable(claimed_of)):
+        return await asyncio.to_thread(_statuses, user.id)
+    account, claimed = await asyncio.gather(
+        asyncio.to_thread(
+            account_for, user.id, user.username or "", user.full_name or ""
+        ),
+        asyncio.to_thread(claimed_of, user.id),
+    )
+    return mission_statuses(
+        economy, user.id, account=account, claimed=claimed
+    )
+
+
 async def show_missions(message: Message) -> None:
     """Missiyalar ro'yxatini yuboradi."""
     user = message.from_user
     if user is None:
         return
     try:
-        statuses = _statuses(user.id)
+        statuses = await _statuses_async(user)
     except Exception:
         logger.exception("Missiyalarni yuklab bölmadi: %s", user.id)
         await message.answer(

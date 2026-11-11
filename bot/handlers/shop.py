@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 import re
 from html import escape
@@ -283,7 +285,9 @@ async def send_shop(message: Message, state: FSMContext | None = None) -> None:
     if state is not None:
         await state.clear()
     user_id = message.from_user.id if message.from_user is not None else None
-    await message.answer(shop_text(user_id), reply_markup=shop_keyboard())
+    # Balans keshlangan bo'lsa 0 so'rov; aks holda event loop bloklanmaydi.
+    text = await asyncio.to_thread(shop_text, user_id)
+    await message.answer(text, reply_markup=shop_keyboard())
 
 
 @router.message(F.chat.type == "private", Command("shop"))

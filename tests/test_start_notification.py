@@ -81,7 +81,12 @@ class StartNotificationTest(unittest.TestCase):
     ) -> FakeMessage:
         message = FakeMessage(user_id, fail_bot=fail_bot)
         command = CommandObject(args=args) if args else None
-        asyncio.run(common.start_command(message, command))
+
+        async def run() -> None:
+            await common.start_command(message, command)
+            await common.flush_background_tasks()
+
+        asyncio.run(run())
         return message
 
     def test_first_start_notifies_admin_once(self) -> None:

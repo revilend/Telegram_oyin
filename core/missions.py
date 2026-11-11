@@ -110,11 +110,23 @@ def mission_progress(account: UserAccount, mission: Mission) -> int:
     return max(0, min(value, mission.target))
 
 
-def mission_statuses(store: EconomyStore, user_id: int) -> list[MissionStatus]:
-    """Foydalanuvchining barcha missiyalari holati."""
+def mission_statuses(
+    store: EconomyStore,
+    user_id: int,
+    *,
+    account: UserAccount | None = None,
+    claimed: set[str] | None = None,
+) -> list[MissionStatus]:
+    """Foydalanuvchining barcha missiyalari holati.
+
+    ``account`` va ``claimed`` berilsa, ular qayta o'qilmaydi — handler ikkala
+    so'rovni ``asyncio.gather`` bilan parallel olib, bu yerga uzatadi.
+    """
     uid = int(user_id)
-    account = store.ensure_user(uid)
-    claimed = store.claimed_missions(uid)
+    if account is None:
+        account = store.ensure_user(uid)
+    if claimed is None:
+        claimed = store.claimed_missions(uid)
     return [
         MissionStatus(
             mission=mission,

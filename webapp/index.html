@@ -5576,6 +5576,45 @@ function profileCardHtml() {
           "&full_name=" + encodeURIComponent(profile.name || "");
 }
 
+      // ----------------------------------------------------------------
+      // Bootstrap: bitta so'rov + localStorage'dan 0 ms render (SWR)
+      // ----------------------------------------------------------------
+      var BOOTSTRAP_CACHE_KEY = "rg_bootstrap_v1";
+
+      function bootstrapPath() {
+        return "/api/bootstrap?user_id=" + encodeURIComponent(profile.id) +
+          "&username=" + encodeURIComponent(profile.username || "") +
+          "&full_name=" + encodeURIComponent(profile.name || "");
+      }
+
+      function readBootstrapCache() {
+        try {
+          var raw = window.localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+          var data = raw ? JSON.parse(raw) : null;
+          if (!data || !data.account) return null;
+          if (Number(data.user_id) !== Number(profile.id)) return null;
+          return data;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function storeBootstrapCache(data) {
+        if (!data || !data.account) return;
+        try {
+          window.localStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify({
+            user_id: Number(profile.id) || 0,
+            account: data.account,
+            activity: data.activity || null,
+            tournament: data.tournament || null,
+            games: data.games || [],
+            saved_at: Date.now()
+          }));
+        } catch (error) {
+          /* localStorage yopiq bo'lsa ham ilova ishlaydi */
+        }
+      }
+
       function applyAccountPayload(data) {
         if (!data || !data.user) return false;
         updateProfileFromAccount(data.user);
@@ -6091,24 +6130,26 @@ function leaderboardHtml() {
         if (view.hubLoading || !profile || !profile.id) return false;
         view.hubLoading = true;
         syncTelegramProfile();
-        var results = await Promise.all([
-          request(accountPath()).catch(function (error) { return { error: error }; }),
-          request(activityPath()).catch(function (error) { return { error: error }; })
-        ]);
-        view.hubLoading = false;
-        var account = results[0];
-        var activity = results[1];
-        if (account && account.error) {
-          if (account.error.status === 401 || account.error.status === 404) {
+        var data = null;
+        try {
+          // Bitta /api/bootstrap so'rovi: profil + bonus + missiya + turnir.
+          data = await request(bootstrapPath());
+        } catch (error) {
+          view.hubLoading = false;
+          if (error && (error.status === 401 || error.status === 404)) {
             clearStoredAccount();
             profile = loadProfile();
-            renderLoginScreen(account.error.message);
+            renderLoginScreen(error.message);
             return false;
-}
-        } else {
-          applyAccountPayload(account);
-}
-        if (activity && !activity.error) applyActivityPayload(activity);
+          }
+          // Tarmoq xatosida keshdagi ma'lumot bilan davom etamiz (SWR).
+          return true;
+        }
+        view.hubLoading = false;
+        if (!data) return true;
+        applyAccountPayload(data.account || null);
+        if (data.activity) applyActivityPayload(data.activity);
+        storeBootstrapCache(data);
         return true;
 }
 
@@ -6712,6 +6753,7 @@ function leaderboardHtml() {
         try {
           window.localStorage.removeItem(TG_USER_STORAGE_KEY);
           window.localStorage.removeItem(PROFILE_CACHE_KEY);
+          window.localStorage.removeItem(BOOTSTRAP_CACHE_KEY);
           window.sessionStorage.removeItem("rg_guest_id");
         } catch (error) {
           /* localStorage yopiq bo'lsa ham sahifa yangilanadi. */
@@ -10346,7 +10388,16 @@ function leaderboardHtml() {
           return;
 }
         var routeCode = view.code;
-        renderHubSkeleton();
+        // 0 ms render: oxirgi bootstrap javobi localStorage'dan darhol chiziladi,
+        // tarmoq javobi kelganda faqat raqamlar jimgina yangilanadi (SWR).
+        var cachedBootstrap = readBootstrapCache();
+        if (cachedBootstrap) {
+          applyAccountPayload(cachedBootstrap.account);
+          applyActivityPayload(cachedBootstrap.activity);
+          renderHub();
+        } else {
+          renderHubSkeleton();
+        }
         var ready = await loadHubData();
         if (!ready || !profile.authenticated) return;
         renderHub();

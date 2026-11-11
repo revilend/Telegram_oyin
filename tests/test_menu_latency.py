@@ -217,10 +217,16 @@ class MenuLatencyBudgetTest(unittest.TestCase):
         message = FakeMessage(user_id)
         before = self.client.queries
         started = time.perf_counter()
-        if args is None:
-            asyncio.run(handler(message))
-        else:
-            asyncio.run(handler(message, args))
+
+        async def run() -> None:
+            if args is None:
+                await handler(message)
+            else:
+                await handler(message, args)
+            # Fon vazifalari (taklif/admin) ham o'lchovga kirsin.
+            await common.flush_background_tasks()
+
+        asyncio.run(run())
         elapsed = (time.perf_counter() - started) * 1000
         first = ((message.first_answer_at or time.perf_counter()) - started) * 1000
         return elapsed, first, self.client.queries - before, message

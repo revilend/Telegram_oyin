@@ -6,6 +6,8 @@ bo'sh holatda iliq xabar ko'rsatiladi.
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 from html import escape
 
@@ -97,11 +99,25 @@ async def show_leaderboard(message: Message) -> None:
         getattr(user, "language_code", None) if user is not None else None,
     )
     try:
+        # Reyting va shaxsiy hisob bir-biriga bog'liq emas: ikkala Supabase
+        # so'rovi ``asyncio.gather`` bilan parallel ketadi (waterfall yo'q).
         economy = get_economy()
-        top = economy.top_users(TOP_LIMIT)
-        me = economy.get_user(user.id) if user is not None else None
+        calls = [asyncio.to_thread(economy.top_users, TOP_LIMIT)]
+        account_getter = getattr(economy, "account_for", None) or getattr(
+            economy, "get_user", None
+        )
+        if user is not None and callable(account_getter):
+            calls.append(asyncio.to_thread(account_getter, user.id))
+        results = await asyncio.gather(*calls)
+        top = results[0]
+        me = results[1] if len(results) > 1 else None
     except Exception as exc:  # xatoni yashirmaymiz
         logger.exception("Reyting xatosi")
         await message.answer(f"⚠️ Reyting xatosi: {escape(str(exc))}")
         return
+    # Til keshdagi hisobdan olinadi — qo'shimcha Supabase so'rovi yo'q.
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
     await message.answer(leaderboard_text(top, me, language))

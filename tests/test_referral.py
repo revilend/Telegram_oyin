@@ -151,7 +151,13 @@ class StartReferralFlowTest(unittest.TestCase):
     def _start(self, user_id: int, args: str | None) -> FakeMessage:
         message = FakeMessage(user_id=user_id)
         command = CommandObject(args=args) if args else None
-        asyncio.run(common.start_command(message, command))
+
+        async def run() -> None:
+            await common.start_command(message, command)
+            # Taklif hisobi endi fon vazifasida bajariladi.
+            await common.flush_background_tasks()
+
+        asyncio.run(run())
         return message
 
     def test_new_user_via_referral_pays_inviter(self) -> None:
@@ -301,17 +307,36 @@ def _user_row(user_id: int, coins: int = START_COINS, referral_count: int = 0) -
 class ReferralResilienceTest(unittest.TestCase):
     """`referrals` jadvali xato bersa ham /start va taklif ishlashi kerak."""
 
+    def setUp(self) -> None:
+        # Test moduli yolg'iz ishga tushganda ham konfiguratsiya yetarli bo'lsin.
+        env = patch.dict(
+            os.environ,
+            {"BOT_TOKEN": "123456:TEST", "ADMIN_ID": "424242"},
+        )
+        env.start()
+        self.addCleanup(env.stop)
+        get_config.cache_clear()
+        self.addCleanup(get_config.cache_clear)
+
     def _store(self, rows, fail_tables=None):
         self.client = _FakeClient(rows, fail_tables)
         return EconomyStore(client=self.client)
 
+    def _start(self, user_id: int, args: str | None = None) -> FakeMessage:
+        message = FakeMessage(user_id=user_id)
+        command = CommandObject(args=args) if args else None
+
+        async def run() -> None:
+            await common.start_command(message, command)
+            await common.flush_background_tasks()
+
+        asyncio.run(run())
+        return message
+
     def test_broken_referrals_table_still_rewards_inviter(self) -> None:
         store = self._store({"users": [_user_row(73010, coins=100)]}, {"referrals"})
         with patch.object(common, "get_economy", return_value=store):
-            message = FakeMessage(user_id=73011)
-            asyncio.run(
-                common.start_command(message, CommandObject(args="ref_73010"))
-            )
+            message = self._start(73011, "ref_73010")
 
         # Yangi o'yinchi xush kelibsiz xabari va menyuni oladi.
         self.assertIn("Salom", message.answers[-1])

@@ -1437,6 +1437,59 @@ def profile_identity(
     )
 
 
+def _profile_payload(
+    resolved_id: int,
+    username: str = "",
+    full_name: str = "",
+    account=None,
+) -> dict[str, Any]:
+    """/api/me javobi: profil, tangalar, do'kon, inventar va tarix."""
+    economy = get_economy()
+    if account is None:
+        account = economy.ensure_user(resolved_id, username, full_name)
+    metrics.user(resolved_id)
+    shop_store = get_shop_store()
+    return {
+        "user": asdict(account),
+        "shop": shop_meta(),
+        "boosters": boosters_payload(),
+        # Mega Store: taqilgan ramka/unvon, inventar va g'ildirak holati.
+        "equipped": shop_store.equipped(resolved_id),
+        "inventory": [
+            entry.as_dict() for entry in shop_store.inventory(resolved_id)
+        ],
+        "spin": shop_store.spin_status(resolved_id),
+        # Profilda oxirgi 5 o'yin natijasi ko'rsatiladi.
+        "history": economy.history_for_user(resolved_id, 5),
+    }
+
+
+def _activity_payload(
+    resolved_id: int, limit: int = 10, account=None
+) -> dict[str, Any]:
+    """/api/activity javobi: bonus, missiyalar, questlar va reyting."""
+    economy = get_economy()
+    if account is None:
+        account = economy.ensure_user(resolved_id)
+    statuses = mission_statuses(economy, resolved_id, account=account)
+    all_board = build_leaderboard("all", limit, resolved_id, economy=economy)
+    all_board["period"] = normalize_period("all")
+    if all_board.get("me") is not None:
+        all_board["me"]["in_top"] = int(all_board["me"].get("rank") or 0) <= limit
+    week_board = build_leaderboard("week", limit, resolved_id, economy=economy)
+    week_board["period"] = normalize_period("week")
+    return {
+        "bonus": asdict(economy.daily_bonus_status(resolved_id)),
+        "missions": missions_payload(statuses),
+        "quests": daily_quests_payload(economy, resolved_id),
+        "achievements": achievements_payload(economy, resolved_id),
+        "top": all_board.get("top", []),
+        "me": all_board.get("me"),
+        "week": week_board,
+        "coins": account.coins,
+    }
+
+
 @app.get("/api/me")
 async def my_profile(
     user_id: int | None = None,
@@ -1452,25 +1505,10 @@ async def my_profile(
     resolved_id, resolved_username, resolved_name = profile_identity(
         user, user_id, username, full_name
     )
-    economy = get_economy()
-    account = economy.ensure_user(
-        resolved_id, resolved_username, resolved_name
+    # Supabase so'rovlari event loop'ni bloklamaydi.
+    return await asyncio.to_thread(
+        _profile_payload, resolved_id, resolved_username, resolved_name
     )
-    metrics.user(resolved_id)
-    shop_store = get_shop_store()
-    return {
-        "user": asdict(account),
-        "shop": shop_meta(),
-        "boosters": boosters_payload(),
-        # Mega Store: taqilgan ramka/unvon, inventar va ğildirak holati.
-        "equipped": shop_store.equipped(resolved_id),
-        "inventory": [
-            entry.as_dict() for entry in shop_store.inventory(resolved_id)
-        ],
-        "spin": shop_store.spin_status(resolved_id),
-        # Profilda oxirgi 5 o'yin natijasi ko'rsatiladi.
-        "history": economy.history_for_user(resolved_id, 5),
-    }
     
 
 
@@ -1739,24 +1777,53 @@ async def activity_snapshot(
     """
     resolved_id, _, _ = profile_identity(user, user_id, username, full_name)
     limit = max(1, min(int(limit), 50))
+    return await asyncio.to_thread(_activity_payload, resolved_id, limit)
+
+
+@app.get("/api/bootstrap")
+async def bootstrap(
+    user_id: int | None = None,
+    username: str = "",
+    full_name: str = "",
+    limit: int = 10,
+    user: TelegramUser | None = Depends(telegram_user),
+) -> dict[str, Any]:
+    """Mini App uchun yagona tezkor bootstrap endpoint.
+
+    Profil, bonus/streak, missiyalar, faol turnir, inventar va o'yinlar
+    ro'yxati bitta javobda qaytadi, shuning uchun Mini App birinchi
+    ochilishda 5 ta alohida so'rov yubormaydi. Mustaqil so'rovlar
+    ``asyncio.gather`` bilan parallel bajariladi.
+    """
+    resolved_id, resolved_username, resolved_name = profile_identity(
+        user, user_id, username, full_name
+    )
+    limit = max(1, min(int(limit), 50))
     economy = get_economy()
-    account = economy.ensure_user(resolved_id)
-    statuses = mission_statuses(economy, resolved_id)
-    all_board = build_leaderboard("all", limit, resolved_id, economy=economy)
-    all_board["period"] = normalize_period("all")
-    if all_board.get("me") is not None:
-        all_board["me"]["in_top"] = int(all_board["me"].get("rank") or 0) <= limit
-    week_board = build_leaderboard("week", limit, resolved_id, economy=economy)
-    week_board["period"] = normalize_period("week")
+    account = await asyncio.to_thread(
+        economy.ensure_user, resolved_id, resolved_username, resolved_name
+    )
+    account_payload, activity_payload, tournament = await asyncio.gather(
+        asyncio.to_thread(
+            _profile_payload,
+            resolved_id,
+            resolved_username,
+            resolved_name,
+            account,
+        ),
+        asyncio.to_thread(_activity_payload, resolved_id, limit, account),
+        asyncio.to_thread(
+            lambda: get_tournament_store().payload(resolved_id)
+        ),
+    )
     return {
-        "bonus": asdict(economy.daily_bonus_status(resolved_id)),
-        "missions": missions_payload(statuses),
-        "quests": daily_quests_payload(economy, resolved_id),
-        "achievements": achievements_payload(economy, resolved_id),
-        "top": all_board.get("top", []),
-        "me": all_board.get("me"),
-        "week": week_board,
-        "coins": account.coins,
+        "account": account_payload,
+        "activity": activity_payload,
+        "tournament": tournament,
+        "games": GAMES,
+        "shop": shop_meta(),
+        "boosters": boosters_payload(),
+        "generated_at": time.time(),
     }
 
 

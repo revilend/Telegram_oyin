@@ -47,7 +47,7 @@ TEST_BOT_ID_THRESHOLD = 9_000_000_000
 
 # Foydalanuvchi profili keshi: /start va menyu tugmalari bazaga har safar
 # so'rov yubormasligi uchun qisqa muddatli xotira keshi (sekundlarda).
-PROFILE_CACHE_TTL = 15.0
+PROFILE_CACHE_TTL = 30.0
 # Jami foydalanuvchilar soni (admin bildirishnomasi uchun) keshi.
 USER_COUNT_TTL = 30.0
 

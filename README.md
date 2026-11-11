@@ -195,6 +195,15 @@ Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi
 - `--json bench.json` natijalarni faylga yozadi; `--allow-write` yangi foydalanuvchi + taklif havolasi va kunlik bonusni ham o‘lchaydi (vaqtinchalik yozuvlarni o‘zi o‘chiradi); `--simulate` credentialsiz sinov uchun (soxta Supabase, `--latency` bilan).
 - O‘lchov Telegram tarmoq vaqtini o‘z ichiga olmaydi (xabar yuborish simulyatsiya qilinadi), ya’ni baza + handler mantiqi vaqti ko‘rsatiladi.
 - `tests/test_menu_latency.py` — 0.5 sekundlik byudjet va so‘rovlar soni byudjetini qo‘riqlaydi: 100 ms/so‘rov simulyatsiyasida har bir menyu tugmasi birinchi javobni 0.5 s ichida berishi, `/start` sovuq keshda 1 (kesh bilan 0), Profil va Do‘kon 1/0, Missiyalar 3, Reyting 3/2 so‘rovdan oshmasligi tekshiriladi. Yangi Supabase chaqiruvi qo‘shilsa yoki kesh ishlamay qolsa test yiqiladi.
+
+### Zero-lag arxitektura (bot + Mini App)
+
+- **30 sekundlik RAM kesh:** `PROFILE_CACHE_TTL = 30` — profil, rol va balans o‘qishlari keshdan qaytadi (0 so‘rov, ~0 ms), har qanday yozuv keshni darhol tozalaydi.
+- **Waterfall yo‘q:** bot handlerlari Supabase’ni `asyncio.to_thread` bilan bloklamaydi, mustaqil so‘rovlar `asyncio.gather` bilan parallel ketadi — Reyting (reyting + shaxsiy hisob), Missiyalar (hisob + missiya yozuvlari), Profil/Do‘kon (bitta kesh so‘rovi).
+- **Yagona bootstrap:** `GET /api/bootstrap?user_id=X` profil, tangalar, kunlik bonus/streak, missiyalar, faol turnir, inventar, do‘kon va o‘yinlar ro‘yxatini **bitta** javobda qaytaradi; ichkarida `asyncio.gather` bilan parallel yig‘iladi.
+- **Instant render (SWR):** Mini App oxirgi bootstrap javobini `localStorage` (`rg_bootstrap_v1`) dan **0 ms** da chizadi, `/api/bootstrap` kelganda faqat raqamlarni jimgina yangilaydi; tarmoq xatosida keshdagi ma’lumot qoladi, logout keshni tozalaydi.
+- **Fon referali:** `/start ref_ID` da taklif hisobi `asyncio.create_task` bilan orqa fonda bajariladi — xush kelibsiz xabari darhol yuboriladi. Testlar va shutdown uchun `common.flush_background_tasks()` mavjud.
+- Testlar: `tests/test_bootstrap.py` (bootstrap javobi va `/api/me`+`/api/activity` bilan mosligi), `tests/test_menu_latency.py` (0.5 s va so‘rov byudjeti).
 - Referal havolasi: `https://t.me/revilend_gamesbot?start=ref_<user_id>`.
 - Yangi foydalanuvchi haqida adminga avtomatik bildirishnoma yuboriladi.
 

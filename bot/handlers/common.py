@@ -6,6 +6,8 @@ bo'yicha inline qo'llanma menyusi.
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 from html import escape
 from urllib.parse import quote
@@ -40,6 +42,25 @@ from core.economy import (
 from core.login_codes import issue_login_code
 
 logger = logging.getLogger(__name__)
+
+# Fon vazifalari: taklif mukofoti va admin bildirishnomasi /start javobini
+# bloklamaydi. To'plam kuchli havola saqlaydi (task o'chib ketmasin).
+_BACKGROUND_TASKS: set[asyncio.Task] = set()
+
+
+def _background(coro) -> asyncio.Task:
+    """Vazifani fon rejimida ishga tushiradi (javobni kutmaydi)."""
+    task = asyncio.create_task(coro)
+    _BACKGROUND_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_TASKS.discard)
+    return task
+
+
+async def flush_background_tasks() -> None:
+    """Fon vazifalarini kutadi (testlar va graceful shutdown uchun)."""
+    pending = [task for task in _BACKGROUND_TASKS if not task.done()]
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
 router = Router(name="common")
 
@@ -282,9 +303,15 @@ async def _finish_new_user(
     """Yangi foydalanuvchi uchun taklif mukofoti va admin bildirishnomasi."""
     if user is None or not is_new or account is None:
         return
-    if inviter_id is not None and int(inviter_id) != int(user.id):
-        await _pay_referral(message, economy, int(inviter_id), user)
-    await notify_admin_new_user(message, economy, inviter_id)
+    try:
+        if inviter_id is not None and int(inviter_id) != int(user.id):
+            await _pay_referral(message, economy, int(inviter_id), user)
+        await notify_admin_new_user(message, economy, inviter_id)
+    except Exception:
+        # Fon vazifasi /start oqimiga ta'sir qilmaydi.
+        logger.exception(
+            "Fon vazifasi xatosi: %s -> %s", inviter_id, user.id
+        )
 
 
 async def notify_admin_new_user(
@@ -450,7 +477,13 @@ async def start_command(message: Message, command: CommandObject | None = None) 
         if user is None:
             return
         await send_login_code(message, account)
-        await _finish_new_user(message, economy, inviter_id, user, is_new, account)
+        # Taklif hisobi orqa fonda: javob darhol qaytadi.
+        if is_new and account is not None:
+            _background(
+                _finish_new_user(
+                    message, economy, inviter_id, user, is_new, account
+                )
+            )
         return
 
     # Yangi foydalanuvchi uchun birinchi til tanlash oynasi.
@@ -467,10 +500,15 @@ async def start_command(message: Message, command: CommandObject | None = None) 
         message, text, is_admin(user.id) if user else False, language
     )
 
-    # Taklif mukofoti va admin bildirishnomasi — xush kelibsiz xabari
-    # yuborilgandan keyin bajariladi, shuning uchun foydalanuvchi ularni
-    # kutmaydi. Har bir qadam o'z ``try ... except`` ichida.
-    await _finish_new_user(message, economy, inviter_id, user, is_new, account)
+    # Taklif hisobi va admin bildirishnomasi ``asyncio.create_task`` bilan
+    # orqa fonda yuritiladi: yangi o'yinchi xush kelibsiz xabarini kutmasdan
+    # oladi, Supabase yozuvlari esa parallel bajariladi.
+    if is_new and account is not None:
+        _background(
+            _finish_new_user(
+                message, economy, inviter_id, user, is_new, account
+            )
+        )
 
 
 async def _send_welcome(

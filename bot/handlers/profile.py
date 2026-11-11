@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 from html import escape
 
@@ -168,14 +170,19 @@ async def show_profile(message: Message) -> None:
     user = message.from_user
     if user is None:
         return
-    language = resolve_language(user.id, getattr(user, 'language_code', None))
     try:
-        account = load_account(user)
+        # Supabase so'rovi event loop'ni bloklamaydi.
+        account = await asyncio.to_thread(load_account, user)
     except Exception as exc:  # xatoni yashirmaymiz
         logger.exception("Profil xatosi: %s", user.id)
+        language = resolve_language(
+            user.id, getattr(user, "language_code", None)
+        )
         await message.answer(t(language, "profile_error", error=escape(str(exc))))
         return
 
+    # Hisob endi keshda: til aniqlash qo'shimcha so'rov talab qilmaydi.
+    language = resolve_language(user.id, getattr(user, "language_code", None))
     text = profile_text(account, equipped_title(user.id), language)
     if account.coins == START_COINS and account.games_played == 0:
         text += f"\n\n{t(language, 'profile_free_coins', amount=START_COINS)}"
