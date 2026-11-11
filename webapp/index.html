@@ -5245,11 +5245,55 @@ function profileCardHtml() {
 }
 }
 
+      function updateWalletPill() {
+        var walletPill = document.querySelector(".brand-right .glass-pill");
+        if (!walletPill) return;
+        walletPill.innerHTML = lucideIcon("coins") + " " + money(profile.balance || 0);
+        refreshLucide();
+}
+
+      // Optimistik UI: buyum server javobini kutmasdan inventarga qo'shiladi.
+      function optimisticAddItem(slug) {
+        if (!Array.isArray(profile.inventory)) profile.inventory = [];
+        var target = String(slug || "");
+        var found = null;
+        for (var i = 0; i < profile.inventory.length; i += 1) {
+          var entry = profile.inventory[i];
+          if (entry && String(entry.item_slug || "") === target) { found = entry; break; }
+}
+        if (found) {
+          found.quantity = (Number(found.quantity) || 0) + 1;
+        } else if (target) {
+          profile.inventory.push({ item_slug: target, quantity: 1, is_equipped: false });
+}
+        if (view.items && Array.isArray(view.items.inventory)) {
+          view.items.inventory = profile.inventory;
+}
+}
+
       async function confirmBuyItem() {
         var c = view.buyConfirm;
         if (!c || c.stage !== "confirm" || c.busy) return;
-        c.busy = true;
+        var price = Number(c.price) || 0;
+        var previousBalance = Number(profile.balance) || 0;
+        var previousInventory = Array.isArray(profile.inventory) ? profile.inventory.slice() : profile.inventory;
+        var previousItems = view.items && Array.isArray(view.items.inventory)
+          ? view.items.inventory.slice()
+          : null;
+        // 0 ms: modal darhol "yakunlandi" holatiga o'tadi, balans va inventar
+        // shu zahoti yangilanadi — serverga so'rov orqa fonda ketadi.
+        profile.balance = previousBalance - price;
+        optimisticAddItem(c.slug);
+        storeInventoryCache();
+        updateWalletPill();
+        view.purchases = null;
+        view.purchasesOpen = false;
+        view.purchasesHasMore = false;
+        c.stage = "done";
+        c.busy = false;
         renderBuyConfirm();
+        toast("✅ " + c.title + " olindi!", "success");
+        haptic("success");
         try {
           var data = await request("/api/shop/buy", {
             method: "POST",
@@ -5262,32 +5306,27 @@ function profileCardHtml() {
             if (data.equipped) applyServerEquipped(data.equipped, data.inventory);
             else if (view.items) view.items.inventory = data.inventory || view.items.inventory;
             storeInventoryCache();
-            view.purchases = null;
-            view.purchasesOpen = false;
-            view.purchasesHasMore = false;
-            // Balans darhol sarlavhada yangilanadi (modal ochiq turganda ham).
-            var walletPill = document.querySelector(".brand-right .glass-pill");
-            if (walletPill) {
-              walletPill.innerHTML = lucideIcon("coins") + " " + money(profile.balance);
-              refreshLucide();
-}
+            updateWalletPill();
             var bought = data.item || {};
-            c.stage = "done";
-            c.busy = false;
             c.title = bought.title || c.title;
             c.kind = bought.kind || c.kind;
             c.equippable = !!(bought.equippable || c.kind === "frame" || c.kind === "title");
             renderBuyConfirm();
-            toast("✅ " + c.title + " olindi!", "success");
-            haptic("success");
-            return;
 }
         } catch (error) {
+          // Server rad etdi — optimistik o'zgarishni qaytaramiz.
+          profile.balance = previousBalance;
+          profile.inventory = previousInventory;
+          if (view.items && previousItems) view.items.inventory = previousItems;
+          storeInventoryCache();
+          updateWalletPill();
+          view.purchases = null;
+          c.stage = "confirm";
+          c.busy = false;
+          renderBuyConfirm();
           toast(error.message || "Xarid amalga oşmadi", "error");
           haptic("error");
 }
-        c.busy = false;
-        renderBuyConfirm();
 }
 
       async function equipBoughtItem() {

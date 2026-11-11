@@ -9,7 +9,11 @@ faqat xotirada ishlaydi.
 
 from __future__ import annotations
 
+import atexit
+import copy
 import logging
+import threading
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -35,35 +39,112 @@ ROOM_TABLES = (
 LOAD_LIMIT = 500
 
 
+# ----------------------------------------------------------------------
+# Fon rejimidagi yozuv navbati (0 ms harakat)
+# ----------------------------------------------------------------------
+# O'yin ichidagi har bir harakat (karta, ovoz, navbat) faqat RAMda aylanadi.
+# Supabase yozuvi shu navbatga tushadi va alohida oqimda, birlashtirilgan
+# holda bajariladi: bir xonaga ketma-ket o'zgarishlar bitta upsert bo'ladi va
+# hech qachon o'yinchi kutmaydi.
+WRITE_DELAY = 0.4  # sekund: bir xil xonaga o'zgarishlarni birlashtirish oynasi
+
+_write_lock = threading.Lock()
+_pending: dict[tuple[str, str], dict[str, Any]] = {}
+_wake = threading.Event()
+_worker: threading.Thread | None = None
+
+
+def _ensure_worker() -> None:
+    global _worker
+    if _worker is not None and _worker.is_alive():
+        return
+    _worker = threading.Thread(target=_writer_loop, name="room-store", daemon=True)
+    _worker.start()
+
+
+def _writer_loop() -> None:
+    while True:
+        _wake.wait(1.0)
+        _wake.clear()
+        time.sleep(WRITE_DELAY)
+        _flush_pending()
+
+
+def _write_payload(table: str, code: str, payload: dict[str, Any]) -> None:
+    store = get_store()
+    if not store.enabled:
+        return
+    try:
+        safe_upsert(store.client, table, payload, on_conflict="code")
+    except Exception:
+        logger.exception(
+            "Supabase %s jadvaliga %s xonasini saqlab bo'lmadi", table, code
+        )
+
+
+def _flush_pending(table: str | None = None, code: str | None = None) -> None:
+    """Navbatdagi yozuvlarni hozir bajaradi (o'qishdan oldin ham chaqiriladi)."""
+    with _write_lock:
+        if table is None:
+            batch = list(_pending.items())
+            _pending.clear()
+        else:
+            keys = [
+                key
+                for key in _pending
+                if key[0] == table and (code is None or key[1] == code)
+            ]
+            batch = [(key, _pending.pop(key)) for key in keys]
+    for (tbl, room_code), payload in batch:
+        _write_payload(tbl, room_code, payload)
+
+
+def pending_writes() -> int:
+    """Navbatda kutayotgan xona yozuvlari soni (diagnostika)."""
+    with _write_lock:
+        return len(_pending)
+
+
+def flush_room_writes(timeout: float = 5.0) -> None:
+    """Navbatdagi xona yozuvlarini kutadi (testlar/graceful shutdown)."""
+    deadline = time.monotonic() + max(0.0, float(timeout))
+    while True:
+        _flush_pending()
+        with _write_lock:
+            empty = not _pending
+        if empty or time.monotonic() >= deadline:
+            return
+        time.sleep(0.01)
+
+
+atexit.register(flush_room_writes, 3.0)
+
+
 def _normalize_code(code: str) -> str:
     return (code or "").strip().upper()
 
 
 def save_state(table: str, code: str, state: dict[str, Any]) -> None:
-    """Xona holatini JSONB sifatida yozadi yoki mavjudini yangilaydi."""
+    """Xona holatini yozish navbatiga qo'yadi — chaqiruvchi kutmaydi.
+
+    O'yin harakati darhol RAMda bajariladi va WebSocket orqali tarqaladi;
+    Supabase yozuvi esa fon oqimida, birlashtirilgan holda ketadi.
+    """
     store = get_store()
     if not store.enabled:
         return
     normalized = _normalize_code(code)
     if not normalized:
         return
-    try:
-        safe_upsert(
-            store.client,
-            table,
-            {
-                "code": normalized,
-                "state": state,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            },
-            on_conflict="code",
-        )
-    except Exception:
-        logger.exception(
-            "Supabase %s jadvaliga %s xonasini saqlab bo'lmadi",
-            table,
-            normalized,
-        )
+    payload = {
+        "code": normalized,
+        "state": copy.deepcopy(state),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _write_lock:
+        _pending[(table, normalized)] = payload
+    _ensure_worker()
+    _wake.set()
 
 
 def load_state(table: str, code: str) -> dict[str, Any] | None:
@@ -74,6 +155,8 @@ def load_state(table: str, code: str) -> dict[str, Any] | None:
     normalized = _normalize_code(code)
     if not normalized:
         return None
+    # Navbatda turgan eng yangi holat bo'lsa, avval uni yozamiz.
+    _flush_pending(table, normalized)
     try:
         rows = (
             store.client.table(table)
@@ -102,6 +185,7 @@ def load_states(table: str, limit: int = LOAD_LIMIT) -> list[dict[str, Any]]:
     store = get_store()
     if not store.enabled:
         return []
+    _flush_pending(table)
     try:
         rows = (
             store.client.table(table)
@@ -132,6 +216,9 @@ def delete_state(table: str, code: str) -> None:
     normalized = _normalize_code(code)
     if not normalized:
         return
+    # Tugagan xona navbatda qolib, o'chirilgandan keyin qayta yozilmasin.
+    with _write_lock:
+        _pending.pop((table, normalized), None)
     try:
         store.client.table(table).delete().eq("code", normalized).execute()
     except Exception:
@@ -185,9 +272,11 @@ __all__ = [
     "BUNKER_ROOMS_TABLE",
     "LOAD_LIMIT",
     "MAFIA_ROOMS_TABLE",
+    "pending_writes",
     "ROOM_TABLES",
     "SPYFALL_ROOMS_TABLE",
     "delete_state",
+    "flush_room_writes",
     "load_bunker",
     "load_state",
     "load_states",
