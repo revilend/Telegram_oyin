@@ -463,6 +463,8 @@ class EconomyStore:
         ).strip()
         self._client = client
         self._lock = threading.RLock()
+        # Mijozni faqat bir marta yaratish uchun (parallel o'qishlar uchun).
+        self._client_lock = threading.Lock()
         # user_id -> (monotonic vaqt, hisob). Faqat Supabase rejimida ishlaydi.
         self._profile_cache: dict[int, tuple[float, UserAccount]] = {}
         # (monotonic vaqt, jami foydalanuvchilar soni).
@@ -487,31 +489,36 @@ class EconomyStore:
     # ------------------------------------------------------------------
     def _cache_drop(self, user_id: int) -> None:
         """Keshdagi yozuvni o'chiradi (har qanday yozuvdan keyin)."""
-        self._profile_cache.pop(int(user_id), None)
+        with self._lock:
+            self._profile_cache.pop(int(user_id), None)
 
     def _cache_clear(self) -> None:
-        self._profile_cache.clear()
+        with self._lock:
+            self._profile_cache.clear()
 
     def _cached_account(self, user_id: int) -> UserAccount | None:
         """Keshdagi yangi (TTL ichidagi) hisobni qaytaradi yoki ``None``."""
         if not self.enabled:
             return None
-        entry = self._profile_cache.get(int(user_id))
-        if entry is None:
-            return None
-        stamp, account = entry
-        if time.monotonic() - stamp > PROFILE_CACHE_TTL:
-            self._profile_cache.pop(int(user_id), None)
-            return None
-        return account
+        uid = int(user_id)
+        with self._lock:
+            entry = self._profile_cache.get(uid)
+            if entry is None:
+                return None
+            stamp, account = entry
+            if time.monotonic() - stamp > PROFILE_CACHE_TTL:
+                self._profile_cache.pop(uid, None)
+                return None
+            return account
 
     def _store_cached(self, account: UserAccount) -> None:
         if not self.enabled:
             return
-        self._profile_cache[int(account.user_id)] = (
-            time.monotonic(),
-            account,
-        )
+        with self._lock:
+            self._profile_cache[int(account.user_id)] = (
+                time.monotonic(),
+                account,
+            )
 
     def peek_account(self, user_id: int) -> UserAccount | None:
         """Faqat keshdan o'qiydi — bazaga so'rov yubormaydi."""
@@ -529,9 +536,11 @@ class EconomyStore:
     @property
     def client(self) -> Any:
         if self._client is None:
-            from supabase import create_client
+            with self._client_lock:
+                if self._client is None:
+                    from supabase import create_client
 
-            self._client = create_client(self.url, self.key)
+                    self._client = create_client(self.url, self.key)
         return self._client
 
     # ------------------------------------------------------------------
@@ -577,6 +586,10 @@ class EconomyStore:
         allaqachon biladi (masalan, ``/start`` oldidan ``find_user`` ishlagan):
         SELECT o'tkazib yuboriladi va darhol INSERT qilinadi. Shu bilan yangi
         o'yinchiga javob bitta so'rov tezroq ketadi.
+
+        Tarmoq so'rovlari global lock ostida bajarilmaydi: parallel
+        ``asyncio.gather(to_thread(...))`` chaqiruvlari bir-birini kutmaydi.
+        Faqat in-memory holat va kesh qisqa lock bilan himoyalanadi.
         """
         uid = int(user_id)
         if uid <= 0:
@@ -586,8 +599,8 @@ class EconomyStore:
         # Test ID simiga kirgan har qanday hisob avtomatik bot hisoblanadi.
         is_bot = bool(is_bot) or is_test_bot_id(uid)
 
-        with self._lock:
-            if not self.enabled:
+        if not self.enabled:
+            with self._lock:
                 row = self._users.get(uid)
                 if row is None:
                     row = {
@@ -625,55 +638,57 @@ class EconomyStore:
                         row["is_bot"] = True
                 return _row_to_account(row)
 
-            row = None if known_missing else self._select_one(
-                USERS_TABLE, **{USERS_ID_COLUMN: uid}
-            )
-            if row is None:
-                row = {
-                    USERS_ID_COLUMN: uid,
-                    "username": username,
-                    "full_name": full_name,
-                    "coins": START_COINS,
-                    "total_purchased": 0,
-                    "games_played": 0,
-                    "wins": 0,
-                    "bunker_wins": 0,
-                    "mafia_wins": 0,
-                    "spy_wins": 0,
-                    "alias_wins": 0,
-                    "bomb_wins": 0,
-                    "referral_count": 0,
-                    "last_bonus_at": "",
-                    "last_daily_claim": "",
-                    "bonus_streak": 0,
-                    "streak_days": 0,
-                    "role": "user",
-                    "is_blocked": False,
-                    "is_bot": is_bot,
-                    "language_code": "",
-                    "created_at": _now(),
-                }
-                try:
-                    safe_insert(self.client, USERS_TABLE, row)
-                except Exception:
-                    # Parallel yaratilgan bo'lsa, mavjud yozuvni qayta o'qiymiz.
-                    row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
-                    if row is None:
-                        raise
-                self._cache_drop(uid)
+        row = None if known_missing else self._select_one(
+            USERS_TABLE, **{USERS_ID_COLUMN: uid}
+        )
+        if row is None:
+            row = {
+                USERS_ID_COLUMN: uid,
+                "username": username,
+                "full_name": full_name,
+                "coins": START_COINS,
+                "total_purchased": 0,
+                "games_played": 0,
+                "wins": 0,
+                "bunker_wins": 0,
+                "mafia_wins": 0,
+                "spy_wins": 0,
+                "alias_wins": 0,
+                "bomb_wins": 0,
+                "referral_count": 0,
+                "last_bonus_at": "",
+                "last_daily_claim": "",
+                "bonus_streak": 0,
+                "streak_days": 0,
+                "role": "user",
+                "is_blocked": False,
+                "block_reason": "",
+                "is_bot": is_bot,
+                "language_code": "",
+                "created_at": _now(),
+            }
+            try:
+                safe_insert(self.client, USERS_TABLE, row)
+            except Exception:
+                # Parallel yaratilgan bo'lsa, mavjud yozuvni qayta o'qiymiz.
+                row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+                if row is None:
+                    raise
+            self._cache_drop(uid)
+            with self._lock:
                 self._count_cache = None
-            else:
-                changes: dict[str, Any] = {}
-                if username and username != row.get("username"):
-                    changes["username"] = username
-                if full_name and full_name != row.get("full_name"):
-                    changes["full_name"] = full_name
-                if is_bot and not bool(row.get("is_bot")):
-                    changes["is_bot"] = True
-                if changes:
-                    self._update_user_row(uid, changes)
-                    row.update(changes)
-            return _row_to_account(row)
+        else:
+            changes: dict[str, Any] = {}
+            if username and username != row.get("username"):
+                changes["username"] = username
+            if full_name and full_name != row.get("full_name"):
+                changes["full_name"] = full_name
+            if is_bot and not bool(row.get("is_bot")):
+                changes["is_bot"] = True
+            if changes:
+                self._update_user_row(uid, changes)
+                row.update(changes)
+        return _row_to_account(row)
 
     def get_user(self, user_id: int) -> UserAccount:
         """Hisobni qaytaradi; yo'q bo'lsa nol balans bilan yaratadi."""
@@ -682,16 +697,16 @@ class EconomyStore:
     def has_user(self, user_id: int) -> bool:
         """Foydalanuvchi bazada allaqachon bormi (yangi yozuv yaratmasdan)."""
         uid = int(user_id)
-        with self._lock:
-            if not self.enabled:
+        if not self.enabled:
+            with self._lock:
                 return uid in self._users
-            if self._cached_account(uid) is not None:
-                return True
-            row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
-            if row is None:
-                return False
-            self._store_cached(_row_to_account(row))
+        if self._cached_account(uid) is not None:
             return True
+        row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+        if row is None:
+            return False
+        self._store_cached(_row_to_account(row))
+        return True
 
     def get_role(self, user_id: int) -> str:
         """Foydalanuvchi rolini qaytaradi (``admin`` yoki ``user``).
@@ -774,21 +789,23 @@ class EconomyStore:
 
         Natija qisqa muddatli keshga yoziladi, shuning uchun /start va menyu
         tugmalari takror bosilganda Supabase'ga qayta so'rov ketmaydi.
+        SELECT global lock ostida bajarilmaydi — parallel o'qishlar
+        (``asyncio.gather``) haqiqatan bir vaqtda ketadi.
         """
         uid = int(user_id)
-        with self._lock:
-            if not self.enabled:
+        if not self.enabled:
+            with self._lock:
                 row = self._users.get(uid)
-                return _row_to_account(row) if row is not None else None
-            cached = self._cached_account(uid)
-            if cached is not None:
-                return cached
-            row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
-            if row is None:
-                return None
-            account = _row_to_account(row)
-            self._store_cached(account)
-            return account
+            return _row_to_account(row) if row is not None else None
+        cached = self._cached_account(uid)
+        if cached is not None:
+            return cached
+        row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
+        if row is None:
+            return None
+        account = _row_to_account(row)
+        self._store_cached(account)
+        return account
 
     def account_for(
         self,

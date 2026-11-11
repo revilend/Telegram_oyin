@@ -162,6 +162,17 @@ class _SimQuery:
         self._filters.append((column, value))
         return self
 
+    def gte(self, column: str, value: object):
+        self._filters.append((column, value))
+        return self
+
+    def lte(self, column: str, value: object):
+        self._filters.append((column, value))
+        return self
+
+    def order(self, *_args, **_kwargs):
+        return self
+
     def limit(self, _count: int):
         return self
 
@@ -264,6 +275,61 @@ class Bench:
         first_ms = (stamp - started) * 1000
         return total_ms, first_ms, self.counter.queries - before
 
+    def run_http(
+        self,
+        label: str,
+        request_fn,
+        runs: int,
+        *,
+        reset=None,
+    ) -> dict | None:
+        """Mini App endpointini (in-process ASGI) o'lchaydi."""
+        samples: list[float] = []
+        queries: list[int] = []
+        for index in range(runs):
+            if reset is not None:
+                reset()
+            before = self.counter.queries
+            started = time.perf_counter()
+            try:
+                response = request_fn()
+            except Exception:
+                LOG.exception("%s: run %d xato bilan tugadi", label, index + 1)
+                continue
+            total_ms = (time.perf_counter() - started) * 1000
+            samples.append(total_ms)
+            queries.append(self.counter.queries - before)
+            LOG.info(
+                "%-38s run %d/%d: %6.0f ms (HTTP %s, %d so'rov)",
+                label,
+                index + 1,
+                runs,
+                total_ms,
+                getattr(response, "status_code", "?"),
+                queries[-1],
+            )
+        if not samples:
+            return None
+        result = {
+            "label": label,
+            "runs": len(samples),
+            "median_ms": round(statistics.median(samples), 1),
+            "min_ms": round(min(samples), 1),
+            "max_ms": round(max(samples), 1),
+            "first_answer_median_ms": round(statistics.median(samples), 1),
+            "queries_median": statistics.median(queries),
+        }
+        self.results.append(result)
+        LOG.info(
+            "%-38s mediana %6.0f ms | min %6.0f | max %6.0f | so'rov %s",
+            label,
+            result["median_ms"],
+            result["min_ms"],
+            result["max_ms"],
+            result["queries_median"],
+        )
+        return result
+
     def run(
         self,
         label: str,
@@ -351,6 +417,24 @@ def _patch_economy(store: EconomyStore) -> ExitStack:
     return stack
 
 
+def _bootstrap_client(store: EconomyStore):
+    """``/api/bootstrap`` ni in-process (ASGI) chaqiruvchi mijoz.
+
+    Haqiqiy HTTP server ishga tushirilmaydi: FastAPI ilovasi ``TestClient``
+    orqali chaqiriladi, ya'ni o'lchov Mini App ko'radigan server ishini
+    (marshrutlash + payload yig'ish) o'z ichiga oladi, tarmoq vaqtini emas.
+    """
+    from fastapi.testclient import TestClient
+
+    import api.server as api_server
+
+    stack = ExitStack()
+    stack.enter_context(
+        patch.object(api_server, "get_economy", return_value=store)
+    )
+    return TestClient(api_server.app), stack
+
+
 def _delete_rows(store: EconomyStore, table: str, column: str, value: int) -> None:
     """O'lchov uchun yaratilgan vaqtinchalik yozuvni o'chiradi."""
     try:
@@ -375,6 +459,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--simulate", action="store_true", help="credentialsiz sinov (soxta Supabase)")
     parser.add_argument("--latency", type=float, default=0.12, help="--simulate uchun so'rov kechikishi, sekund")
     parser.add_argument("--json", type=str, default="", help="natijalarni JSON faylga yozish")
+    parser.add_argument(
+        "--no-bootstrap",
+        action="store_true",
+        help="/api/bootstrap o'lchovini o'tkazib yuborish",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -478,10 +567,60 @@ def main(argv: list[str] | None = None) -> int:
             runs,
         )
 
+    # 4) Mini App: yagona /api/bootstrap endpointi (in-process ASGI).
+    api_stack = None
+    if not args.no_bootstrap:
+        client = None
+        try:
+            client, api_stack = _bootstrap_client(store)
+        except Exception:
+            LOG.exception("Bootstrap o'lchovi ishga tushmadi")
+        if client is not None:
+            params = {
+                "user_id": user_id,
+                "username": "bench",
+                "full_name": "Bench User",
+            }
+            bench.run_http(
+                "Mini App /api/bootstrap — sovuq kesh",
+                lambda: client.get("/api/bootstrap", params=params),
+                1,
+                reset=store.invalidate_user,
+            )
+            bench.run_http(
+                "Mini App /api/bootstrap — kesh bilan",
+                lambda: client.get("/api/bootstrap", params=params),
+                runs,
+            )
+
     if args.allow_write:
         bonus = _optional_handler("rewards", "claim_bonus")
         if bonus is not None:
             bench.run("Kunlik bonus (yozadi)", bonus, 1)
+
+    start_row = next(
+        (row for row in bench.results if row["label"].startswith("/start — sovuq")),
+        None,
+    )
+    bootstrap_row = next(
+        (
+            row
+            for row in bench.results
+            if row["label"].startswith("Mini App /api/bootstrap — kesh")
+        ),
+        None,
+    )
+    if start_row and bootstrap_row:
+        LOG.info(
+            "Solishtirish (birinchi ochilish): bot /start %.0f ms | "
+            "Mini App bootstrap %.0f ms | farq %+.0f ms",
+            start_row["median_ms"],
+            bootstrap_row["median_ms"],
+            bootstrap_row["median_ms"] - start_row["median_ms"],
+        )
+
+    if api_stack is not None:
+        api_stack.close()
 
     LOG.info("-" * 78)
     LOG.info(
