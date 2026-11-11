@@ -85,15 +85,16 @@ class MainMenuKeyboardTest(MenuTestCase):
         self.assertEqual(rows[1], ["🎯 Missiyalar", "🎁 Kunlik bonus"])
         self.assertEqual(rows[2], ["🛍️ Dökon", "🏆 Turnirlar"])
         self.assertEqual(rows[3], ["👤 Profilim", "👑 Reyting"])
-        self.assertEqual(rows[4], ["🎟️ Promo kod", "👥 Döstlar"])
-        self.assertEqual(rows[5], ["🌐 Tilni özgartiriş"])
+        self.assertEqual(rows[4], ["🎟️ Promo kod"])
+        self.assertEqual(rows[5], ["🌐 Tilni özgartiriş", "👥 Döstlar"])
         self.assertEqual(rows[6], ["🌐 Mini App (Portal)"])
         self.assertEqual(len(rows), 7)
         self.assertTrue(markup.resize_keyboard)
         self.assertTrue(markup.is_persistent)
-        for row in markup.keyboard[2:5]:
+        for row in markup.keyboard[2:4]:
             self.assertEqual(len(row), 2)
-        self.assertEqual(len(markup.keyboard[5]), 1)
+        self.assertEqual(len(markup.keyboard[4]), 1)
+        self.assertEqual(len(markup.keyboard[5]), 2)
         self.assertEqual(len(markup.keyboard[6]), 1)
 
     def test_games_button_opens_mini_app(self) -> None:

@@ -931,21 +931,9 @@ class ShopStore:
                     )
                 raise
             last_entry: InventoryEntry | None = saved[-1][1] if saved else None
-            try:
-                self._record_transaction(uid, item, count, total, strict=True)
-            except ShopError:
-                for prize_slug, entry_to_save in saved:
-                    self._save_entry(
-                        uid,
-                        InventoryEntry(
-                            item_slug=prize_slug,
-                            quantity=entry_to_save.quantity
-                            - (bag[prize_slug]),
-                            is_equipped=entry_to_save.is_equipped,
-                        ),
-                    )
-                self.economy.add_coins(uid, total)
-                raise
+            # Tarix yozilmasa ham xarid bekor qilinmaydi: buyum allaqachon
+            # inventarda, tanga esa yechilgan. Xato faqat logga tushadi.
+            self._record_transaction(uid, item, count, total)
             prizes = tuple(CATALOG_BY_SLUG[slug] for slug in bag)
             assert last_entry is not None
             return PurchaseResult(
@@ -978,21 +966,9 @@ class ShopStore:
                 ),
             )
             raise
-        try:
-            self._record_transaction(uid, item, count, total, strict=True)
-        except ShopError:
-            # Tarix yozilmadi — tangani qaytaramiz va inventarni asl
-            # holatga keltiramiz, shunda xarid butunlay bekor bo'ladi.
-            self._save_entry(
-                uid,
-                InventoryEntry(
-                    item_slug=item.slug,
-                    quantity=current.quantity,
-                    is_equipped=current.is_equipped,
-                ),
-            )
-            self.economy.add_coins(uid, total)
-            raise
+        # Tarix yozilmasa ham xarid bekor qilinmaydi: tanga yechilgan va
+        # buyum inventarda. Xato ``_record_transaction`` ichida log qilinadi.
+        self._record_transaction(uid, item, count, total)
         return PurchaseResult(
             item=item,
             quantity=count,

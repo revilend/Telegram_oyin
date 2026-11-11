@@ -599,6 +599,17 @@ class EconomyStore:
         # Test ID simiga kirgan har qanday hisob avtomatik bot hisoblanadi.
         is_bot = bool(is_bot) or is_test_bot_id(uid)
 
+        # 30 sekundlik RAM kesh: takroriy tugma bosishlarda Supabase'ga
+        # so'rov ketmaydi. Ism o'zgargan bo'lsa yoki kesh bo'sh bo'lsa — o'qiladi.
+        if not known_missing:
+            cached = self._cached_account(uid)
+            if cached is not None:
+                same_name = not username or username == cached.username
+                same_full = not full_name or full_name == cached.full_name
+                same_bot = not is_bot or bool(cached.is_bot)
+                if same_name and same_full and same_bot:
+                    return cached
+
         if not self.enabled:
             with self._lock:
                 row = self._users.get(uid)

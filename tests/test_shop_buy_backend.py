@@ -132,14 +132,22 @@ class ShopBuyBackendTest(unittest.TestCase):
         self.assertEqual(entry.quantity, 1)
         self.assertTrue(fake.transactions)
 
-    def test_transaction_write_failure_rolls_back_purchase(self) -> None:
+    def test_transaction_write_failure_still_completes_purchase(self) -> None:
+        """Tarix yozilmasa ham xarid bajariladi (tanga yechiladi, buyum beriladi)."""
         fake, economy, shop = self._stores(fail_transactions=True)
+        economy.ensure_user(7789)
+        economy.add_coins(7789, 1000)
         account = economy.ensure_user(7789)
         balance_before = account.coins
-        with self.assertRaises(ShopError):
-            shop.buy(7789, "frame_gold", 1)
-        self.assertEqual(economy.ensure_user(7789).coins, balance_before)
-        self.assertEqual(shop.entry(7789, "frame_gold").quantity, 0)
+        result = shop.buy(7789, "frame_gold", 1)
+        payload = result.as_dict()
+        self.assertTrue(payload["success"])
+        self.assertEqual(
+            economy.ensure_user(7789).coins,
+            balance_before - result.total_price,
+        )
+        self.assertEqual(shop.entry(7789, "frame_gold").quantity, 1)
+        self.assertFalse(fake.transactions)
 
 
 if __name__ == "__main__":

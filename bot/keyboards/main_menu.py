@@ -153,11 +153,12 @@ def build_main_menu(
             KeyboardButton(text=label("profile")),
             KeyboardButton(text=label("leaderboard")),
         ],
+        [KeyboardButton(text=label("promo"))],
         [
-            KeyboardButton(text=label("promo")),
+            KeyboardButton(text=label("change_language")),
             KeyboardButton(text=label("invite")),
         ],
-        [KeyboardButton(text=label("change_language"))],
+        # Keng asosiy tugma — Mini App portali doim eng pastda turadi.
         [portal_button],
     ]
     if is_admin:
