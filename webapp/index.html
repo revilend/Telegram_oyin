@@ -7134,6 +7134,11 @@ function leaderboardHtml() {
       async function submitMafiaAction(action, payload) {
         if (view.mafiaActionBusy) return;
         var code = view.code;
+        var previousVote = view.mafiaVoteTarget;
+        // Optimistik: tanlangan nishon darhol ekranga o'tadi, so'rov fonda ketadi.
+        if (String(action) === "vote" && payload && payload.target != null) {
+          view.mafiaVoteTarget = Number(payload.target);
+}
         view.mafiaActionBusy = true;
         renderMafia();
         try {
@@ -7147,6 +7152,8 @@ function leaderboardHtml() {
           await loadMafiaRole();
         } catch (error) {
           if (view.mode === "mafia" && view.code === code) {
+            view.mafiaVoteTarget = previousVote;
+            renderMafia();
             toast(error.message || "Harakat bajarilmadi", "error");
 }
         } finally {
@@ -7496,6 +7503,11 @@ function leaderboardHtml() {
       async function spyPost(path, payload, successMessage) {
         if (view.spyActionBusy) return null;
         var code = view.code;
+        var previousVote = view.spyVoteTarget;
+        // Optimistik: ovoz tanlovi darhol ko'rinadi, javob fonda kutiladi.
+        if (String(path) === "vote" && payload && payload.target != null) {
+          view.spyVoteTarget = Number(payload.target);
+}
         view.spyActionBusy = true;
         renderSpy();
         try {
@@ -7518,6 +7530,8 @@ function leaderboardHtml() {
           return data;
         } catch (error) {
           if (view.mode === "spy" && view.code === code) {
+            view.spyVoteTarget = previousVote;
+            renderSpy();
             toast(error.message || "Harakat bajarilmadi", "error");
 }
           return null;
@@ -8650,7 +8664,7 @@ function leaderboardHtml() {
       }
       async function createBombRoom() {
         if (view.bombBusy) return;
-        view.bombBusy = true;
+        view.bombBusy = true; renderBomb();
         try {
           var data = await request("/api/bomb/create", {
             method: "POST",
@@ -8670,7 +8684,7 @@ function leaderboardHtml() {
       }
       async function bombPost(action, payload, successMessage) {
         if (!view.bombCode || view.bombBusy) return;
-        view.bombBusy = true;
+        view.bombBusy = true; renderBomb();
         renderBomb();
         try {
           var body = Object.assign({
@@ -9718,9 +9732,50 @@ function leaderboardHtml() {
       // ----------------------------------------------------------------
       // Harakatlar
       // ----------------------------------------------------------------
+      // Optimistik render: ovoz va karta harakati server javobini kutmasdan
+      // darhol ekranga tushadi; xato bo'lsa holat avtomatik qaytariladi.
+      function optimisticRoomSnapshot() {
+        return {
+          room: view.room ? JSON.parse(JSON.stringify(view.room)) : null,
+          me: view.me ? JSON.parse(JSON.stringify(view.me)) : null,
+          selected: view.selected
+};
+}
+
+      function applyOptimisticRoomAction(payload) {
+        var room = view.room;
+        if (!room || !payload) return;
+        if (String(payload.action || "") === "vote" && payload.target != null) {
+          var target = Number(payload.target);
+          (room.players || []).forEach(function (player) {
+            if (Number(player.user_id) === target) {
+              player.votes_against = (Number(player.votes_against) || 0) + 1;
+}
+          });
+          if (view.me) view.me.has_voted = true;
+          room.total_votes = (Number(room.total_votes) || 0) + 1;
+}
+}
+
+      function restoreRoomSnapshot(snapshot) {
+        if (!snapshot) return;
+        if (snapshot.room) {
+          view.room = snapshot.room;
+          view.lastRoomSig = JSON.stringify(snapshot.room);
+}
+        if (snapshot.me) {
+          view.me = snapshot.me;
+          view.lastMeSig = JSON.stringify(snapshot.me);
+}
+        view.selected = snapshot.selected;
+}
+
       async function sendAction(payload, successMessage) {
         if (view.busy) return;
         view.busy = true;
+        var snapshot = optimisticRoomSnapshot();
+        applyOptimisticRoomAction(payload);
+        renderRoom(true);
         var flipKey = payload.action === "reveal" ? payload.card_type : null;
         if (flipKey) {
           if (view.flipTimer) {
@@ -9758,6 +9813,8 @@ function leaderboardHtml() {
             toast(successMessage);
 }
         } catch (error) {
+          restoreRoomSnapshot(snapshot);
+          renderRoom(true);
           if (flipKey && view.flipKey === flipKey) view.flipKey = null;
           toast(error.message || "Xatolik yuz berdi", "error");
           if (error.status === 404) loadRoomData(false);
