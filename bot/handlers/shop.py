@@ -81,8 +81,12 @@ def packages_keyboard() -> InlineKeyboardMarkup:
 
 
 def balance_of(user_id: int) -> int:
-    """Foydalanuvchining joriy tanga balansi."""
-    return get_economy().ensure_user(int(user_id)).coins
+    """Foydalanuvchining joriy tanga balansi (avval 15 sekundlik keshdan)."""
+    economy = get_economy()
+    account_for = getattr(economy, "account_for", None)
+    if callable(account_for):
+        return account_for(int(user_id)).coins
+    return economy.ensure_user(int(user_id)).coins
 
 
 def shop_text(user_id: int | None = None) -> str:

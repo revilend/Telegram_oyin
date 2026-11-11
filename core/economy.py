@@ -694,14 +694,22 @@ class EconomyStore:
             return True
 
     def get_role(self, user_id: int) -> str:
-        """Foydalanuvchi rolini qaytaradi (``admin`` yoki ``user``)."""
+        """Foydalanuvchi rolini qaytaradi (``admin`` yoki ``user``).
+
+        Rol profil keshidan olinadi, shuning uchun ``/start`` dagi
+        ``is_admin`` tekshiruvi har safar Supabase'ga so'rov yubormaydi.
+        Rol o'zgartirilsa yozuv keshni darhol tozalaydi; rol boshqa jarayonda
+        o'zgartirilsa, kechikish ``PROFILE_CACHE_TTL`` dan oshmaydi.
+        """
         uid = int(user_id)
-        with self._lock:
-            if not self.enabled:
+        if not self.enabled:
+            with self._lock:
                 row = self._users.get(uid)
-            else:
-                row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
-        return str((row or {}).get("role") or "user").strip().lower()
+            return str((row or {}).get("role") or "user").strip().lower()
+        account = self.find_user(uid)
+        if account is None:
+            return "user"
+        return str(account.role or "user").strip().lower()
 
     def is_admin_user(self, user_id: int) -> bool:
         """Bloklanmagan adminni tekshiradi."""
@@ -781,6 +789,22 @@ class EconomyStore:
             account = _row_to_account(row)
             self._store_cached(account)
             return account
+
+    def account_for(
+        self,
+        user_id: int,
+        username: str = "",
+        full_name: str = "",
+    ) -> UserAccount:
+        """Hisobni keshdan yoki bazadan qaytaradi; yo'q bo'lsa yaratadi.
+
+        Menyu tugmalari (Profil, Do'kon) shu yo'l bilan o'qiydi: kesh yangi
+        bo'lsa Supabase'ga umuman so'rov ketmaydi.
+        """
+        account = self.find_user(user_id)
+        if account is not None:
+            return account
+        return self.ensure_user(user_id, username, full_name)
 
     def count_users(self) -> int:
         """Bazadagi jami foydalanuvchilar soni (30 sekundlik kesh bilan).

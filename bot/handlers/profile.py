@@ -121,22 +121,13 @@ def load_account(user) -> UserAccount:
     ketmaydi.
     """
     economy = get_economy()
-    user_id = int(user.id)
-    try:
-        peek = getattr(economy, "peek_account", None)
-        if callable(peek):
-            cached = peek(user_id)
-            if cached is not None:
-                return cached
-        finder = getattr(economy, "find_user", None)
-        if callable(finder):
-            found = finder(user_id)
-            if found is not None:
-                return found
-    except Exception:  # kesh/baza xatosi profilni bloklamaydi
-        pass
+    account_for = getattr(economy, "account_for", None)
+    if callable(account_for):
+        return account_for(
+            int(user.id), user.username or "", user.full_name or ""
+        )
     return economy.ensure_user(
-        user_id, user.username or "", user.full_name or ""
+        int(user.id), user.username or "", user.full_name or ""
     )
 
 

@@ -186,7 +186,8 @@ Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi
 - Har bir taklif qilingan yangi do‘st uchun **+75 tanga**.
 - Taklif oqimi nosozlikka chidamli: `users`/`referrals` jadvali xato bersa ham `/start` to‘xtamaydi, yangi o‘yinchi xush kelibsiz xabarini va menyuni oladi, taklif qiluvchi esa baribir mukofot oladi (xato faqat logga yoziladi).
 - Profil 15 sekundlik xotira keshida (`PROFILE_CACHE_TTL`) saqlanadi: `/start` va menyu tugmalari Supabase’ga har safar so‘rov yubormaydi, javob odatda 0.5 sekunddan tez. Har qanday yozuv (tanga, til, blok) keshni darhol tozalaydi.
-- O‘lchov (har bir Supabase so‘rovi 150 ms deb simulyatsiya qilindi): mavjud foydalanuvchi `/start` — 1 so‘rov (~150 ms), takroriy bosishda 0 so‘rov (<5 ms); yangi foydalanuvchi + taklif havolasi — xush kelibsiz xabari va menyu ~300 ms da, taklif mukofoti va admin bildirishnomasi esa undan keyin bajariladi.
+- Rol tekshiruvi (`is_admin` → `get_role`) ham shu keshdan, Do‘kon balansi esa `account_for()` orqali o‘qiladi: `/start` va Do‘kon takror ishlaganda qo‘shimcha Supabase so‘rovi ketmaydi.
+- O‘lchov (`scripts/bench_latency.py --simulate`, har so‘rov 120 ms): mavjud foydalanuvchi `/start` sovuq keshda 1 so‘rov (~120 ms), takroriy bosishda 0 so‘rov; Profil va Do‘kon kesh bilan 0 so‘rov; Missiyalar va Reyting 2 so‘rov (missiya holati va reyting jadvali real o‘qiladi). Yangi foydalanuvchi + taklif havolasida xush kelibsiz xabari ~2 so‘rovda, taklif mukofoti va admin bildirishnomasi esa undan keyin bajariladi.
 
 ### Tezlikni o‘lchash
 
