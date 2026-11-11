@@ -61,7 +61,7 @@ async def menu_games(message: Message) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚀 Öyinlar portaliga kiriş",
+                    text=t(language, "miniapp_open_button"),
                     web_app=WebAppInfo(url=url),
                 )
             ]

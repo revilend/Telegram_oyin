@@ -18,7 +18,7 @@ from aiogram.types import (
 )
 
 from core.economy import EconomyError, format_price, get_economy
-from core.i18n import all_button_texts
+from core.i18n import all_button_texts, resolve_language, t
 from core.missions import (
     MissionStatus,
     claim_mission,
@@ -39,20 +39,20 @@ def _progress_bar(status: MissionStatus) -> str:
     return "▓" * filled + "░" * (5 - filled)
 
 
-def missions_text(statuses: list[MissionStatus]) -> str:
+def missions_text(statuses: list[MissionStatus], language: str = "uz") -> str:
     """Missiyalar ro'yxati: taraqqiyot, maqsad va mukofot."""
     lines = [
-        "🎯 <b>Missiyalar</b>",
+        t(language, "missions_title"),
         "",
-        "Topşiriqlarni bajaring va tanga işlang!",
+        t(language, "missions_intro"),
         "",
     ]
     for index, status in enumerate(statuses, start=1):
         mission = status.mission
         if status.claimed:
-            mark = "✅ olindi"
+            mark = t(language, "missions_claimed")
         elif status.completed:
-            mark = "🎁 tayyor"
+            mark = t(language, "missions_ready")
         else:
             mark = f"{status.progress}/{mission.target}"
         lines.append(
@@ -64,19 +64,25 @@ def missions_text(statuses: list[MissionStatus]) -> str:
     ready = sum(1 for status in statuses if status.claimable)
     lines.append("")
     lines.append(
-        f"🎁 Olinişi mumkin: <b>{ready}</b> ta mukofot"
+        t(language, "missions_ready_count", count=ready)
         if ready
-        else "Hozirça tayyor mukofot yöq — öynab davom eting!"
+        else t(language, "missions_none_ready")
     )
     return "\n".join(lines)
 
 
-def missions_keyboard(statuses: list[MissionStatus]) -> InlineKeyboardMarkup:
+def missions_keyboard(
+    statuses: list[MissionStatus], language: str = "uz"
+) -> InlineKeyboardMarkup:
     """Tayyor missiyalar uchun «tanga olish» tugmalari."""
     rows = [
         [
             InlineKeyboardButton(
-                text=f"🎁 +{format_price(status.mission.reward)} tangani oliş",
+                text=t(
+                    language,
+                    "missions_claim_button",
+                    reward=format_price(status.mission.reward),
+                ),
                 callback_data=f"{MISSION_CLAIM_PREFIX}{status.mission.key}",
             )
         ]
@@ -113,16 +119,16 @@ async def show_missions(message: Message) -> None:
     user = message.from_user
     if user is None:
         return
+    language = resolve_language(user.id, getattr(user, "language_code", None))
     try:
         statuses = await _statuses_async(user)
     except Exception:
         logger.exception("Missiyalarni yuklab bölmadi: %s", user.id)
-        await message.answer(
-            "⚠️ Missiyalarni yuklab bölmadi. Birozdan keyin urinib köring."
-        )
+        await message.answer(t(language, "missions_load_error"))
         return
     await message.answer(
-        missions_text(statuses), reply_markup=missions_keyboard(statuses)
+        missions_text(statuses, language),
+        reply_markup=missions_keyboard(statuses, language),
     )
 
 
@@ -138,6 +144,9 @@ async def claim_mission_reward(callback: CallbackQuery) -> None:
     """«🎁 +N tangani olish» tugmasi."""
     key = (callback.data or "")[len(MISSION_CLAIM_PREFIX) :].strip()
     user = callback.from_user
+    language = resolve_language(
+        getattr(user, "id", None), getattr(user, "language_code", None)
+    )
     try:
         status, account = claim_mission(get_economy(), user.id, key)
     except EconomyError as exc:
@@ -146,14 +155,17 @@ async def claim_mission_reward(callback: CallbackQuery) -> None:
     except Exception:
         logger.exception("Missiya mukofotini berib bölmadi: %s", user.id)
         await callback.answer(
-            "⚠️ Mukofotni hozirça olib bölmadi. Qayta urinib köring.",
-            show_alert=True,
+            t(language, "missions_claim_error"), show_alert=True
         )
         return
 
     await callback.answer(
-        f"🎁 +{format_price(status.mission.reward)} tanga! "
-        f"Balans: {format_price(account.coins)}",
+        t(
+            language,
+            "missions_claim_alert",
+            reward=format_price(status.mission.reward),
+            balance=format_price(account.coins),
+        ),
         show_alert=True,
     )
     try:
@@ -161,8 +173,8 @@ async def claim_mission_reward(callback: CallbackQuery) -> None:
     except Exception:
         logger.exception("Missiyalarni yangilab bölmadi: %s", user.id)
         return
-    text = missions_text(statuses)
-    keyboard = missions_keyboard(statuses)
+    text = missions_text(statuses, language)
+    keyboard = missions_keyboard(statuses, language)
     message = callback.message
     if message is not None and hasattr(message, "edit_text"):
         try:

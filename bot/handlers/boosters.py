@@ -17,6 +17,7 @@ from core.economy import (
     format_price,
     get_economy,
 )
+from core.i18n import resolve_language, t
 from engine.boosters import SHIELD, BoosterError
 from engine.game_manager import GameError, get_default_manager
 from models.game import GameRoom
@@ -29,18 +30,18 @@ SHIELD_YES_PREFIX = "shield_yes_"
 SHIELD_NO_PREFIX = "shield_no_"
 
 
-def shield_keyboard(code: str) -> InlineKeyboardMarkup:
+def shield_keyboard(code: str, language: str = "uz") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"🛡️ Bunker Qalqonini işlatiş ({SHIELD.price} 🪙)",
+                    text=t(language, "shield_button_yes", price=SHIELD.price),
                     callback_data=f"{SHIELD_YES_PREFIX}{code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="❌ Rad etiş",
+                    text=t(language, "shield_button_no"),
                     callback_data=f"{SHIELD_NO_PREFIX}{code}",
                 )
             ],
@@ -48,17 +49,16 @@ def shield_keyboard(code: str) -> InlineKeyboardMarkup:
     )
 
 
-def shield_text(room: GameRoom) -> str:
-    return (
-        "🛡️ <b>Sizni bunkerdan haydaşmoqçi!</b>\n\n"
-        f"Xona: <code>{escape(room.code)}</code>\n"
-        f"Eng köp ovoz sizga berildi. <b>{SHIELD.price} tanga</b> evaziga "
-        "«Bunker Qalqoni»ni faollaştirib, omon qolasizmi?\n\n"
-        "Qalqon har bir xonada faqat bir marta işlaydi."
+def shield_text(room: GameRoom, language: str = "uz") -> str:
+    return t(
+        language,
+        "shield_offer",
+        code=escape(room.code),
+        price=SHIELD.price,
     )
 
 
-async def send_shield_offer(bot, room: GameRoom) -> bool:
+async def send_shield_offer(bot, room: GameRoom, language: str = "uz") -> bool:
     """Qalqon taklifini o'yinchiga shaxsiy xabar orqali yuboradi."""
     offer = room.pending_shield
     if offer is None:
@@ -66,8 +66,8 @@ async def send_shield_offer(bot, room: GameRoom) -> bool:
     try:
         await bot.send_message(
             offer.user_id,
-            shield_text(room),
-            reply_markup=shield_keyboard(room.code),
+            shield_text(room, language),
+            reply_markup=shield_keyboard(room.code, language),
         )
         return True
     except TelegramAPIError:
@@ -92,8 +92,12 @@ def _edit_text(callback: CallbackQuery, text: str) -> None:
 @router.callback_query(F.data.startswith(SHIELD_YES_PREFIX))
 async def activate_shield(callback: CallbackQuery) -> None:
     code = _code(callback.data or "", SHIELD_YES_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
     manager = get_default_manager()
     economy = get_economy()
@@ -101,7 +105,9 @@ async def activate_shield(callback: CallbackQuery) -> None:
         room = manager.get_room(code)
         offer = room.pending_shield
         if offer is None or offer.user_id != callback.from_user.id:
-            await callback.answer("Bu qalqon taklifi sizga tegişli emas.", show_alert=True)
+            await callback.answer(
+                t(language, "booster_not_yours"), show_alert=True
+            )
             return
         result = buy_booster(
             manager, economy, code, callback.from_user.id, SHIELD.key
@@ -113,43 +119,54 @@ async def activate_shield(callback: CallbackQuery) -> None:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Qalqon faollaştirildi!")
-    text = (
-        "🛡️ <b>Bunker Qalqoni faollaştirildi!</b>\n\n"
-        f"Balansdan <b>{format_price(SHIELD.price)}</b> tanga yeçildi.\n"
-        f"Qolgan balans: <b>{format_price(result.account_coins)}</b> tanga."
+    await callback.answer(t(language, "shield_activated_answer"))
+    text = t(
+        language,
+        "shield_activated",
+        price=format_price(SHIELD.price),
+        balance=format_price(result.account_coins),
     )
     if result.eliminated is not None:
-        text += (
-            f"\n\nNavbatdagi nomzod <b>{escape(result.eliminated.full_name)}</b> "
-            "bunkerdan haydaldi."
+        text += t(
+            language,
+            "shield_activated_eliminated",
+            name=escape(result.eliminated.full_name),
         )
     else:
-        text += "\n\nOvozlar teng bölgani uçun bu raundda boşqa heç kim haydalmadi."
+        text += t(language, "shield_activated_tie")
     _edit_text(callback, text)
 
 
 @router.callback_query(F.data.startswith(SHIELD_NO_PREFIX))
 async def reject_shield(callback: CallbackQuery) -> None:
     code = _code(callback.data or "", SHIELD_NO_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
     manager = get_default_manager()
     try:
         room = manager.get_room(code)
         offer = room.pending_shield
         if offer is None or offer.user_id != callback.from_user.id:
-            await callback.answer("Bu qalqon taklifi sizga tegişli emas.", show_alert=True)
+            await callback.answer(
+                t(language, "booster_not_yours"), show_alert=True
+            )
             return
         _, player = decline_shield(manager, code, callback.from_user.id)
     except GameError as exc:
         await callback.answer(str(exc), show_alert=True)
         return
 
-    await callback.answer("Qalqon rad etildi")
+    await callback.answer(t(language, "shield_rejected_answer"))
     _edit_text(
         callback,
-        "❌ Qalqon işlatilmadi.\n\n"
-        f"<b>{escape(player.full_name)}</b> bunkerdan haydaldi.",
+        t(
+            language,
+            "shield_rejected",
+            name=escape(player.full_name),
+        ),
     )

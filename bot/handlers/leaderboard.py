@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 router = Router(name="leaderboard")
 
 TOP_LIMIT = 10
-EMPTY_TEXT = "Hozirça reyting böş. Birinçi bölib öyin boşlang!"
+EMPTY_TEXT = t("uz", "leaderboard_empty")
 TITLE = "🏆 <b>Reyting va Top</b>"
 MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
 FRAME_BADGES = {
@@ -69,10 +69,13 @@ def leaderboard_text(
         name_html = escape(display_name(account))
         if frame_emoji:
             name_html = f"{frame_emoji} {name_html}"
-        line = (
-            f"{prefix} {name_html} — "
-            f"<b>{format_price(player_rating(account))}</b> reyting · "
-            f"{safe_int(account.wins)} ğalaba"
+        line = t(
+            lang,
+            "leaderboard_row",
+            place=prefix,
+            name=name_html,
+            rating=format_price(player_rating(account)),
+            wins=safe_int(account.wins),
         )
         if title_text:
             line += f"\n   👑 <i>{escape(title_text)}</i>"
@@ -81,8 +84,13 @@ def leaderboard_text(
     if me is not None:
         lines.append("")
         lines.append(
-            f"📊 Sizning reytingingiz: <b>{format_price(player_rating(me))}</b> "
-            f"({me.wins} ğalaba, {me.games_played} öyin)"
+            t(
+                lang,
+                "leaderboard_me",
+                rating=format_price(player_rating(me)),
+                wins=me.wins,
+                games=me.games_played,
+            )
         )
     return "\n".join(lines)
 
