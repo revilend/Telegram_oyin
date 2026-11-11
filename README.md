@@ -194,6 +194,7 @@ Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi
 - `python scripts/bench_latency.py --user-id <telegram_id> --runs 5` — haqiqiy Supabase bilan `/start` va pastki menyu tugmalarini (Profil, Do‘kon, Missiyalar, Reyting, O‘yinlar ro‘yxati, Turnirlar) o‘lchaydi: har bir run uchun vaqt, birinchi javob vaqti va Supabase so‘rovlari soni logga yoziladi, oxirida mediana/min/max jadvali chiqadi.
 - `--json bench.json` natijalarni faylga yozadi; `--allow-write` yangi foydalanuvchi + taklif havolasi va kunlik bonusni ham o‘lchaydi (vaqtinchalik yozuvlarni o‘zi o‘chiradi); `--simulate` credentialsiz sinov uchun (soxta Supabase, `--latency` bilan).
 - O‘lchov Telegram tarmoq vaqtini o‘z ichiga olmaydi (xabar yuborish simulyatsiya qilinadi), ya’ni baza + handler mantiqi vaqti ko‘rsatiladi.
+- `tests/test_menu_latency.py` — 0.5 sekundlik byudjet va so‘rovlar soni byudjetini qo‘riqlaydi: 100 ms/so‘rov simulyatsiyasida har bir menyu tugmasi birinchi javobni 0.5 s ichida berishi, `/start` sovuq keshda 1 (kesh bilan 0), Profil va Do‘kon 1/0, Missiyalar 3, Reyting 3/2 so‘rovdan oshmasligi tekshiriladi. Yangi Supabase chaqiruvi qo‘shilsa yoki kesh ishlamay qolsa test yiqiladi.
 - Referal havolasi: `https://t.me/revilend_gamesbot?start=ref_<user_id>`.
 - Yangi foydalanuvchi haqida adminga avtomatik bildirishnoma yuboriladi.
 
