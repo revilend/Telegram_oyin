@@ -187,6 +187,12 @@ Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi
 - Taklif oqimi nosozlikka chidamli: `users`/`referrals` jadvali xato bersa ham `/start` to‘xtamaydi, yangi o‘yinchi xush kelibsiz xabarini va menyuni oladi, taklif qiluvchi esa baribir mukofot oladi (xato faqat logga yoziladi).
 - Profil 15 sekundlik xotira keshida (`PROFILE_CACHE_TTL`) saqlanadi: `/start` va menyu tugmalari Supabase’ga har safar so‘rov yubormaydi, javob odatda 0.5 sekunddan tez. Har qanday yozuv (tanga, til, blok) keshni darhol tozalaydi.
 - O‘lchov (har bir Supabase so‘rovi 150 ms deb simulyatsiya qilindi): mavjud foydalanuvchi `/start` — 1 so‘rov (~150 ms), takroriy bosishda 0 so‘rov (<5 ms); yangi foydalanuvchi + taklif havolasi — xush kelibsiz xabari va menyu ~300 ms da, taklif mukofoti va admin bildirishnomasi esa undan keyin bajariladi.
+
+### Tezlikni o‘lchash
+
+- `python scripts/bench_latency.py --user-id <telegram_id> --runs 5` — haqiqiy Supabase bilan `/start` va pastki menyu tugmalarini (Profil, Do‘kon, Missiyalar, Reyting, O‘yinlar ro‘yxati, Turnirlar) o‘lchaydi: har bir run uchun vaqt, birinchi javob vaqti va Supabase so‘rovlari soni logga yoziladi, oxirida mediana/min/max jadvali chiqadi.
+- `--json bench.json` natijalarni faylga yozadi; `--allow-write` yangi foydalanuvchi + taklif havolasi va kunlik bonusni ham o‘lchaydi (vaqtinchalik yozuvlarni o‘zi o‘chiradi); `--simulate` credentialsiz sinov uchun (soxta Supabase, `--latency` bilan).
+- O‘lchov Telegram tarmoq vaqtini o‘z ichiga olmaydi (xabar yuborish simulyatsiya qilinadi), ya’ni baza + handler mantiqi vaqti ko‘rsatiladi.
 - Referal havolasi: `https://t.me/revilend_gamesbot?start=ref_<user_id>`.
 - Yangi foydalanuvchi haqida adminga avtomatik bildirishnoma yuboriladi.
 
