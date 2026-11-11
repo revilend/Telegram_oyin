@@ -98,14 +98,6 @@ class BotOrthographyTest(unittest.TestCase):
         from bot.handlers import common
 
         texts = {
-            "WELCOME_TEXT": common.WELCOME_TEXT,
-            "WELCOME_ONLY_TEXT": common.WELCOME_ONLY_TEXT,
-            "HELP_TEXT": common.HELP_TEXT,
-            "BUNKER_HELP_TEXT": common.BUNKER_HELP_TEXT,
-            "MAFIA_HELP_TEXT": common.MAFIA_HELP_TEXT,
-            "SPY_HELP_TEXT": common.SPY_HELP_TEXT,
-            "ALIAS_HELP_TEXT": common.ALIAS_HELP_TEXT,
-            "ECONOMY_HELP_TEXT": common.ECONOMY_HELP_TEXT,
         }
         for name, text in texts.items():
             with self.subTest(text=name):

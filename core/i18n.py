@@ -15,6 +15,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from core.i18n_common import COMMON_STRINGS
+
 logger = logging.getLogger(__name__)
 
 LANGUAGES: tuple[str, ...] = ("uz", "ru", "en")
@@ -578,6 +580,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "ℹ️ <b>Rules / Help</b>\n\nRevilend Games — a board-game platform in Telegram, played in groups.\n\n🛡️ <b>Bunker</b> — use your cards to decide who gets into the bunker.\n🕵️ <b>Mafia</b> — secret roles at night, voting by day.\n🔍 <b>Spyfall</b> — everyone knows the location except the spy.\n🐊 <b>Alias / Crocodile</b> — explain the word without saying it.\n💣 <b>Ticking Bomb</b> — defuse the bomb.\n\nPick a section below. Every game starts in a group: send /bunker, /mafia, /spy, /alias or /bomb.",
     },
 }
+
+
+# Umumiy handlerlarning uzun matnlari (qoidalar, taklif, kirish).
+STRINGS.update(COMMON_STRINGS)
 
 
 __all__ = [

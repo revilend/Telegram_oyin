@@ -29,7 +29,7 @@ from bot.config import get_config
 from bot.handlers.admin import is_admin
 from bot.keyboards.main_menu import build_main_menu, mini_app_url_for
 from bot.handlers.profile import language_keyboard
-from core.i18n import all_button_texts, resolve_language, t
+from core.i18n import LANGUAGES, all_button_texts, resolve_language, t
 from core.economy import (
     REFERRAL_BONUS,
     START_COINS,
@@ -70,37 +70,14 @@ cancel_router = Router(name="cancel")
 
 REFERRAL_PREFIX = "ref_"
 
+CANCELLED_TEXT = t("uz", "cancelled")
+CANCELLED_TEXTS: frozenset[str] = frozenset(
+    t(language, "cancelled") for language in LANGUAGES
+)
 CANCEL_TEXTS: frozenset[str] = frozenset(
-    {"❌ Bekor qiliş", "/cancel", "Bekor qiliş", "❌ Tölov bekor qilindi."}
+    {"/cancel", "❌ Bekor qiliş", "Bekor qiliş", "❌ Tölov bekor qilindi."}
+    | CANCELLED_TEXTS
 )
-CANCELLED_TEXT = "❌ Jarayon bekor qilindi."
-CANCELLED_TEXTS = frozenset(
-    {
-        "❌ Jarayon bekor qilindi.",
-        "❌ Процесс отменён.",
-        "❌ Process cancelled.",
-    }
-)
-
-WELCOME_TEXT = (
-    "Salom, <b>{name}</b>! 👋\n\n"
-    "🎮 <b>Revilend Games</b> — Telegram içidagi premium stol "
-    "öyinlari portali!\n"
-    "🛡️ <b>Bunker</b> — Falokatdan keyin omon qoliş va bahslaşuv.\n"
-    "🕵️ <b>Mafiya</b> — Tungi rollar va kunduzgi tergov.\n"
-    "🕶️ <b>Josus (Spyfall)</b> — Hamma joyni biladi, josus esa qidiradi.\n"
-    "🐊 <b>Alias / Krokodil</b> — Söz tuşuntiriş poygasi.\n"
-    "💣 <b>Portlovçi Bomba</b> — Xavfli karta öyini, bombani "
-    "zararsizlantir va tirik qol!\n"
-    "➕ Guruhda öyin oçiş uçun:\n"
-    "/bunker, /mafia, /spy, /alias yoki /bomb yuboring."
-)
-
-WELCOME_ONLY_TEXT = (
-    "Salom, <b>{name}</b>! 👋\n\n"
-    "Öyinni faqat guruhda oçiş mumkin: botni guruhga qöşib, /bunker yuboring."
-)
-
 
 # ----------------------------------------------------------------------
 # Referal havolalari
@@ -146,15 +123,13 @@ def invite_text(account: UserAccount, bot_username: str) -> str:
 def invite_keyboard(account: UserAccount, bot_username: str) -> InlineKeyboardMarkup:
     """Do'stlarga ulashish tugmasi."""
     link = referral_link(bot_username, account.user_id)
-    share_text = (
-        "Revilend Games — Bunker öyinini birga öynaymiz! 🎮 "
-        f"Taklif havolam: {link}"
-    )
+    language = getattr(account, "language_code", None) or "uz"
+    share_text = t(language, "invite_share_text", link=link)
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📤 Döstlarga yuboriş",
+                    text=t(language, "invite_share_button"),
                     url=(
                         "https://t.me/share/url"
                         f"?url={quote(link, safe='')}"
@@ -190,7 +165,7 @@ def login_keyboard(user: UserAccount) -> InlineKeyboardMarkup | None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🎮 Profilingiz bilan kiriş",
+                    text=t(getattr(user, "language_code", None) or "uz", "login_button"),
                     web_app=WebAppInfo(url=url),
                 )
             ]
@@ -217,13 +192,19 @@ async def send_login_code(
 
 
 def new_user_admin_text(
-    user, inviter: UserAccount | None, total_users: int
+    user, inviter: UserAccount | None, total_users: int, language: str = "uz"
 ) -> str:
     """Yangi o'yinchi haqida bosh adminga yuboriladigan xabar."""
-    username = f"@{escape(user.username)}" if user.username else "yöq"
-    language = escape(str(getattr(user, "language_code", None) or "noma'lum"))
+    username = (
+        f"@{escape(user.username)}"
+        if user.username
+        else t(language, "admin_none")
+    )
+    user_language = str(
+        getattr(user, "language_code", None) or t(language, "admin_unknown")
+    )
     if inviter is None:
-        inviter_text = "Töğridan-töğri"
+        inviter_text = t(language, "admin_direct")
     elif inviter.username:
         inviter_text = (
             f"@{escape(inviter.username)} "
@@ -231,17 +212,18 @@ def new_user_admin_text(
         )
     else:
         inviter_text = (
-            f"{escape(inviter.full_name or 'Nomaʼlum')} "
+            f"{escape(inviter.full_name or t(language, 'admin_unknown'))} "
             f"(ID: <code>{inviter.user_id}</code>)"
         )
-    return (
-        "🎉 <b>Yangi foydalanuvçi qöşildi!</b>\n\n"
-        f"👤 <b>İsm:</b> {escape(user.full_name)}\n"
-        f"🔗 <b>Username:</b> {username}\n"
-        f"🆔 <b>ID:</b> <code>{user.id}</code>\n"
-        f"🌐 <b>Til:</b> {language}\n"
-        f"👥 <b>Referal (Kim taklif qildi):</b> {inviter_text}\n\n"
-        f"📊 <b>Jami öyinçilar soni:</b> {format_price(total_users)} kişi"
+    return t(
+        language,
+        "admin_new_user",
+        name=escape(user.full_name),
+        username=username,
+        user_id=user.id,
+        language=escape(user_language),
+        inviter=inviter_text,
+        total=format_price(total_users),
     )
 
 
@@ -286,8 +268,20 @@ async def _pay_referral(
         return
     if result is None:
         return
+    inviter = None
+    finder = getattr(economy, "find_user", None)
+    if callable(finder):
+        try:
+            inviter = finder(int(inviter_id))
+        except Exception:
+            inviter = None
     try:
-        await _notify_inviter(message.bot, result, user.full_name or "")
+        await _notify_inviter(
+            message.bot,
+            result,
+            user.full_name or "",
+            getattr(inviter, "language_code", None) or "uz",
+        )
     except Exception:
         logger.exception("Taklif egasiga xabar yuborilmadi: %s", inviter_id)
 
@@ -328,6 +322,7 @@ async def notify_admin_new_user(
         inviter = None
         if inviter_id is not None and int(inviter_id) != int(user.id):
             inviter = economy.find_user(int(inviter_id))
+        # Adminning tili lug'atdagi zaxira (uz) — qo'shimcha so'rovsiz.
         text = new_user_admin_text(user, inviter, economy.count_users())
         await message.bot.send_message(admin_id, text)
     except TelegramAPIError:
@@ -338,12 +333,14 @@ async def notify_admin_new_user(
 
 
 async def _notify_inviter(
-    bot: Bot, result, invited_name: str
+    bot: Bot, result, invited_name: str, language: str = "uz"
 ) -> None:
     """Taklif qilganga bot nomidan minnatdorchilik xabarini yuboradi."""
-    text = (
-        f"🎉 Döstingiz ({escape(invited_name)}) taklifingiz bilan qöşildi! "
-        f"Sizga +{format_price(result.bonus)} tanga berildi 🪙"
+    text = t(
+        language,
+        "invited_notification",
+        name=escape(invited_name),
+        bonus=format_price(result.bonus),
     )
     try:
         await bot.send_message(result.inviter_id, text)
@@ -555,10 +552,10 @@ async def login_command(message: Message) -> None:
         )
     except Exception:
         logger.exception("Kiriş kodini yaratib bölmadi: %s", user.id)
-        await message.answer(
-            "⚠️ Kiriş kodini hozirça yaratib bölmadi. Birozdan keyin "
-            "urinib köring."
+        language = resolve_language(
+            user.id, getattr(user, "language_code", None)
         )
+        await message.answer(t(language, "login_error"))
         return
     await send_login_code(message, account)
 
@@ -607,215 +604,41 @@ RULES_ALIAS = "rules_alias"
 RULES_ECONOMY = "rules_economy"
 RULES_BACK = "rules_back"
 
-HELP_TEXT = (
-    "ℹ️ <b>Qoidalar / Yordam</b>\n\n"
-    "Revilend Games — Telegram içida guruh bilan öynaladigan stol "
-    "öyinlari platformasi.\n\n"
-    "🛡️ <b>Bunker</b> — falokatdan keyin kartalar böyiça bahslaşib, "
-    "bunkerga kim tuşişini hal qilasiz.\n"
-    "🕵️ <b>Mafiya</b> — tunda yaşirin rollar, kunduzi ovoz beriş.\n"
-    "🔍 <b>Josus (Spyfall)</b> — hamma joyni biladi, faqat josus bilmaydi.\n"
-    "🐊 <b>Alias / Krokodil</b> — sözni aytmasdan, taqiqlangan sözlarsiz "
-    "tuşuntiriş.\n\n"
-    "Pastdagi bölimlardan birini tanlab, batafsil qöllanmani öqing. "
-    "Har bir öyin guruhda boşlanadi: botni guruhga qöşing va "
-    "<code>/bunker</code>, <code>/mafia</code>, <code>/spy</code> yoki "
-    "<code>/alias</code> yuboring."
-)
-
-BUNKER_HELP_TEXT = (
-    "🛡️ <b>Bunker qoidalari va kartalari</b>\n\n"
-    "Falokatdan keyin bunkerga faqat bir neça kişi siğadi. Har bir "
-    "öyinçi öz kartalari bilan özini taniştiradi va kim omon qolişga "
-    "loyiqligi birgalikda hal qilinadi.\n\n"
-    "<b>Kartalar (6 ta):</b>\n"
-    "• <b>Kasb</b> — mutaxassisligingiz (şifokor, injener, oşpaz...).\n"
-    "• <b>Biologiya</b> — yoş, jins va tana tuzilişi.\n"
-    "• <b>Soğliq</b> — kasalliklar yoki soğlom holat.\n"
-    "• <b>Bagaj</b> — özingiz bilan olgan asbob-uskuna.\n"
-    "• <b>Xobbi</b> — qiziqiş va könikmalar.\n"
-    "• <b>Fakt</b> — siz haqingizdagi qöşimça ma'lumot.\n\n"
-    "<b>Falokat va maxsus kartalar</b> har raundda vaziyatni özgartiradi: "
-    "ba'zi kartalar boşqalarni foş qiladi yoki himoya beradi.\n\n"
-    "<b>Bunker Qalqoni:</b> «🛡 Bunker Qalqoni» 50 tangaga haydalişdan "
-    "bir marta saqlaydi; «✖️ 2 karra ovoz» ovozingizni ikkilantiradi.\n\n"
-    "<b>Ovoz beriş tartibi:</b>\n"
-    "1. Har kim kartalarini birma-bir oçadi va özini taniştiradi.\n"
-    "2. Muhokamada kim bunkerga tuşişini isbotlaysiz.\n"
-    "3. Ovoz berişda eng köp ovoz olgan öyinçi haydaladi.\n"
-    "4. Bunker siğimiga yetganda öyin tugaydi.\n\n"
-    "🎮 Guruhda boşlaş: <code>/bunker</code> yoki <code>/newgame</code>."
-)
-
-MAFIA_HELP_TEXT = (
-    "🕵️ <b>Mafiya qoidalari va rollari</b>\n\n"
-    "Şahar mafiya çangalida. <b>Tun</b>da yaşirin rollar harakat qiladi, "
-    "<b>kun</b>da hamma ovoz berib mafiyani topadi.\n\n"
-    "<b>Tinç aholi (9 ta rol):</b>\n"
-    "• 🧑 <b>Tinç fuqaro</b> — tunda harakati yöq; kunduzi muhokamada "
-    "qatnaşadi.\n"
-    "• 👮 <b>Komissar</b> — tunda bir kişini tekşiradi va uning mafiya "
-    "yoki tinç aholi ekanini biladi.\n"
-    "• 🩺 <b>Şifokor</b> — tunda bir kişini davolaydi va uni ölimdan "
-    "saqlaydi.\n"
-    "• 💂 <b>Soqçi</b> — bir öyinçini qöriqlaydi; unga qilingan hujumni "
-    "öziga oladi.\n"
-    "• 🔄 <b>Putanka</b> — tunda bir öyinçining harakatini bloklaydi.\n"
-    "• 🎯 <b>Snayper</b> — tunda aniq öq uzadi; tinç aholini öldirsa özi "
-    "halok böladi.\n"
-    "• 🧪 <b>Jodugar</b> — tunda bir kişini öldirişi yoki tiriltirişi "
-    "mumkin.\n"
-    "• 🎩 <b>Hokim</b> — kunduzgi ovozini ikki barobar kuçli qiladi.\n"
-    "• 💥 <b>Kamikadze</b> — öldirilsa qotilni ham özi bilan olib ketadi.\n\n"
-    "<b>Mafiya (4 ta rol):</b>\n"
-    "• 👑 <b>Don</b> — mafiya sardori; qurbonni tanlaydi va tekşiruvda "
-    "begunoh körinadi.\n"
-    "• 🔪 <b>Mafioz</b> — tunda boşqa mafiya a'zolari bilan qurbon "
-    "tanlaydi.\n"
-    "• ⚖️ <b>Advokat</b> — mafiyani himoya qilib, tekşiruv natijasini "
-    "çalgitadi.\n"
-    "• 🕶 <b>Şantajçi</b> — bir öyinçini şantaj qiladi; u ertasi kuni ovoz "
-    "bera olmaydi.\n\n"
-    "<b>Yolğizlar (2 ta rol):</b>\n"
-    "• 🔪 <b>Maniak</b> — yolğiz qotil; tunda öldiradi va faqat özi "
-    "ğalaba qozonişni istaydi.\n"
-    "• 🃏 <b>Masxaraboz</b> — kunduzi ovoz bilan haydalsa öyinda ğalaba "
-    "qozonadi.\n\n"
-    "<b>Qöşimça qoidalar:</b>\n"
-    "• 🦺 <b>Kevlar jilet</b> (40 tanga) — bir marta ölimdan saqlaydi.\n"
-    "• 💬 <b>Sönggi söz / Arvoh</b> — halok bölgan öyinçi bir marta "
-    "guruhda xayrlaşib, ma'lumot beriş imkoniga ega.\n"
-    "• Tun va kun davrlari taymer bilan çegaralangan; ovoz beriş yakunida "
-    "eng köp ovoz olgan öyinçi şahardan haydaladi.\n\n"
-    "🎮 Guruhda boşlaş: <code>/mafia</code>."
-)
-
-SPY_HELP_TEXT = (
-    "🔍 <b>Josus (Spyfall) qoidalari</b>\n\n"
-    "Hamma bitta joyda — masalan, töyxonada, şifoxonada yoki kosmik "
-    "stantsiyada. Faqat josus qayerda ekanligini bilmaydi.\n\n"
-    "<b>Lokatsiyalar:</b> 25 ta özbekça joy (Samolyot, Şifoxona, Harbiy "
-    "baza, Bank, Töyxona, Çoyxona, Kosmik stantsiya, Titanik, Politsiya "
-    "bölimi, Universitet, Qamoqxona, Kino studiyasi, Suv osti kemasi, "
-    "Elçixona, Çorsu bozori va boşqalar). Har bir joyda 6–8 ta maxsus rol "
-    "bor.\n\n"
-    "<b>Rollar:</b> öyin boşlanganda tinç iştirokçilarga joy nomi va şu "
-    "joyga mos rol (masalan, «Töyxona» — «Oşpaz») körsatiladi. Josusga "
-    "joy yaşiriladi: «🕵️ SIZ JOSUSSIZ!» degan ogohlantiriş beriladi.\n\n"
-    "<b>Öyinçilar:</b> 3–12 kişi. 3–6 kişida 1 ta, 7 va undan köp kişida "
-    "2 ta josus böladi.\n\n"
-    "<b>Maqsad:</b> savol-javob orqali josusni topiş. Josus esa savollarga "
-    "ehtiyotkorlik bilan javob berib, joyni aniqlaşga harakat qiladi.\n\n"
-    "<b>Josusning vazifasi:</b> josus istalgan payt Mini App'dagi joylar "
-    "röyxatidan birini tanlab «Men joyni topdim!» tugmasini bosadi. Töğri "
-    "topsa — josus ğalaba qozonadi. Xato qilsa — tinç aholi ğalaba "
-    "qozonadi.\n\n"
-    "<b>Ovoz beriş:</b> muhokama tugagaç hamma josus deb kimnidir "
-    "tanlaydi. Josus topilsa tinç aholi +25 tanga, begunoh haydalsa josus "
-    "+35 tanga oladi.\n\n"
-    "🛰 <b>Booster:</b> «Josus radari» 20 tangaga 3 ta notöğri joyni "
-    "öçiradi.\n\n"
-    "🎮 Guruhda boşlaş: <code>/spy</code> yoki <code>/josus</code>."
-)
-
-ALIAS_HELP_TEXT = (
-    "🐊 <b>Alias / Krokodil qoidalari</b>\n\n"
-    "Har raundda bitta öyinçi tuşuntiruvçi böladi. U sözni aytmasdan va "
-    "uçta taqiqlangan sözni işlatmasdan tuşuntiradi. Qolganlar 60 soniya "
-    "içida sözni topişga harakat qiladi.\n\n"
-    "<b>Qoidalar:</b>\n"
-    "• Tuşuntiruvçi sözning özini, uning qismlarini yoki taqiqlangan "
-    "3 ta sözni aytmaydi.\n"
-    "• Sözni birinçi bölib töğri yozgan öyinçi +10 tanga, tuşuntiruvçi "
-    "+5 tanga oladi.\n"
-    "• Har bir iştirokçi 2 martadan tuşuntiradi: 3 kişi bölsa jami "
-    "6 raund öynaladi.\n"
-    "• Barça raundlar tugagaç eng köp oçko töplagan öyinçi ğolib böladi "
-    "va +25 tanga oladi.\n"
-    "• Ketma-ket 2 raundda heç kim sözni topmasa, öyin avtomatik töxtaydi "
-    "va xona yopiladi.\n\n"
-    "<b>60 soniyalik taymer:</b> vaqt tugasa söz oçiladi va keyingi raund "
-    "boşlanadi.\n\n"
-    "<b>Töxtatiş:</b> xona egasi yoki guruh administratori <code>/stop</code>, "
-    "<code>/stopalias</code> yoki <code>/cancel</code> yuborib öyinni "
-    "darhol töxtatadi.\n\n"
-    "🎮 Guruhda boşlaş: <code>/alias</code> yoki <code>/krokodil</code>."
-)
-
-ECONOMY_HELP_TEXT = (
-    "🪙 <b>Tangalar va Dökon</b>\n\n"
-    "<b>Tangalarni qanday yiğiş mumkin:</b>\n"
-    "• 🎁 <b>Kunlik bonus seriyasi</b> — har kuni kirib oling. Seriya "
-    "uzilmasa mukofot ösadi: 1-kun +25, 2-kun +35, 3-kun +50, 4-kun +70, "
-    "5-kun +100, 6-kun +150, 7-kun +250.\n"
-    "• 🎟 <b>Promokodlar</b> — «🎟 Promo kod» tugmasi orqali admin bergan "
-    "kodni kiriting.\n"
-    "• 🎯 <b>Missiyalar</b> — «🎯 Missiyalar» bölimida topşiriqlarni "
-    "bajarib, bir martalik mukofot oling.\n"
-    "• 🏆 <b>Öyin ğalabalari</b> — Bunker, Mafiya, Josus va Alias "
-    "mukofotlari.\n"
-    "• 👥 <b>Döstlarni taklif qiliş</b> — har bir yangi döst uçun "
-    "+50 tanga.\n\n"
-    "<b>Boosterlar:</b>\n"
-    "• 🛡 Bunker Qalqoni (50 🪙) — haydalişdan bir marta saqlaydi.\n"
-    "• ✖️ 2 karra ovoz (15 🪙) — ovozingizni ikkilantiradi.\n"
-    "• 🦺 Kevlar jilet (40 🪙) — Mafiyada bir marta ölimdan saqlaydi.\n"
-    "• 🛰 Josus radari (20 🪙) — 3 ta notöğri joyni öçiradi.\n\n"
-    "<b>Uzcard / Humo orqali tanga xarid qiliş:</b>\n"
-    "1. «🪙 Tangalar dökoni» tugmasini yoki <code>/shop</code> buyruğini "
-    "oçing.\n"
-    "2. Kerakli paketni tanlang.\n"
-    "3. Körsatilgan Uzcard yoki Humo kartasiga tölov qiling.\n"
-    "4. Çek (skrinşot) rasmini botga yuboring.\n"
-    "5. Administrator tasdiqlagaç tangalar balansingizga qöşiladi.\n\n"
-    "Tangalar Mini App'dagi kartalar va boosterlarda işlatiladi; balansni "
-    "«👤 Mening profilim» bölimida köräsiz."
-)
-
-
-def rules_keyboard() -> InlineKeyboardMarkup:
-    """Barcha bo'limlar uchun inline menyu."""
+def rules_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
+    """Barcha bo'limlar uchun inline menyu (tanlangan tilda)."""
+    sections = (
+        (RULES_BUNKER, "rules_tab_bunker"),
+        (RULES_MAFIA, "rules_tab_mafia"),
+        (RULES_SPY, "rules_tab_spy"),
+        (RULES_ALIAS, "rules_tab_alias"),
+        (RULES_ECONOMY, "rules_tab_economy"),
+    )
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🛡️ Bunker", callback_data=RULES_BUNKER
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🕵️ Mafiya", callback_data=RULES_MAFIA
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🔍 Josus (Spyfall)", callback_data=RULES_SPY
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🐊 Alias / Krokodil", callback_data=RULES_ALIAS
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🪙 Tangalar va Dökon", callback_data=RULES_ECONOMY
-                )
-            ],
+            [InlineKeyboardButton(text=t(language, key), callback_data=data)]
+            for data, key in sections
         ]
     )
 
 
-def rules_section_keyboard() -> InlineKeyboardMarkup:
+def rules_section_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
     """Bo'lim ichidan menyuga qaytish tugmasi."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="⬅️ Bölümlar röyxati", callback_data=RULES_BACK
+                    text=t(language, "rules_tab_back"), callback_data=RULES_BACK
                 )
             ]
         ]
+    )
+
+
+def _callback_language(callback: CallbackQuery) -> str:
+    """Callback egasining tili — tugma va matn bir tilda bo'lsin."""
+    user = callback.from_user
+    return resolve_language(
+        getattr(user, "id", None), getattr(user, "language_code", None)
     )
 
 
@@ -845,41 +668,59 @@ async def menu_rules(message: Message) -> None:
         getattr(user, "language_code", None) if user is not None else None,
     )
     await message.answer(
-        t(language, "help_text"), reply_markup=rules_keyboard()
+        t(language, "help_text"), reply_markup=rules_keyboard(language)
     )
 
 
 @router.callback_query(F.data == RULES_BUNKER)
 async def rules_bunker(callback: CallbackQuery) -> None:
     await callback.answer()
-    await _edit_or_send(callback, BUNKER_HELP_TEXT, rules_section_keyboard())
+    language = _callback_language(callback)
+    await _edit_or_send(
+        callback, t(language, "rules_bunker"), rules_section_keyboard(language)
+    )
 
 
 @router.callback_query(F.data == RULES_MAFIA)
 async def rules_mafia(callback: CallbackQuery) -> None:
     await callback.answer()
-    await _edit_or_send(callback, MAFIA_HELP_TEXT, rules_section_keyboard())
+    language = _callback_language(callback)
+    await _edit_or_send(
+        callback, t(language, "rules_mafia"), rules_section_keyboard(language)
+    )
 
 
 @router.callback_query(F.data == RULES_SPY)
 async def rules_spy(callback: CallbackQuery) -> None:
     await callback.answer()
-    await _edit_or_send(callback, SPY_HELP_TEXT, rules_section_keyboard())
+    language = _callback_language(callback)
+    await _edit_or_send(
+        callback, t(language, "rules_spy"), rules_section_keyboard(language)
+    )
 
 
 @router.callback_query(F.data == RULES_ALIAS)
 async def rules_alias(callback: CallbackQuery) -> None:
     await callback.answer()
-    await _edit_or_send(callback, ALIAS_HELP_TEXT, rules_section_keyboard())
+    language = _callback_language(callback)
+    await _edit_or_send(
+        callback, t(language, "rules_alias"), rules_section_keyboard(language)
+    )
 
 
 @router.callback_query(F.data == RULES_ECONOMY)
 async def rules_economy(callback: CallbackQuery) -> None:
     await callback.answer()
-    await _edit_or_send(callback, ECONOMY_HELP_TEXT, rules_section_keyboard())
+    language = _callback_language(callback)
+    await _edit_or_send(
+        callback, t(language, "rules_economy"), rules_section_keyboard(language)
+    )
 
 
 @router.callback_query(F.data == RULES_BACK)
 async def rules_back(callback: CallbackQuery) -> None:
     await callback.answer()
-    await _edit_or_send(callback, HELP_TEXT, rules_keyboard())
+    language = _callback_language(callback)
+    await _edit_or_send(
+        callback, t(language, "help_text"), rules_keyboard(language)
+    )
