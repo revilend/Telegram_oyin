@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from core.economy import EconomyStore
-from core.shop import ShopError, ShopStore
+from core.shop import ShopError, ShopStore, flush_transactions
 
 
 class _Query:
@@ -130,6 +130,7 @@ class ShopBuyBackendTest(unittest.TestCase):
         self.assertEqual(payload["new_balance"], payload["coins"])
         entry = shop.entry(7788, "frame_gold")
         self.assertEqual(entry.quantity, 1)
+        flush_transactions()
         self.assertTrue(fake.transactions)
 
     def test_transaction_write_failure_still_completes_purchase(self) -> None:
@@ -147,6 +148,7 @@ class ShopBuyBackendTest(unittest.TestCase):
             balance_before - result.total_price,
         )
         self.assertEqual(shop.entry(7789, "frame_gold").quantity, 1)
+        flush_transactions()
         self.assertFalse(fake.transactions)
 
 

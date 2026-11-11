@@ -11,6 +11,9 @@ ishga tushirish uchun qulay.
 
 from __future__ import annotations
 
+import atexit
+from concurrent.futures import Future, ThreadPoolExecutor
+
 import logging
 import os
 import random
@@ -748,8 +751,19 @@ class ShopStore:
             "kind": "buy",
             "amount": int(total),
         }
-        # Yangi `shop_transactions` jadvali; eski o'rnatishlar uchun
-        # `transactions`ga ham qayta urinamiz.
+        # Tarix yozuvi fon oqimida bajariladi: Supabase sekin yoki xato
+        # bo'lsa ham foydalanuvchi kutmaydi va xarid bekor qilinmaydi.
+        future = _TRANSACTION_POOL.submit(
+            self._write_transaction_rows, row, legacy_row
+        )
+        _track_transaction(future)
+        logger.error("Xarid tarixi saqlanmadi: %s", user_id)
+
+    def _write_transaction_rows(
+        self, row: dict[str, Any], legacy_row: dict[str, Any]
+    ) -> None:
+        """Tarixni bazaga yozadi (fon oqimida; xato faqat logga tushadi)."""
+        uid = row.get("user_id")
         for table, payload in (
             (TRANSACTIONS_TABLE, row),
             (LEGACY_TRANSACTIONS_TABLE, legacy_row),
@@ -761,14 +775,9 @@ class ShopStore:
                 logger.warning(
                     "Xarid tarixini %s jadvaliga yozib bo'lmadi: %s",
                     table,
-                    user_id,
+                    uid,
                 )
-        logger.error("Xarid tarixi saqlanmadi: %s", user_id)
-        if strict:
-            raise ShopError(
-                "Xarid tarixini Supabase'ga saqlab bo'lmadi. "
-                "Qayta urinib ko'ring."
-            )
+        logger.error("Xarid tarixi saqlanmadi: %s", uid)
 
     # ------------------------------------------------------------------
     # Katalog va inventar
@@ -1308,8 +1317,47 @@ class ShopStore:
         return result[:cap]
 
 
+# Xarid tarixi yozuvlari uchun bitta kichik fon havzasi (fire-and-forget).
+_TRANSACTION_POOL = ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="shop-tx"
+)
+_transaction_futures: list[Future[Any]] = []
+_transaction_guard = threading.Lock()
+
+
+def _track_transaction(future: Future[Any]) -> None:
+    with _transaction_guard:
+        _transaction_futures.append(future)
+        for done in [item for item in _transaction_futures if item.done()]:
+            _transaction_futures.remove(done)
+
+
+def pending_transactions() -> int:
+    """Hali yozilmagan xarid tarixlari soni (diagnostika)."""
+    with _transaction_guard:
+        return sum(1 for item in _transaction_futures if not item.done())
+
+
+def flush_transactions(timeout: float = 10.0) -> None:
+    """Fon rejimidagi xarid tarixi yozuvlarini kutadi (testlar/shutdown)."""
+    with _transaction_guard:
+        pending = list(_transaction_futures)
+    for future in pending:
+        try:
+            future.result(timeout=timeout)
+        except Exception:  # pragma: no cover - xato ichkarida log qilingan
+            logger.debug("Tranzaksiya yozuvi kutilmadi", exc_info=True)
+
+
+def close_transactions() -> None:
+    """Fon havzasini yopadi (graceful shutdown)."""
+    flush_transactions(5.0)
+    _TRANSACTION_POOL.shutdown(wait=False)
+
+
 _store: ShopStore | None = None
 _store_lock = threading.Lock()
+atexit.register(flush_transactions, 3.0)
 
 
 def get_shop_store() -> ShopStore:

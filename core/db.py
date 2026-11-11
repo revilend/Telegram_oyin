@@ -195,9 +195,9 @@ class SupabaseStore:
         if self._client is None:
             with self._client_lock:
                 if self._client is None:
-                    from supabase import create_client
+                    from core.cache import create_supabase_client
 
-                    self._client = create_client(self.url, self.key)
+                    self._client = create_supabase_client(self.url, self.key)
         return self._client
 
     # ------------------------------------------------------------------

@@ -158,11 +158,11 @@ def build_main_menu(
             KeyboardButton(text=label("change_language")),
             KeyboardButton(text=label("invite")),
         ],
-        # Keng asosiy tugma — Mini App portali doim eng pastda turadi.
-        [portal_button],
     ]
     if is_admin:
         rows.append([KeyboardButton(text=label("admin"))])
+    # Keng asosiy tugma — «Mini App (Portal)» har doim eng oxirgi qatorda.
+    rows.append([portal_button])
 
     return ReplyKeyboardMarkup(
         keyboard=rows,

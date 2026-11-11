@@ -111,9 +111,14 @@ class MainMenuKeyboardTest(MenuTestCase):
 
     def test_admin_button_is_only_for_admins(self) -> None:
         for_admin = main_menu.build_main_menu(is_admin=True)
-        texts = [button.text for button in for_admin.keyboard[7]]
+        texts = [button.text for button in for_admin.keyboard[6]]
         self.assertEqual(texts, ["👑 Admin panel"])
         self.assertEqual(len(for_admin.keyboard), 8)
+        # Portal eng oxirgi qatorda qoladi.
+        self.assertEqual(
+            [button.text for button in for_admin.keyboard[-1]],
+            ["🌐 Mini App (Portal)"],
+        )
 
         for_player = main_menu.build_main_menu(is_admin=False)
         self.assertNotIn(

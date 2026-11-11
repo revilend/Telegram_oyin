@@ -12,7 +12,7 @@ from games.mafia.engine import GamePhase, MafiaPlayer, MafiaRoom
 from bot.handlers.mafia_group import MafiaGame, MafiaLobbyManager
 from core import room_store
 from core.economy import EconomyStore
-from core.shop import ShopStore
+from core.shop import ShopStore, flush_transactions
 from engine.game_manager import GameManager
 
 
@@ -228,6 +228,7 @@ class RoomPersistenceTest(unittest.TestCase):
         economy.add_coins(501, 500)
         store = ShopStore(economy=economy, client=self.client)
         store.buy(501, "frame_gold")
+        flush_transactions()
         self.assertEqual(store.entry(501, "frame_gold").quantity, 1)
         self.assertIn(
             ("shop_transactions", self.client.inserted[-1][1]),

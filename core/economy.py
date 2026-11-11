@@ -7,6 +7,8 @@ bo'lmasa (lokal test yoki preview) hammasi jarayon xotirasida ishlaydi.
 
 from __future__ import annotations
 
+from core.cache import TTLCache, create_supabase_client
+
 import logging
 import math
 import os
@@ -47,7 +49,7 @@ TEST_BOT_ID_THRESHOLD = 9_000_000_000
 
 # Foydalanuvchi profili keshi: /start va menyu tugmalari bazaga har safar
 # so'rov yubormasligi uchun qisqa muddatli xotira keshi (sekundlarda).
-PROFILE_CACHE_TTL = 30.0
+PROFILE_CACHE_TTL = 60.0
 # Jami foydalanuvchilar soni (admin bildirishnomasi uchun) keshi.
 USER_COUNT_TTL = 30.0
 
@@ -465,8 +467,10 @@ class EconomyStore:
         self._lock = threading.RLock()
         # Mijozni faqat bir marta yaratish uchun (parallel o'qishlar uchun).
         self._client_lock = threading.Lock()
-        # user_id -> (monotonic vaqt, hisob). Faqat Supabase rejimida ishlaydi.
-        self._profile_cache: dict[int, tuple[float, UserAccount]] = {}
+        # user_id -> hisob. 60 sekundlik in-memory TTL kesh (core/cache.py).
+        self._profile_cache: TTLCache[UserAccount] = TTLCache(
+            ttl=PROFILE_CACHE_TTL, max_size=50_000
+        )
         # (monotonic vaqt, jami foydalanuvchilar soni).
         self._count_cache: tuple[float, int] | None = None
         self._users: dict[int, dict[str, Any]] = {}
@@ -489,36 +493,27 @@ class EconomyStore:
     # ------------------------------------------------------------------
     def _cache_drop(self, user_id: int) -> None:
         """Keshdagi yozuvni o'chiradi (har qanday yozuvdan keyin)."""
-        with self._lock:
-            self._profile_cache.pop(int(user_id), None)
+        self._profile_cache.delete(int(user_id))
 
     def _cache_clear(self) -> None:
-        with self._lock:
-            self._profile_cache.clear()
+        self._profile_cache.clear()
 
     def _cached_account(self, user_id: int) -> UserAccount | None:
         """Keshdagi yangi (TTL ichidagi) hisobni qaytaradi yoki ``None``."""
         if not self.enabled:
             return None
-        uid = int(user_id)
-        with self._lock:
-            entry = self._profile_cache.get(uid)
-            if entry is None:
-                return None
-            stamp, account = entry
-            if time.monotonic() - stamp > PROFILE_CACHE_TTL:
-                self._profile_cache.pop(uid, None)
-                return None
-            return account
+        return self._profile_cache.get(int(user_id))
 
     def _store_cached(self, account: UserAccount) -> None:
         if not self.enabled:
             return
-        with self._lock:
-            self._profile_cache[int(account.user_id)] = (
-                time.monotonic(),
-                account,
-            )
+        self._profile_cache.set(int(account.user_id), account)
+
+    def cache_stats(self) -> dict[str, Any]:
+        """Kesh samaradorligi (hit rate) — diagnostika uchun."""
+        from core.cache import cache_stats
+
+        return cache_stats(self._profile_cache)
 
     def peek_account(self, user_id: int) -> UserAccount | None:
         """Faqat keshdan o'qiydi — bazaga so'rov yubormaydi."""
@@ -538,9 +533,7 @@ class EconomyStore:
         if self._client is None:
             with self._client_lock:
                 if self._client is None:
-                    from supabase import create_client
-
-                    self._client = create_client(self.url, self.key)
+                    self._client = create_supabase_client(self.url, self.key)
         return self._client
 
     # ------------------------------------------------------------------
@@ -699,6 +692,9 @@ class EconomyStore:
             if changes:
                 self._update_user_row(uid, changes)
                 row.update(changes)
+            else:
+                # O'zgarish yo'q — o'qilgan hisobni 60 s keshga yozamiz.
+                self._store_cached(_row_to_account(row))
         return _row_to_account(row)
 
     def get_user(self, user_id: int) -> UserAccount:

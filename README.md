@@ -205,6 +205,15 @@ Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi
 - **Doimiy 30 s kesh hamma yo‘lda:** `ensure_user` ham avval RAM keshni tekshiradi (ism o‘zgarmagan bo‘lsa), shuning uchun har bir tugma bosilishida profil Supabase’dan qayta o‘qilmaydi.
 - **Xarid hech qachon bekor bo‘lmaydi:** `shop.buy` tangani yechib, buyumni `user_inventory` ga darhol yozadi; `shop_transactions` ga tarix yozish xatosi faqat logga tushadi — foydalanuvchi «Xarid tarixini saqlab bo‘lmadi» xatosini ko‘rmaydi va xarid bekor qilinmaydi.
 - **Klaviatura:** pastki menyuning 5-qatorida «🌐 Tilni oʻzgartirish» + «👥 Doʻstlar», 6-qatorida keng «🌐 Mini App (Portal)» (`web_app`) tugmasi turadi; portal tugmasi `include_web_app=False` bo‘lsa ham matn tugmasi sifatida qoladi.
+
+### Yuqori yuklamaga tayyorlik (High-Scale Production)
+
+- **60 s in-memory TTL kesh (`core/cache.py`):** `TTLCache` — thread-safe, TTL + hajm chegarasi (50 000 yozuv, eng eskisi chiqariladi). Profil/rol/balans o‘qishlari keshlanadi; takroriy `/start`, Profil, Do‘kon bosishlarida Supabase so‘rovi **0** bo‘ladi (`EconomyStore.cache_stats()` hit rate beradi). Har qanday yozuv (tanga sarflash, o‘yin natijasi, rol) keshni darhol tozalaydi.
+- **Connection pooling / sessiya reuse:** barcha store’lar bitta persistent `httpx.Client` (keep-alive, 200 ulanish, 10 s timeout) orqali ishlaydi — `create_supabase_client()` har so‘rovda TLS handshake qilmaydi, DB osilib qolsa so‘rov 10 s da uziladi.
+- **Xarid tarixi fon oqimida:** `shop_transactions` yozuvi `ThreadPoolExecutor` ga topshiriladi; tanga yechilishi va `user_inventory` yozuvi sinxron bo‘lib qoladi, tarix xatosi xaridga ta’sir qilmaydi (`flush_transactions()` — test/shutdown uchun).
+- **Instant SWR:** Mini App `localStorage` (`rg_bootstrap_v1`) dagi profil, balans va o‘yinlar ro‘yxatini birinchi millisekundda chizadi (spinner yo‘q), orqa fonda bitta `/api/bootstrap` yangilaydi.
+- **Klaviatura:** «🌐 Mini App (Portal)» har doim eng oxirgi qatorda, keng `web_app` tugmasi sifatida (UZ/RU/EN).
+- Testlar: `tests/test_cache.py` (TTL, eviction, hit rate, 0-so‘rovli takroriy o‘qish), `tests/test_parallel_reads.py`, `tests/test_bootstrap.py`.
 - **Yagona bootstrap:** `GET /api/bootstrap?user_id=X` profil, tangalar, kunlik bonus/streak, missiyalar, faol turnir, inventar, do‘kon va o‘yinlar ro‘yxatini **bitta** javobda qaytaradi; ichkarida `asyncio.gather` bilan parallel yig‘iladi.
 - **Faollik payloadi parallel:** `_activity_payload_async` bonus, missiyalar, questlar, yutuqlar va ikkala reytingni `asyncio.gather` bilan birga yuboradi — 6 ketma-ket so‘rov o‘rniga 2-3 round. O‘lchov (`scripts/bench_latency.py --simulate --runs 5`, har so‘rovga 120 ms): bootstrap sovuq kesh **649 ms**, kesh bilan **489 ms** (13-14 so‘rov), bot `/start` esa 121 ms — ya’ni Mini App birinchi ochilishi endi uchta alohida og‘ir so‘rovdan tezroq.
 - **Instant render (SWR):** Mini App oxirgi bootstrap javobini `localStorage` (`rg_bootstrap_v1`) dan **0 ms** da chizadi, `/api/bootstrap` kelganda faqat raqamlarni jimgina yangilaydi; tarmoq xatosida keshdagi ma’lumot qoladi, logout keshni tozalaydi.
