@@ -16,6 +16,7 @@ import logging
 from typing import Any
 
 from core.i18n_common import COMMON_STRINGS
+from core.i18n_games import GROUP_STRINGS
 from core.i18n_texts import HANDLER_STRINGS
 
 logger = logging.getLogger(__name__)
@@ -586,6 +587,7 @@ STRINGS: dict[str, dict[str, str]] = {
 # Umumiy handlerlarning uzun matnlari (qoidalar, taklif, kirish).
 STRINGS.update(COMMON_STRINGS)
 STRINGS.update(HANDLER_STRINGS)
+STRINGS.update(GROUP_STRINGS)
 
 
 __all__ = [

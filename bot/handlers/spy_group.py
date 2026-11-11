@@ -151,29 +151,25 @@ async def announce_room(bot: Bot, room: SpyfallRoom, event: str) -> None:
     """O'yin boshlanganda va yakunlanganda guruhga jonli e'lon yuboradi."""
     if not room.chat_id:
         return
+    language = _room_language(room)
     state = room.public_state()
     if event == "start":
-        text = (
-            "🎬 <b>JOSUS ÖYINI BOŞLANDI!</b>\n\n"
-            f"🔑 Xona kodi: <code>{room.code}</code>\n"
-            f"👥 Öyinçilar: {len(room.players)} kişi\n"
-            f"🕵️ Josuslar: {len(room.spy_ids)} ta\n\n"
-            "🃏 Har kim pastdagi tugma orqali Mini App'ga kirib, öz kartasini "
-            "oçsin: tinç aholi joyni va rolni köradi, Josus esa faqat "
-            "ogohlantirişni oladi.\n\n"
-            "🗣 Guruhda savol-javob qiling: «Sen bu yerda nima qilasan?» kabi "
-            "savollarga javob bering. Savollarga javob bermaslik yoki ortiqça "
-            "aniqlik Josusni foş qiladi!\n\n"
-            f"⏱ Muhokama uçun {room.round_seconds // 60} daqiqa. Keyin Josus deb "
-            "ovoz bering."
+        text = t(
+            language,
+            "spy_announce_start",
+            code=room.code,
+            players=len(room.players),
+            spies=len(room.spy_ids),
+            minutes=room.round_seconds // 60,
         )
-        keyboard = playing_keyboard(room)
+        keyboard = playing_keyboard(room, language)
     else:
         winner = room.winner.value if room.winner else ""
-        title = (
-            "🕵️ <b>JOSUS ĞALABA QOZONDI!</b>"
+        title = t(
+            language,
+            "spy_win_spies"
             if winner == Winner.SPIES.value
-            else "🎉 <b>TINÇ AHOLI ĞALABA QOZONDI!</b>"
+            else "spy_win_players",
         )
         location = state.get("location") or {}
         spies = [
@@ -181,17 +177,24 @@ async def announce_room(bot: Bot, room: SpyfallRoom, event: str) -> None:
             for uid in sorted(room.spy_ids)
             if uid in room.players
         ]
-        text = f"{title}\n\n{escape(room.finish_reason)}\n\n"
+        text = t(
+            language,
+            "spy_result_head",
+            title=title,
+            reason=escape(room.finish_reason),
+        )
         if location:
-            text += (
-                f"📍 <b>Joy:</b> {escape(str(location.get('emoji') or ''))} "
-                f"{escape(str(location.get('name') or ''))}\n"
+            text += t(
+                language,
+                "spy_result_place",
+                emoji=escape(str(location.get("emoji") or "")),
+                place=escape(str(location.get("name") or "")),
             )
-        text += f"🕵️ <b>Josus:</b> {', '.join(spies) or '—'}\n"
-        text += (
-            f"🪙 <b>Mukofot:</b> {'+60' if winner == Winner.SPIES.value else '+30'} "
-            "tanga (ğoliblarga)\n\n"
-            "Yangi öyin uçun guruhda <code>/spy</code> yuboring."
+        text += t(
+            language,
+            "spy_result_tail",
+            spies=", ".join(spies) or "—",
+            reward=60 if winner == Winner.SPIES.value else 30,
         )
         keyboard = None
 
@@ -223,24 +226,35 @@ async def create_spy_game(message: Message) -> None:
         await message.reply(f"⚠️ {escape(str(exc))}")
     except Exception:
         logger.exception("Guruhda /spy buyruğida xatolik")
-        await message.reply("⚠️ Xatolik yuz berdi, keyinroq qayta urinib köring.")
+        await message.reply(
+            t(
+                resolve_language(user.id, getattr(user, "language_code", None)),
+                "error_generic",
+            )
+        )
 
 
 @router.message(F.chat.type == "private", Command("spy", "josus", "spyfall"))
 async def create_spy_game_private(message: Message) -> None:
     """Shaxsiy chatda /spy — guruhga yo'naltirish."""
-    await message.answer(
-        "🕶️ Josus öyinini guruhda oçiş kerak.\n"
-        "Botni guruhga qöşib, u yerda /spy yoki /josus yuboring."
+    user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
     )
+    await message.answer(t(language, "spy_private_hint"))
 
 
 @router.callback_query(F.data.startswith(JOIN_PREFIX))
 async def join_spy_game(callback: CallbackQuery) -> None:
     """«➕ Qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
 
     user = callback.from_user
@@ -259,8 +273,12 @@ async def join_spy_game(callback: CallbackQuery) -> None:
 async def start_spy_game(callback: CallbackQuery) -> None:
     """«▶️ O'yinni boshlash» — faqat xona egasi uchun."""
     code = _callback_code(callback.data, START_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
 
     try:
@@ -276,11 +294,13 @@ async def start_spy_game(callback: CallbackQuery) -> None:
     await announce_room(callback.bot, room, "start")
     await _edit_or_send(
         callback,
-        "🎬 <b>Öyin boşlandi!</b>\n\n"
-        f"🔑 Xona kodi: <code>{room.code}</code>\n"
-        f"🕵️ Josuslar: {len(room.spy_ids)} ta\n\n"
-        "Kartangizni pastdagi tugma orqali Mini App'da oçing.",
-        playing_keyboard(room),
+        t(
+            language,
+            "spy_start_brief",
+            code=room.code,
+            spies=len(room.spy_ids),
+        ),
+        playing_keyboard(room, language),
     )
 
 

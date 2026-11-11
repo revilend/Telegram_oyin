@@ -9,6 +9,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from core.i18n import t
+
 os.environ.setdefault("BOT_TOKEN", "123456:TEST")
 os.environ.setdefault("MINI_APP_URL", "https://revilend.games")
 os.environ.setdefault("BOT_USERNAME", "revilend_gamesbot")
@@ -433,7 +435,9 @@ class AliasHandlerTest(unittest.TestCase):
         asyncio.run(alias_group._stop_game(bot, room, reason="inactive"))
 
         self.assertEqual(room.status.value, "FINISHED")
-        self.assertEqual(bot.messages[-1][1], alias_group.INACTIVE_TEXT)
+        self.assertEqual(
+            bot.messages[-1][1], t("uz", alias_group.INACTIVE_TEXT)
+        )
         self.assertIn("Guruhda faollik bölmagani sababli", bot.messages[-1][1])
         self.assertIsNone(self.manager.room_by_chat(room.chat_id))
 

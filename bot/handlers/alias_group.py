@@ -65,7 +65,7 @@ END_PREFIX = "alias_end_"
 # To'g'ri javobdan keyin keyingi raundgacha kutish (soniya).
 NEXT_ROUND_DELAY = 2.0
 
-INACTIVE_TEXT = "💤 Guruhda faollik bölmagani sababli Alias töxtatildi."
+INACTIVE_TEXT = "alias_inactive"
 
 GROUP_TYPES = {"group", "supergroup"}
 
@@ -208,10 +208,11 @@ def alias_result_token(room: AliasRoom) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
-def results_keyboard(room: AliasRoom) -> InlineKeyboardMarkup | None:
-    """Natija va MVPni Mini App'da ochiş tugmasi."""
+def results_keyboard(room: AliasRoom, language: str | None = None) -> InlineKeyboardMarkup | None:
+    """Natijalar jadvali uchun Mini App tugmasi."""
+    lang = language or resolve_language(int(getattr(room, "host_id", 0) or 0))
     try:
-        base = (get_config().mini_app_url or "").strip()
+        base = get_config().mini_app_url
     except Exception:  # konfiguratsiya yo'q bo'lsa tugma körsatilmaydi
         return None
     if not base.startswith("https://"):
@@ -223,7 +224,7 @@ def results_keyboard(room: AliasRoom) -> InlineKeyboardMarkup | None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📊 Natija va MVPni köriş",
+                    text=t(lang, "alias_results_btn"),
                     web_app=WebAppInfo(url=url),
                 )
             ]
@@ -231,36 +232,56 @@ def results_keyboard(room: AliasRoom) -> InlineKeyboardMarkup | None:
     )
 
 
-def results_text(room: AliasRoom, *, reason: str = "completed") -> str:
+def results_text(
+    room: AliasRoom, *, reason: str = "completed", language: str | None = None
+) -> str:
     """O'yin yakunlanganda chiqadigan natijalar jadvali."""
+    lang = language or resolve_language(int(getattr(room, "host_id", 0) or 0))
     leaders = room.leaderboard()[:3]
     table = "\n".join(
-        f"{index}. {player.label()} — {player.score} oçko"
+        t(
+            lang,
+            "alias_results_row",
+            index=index,
+            name=player.label(),
+            score=player.score,
+        )
         for index, player in enumerate(leaders, start=1)
-    ) or "heç kim oçko töplamadi"
-    if reason == "stopped":
-        title = "🛑 <b>Alias töxtatildi!</b>"
-    else:
-        title = "🏁 <b>Alias öyini tugadi!</b>"
+    ) or t(lang, "alias_results_empty")
+    title = t(
+        lang,
+        "alias_results_title_stopped"
+        if reason == "stopped"
+        else "alias_results_title_done",
+    )
     winners = room.winners() if reason == "completed" else []
     if winners:
         names = ", ".join(player.label() for player in winners)
-        headline = f"🏆 <b>Ğolib: {names}</b> — +{WINNER_REWARD} tanga!"
+        headline = t(
+            lang, "alias_results_winner", names=names, reward=WINNER_REWARD
+        )
     elif reason == "completed":
-        headline = "🏆 Bu öyinda ğolib aniqlanmadi."
+        headline = t(lang, "alias_results_no_winner")
     else:
-        headline = "🏆 Öyin yakunlandi."
+        headline = t(lang, "alias_results_finished")
     mvp = leaders[0] if leaders else None
-    analysis = []
+    details: list[str] = []
     if mvp is not None:
-        analysis.append(f"👑 <b>Öyin MVPsi: {mvp.label()}</b> — {mvp.score} oçko")
-    analysis.append(f"🎯 Öynalgan raundlar: <b>{room.total_rounds}</b>")
+        details.append(
+            t(lang, "alias_results_mvp", name=mvp.label(), score=mvp.score)
+        )
+    details.append(t(lang, "alias_results_rounds", rounds=room.total_rounds))
     if room.players:
-        analysis.append(f"👥 Qatnaşçilar: <b>{len(room.players)}</b>")
-    analysis_text = "\n".join(analysis)
-    return (
-        f"{title}\n\n🏆 <b>Eng yaxşilar:</b>\n{table}\n\n"
-        f"{headline}\n\n📊 <b>Tahlil:</b>\n{analysis_text}"
+        details.append(t(lang, "alias_results_players", count=len(room.players)))
+    return t(
+        lang,
+        "alias_results_body",
+        title=title,
+        best=t(lang, "alias_results_best"),
+        table=table,
+        headline=headline,
+        analysis=t(lang, "alias_results_analysis"),
+        details="\n".join(details),
     )
 
 
@@ -295,7 +316,10 @@ async def _stop_game(bot: Bot, room: AliasRoom, *, reason: str) -> None:
     manager.save(room)
     try:
         if reason == "inactive":
-            await bot.send_message(room.chat_id, INACTIVE_TEXT)
+            await bot.send_message(
+                room.chat_id,
+                t(resolve_language(int(room.host_id)), INACTIVE_TEXT),
+            )
             return
         if reason == "completed":
             winners = room.winners()
@@ -342,8 +366,10 @@ async def stop_alias_for_chat(bot: Bot, chat_id: int, user_id: int) -> bool:
     ):
         await bot.send_message(
             chat_id,
-            "⛔ Öyinni faqat xona egasi yoki guruh administratori töxtatadi.\n"
-            "Töxtatiş uçun /stop, /stopalias yoki /cancel yuboring.",
+            t(
+                resolve_language(int(user_id)),
+                "alias_stop_forbidden",
+            ),
         )
         return False
     await _stop_game(bot, room, reason="stopped")
@@ -374,9 +400,11 @@ async def _announce_round(bot: Bot, room: AliasRoom, current: AliasRound) -> Non
     if not delivered:
         await bot.send_message(
             room.chat_id,
-            f"⚠️ {_player_label(room, current.explainer_id)} botga şaxsiy "
-            "yozmagan. Sözni oliş uçun botga /start yuborişi kerak. "
-            "Raund bekor qilindi, keyingi tuşuntiruvçi tanlanadi.",
+            t(
+                resolve_language(int(room.host_id)),
+                "alias_not_delivered",
+                name=_player_label(room, current.explainer_id),
+            ),
         )
         room.abort_round()
         get_default_manager().save(room)
@@ -407,9 +435,12 @@ async def _round_timeout(
     explainer = _player_label(room, current.explainer_id)
     await bot.send_message(
         room.chat_id,
-        "⏳ <b>Vaqt tugadi!</b>\n"
-        f"Söz: <b>{escape(current.word.word)}</b>\n"
-        f"🎤 {explainer} tuşuntira olmadi.",
+        t(
+            resolve_language(int(room.host_id)),
+            "alias_time_up",
+            word=escape(current.word.word),
+            name=explainer,
+        ),
     )
     _spawn(_delay_next_round(bot, code, round_number))
 
@@ -479,7 +510,16 @@ async def create_alias_game(message: Message) -> None:
         manager.save(room)
     except Exception as exc:
         logger.exception("Guruhda /alias buyruğida xatolik: %s", exc)
-        await message.reply(f"⚠️ Xatolik yuz berdi: {escape(str(exc))}")
+        await message.reply(
+            t(
+                resolve_language(
+                    user.id if user is not None else None,
+                    getattr(user, "language_code", None) if user is not None else None,
+                ),
+                "alias_error",
+                error=escape(str(exc)),
+            )
+        )
 
 
 @router.message(F.chat.type.in_(GROUP_TYPES), Command("stop", "stopalias"))
@@ -490,7 +530,12 @@ async def stop_alias_command(message: Message) -> None:
         return
     if not has_active_room(message.chat.id):
         await message.answer(
-            "🐊 Guruhda faol Alias öyini yöq. Boşlaş uçun /alias yuboring."
+            t(
+                resolve_language(
+                    user.id, getattr(user, "language_code", None)
+                ),
+                "alias_no_room",
+            )
         )
         return
     await stop_alias_for_chat(message.bot, message.chat.id, user.id)
@@ -499,23 +544,24 @@ async def stop_alias_command(message: Message) -> None:
 @router.message(F.chat.type == "private", Command("alias", "krokodil"))
 async def create_alias_game_private(message: Message) -> None:
     """/alias — shaxsiy chatda guruhga yo'naltiradi."""
+    user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
     config = get_config()
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Guruhga qöşiş",
+                    text=t(language, "alias_join_group_btn"),
                     url=f"https://t.me/{config.bot_username}?startgroup=true",
                 )
             ]
         ]
     )
     await message.answer(
-        "🐊 <b>Alias / Krokodil</b> faqat guruhda öynaladi.\n\n"
-        "1. Botni guruhingizga qöşing.\n"
-        "2. Guruhda <code>/alias</code> yoki <code>/krokodil</code> yuboring.\n"
-        "3. Döstlar «➕ Qöşiliş»ni bosadi.\n"
-        f"4. Kamida {MIN_PLAYERS} kişi bölgaç xona egasi öyinni boşlaydi.",
+        t(language, "alias_private_hint", min_players=MIN_PLAYERS),
         reply_markup=keyboard,
     )
 
@@ -524,8 +570,12 @@ async def create_alias_game_private(message: Message) -> None:
 async def join_alias_game(callback: CallbackQuery) -> None:
     """«➕ Qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
 
     user = callback.from_user
@@ -551,8 +601,12 @@ async def join_alias_game(callback: CallbackQuery) -> None:
 async def start_alias_game(callback: CallbackQuery) -> None:
     """«▶️ Boshlash» — faqat xona egasi uchun."""
     code = _callback_code(callback.data, START_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
 
     manager = get_default_manager()
@@ -564,7 +618,9 @@ async def start_alias_game(callback: CallbackQuery) -> None:
 
     current = room.current_round
     if current is None:  # pragma: no cover - start_game har doim raund ochadi
-        await callback.answer("Raund boşlanmadi.", show_alert=True)
+        await callback.answer(
+            t(language, "alias_round_not_started"), show_alert=True
+        )
         return
 
     language = resolve_language(
@@ -574,11 +630,13 @@ async def start_alias_game(callback: CallbackQuery) -> None:
     try:
         if callback.message is not None:
             await callback.message.edit_text(
-                "🐊 <b>ALIAS ÖYINI BOŞLANDI!</b>\n"
-                f"👥 Öyinçilar: {len(room.players)} kişi\n"
-                f"🔁 Jami raundlar: {room.total_rounds} ta\n"
-                f"🔑 Xona kodi: <code>{room.code}</code>\n"
-                "🎤 Söz tuşuntiruvçiga şaxsiy xabar bilan yuborildi.",
+                t(
+                    language,
+                    "alias_started",
+                    players=len(room.players),
+                    rounds=room.total_rounds,
+                    code=room.code,
+                ),
                 reply_markup=None,
             )
     except Exception:
@@ -591,8 +649,12 @@ async def start_alias_game(callback: CallbackQuery) -> None:
 async def end_alias_game(callback: CallbackQuery) -> None:
     """«🛑 O'yinni tugatish» — ega yoki guruh admini o'yinni yakunlaydi."""
     code = _callback_code(callback.data, END_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
 
     manager = get_default_manager()
@@ -607,12 +669,11 @@ async def end_alias_game(callback: CallbackQuery) -> None:
         callback.bot, chat_id, user_id
     ):
         await callback.answer(
-            "Öyinni faqat xona egasi yoki guruh administratori tugatadi.",
-            show_alert=True,
+            t(language, "alias_end_forbidden"), show_alert=True
         )
         return
 
-    await callback.answer("Öyin töxtatildi.")
+    await callback.answer(t(language, "alias_stopped_alert"))
     await _stop_game(callback.bot, room, reason="stopped")
 
 
@@ -645,17 +706,25 @@ async def alias_guess_watcher(message: Message) -> None:
     if result.explainer_id:
         _award_coins(result.explainer_id, EXPLAINER_REWARD)
 
-    tail = (
-        "Keyingi raund boşlanadi..."
-        if room.rounds_left > 0
-        else "Barça raundlar öynaldi, natijalar e'lon qilinadi..."
+    language = resolve_language(
+        getattr(message.from_user, "id", None),
+        getattr(message.from_user, "language_code", None),
+    )
+    tail = t(
+        language,
+        "alias_tail_next" if room.rounds_left > 0 else "alias_tail_done",
     )
     await message.answer(
-        "🎉 <b>Töğri javob!</b>\n"
-        f"{winner_label} sözni topdi: <b>{escape(result.word)}</b> "
-        f"(+{GUESS_REWARD} tanga)!\n"
-        f"🎤 {explainer_label}ga +{EXPLAINER_REWARD} tanga.\n\n"
-        f"{tail}"
+        t(
+            language,
+            "alias_correct",
+            winner=winner_label,
+            word=escape(result.word),
+            guess=GUESS_REWARD,
+            explainer=explainer_label,
+            explain=EXPLAINER_REWARD,
+            tail=tail,
+        )
     )
     current = room.current_round
     if current is not None:

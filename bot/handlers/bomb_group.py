@@ -132,12 +132,14 @@ async def _edit_or_send(
     )
 
 
-def _winner_line(room: BombRoom, winner_id: int | None) -> str:
+def _winner_line(
+    room: BombRoom, winner_id: int | None, language: str = "uz"
+) -> str:
     if winner_id is None:
-        return "🏁 Öyin yakunlandi — ğolib aniqlanmadi."
+        return t(language, "bomb_winner_none")
     winner = room.players.get(winner_id)
     name = escape(winner.label()) if winner is not None else f"ID {winner_id}"
-    return f"🏆 <b>{name} ğalaba qozondi!</b> +{room.winner_reward} tanga."
+    return t(language, "bomb_winner", name=name, reward=room.winner_reward)
 
 
 def _target_name(room: BombRoom, target_id: int | None) -> str:
@@ -147,29 +149,30 @@ def _target_name(room: BombRoom, target_id: int | None) -> str:
     return escape(target.label()) if target is not None else f"ID {target_id}"
 
 
-async def announce_room(bot: Bot, room: BombRoom, event: str) -> None:
+async def announce_room(
+    bot: Bot, room: BombRoom, event: str, language: str | None = None
+) -> None:
     """O'yin boshlanganda yoki yakunlanganda guruhga e'lon yuboradi."""
     if not room.chat_id:
         return
+    lang = language or _room_language(room)
     if event == "start":
         current = room.players.get(room.current_player_id or 0)
         current_name = escape(current.label()) if current is not None else "—"
-        text = (
-            "🎬 <b>PORTLOVÇI BOMBA BOŞLANDI!</b>\n\n"
-            f"🔑 Xona kodi: <code>{room.code}</code>\n"
-            f"👥 Öyinçilar: {len(room.players)} kişi\n"
-            f"🎯 Birinçi navbat: <b>{current_name}</b>\n"
-            f"🂠 Dastada {len(room.deck)} ta karta\n\n"
-            "🃏 Har kim Mini App'dan öz qölini oçsin. Navbatdagilar karta "
-            "öynaşi va oxirida bitta karta tortişi kerak. Bomba çiqsa — "
-            "defuse bölsa qutqaradi, bölsa portlaysiz!"
+        text = t(
+            lang,
+            "bomb_announce_start",
+            code=room.code,
+            players=len(room.players),
+            current=current_name,
+            deck=len(room.deck),
         )
-        keyboard = playing_keyboard(room)
+        keyboard = playing_keyboard(room, lang)
     else:
-        text = (
-            "🏁 <b>PORTLOVÇI BOMBA YAKUNLANDI</b>\n\n"
-            f"{_winner_line(room, room.winner_id)}\n\n"
-            "Yangi öyin uçun guruhda <code>/bomb</code> yuboring."
+        text = t(
+            lang,
+            "bomb_finished",
+            winner=_winner_line(room, room.winner_id, lang),
         )
         keyboard = None
     try:
@@ -182,69 +185,73 @@ async def announce_action(
     bot: Bot,
     room: BombRoom,
     result: DrawResult | ActionResult,
+    language: str | None = None,
 ) -> None:
     """Har bir tortish yoki karta öynaşni guruhga e'lon qiladi."""
     if not room.chat_id:
         return
+    lang = language or _room_language(room)
     actor = room.players.get(result.player_id)
     actor_name = escape(actor.label()) if actor is not None else f"ID {result.player_id}"
 
     if isinstance(result, DrawResult):
         if result.card is None:
-            text = "🂠 Dasta tugadi — öyin yakunlandi."
+            text = t(lang, "bomb_deck_empty")
         elif result.exploded:
-            text = (
-                f"💥 <b>{actor_name} portladi!</b>\n"
-                "Bomba çiqdi, qölida Zararsizlantiriş bölmadi."
-            )
+            text = t(lang, "bomb_exploded", name=actor_name)
         elif result.awaiting_defuse:
-            text = (
-                f"💣 <b>{actor_name}</b> bomba tortdi, lekin qölida "
-                "Zararsizlantiriş bor! Mini App'da bombani tepaga, örtaga "
-                "yoki tagiga yaşirişni tanlasi."
-            )
+            text = t(lang, "bomb_awaiting_defuse", name=actor_name)
         elif result.defused:
-            place = {0: "tepasiga", 1: "örtasiga"}.get(result.returned_index or 0)
-            if place is None:
-                place = "tagiga"
-            text = (
-                f"🛡️ <b>{actor_name}</b> Zararsizlantiriş işlatdi — "
-                f"bomba dastaning {place} yaşirildi."
+            place_key = {
+                0: "bomb_place_top",
+                1: "bomb_place_mid",
+            }.get(result.returned_index or 0, "bomb_place_bottom")
+            text = t(
+                lang,
+                "bomb_defused",
+                name=actor_name,
+                place=t(lang, place_key),
             )
         else:
-            text = (
-                f"🃏 <b>{actor_name}</b> karta tortdi: "
-                f"{card_symbol(result.card)} {escape(card_name(result.card))}"
+            text = t(
+                lang,
+                "bomb_draw",
+                name=actor_name,
+                symbol=card_symbol(result.card),
+                card=escape(card_name(result.card)),
             )
     else:
         card = result.card
-        text = f"🎴 <b>{actor_name}</b> «{escape(card_name(card))}» öynadi."
+        text = t(
+            lang, "bomb_played", name=actor_name, card=escape(card_name(card))
+        )
         if card is CardType.ATTACK:
             draws = max(2, 2 * int(room.attack_stack or 1))
-            text += (
-                f"\n⚔️ Navbat {_target_name(room, result.target_id)}ga ötdi — "
-                f"u {draws} marta karta tortadi."
+            text += t(
+                lang,
+                "bomb_attack",
+                target=_target_name(room, result.target_id),
+                draws=draws,
             )
         elif card is CardType.SKIP:
-            text += "\n⏭️ Navbat keyingi öyinçiga ötdi."
+            text += t(lang, "bomb_skip")
         elif card is CardType.FUTURE:
-            text += "\n🔮 Dastaning yuqori 3 kartasi faqat unga körsätildi."
+            text += t(lang, "bomb_future")
         elif card is CardType.SHUFFLE:
-            text += "\n🔀 Dasta aralaştirildi."
+            text += t(lang, "bomb_mix")
         elif card is CardType.STEAL:
-            text += (
-                f"\n🖐️ {_target_name(room, result.target_id)}dan bitta karta "
-                "öğirlandi."
+            text += t(
+                lang, "bomb_steal", target=_target_name(room, result.target_id)
             )
 
     if result.game_over:
-        text += f"\n\n{_winner_line(room, result.winner_id)}"
+        text += "\n\n" + _winner_line(room, result.winner_id, lang)
     elif result.next_player_id is not None:
         nxt = room.players.get(result.next_player_id)
         if nxt is not None:
-            text += f"\n➡️ Navbat: <b>{escape(nxt.label())}</b>"
+            text += t(lang, "bomb_turn", name=escape(nxt.label()))
 
-    keyboard = None if result.game_over else playing_keyboard(room)
+    keyboard = None if result.game_over else playing_keyboard(room, lang)
     try:
         await bot.send_message(room.chat_id, text, reply_markup=keyboard)
     except Exception:
@@ -270,24 +277,35 @@ async def create_bomb_game(message: Message) -> None:
         await message.reply(f"⚠️ {escape(str(exc))}")
     except Exception:
         logger.exception("Guruhda /bomb buyruğida xatolik")
-        await message.reply("⚠️ Xatolik yuz berdi, keyinroq qayta urinib köring.")
+        await message.reply(
+            t(
+                resolve_language(user.id, getattr(user, "language_code", None)),
+                "error_generic",
+            )
+        )
 
 
 @router.message(F.chat.type == "private", Command("bomb"))
 async def create_bomb_game_private(message: Message) -> None:
     """Shaxsiy chatda /bomb — guruhga yo'naltirish."""
-    await message.answer(
-        "💣 Bombani guruhda öynaş kerak.\n"
-        "Botni guruhga qöşib, u yerda /bomb yuboring."
+    user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
     )
+    await message.answer(t(language, "bomb_private_hint"))
 
 
 @router.callback_query(F.data.startswith(JOIN_PREFIX))
 async def join_bomb_game(callback: CallbackQuery) -> None:
     """«➕ Qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
     user = callback.from_user
     try:
@@ -304,8 +322,12 @@ async def join_bomb_game(callback: CallbackQuery) -> None:
 async def start_bomb_game(callback: CallbackQuery) -> None:
     """«▶️ O'yinni boshlash» — faqat xona egasi."""
     code = _callback_code(callback.data, START_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
     try:
         room = get_default_manager().start(code, callback.from_user.id)
@@ -319,10 +341,8 @@ async def start_bomb_game(callback: CallbackQuery) -> None:
     await announce_room(callback.bot, room, "start")
     await _edit_or_send(
         callback,
-        "🎬 <b>Öyin boşlandi!</b>\n\n"
-        f"🔑 Xona kodi: <code>{room.code}</code>\n"
-        "Qölingizni pastdagi tugma orqali Mini App'da oçing.",
-        playing_keyboard(room),
+        t(language, "bomb_start_brief", code=room.code),
+        playing_keyboard(room, language),
     )
 
 

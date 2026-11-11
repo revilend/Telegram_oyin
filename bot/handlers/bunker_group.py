@@ -180,18 +180,24 @@ async def create_game(message: Message) -> None:
 @router.message(F.chat.type == "private", Command("bunker", "newgame"))
 async def create_game_private(message: Message) -> None:
     """Shaxsiy chatda /bunker — guruhga yo'naltirish."""
-    await message.answer(
-        "Bunker öyinini faqat guruhda oçiş mumkin.\n"
-        "Guruhga ötib /bunker buyruğini yuboring."
+    user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
     )
+    await message.answer(t(language, "bunker_private_hint"))
 
 
 @router.callback_query(F.data.regexp(JOIN_FILTER))
 async def join_game(callback: CallbackQuery) -> None:
     """«Guruh orqali qo'shilish» tugmasi."""
     code = _callback_code(callback.data, JOIN_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
 
     user = callback.from_user
@@ -210,10 +216,15 @@ async def join_game(callback: CallbackQuery) -> None:
 
     language = resolve_language(user.id, getattr(user, "language_code", None))
     await callback.answer(t(language, "room_joined", name=escape(player.full_name)))
+    room_language = resolve_language(int(getattr(room, "host_id", 0) or 0))
     await callback.bot.send_message(
         _chat_id(callback),
-        f"➕ <b>{escape(player.full_name)}</b> qöşildi "
-        f"(jami: {len(room.players)} kişi).",
+        t(
+            room_language,
+            "bunker_joined_line",
+            name=escape(player.full_name),
+            total=len(room.players),
+        ),
     )
     await _refresh_room_message(callback, room)
 
@@ -222,8 +233,12 @@ async def join_game(callback: CallbackQuery) -> None:
 async def start_game_callback(callback: CallbackQuery) -> None:
     """«O'yinni boshlash» tugmasi — faqat host uchun."""
     code = _callback_code(callback.data, START_PREFIX)
+    language = resolve_language(
+        getattr(callback.from_user, "id", None),
+        getattr(callback.from_user, "language_code", None),
+    )
     if code is None:
-        await callback.answer("Notöğri tugma.", show_alert=True)
+        await callback.answer(t(language, "booster_wrong_button"), show_alert=True)
         return
 
     user = callback.from_user
@@ -231,10 +246,7 @@ async def start_game_callback(callback: CallbackQuery) -> None:
     try:
         room = manager.get_room(code)
         if user.id != room.host_id:
-            await callback.answer(
-                "Öyinni faqat xona egasi boşlaşi mumkin.",
-                show_alert=True,
-            )
+            await callback.answer(t(language, "bunker_host_only"), show_alert=True)
             return
         room = manager.start_game(code)
     except GameError as exc:
@@ -243,13 +255,13 @@ async def start_game_callback(callback: CallbackQuery) -> None:
 
     language = resolve_language(user.id, getattr(user, "language_code", None))
     await callback.answer(t(language, "room_started", game="Bunker"))
-    announcement = (
-        "🎬 <b>Öyin boşlandi!</b>\n\n"
-        f"🔑 Xona kodi: <code>{room.code}</code>\n"
-        f"👥 Öyinçilar: {len(room.players)} kişi\n"
-        f"🏠 Bunker siğimi: {room.bunker_capacity} kişi\n\n"
-        "Har bir öyinçi pastdagi tugma orqali Mini App'ga kirib, "
-        "öz kartalarini körsin. Omad! 🍀"
+    room_language = resolve_language(int(getattr(room, "host_id", 0) or 0))
+    announcement = t(
+        room_language,
+        "bunker_announce",
+        code=room.code,
+        players=len(room.players),
+        capacity=room.bunker_capacity,
     )
     await callback.bot.send_message(
         _chat_id(callback),
