@@ -1464,6 +1464,35 @@ def _profile_payload(
     }
 
 
+def _activity_response(
+    account,
+    statuses,
+    all_board: dict[str, Any],
+    week_board: dict[str, Any],
+    bonus,
+    quests: dict[str, Any],
+    achievements: dict[str, Any],
+    limit: int,
+) -> dict[str, Any]:
+    """/api/activity javobini qo'shimcha so'rovsiz yig'adi."""
+    all_board = dict(all_board)
+    all_board["period"] = normalize_period("all")
+    if all_board.get("me") is not None:
+        all_board["me"]["in_top"] = int(all_board["me"].get("rank") or 0) <= limit
+    week_board = dict(week_board)
+    week_board["period"] = normalize_period("week")
+    return {
+        "bonus": asdict(bonus),
+        "missions": missions_payload(statuses),
+        "quests": quests,
+        "achievements": achievements,
+        "top": all_board.get("top", []),
+        "me": all_board.get("me"),
+        "week": week_board,
+        "coins": account.coins,
+    }
+
+
 def _activity_payload(
     resolved_id: int, limit: int = 10, account=None
 ) -> dict[str, Any]:
@@ -1471,24 +1500,61 @@ def _activity_payload(
     economy = get_economy()
     if account is None:
         account = economy.ensure_user(resolved_id)
-    statuses = mission_statuses(economy, resolved_id, account=account)
-    all_board = build_leaderboard("all", limit, resolved_id, economy=economy)
-    all_board["period"] = normalize_period("all")
-    if all_board.get("me") is not None:
-        all_board["me"]["in_top"] = int(all_board["me"].get("rank") or 0) <= limit
-    week_board = build_leaderboard("week", limit, resolved_id, economy=economy)
-    week_board["period"] = normalize_period("week")
-    return {
-        "bonus": asdict(economy.daily_bonus_status(resolved_id)),
-        "missions": missions_payload(statuses),
-        "quests": daily_quests_payload(economy, resolved_id),
-        "achievements": achievements_payload(economy, resolved_id),
-        "top": all_board.get("top", []),
-        "me": all_board.get("me"),
-        "week": week_board,
-        "coins": account.coins,
-    }
+    return _activity_response(
+        account,
+        mission_statuses(economy, resolved_id, account=account),
+        build_leaderboard("all", limit, resolved_id, economy=economy),
+        build_leaderboard("week", limit, resolved_id, economy=economy),
+        economy.daily_bonus_status(resolved_id),
+        daily_quests_payload(economy, resolved_id),
+        achievements_payload(economy, resolved_id),
+        limit,
+    )
 
+
+async def _activity_payload_async(
+    resolved_id: int, limit: int = 10, account=None
+) -> dict[str, Any]:
+    """``_activity_payload`` bilan bir xil javob, lekin o'qishlar parallel.
+
+    Bonus, missiyalar, questlar, yutuqlar va ikkala reyting bir-biriga bog'liq
+    emas, shuning uchun ular ``asyncio.gather`` bilan birga yuboriladi:
+    Supabase 100-150 ms kechikishda bu ~6 ketma-ket so'rov o'rniga 2-3 round.
+    """
+    economy = get_economy()
+    if account is None:
+        account = await asyncio.to_thread(economy.ensure_user, resolved_id)
+    (
+        statuses,
+        all_board,
+        week_board,
+        bonus,
+        quests,
+        achievements,
+    ) = await asyncio.gather(
+        asyncio.to_thread(
+            mission_statuses, economy, resolved_id, account=account
+        ),
+        asyncio.to_thread(
+            build_leaderboard, "all", limit, resolved_id, economy=economy
+        ),
+        asyncio.to_thread(
+            build_leaderboard, "week", limit, resolved_id, economy=economy
+        ),
+        asyncio.to_thread(economy.daily_bonus_status, resolved_id),
+        asyncio.to_thread(daily_quests_payload, economy, resolved_id),
+        asyncio.to_thread(achievements_payload, economy, resolved_id),
+    )
+    return _activity_response(
+        account,
+        statuses,
+        all_board,
+        week_board,
+        bonus,
+        quests,
+        achievements,
+        limit,
+    )
 
 @app.get("/api/me")
 async def my_profile(
@@ -1777,7 +1843,7 @@ async def activity_snapshot(
     """
     resolved_id, _, _ = profile_identity(user, user_id, username, full_name)
     limit = max(1, min(int(limit), 50))
-    return await asyncio.to_thread(_activity_payload, resolved_id, limit)
+    return await _activity_payload_async(resolved_id, limit)
 
 
 @app.get("/api/bootstrap")
@@ -1811,7 +1877,7 @@ async def bootstrap(
             resolved_name,
             account,
         ),
-        asyncio.to_thread(_activity_payload, resolved_id, limit, account),
+        _activity_payload_async(resolved_id, limit, account),
         asyncio.to_thread(
             lambda: get_tournament_store().payload(resolved_id)
         ),

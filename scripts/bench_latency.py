@@ -170,6 +170,20 @@ class _SimQuery:
         self._filters.append((column, value))
         return self
 
+    def lt(self, column: str, value: object):
+        self._filters.append((column, value))
+        return self
+
+    def gt(self, column: str, value: object):
+        self._filters.append((column, value))
+        return self
+
+    def in_(self, _column: str, _values):
+        return self
+
+    def is_(self, _column: str, _value):
+        return self
+
     def order(self, *_args, **_kwargs):
         return self
 

@@ -829,23 +829,26 @@ class EconomyStore:
         Bu butun jadvalni o'qiydigan og'ir so'rov; admin bildirishnomasi har
         yangi o'yinchida uni takrorlamasligi uchun natija keshlanadi.
         """
-        with self._lock:
-            if not self.enabled:
+        if not self.enabled:
+            with self._lock:
                 return len(self._users)
-            if self._count_cache is not None:
-                stamp, value = self._count_cache
-                if time.monotonic() - stamp <= USER_COUNT_TTL:
-                    return value
-            rows = (
-                self.client.table(USERS_TABLE)
-                .select(USERS_ID_COLUMN)
-                .execute()
-                .data
-                or []
-            )
-            total = len({int(row[USERS_ID_COLUMN]) for row in rows})
+        with self._lock:
+            cached_count = self._count_cache
+        if cached_count is not None:
+            stamp, value = cached_count
+            if time.monotonic() - stamp <= USER_COUNT_TTL:
+                return value
+        rows = (
+            self.client.table(USERS_TABLE)
+            .select(USERS_ID_COLUMN)
+            .execute()
+            .data
+            or []
+        )
+        total = len({int(row[USERS_ID_COLUMN]) for row in rows})
+        with self._lock:
             self._count_cache = (time.monotonic(), total)
-            return total
+        return total
 
     def recent_users(self, limit: int = 10, offset: int = 0) -> list[UserAccount]:
         """Eng oxirgi qo'shilgan foydalanuvchilarni qaytaradi."""
@@ -886,15 +889,15 @@ class EconomyStore:
         Faqat haqiqiy Telegram foydalanuvchilari reytingga kiritiladi.
         """
         limit = max(1, int(limit))
-        with self._lock:
-            if not self.enabled:
+        if not self.enabled:
+            with self._lock:
                 rows = list(self._users.values())
-            else:
-                query = self.client.table(USERS_TABLE).select("*")
-                # Eskirgan test mijozlari ``lt`` ni qo'llamasligi mumkin.
-                if hasattr(query, "lt"):
-                    query = query.lt(USERS_ID_COLUMN, TEST_BOT_ID_THRESHOLD)
-                rows = query.execute().data or []
+        else:
+            query = self.client.table(USERS_TABLE).select("*")
+            # Eskirgan test mijozlari ``lt`` ni qo'llamasligi mumkin.
+            if hasattr(query, "lt"):
+                query = query.lt(USERS_ID_COLUMN, TEST_BOT_ID_THRESHOLD)
+            rows = query.execute().data or []
         accounts = [
             account
             for account in (_row_to_account(row) for row in rows)
@@ -1260,8 +1263,7 @@ class EconomyStore:
         """Kunlik bonus holati: mavjudmi, qancha va qancha vaqt qoldi."""
         uid = int(user_id)
         moment = now or _now_moment()
-        with self._lock:
-            account = self.ensure_user(uid)
+        account = self.ensure_user(uid)
         available, amount, streak, seconds_left = _daily_bonus_plan(account, moment)
         return DailyBonusStatus(
             available=available,
@@ -1511,22 +1513,22 @@ class EconomyStore:
         uid = int(user_id)
         with self._lock:
             claimed = set(self._mission_claims.get(uid, set()))
-            if not self.enabled:
-                return claimed
-            try:
-                rows = (
-                    self.client.table(MISSIONS_TABLE)
-                    .select("mission")
-                    .eq("user_id", uid)
-                    .execute()
-                    .data
-                    or []
-                )
-            except Exception:
-                logger.exception(
-                    "Missiya mukofotlarini Supabase'dan o'qib bo'lmadi: %s", uid
-                )
-                return claimed
+        if not self.enabled:
+            return claimed
+        try:
+            rows = (
+                self.client.table(MISSIONS_TABLE)
+                .select("mission")
+                .eq("user_id", uid)
+                .execute()
+                .data
+                or []
+            )
+        except Exception:
+            logger.exception(
+                "Missiya mukofotlarini Supabase'dan o'qib bo'lmadi: %s", uid
+            )
+            return claimed
         return claimed | {
             str(row["mission"]) for row in rows if row.get("mission")
         }
@@ -1663,24 +1665,33 @@ class EconomyStore:
         """Foydalanuvchining oxirgi o'yinlari."""
         uid = int(user_id)
         limit = max(1, min(int(limit), 50))
-        with self._lock:
-            if self.enabled:
-                try:
-                    rows = (
-                        self.client.table(HISTORY_TABLE)
-                        .select("*")
-                        .eq("user_id", uid)
-                        .order("created_at", desc=True)
-                        .limit(limit)
-                        .execute()
-                        .data
-                        or []
-                    )
-                except Exception:
-                    logger.exception("O'yin tarixini o'qib bo'lmadi: %s", uid)
-                    rows = [row for row in self._history if int(row.get("user_id") or 0) == uid]
-            else:
-                rows = [row for row in self._history if int(row.get("user_id") or 0) == uid]
+        if self.enabled:
+            try:
+                rows = (
+                    self.client.table(HISTORY_TABLE)
+                    .select("*")
+                    .eq("user_id", uid)
+                    .order("created_at", desc=True)
+                    .limit(limit)
+                    .execute()
+                    .data
+                    or []
+                )
+            except Exception:
+                logger.exception("O'yin tarixini o'qib bo'lmadi: %s", uid)
+                with self._lock:
+                    rows = [
+                        row
+                        for row in self._history
+                        if int(row.get("user_id") or 0) == uid
+                    ]
+        else:
+            with self._lock:
+                rows = [
+                    row
+                    for row in self._history
+                    if int(row.get("user_id") or 0) == uid
+                ]
             rows = [dict(row) for row in rows if int(row.get("user_id") or 0) == uid]
             rows.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
             return [self._history_payload(row) for row in rows[:limit]]
@@ -1699,23 +1710,24 @@ class EconomyStore:
             hour=0, minute=0, second=0, microsecond=0
         )
         week_end = week_start + timedelta(days=7)
-        with self._lock:
-            if self.enabled:
-                try:
-                    rows = (
-                        self.client.table(HISTORY_TABLE)
-                        .select("*")
-                        .gte("created_at", week_start.isoformat())
-                        .lt("created_at", week_end.isoformat())
-                        .execute()
-                        .data
-                        or []
-                    )
-                except Exception:
-                    logger.exception("Haftalik ligani o'qib bo'lmadi")
-                    rows = self._history
-            else:
-                rows = self._history
+        if self.enabled:
+            try:
+                rows = (
+                    self.client.table(HISTORY_TABLE)
+                    .select("*")
+                    .gte("created_at", week_start.isoformat())
+                    .lt("created_at", week_end.isoformat())
+                    .execute()
+                    .data
+                    or []
+                )
+            except Exception:
+                logger.exception("Haftalik ligani o'qib bo'lmadi")
+                with self._lock:
+                    rows = list(self._history)
+        else:
+            with self._lock:
+                rows = list(self._history)
 
         totals: dict[int, dict[str, int]] = {}
         for row in rows:
