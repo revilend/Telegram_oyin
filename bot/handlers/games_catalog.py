@@ -33,6 +33,8 @@ ALIAS_CALLBACK = "catalog_alias"
 BOMB_CALLBACK = "catalog_bomb"
 BACK_CALLBACK = "catalog_back"
 
+# Eski UZ konstantalar (orqaga moslik va testlar uchun). Yangi matnlar
+# ``core/i18n_texts.py`` dagi ``catalog_*`` kalitlaridan olinadi.
 CATALOG_TEXT = (
     "🎲 <b>Öyinlar röyxati</b>\n\n"
     "Platformadagi barça öyinlar. Har biri guruhda öynaladi:\n\n"
@@ -101,7 +103,6 @@ BOMB_TEXT = (
     "🏆 Oxirgi tirik qolgan öyinçiga +30 tanga."
 )
 
-
 MAFIA_TEXT = (
     "🕵️ <b>Mafiya</b>\n\n"
     "Şahar mafiyalar çangalida. Tunda yaşirin rollar harakat qiladi, "
@@ -114,68 +115,46 @@ MAFIA_TEXT = (
 )
 
 
-def catalog_keyboard() -> InlineKeyboardMarkup:
+def catalog_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
     """Har bir o'yin alohida qatorda + guruhga qo'shish tugmasi."""
     config = get_config()
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🛡️ Bunker — /bunker", callback_data=BUNKER_CALLBACK
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🕵️ Mafiya — /mafia", callback_data=MAFIA_CALLBACK
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🔍 Josus (Spyfall) — /spy", callback_data=SPY_CALLBACK
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🐊 Alias / Krokodil — /alias",
-                    callback_data=ALIAS_CALLBACK,
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="💣 Portlovçi Bomba — /bomb",
-                    callback_data=BOMB_CALLBACK,
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🏆 Haftalik turnirlar",
-                    callback_data="tournaments_open",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="➕ Botni guruhga qöşiş",
-                    url=f"https://t.me/{config.bot_username}?startgroup=true",
-                )
-            ],
+    entries = (
+        ("catalog_btn_bunker", BUNKER_CALLBACK),
+        ("catalog_btn_mafia", MAFIA_CALLBACK),
+        ("catalog_btn_spy", SPY_CALLBACK),
+        ("catalog_btn_alias", ALIAS_CALLBACK),
+        ("catalog_btn_bomb", BOMB_CALLBACK),
+        ("catalog_btn_tournaments", "tournaments_open"),
+    )
+    rows = [
+        [InlineKeyboardButton(text=t(language, key), callback_data=data)]
+        for key, data in entries
+    ]
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(language, "catalog_btn_add_group"),
+                url=f"https://t.me/{config.bot_username}?startgroup=true",
+            )
         ]
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def detail_keyboard() -> InlineKeyboardMarkup:
+def detail_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
     """Guruhga qo'shish va katalogga qaytish."""
     config = get_config()
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Guruhga qöşiş",
+                    text=t(language, "catalog_btn_add_group_small"),
                     url=f"https://t.me/{config.bot_username}?startgroup=true",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Orqaga", callback_data=BACK_CALLBACK
+                    text=t(language, "catalog_back"), callback_data=BACK_CALLBACK
                 )
             ],
         ]
@@ -189,7 +168,7 @@ async def show_games(message: Message) -> None:
         user.id if user is not None else None,
         getattr(user, "language_code", None) if user is not None else None,
     )
-    await message.answer(t(language, "catalog_title"), reply_markup=catalog_keyboard())
+    await message.answer(t(language, "catalog_title"), reply_markup=catalog_keyboard(language))
 
 
 async def _edit_or_send(
@@ -220,7 +199,7 @@ async def show_bunker(callback: CallbackQuery) -> None:
     """Bunker qoidalari va guruhda boshlash yo'riqnomasi."""
     language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, t(language, "catalog_bunker"), detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_bunker"), detail_keyboard(language))
 
 
 @router.callback_query(F.data == MAFIA_CALLBACK)
@@ -228,7 +207,7 @@ async def show_mafia(callback: CallbackQuery) -> None:
     """Mafiya qoidalari va guruhda boshlash yo'riqnomasi."""
     language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, t(language, "catalog_mafia"), detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_mafia"), detail_keyboard(language))
 
 
 @router.callback_query(F.data == SPY_CALLBACK)
@@ -236,7 +215,7 @@ async def show_spy(callback: CallbackQuery) -> None:
     """Josus qoidalari va guruhda boshlash yo'riqnomasi."""
     language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, t(language, "catalog_spy"), detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_spy"), detail_keyboard(language))
 
 
 @router.callback_query(F.data == ALIAS_CALLBACK)
@@ -244,7 +223,7 @@ async def show_alias(callback: CallbackQuery) -> None:
     """Alias qoidalari va guruhda boshlash yo'riqnomasi."""
     language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, t(language, "catalog_alias"), detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_alias"), detail_keyboard(language))
 
 
 @router.callback_query(F.data == BOMB_CALLBACK)
@@ -252,7 +231,7 @@ async def show_bomb(callback: CallbackQuery) -> None:
     """Portlovçi Bomba qoidalari va guruhda boshlash yo'riqnomasi."""
     language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, t(language, "catalog_bomb"), detail_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_bomb"), detail_keyboard(language))
 
 
 @router.callback_query(F.data == BACK_CALLBACK)
@@ -260,4 +239,4 @@ async def back_to_catalog(callback: CallbackQuery) -> None:
     """Katalogga qaytish."""
     language = resolve_language(callback.from_user.id, getattr(callback.from_user, 'language_code', None))
     await callback.answer()
-    await _edit_or_send(callback, t(language, "catalog_title"), catalog_keyboard())
+    await _edit_or_send(callback, t(language, "catalog_title"), catalog_keyboard(language))

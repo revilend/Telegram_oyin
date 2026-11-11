@@ -220,6 +220,8 @@ Ramka va unvonlar Mini App profilida, reytingda va guruh xabarlarida ko‘rinadi
 - **Optimistik o‘yin UI:** karta ochish (`reveal`) va ovoz berish (`vote`) bosilishi bilan Bunker/Mafiya/Josus/Bomba ekrani server javobini kutmasdan yangilanadi — ovoz hisobi, tanlangan nishon va “yuborilmoqda” holati darhol ko‘rinadi. Server xato qaytarsa holat snapshot’dan qaytariladi va xato toast chiqadi; muvaffaqiyatli javob WebSocket `state` bilan yakuniy holatni tekislaydi.
 ### Uch tillilik (UZ / RU / EN) auditi
 
+> Yangilanish: o'yinlar vitrinasi va tangalar do'koni (paketlar, chek, admin tasdiqlash) matnlari ham uch tilda — `core/i18n_texts.py` dagi `catalog_*` va `shop_*` kalitlari orqali.
+
 > Yangilanish: reyting, missiyalar, kunlik bonus/promo, Bunker Qalqoni, matchmaking, blok xabari va testlab matnlari ham `core/i18n_texts.py` orqali UZ/RU/EN da beriladi.
 
 > `bot/handlers/common.py` yangilandi: qoidalar menyusi, taklif, kirish va admin bildirishnomasi matnlari `core/i18n_common.py` ga ko‘chirildi — endi ular ham UZ/RU/EN da, qolgan literal faqat loglar va kiruvchi tugma matnlarini moslashtiruvchilar.
