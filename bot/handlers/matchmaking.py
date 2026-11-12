@@ -27,7 +27,7 @@ from aiogram.types import (
 
 from bot.config import get_config
 from bot.keyboards.main_menu import MATCHMAKING_BUTTON
-from core.i18n import resolve_language, t
+from core.i18n import all_variants, resolve_language, t
 from engine.matchmaking import (
     GAME_TITLES,
     MIN_PLAYERS,
@@ -198,7 +198,7 @@ async def send_match_notices(
 
 
 @router.message(Command("matchmaking", "qidiruv"))
-@router.message(F.chat.type == "private", F.text == MATCHMAKING_BUTTON)
+@router.message(F.chat.type == "private", F.text.in_(all_variants("quick_game")))
 async def matchmaking_menu(message: Message) -> None:
     """O'yin qidiruvini boshlaydi: o'yin turi tanlanadi."""
     user = message.from_user

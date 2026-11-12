@@ -3798,6 +3798,11 @@
         try { if (window.I18N) return window.I18N.t(key); } catch (e) {}
         return fallback;
       }
+      // Parametrli tarjima: trp("buy_note", {amount: "20"}, "zaxira")
+      function trp(key, params, fallback) {
+        try { if (window.I18N) return window.I18N.t(key, params); } catch (e) {}
+        return fallback;
+      }
       // Birinchi ochilishda til: localStorage → Telegram → uz.
       try { if (window.I18N) window.I18N.bootstrap(); } catch (e) {}
       if (window.I18N) {
@@ -4894,7 +4899,7 @@ function profileCardHtml() {
         }).join("");
         var wheel = "";
         if (current.key === "SPIN") {
-          wheel = '<button class="btn primary block" data-act="wheel-open" style="margin-top:10px">' + lucideIcon("sparkles") + ' Omad gʻildiragini aylantirish</button>';
+          wheel = '<button class="btn primary block" data-act="wheel-open" style="margin-top:10px">' + lucideIcon("sparkles") + ' ' + tr("wheel_spin", "Omad gʻildiragini aylantirish") + '</button>';
 }
         return '<div class="shop-chips">' + chips + '</div>' +
           wheel +
@@ -4972,7 +4977,7 @@ function profileCardHtml() {
         var body = '<div class="shop-overlay"><section class="shop-sheet" role="dialog" aria-modal="true" aria-label="Dökon">' +
           '<div class="shop-head"><div><h2>' + icon("coin") + ' Dökon</h2>' +
             '<p class="shop-lede">Balans: <b>' + esc(money(profile.balance)) + ' tanga</b></p></div>' +
-            '<button class="shop-close" data-act="shop-close" aria-label="Yopiş" title="Yopiş">✕</button></div>' +
+            '<button class="shop-close" data-act="shop-close" aria-label="' + tr("close", "Yopiş") + '" title="' + tr("close", "Yopiş") + '">✕</button></div>' +
           '<div class="shop-tabs">' +
             '<button class="shop-tab' + (tab === "items" ? " sel" : "") + '" data-act="shop-tab" data-tab="items">🛍️ Buyumlar</button>' +
             '<button class="shop-tab' + (tab === "coins" ? " sel" : "") + '" data-act="shop-tab" data-tab="coins">💳 Tangalar</button>' +
@@ -5055,16 +5060,16 @@ function profileCardHtml() {
         if (view.wheelResult) {
           var reward = view.wheelResult.reward || {};
           var text = reward.kind === "coins"
-            ? '+' + esc(money(reward.coins)) + ' tanga'
-            : (reward.item ? esc(reward.item.title) : 'Sovğa');
-          result = '<div class="wheel-result">' + icon("sparkles") + ' Siz yutdingiz: <b>' + text + '</b></div>';
+            ? '+' + esc(money(reward.coins)) + ' ' + tr("coin_unit", "tanga")
+            : (reward.item ? esc(reward.item.title) : tr("prize", "Sovğa"));
+          result = '<div class="wheel-result">' + icon("sparkles") + ' ' + tr("wheel_won", "Siz yutdingiz") + ': <b>' + text + '</b></div>';
 }
-        return '<div class="shop-overlay modal-backdrop"><section class="shop-sheet wheel-sheet modal-sheet" role="dialog" aria-modal="true" aria-label="Omad gʻildiragi">' +
-          '<div class="shop-head"><div><h2>' + lucideIcon("sparkles") + ' Omad gʻildiragi</h2>' +
-            '<p class="shop-lede">Kuniga bir marta bepul, keyin 20 tanga yoki çipta.</p></div>' +
+        return '<div class="shop-overlay modal-backdrop"><section class="shop-sheet wheel-sheet modal-sheet" role="dialog" aria-modal="true" aria-label="' + tr("wheel_title", "Omad gʻildiragi") + '">' +
+          '<div class="shop-head"><div><h2>' + lucideIcon("sparkles") + ' ' + tr("wheel_title", "Omad gʻildiragi") + '</h2>' +
+            '<p class="shop-lede">' + tr("wheel_lede", "Kuniga bir marta bepul, keyin 20 tanga yoki çipta.") + '</p></div>' +
             '<div class="wheel-head-actions">' +
-            '<button type="button" class="wheel-sound-toggle' + (soundOn ? "" : " off") + '" data-act="wheel-sound" data-sound-toggle="1" aria-pressed="' + (soundOn ? "true" : "false") + '" aria-label="' + (soundOn ? "Ovozni o'chirish" : "Ovozni yoqish") + '" title="' + (soundOn ? "Ovozni o'chirish" : "Ovozni yoqish") + '">' + (soundOn ? "🔊" : "🔇") + '</button>' +
-            '<button class="shop-close" data-act="wheel-close" aria-label="Yopiş" title="Yopiş">✕</button></div></div>' +
+            '<button type="button" class="wheel-sound-toggle' + (soundOn ? "" : " off") + '" data-act="wheel-sound" data-sound-toggle="1" aria-pressed="' + (soundOn ? "true" : "false") + '" aria-label="' + (soundOn ? tr("sound_off", "Ovozni o'chirish") : tr("sound_on", "Ovozni yoqish")) + '" title="' + (soundOn ? tr("sound_off", "Ovozni o'chirish") : tr("sound_on", "Ovozni yoqish")) + '">' + (soundOn ? "🔊" : "🔇") + '</button>' +
+            '<button class="shop-close" data-act="wheel-close" aria-label="' + tr("close", "Yopiş") + '" title="' + tr("close", "Yopiş") + '">✕</button></div></div>' +
           '<div class="wheel-wrap">' +
             '<div class="wheel-pointer" aria-hidden="true">🔻</div>' +
             '<div class="wheel' + (view.wheelBusy ? " spinning" : (view.wheelAngle ? " spun" : "")) + '" style="--wheel-final:' + (currentAngle || 0) + 'deg">' + wheelSvg + '</div>' +
@@ -5182,20 +5187,20 @@ function profileCardHtml() {
         var html;
         if (c.stage === "done") {
           var noun = c.kind === "title" ? "Unvonni" : (c.kind === "frame" ? "Ramkani" : "Buyumni");
-          html = '<div class="buy-confirm-overlay"><section class="buy-confirm-card" role="dialog" aria-modal="true" aria-label="Xarid yakunlandi">' +
-            '<button class="buy-confirm-x" type="button" data-act="buy-cancel" aria-label="Yopiş" title="Yopiş">✕</button>' +
+          html = '<div class="buy-confirm-overlay"><section class="buy-confirm-card" role="dialog" aria-modal="true" aria-label="' + tr("buy_done_title", "Tabriklaymiz!") + '">' +
+            '<button class="buy-confirm-x" type="button" data-act="buy-cancel" aria-label="' + tr("close", "Yopiş") + '" title="' + tr("close", "Yopiş") + '">✕</button>' +
             '<div class="buy-confirm-done">🎉</div>' +
-            '<h2 class="buy-confirm-title">Tabriklaymiz!</h2>' +
-            '<p class="buy-confirm-lede"><b>' + esc(c.title) + '</b> inventaringizga qoşildi.' +
-              (c.equippable ? ' ' + noun + ' hozirning özidayoq taqasizmi?' : '') + '</p>' +
+            '<h2 class="buy-confirm-title">' + tr("buy_done_title", "Tabriklaymiz!") + '</h2>' +
+            '<p class="buy-confirm-lede"><b>' + esc(c.title) + '</b> ' + tr("buy_added", "inventaringizga qoşildi.") + '' +
+              (c.equippable ? ' ' + trp("buy_equip_ask", {noun: noun}, noun + ' hozirning özidayoq taqasizmi?') : '') + '</p>' +
             '<div class="buy-confirm-actions">' +
               (c.equippable
-                ? '<button class="btn primary block" type="button" data-act="buy-equip"' + (c.busy ? " disabled" : "") + '>⚡ Hozir taqish</button>'
+                ? '<button class="btn primary block" type="button" data-act="buy-equip"' + (c.busy ? " disabled" : "") + '>' + tr("buy_equip_now", "⚡ Hozir taqish") + '</button>'
                 : '') +
-              '<button class="btn block" type="button" data-act="buy-cancel">Yopiş</button>' +
+              '<button class="btn block" type="button" data-act="buy-cancel">' + tr("buy_close", "Yopiş") + '</button>' +
             '</div></section></div>';
         } else {
-          html = '<div class="buy-confirm-overlay"><section class="buy-confirm-card" role="dialog" aria-modal="true" aria-label="Xaridni tasdiqlang">' +
+          html = '<div class="buy-confirm-overlay"><section class="buy-confirm-card" role="dialog" aria-modal="true" aria-label="' + tr("buy_confirm_title", "Xaridni tasdiqlang") + '">' +
             '<button class="buy-confirm-x" type="button" data-act="buy-cancel" aria-label="Yopiş" title="Yopiş">✕</button>' +
             '<h2 class="buy-confirm-title">🛍️ ' + tr("buy_confirm_title", "Xaridni tasdiqlang") + '</h2>' +
             '<div class="buy-confirm-item">' +
@@ -5204,16 +5209,16 @@ function profileCardHtml() {
                 (c.description ? '<small>' + esc(c.description) + '</small>' : '') + '</div>' +
             '</div>' +
             '<div class="buy-confirm-rows">' +
-              '<div class="buy-confirm-row"><span>Narxi</span><b class="price">🪙 ' + money(c.price) + ' tanga</b></div>' +
-              '<div class="buy-confirm-row"><span>Qoladigan balans</span><b class="' + (enough ? "" : "low") + '">' + money(left) + ' tanga</b></div>' +
+              '<div class="buy-confirm-row"><span>' + tr("buy_price", "Narxi") + '</span><b class="price">🪙 ' + money(c.price) + ' tanga</b></div>' +
+              '<div class="buy-confirm-row"><span>' + tr("buy_left", "Qoladigan balans") + '</span><b class="' + (enough ? "" : "low") + '">' + money(left) + ' tanga</b></div>' +
             '</div>' +
             '<p class="buy-confirm-note">' + (enough
-              ? 'Tasdiqlasangiz, ' + money(c.price) + ' tanga hisobingizdan darhol yechiladi.'
-              : 'Tangalar yetarli emas — ' + money(Math.abs(left)) + ' tanga yetmayapti.') + '</p>' +
+              ? trp("buy_note", {amount: money(c.price)}, 'Tasdiqlasangiz, ' + money(c.price) + ' tanga hisobingizdan darhol yechiladi.')
+              : trp("buy_not_enough", {amount: money(Math.abs(left))}, 'Tangalar yetarli emas — ' + money(Math.abs(left)) + ' tanga yetmayapti.')) + '</p>' +
             '<div class="buy-confirm-actions">' +
               '<button class="btn primary block" type="button" data-act="buy-confirm"' + (enough && !c.busy ? "" : " disabled") + '>' +
-                (c.busy ? 'Sotib olinmoqda…' : '✅ Ha, sotib olaman') + '</button>' +
-              '<button class="btn block" type="button" data-act="buy-cancel">✕ Bekor qiliş</button>' +
+                (c.busy ? tr("buy_busy", "Sotib olinmoqda…") : tr("buy_confirm_yes", "✅ Ha, sotib olaman")) + '</button>' +
+              '<button class="btn block" type="button" data-act="buy-cancel">✕ ' + tr("buy_confirm_cancel", "Bekor qiliş") + '</button>' +
             '</div></section></div>';
 }
         root.innerHTML = html;
@@ -6881,7 +6886,7 @@ function leaderboardHtml() {
       function enterMafia(code) {
         var normalized = mafiaStartCode(code) || normalizeCode(code);
         if (!/^MAF\d{3}$/.test(normalized)) {
-          toast("Mafiya xona kodi MAF123 körinişida böladi", "error");
+          toast(tr("room_code_mafia", "Mafiya xona kodi MAF123 körinişida böladi"), "error");
           return;
 }
         view.mode = "mafia";
@@ -7355,7 +7360,7 @@ function leaderboardHtml() {
       function enterSpy(code) {
         var normalized = spyStartCode(code) || normalizeCode(code);
         if (!/^SPY\d{3}$/.test(normalized)) {
-          toast("Josus xona kodi SPY123 körinişida böladi", "error");
+          toast(tr("room_code_spy", "Josus xona kodi SPY123 körinişida böladi"), "error");
           return;
 }
         view.mode = "spy";
@@ -7706,10 +7711,10 @@ function leaderboardHtml() {
 
         var hero = '<section class="spy-hero">' +
           '<p class="mafia-kicker">Revilend Games \u00b7 Spyfall</p>' +
-          '<h1>' + (status === "LOBBY" ? icon("glasses") + " Josus yiğilmoqda" : (status === "FINISHED" ? "Öyin yakunlandi" : icon("glasses") + " Josus kim?")) + '</h1>' +
+          '<h1>' + (status === "LOBBY" ? icon("glasses") + " " + tr("spy_lobby_title", "Josus yiğilmoqda") : (status === "FINISHED" ? tr("spy_finished", "Öyin yakunlandi") : icon("glasses") + " " + tr("spy_question", "Josus kim?"))) + '</h1>' +
           '<p>' + (status === "LOBBY"
-            ? "Xona kodini döstlaringizga yuboring. Kamida 3 kişi kerak."
-            : "Joyni sir saqlang, savol-javob qiling va josusni toping.") + '</p></section>';
+            ? tr("spy_lobby_hint", "Xona kodini döstlaringizga yuboring. Kamida 3 kişi kerak.")
+            : tr("spy_play_hint", "Joyni sir saqlang, savol-javob qiling va josusni toping.")) + '</p></section>';
 
         var lobby = "";
         if (status === "LOBBY") {

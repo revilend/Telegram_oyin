@@ -23,7 +23,7 @@ from aiogram.types import (
 from bot.config import get_config
 from bot.handlers import admin, games_catalog, missions, shop, tournaments
 from bot.keyboards.main_menu import mini_app_url_for
-from core.i18n import all_button_texts, resolve_language, t
+from core.i18n import all_variants, resolve_language, t
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ router = Router(name="menu")
 PRIVATE = F.chat.type == "private"
 
 
-@router.message(PRIVATE, F.text.in_(all_button_texts("games")))
+@router.message(PRIVATE, F.text.in_(all_variants("games")))
 async def menu_games(message: Message) -> None:
     """🎮 O'yinlar — Mini App'ni inline web_app tugmasi orqali ochadi.
 
@@ -75,32 +75,32 @@ async def menu_games(message: Message) -> None:
     await common_handlers.send_login_code(message)
 
 
-@router.message(PRIVATE, F.text.in_(all_button_texts("shop")))
+@router.message(PRIVATE, F.text.in_(all_variants("shop")))
 async def menu_shop(message: Message, state: FSMContext) -> None:
     """🪙 Tangalar do'koni — /shop menyusini ochadi."""
     await shop.send_shop(message, state)
 
 
-@router.message(PRIVATE, F.text.in_(all_button_texts("tournaments")))
+@router.message(PRIVATE, F.text.in_(all_variants("tournaments")))
 async def menu_tournaments(message: Message) -> None:
     """🏆 Turnirlar — haftalik çempionat afishasi."""
     await tournaments.show_tournaments(message)
 
 
-@router.message(PRIVATE, F.text.in_(all_button_texts("games_list")))
+@router.message(PRIVATE, F.text.in_(all_variants("games_list")))
 async def menu_game_list(message: Message) -> None:
     """🎲 O'yinlar ro'yxati — platformadagi barcha o'yinlar."""
     await games_catalog.show_games(message)
 
 
-@router.message(PRIVATE, F.text.in_(all_button_texts("missions")))
+@router.message(PRIVATE, F.text.in_(all_variants("missions")))
 @router.message(PRIVATE, Command("missions"))
 async def menu_missions(message: Message) -> None:
     """🎯 Missiyalar — topshiriqlar va mukofotlar."""
     await missions.show_missions(message)
 
 
-@router.message(PRIVATE, F.text.in_(all_button_texts("admin")))
+@router.message(PRIVATE, F.text.in_(all_variants("admin")))
 async def menu_admin(message: Message, state: FSMContext | None = None) -> None:
     """👑 Admin panel — statistika va inline boshqaruv tugmalari."""
     await admin.admin_panel(message, state)

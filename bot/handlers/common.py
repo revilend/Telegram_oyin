@@ -29,7 +29,7 @@ from bot.config import get_config
 from bot.handlers.admin import is_admin
 from bot.keyboards.main_menu import build_main_menu, mini_app_url_for
 from bot.handlers.profile import language_keyboard
-from core.i18n import LANGUAGES, all_button_texts, resolve_language, t
+from core.i18n import LANGUAGES, all_variants, resolve_language, t
 from core.economy import (
     REFERRAL_BONUS,
     START_COINS,
@@ -74,8 +74,10 @@ CANCELLED_TEXT = t("uz", "cancelled")
 CANCELLED_TEXTS: frozenset[str] = frozenset(
     t(language, "cancelled") for language in LANGUAGES
 )
+# Bekor qilish tugmasi uch tilde ham taniladi (UZ eski variantlari saqlanadi).
 CANCEL_TEXTS: frozenset[str] = frozenset(
-    {"/cancel", "❌ Bekor qiliş", "Bekor qiliş", "❌ Tölov bekor qilindi."}
+    {"/cancel", "Bekor qiliş", "❌ Tölov bekor qilindi."}
+    | {t(language, "cancel_button") for language in LANGUAGES}
     | CANCELLED_TEXTS
 )
 
@@ -560,7 +562,7 @@ async def login_command(message: Message) -> None:
     await send_login_code(message, account)
 
 
-@router.message(F.chat.type == "private", F.text.in_(all_button_texts("invite")))
+@router.message(F.chat.type == "private", F.text.in_(all_variants("invite")))
 async def invite_friends(message: Message) -> None:
     """👥 Do'stlarni taklif qilish — shaxsiy havola va ishlangan tangalar."""
     user = message.from_user
@@ -659,7 +661,7 @@ async def _edit_or_send(
 
 
 @router.message(Command("help", "rules"))
-@router.message(F.chat.type == "private", F.text.in_(all_button_texts("rules")))
+@router.message(F.chat.type == "private", F.text.in_(all_variants("rules")))
 async def menu_rules(message: Message) -> None:
     """ℹ️ Qoidalar / Yordam — barcha o'yinlar bo'yicha inline menyu."""
     user = message.from_user

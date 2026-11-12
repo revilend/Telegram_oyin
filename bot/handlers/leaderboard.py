@@ -17,7 +17,7 @@ from aiogram.types import Message
 
 from bot.handlers.profile import display_name, safe_int
 from core.economy import UserAccount, format_price, get_economy, player_rating
-from core.i18n import all_button_texts, resolve_language, t
+from core.i18n import all_variants, resolve_language, t
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def leaderboard_text(
 
 @router.message(Command("top", "leaderboard", "reyting"))
 @router.message(
-    F.chat.type == "private", F.text.in_(all_button_texts("leaderboard"))
+    F.chat.type == "private", F.text.in_(all_variants("leaderboard"))
 )
 async def show_leaderboard(message: Message) -> None:
     """Top o'yinchilar ro'yxatini yuboradi."""

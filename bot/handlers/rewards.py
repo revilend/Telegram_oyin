@@ -19,7 +19,7 @@ from core.economy import (
     format_price,
     get_economy,
 )
-from core.i18n import all_button_texts, resolve_language, t
+from core.i18n import all_variants, resolve_language, t
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ def bonus_wait_text(
 
 
 @router.message(PRIVATE, Command("bonus"))
-@router.message(PRIVATE, F.text.in_(all_button_texts("bonus")))
+@router.message(PRIVATE, F.text.in_(all_variants("bonus")))
 async def claim_bonus(message: Message) -> None:
     """Kunlik bonusni oladi yoki qolgan vaqtni aytadi."""
     user = message.from_user
@@ -109,7 +109,7 @@ async def claim_bonus(message: Message) -> None:
 
 
 @router.message(PRIVATE, Command("promo"))
-@router.message(PRIVATE, F.text.in_(all_button_texts("promo")))
+@router.message(PRIVATE, F.text.in_(all_variants("promo")))
 async def ask_promo(message: Message, state: FSMContext) -> None:
     """Promo kod kiritishni so'raydi."""
     user = message.from_user

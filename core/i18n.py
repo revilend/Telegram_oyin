@@ -111,15 +111,28 @@ def default_label(key: str, language: Any = None) -> str:
     return BUTTONS.get(key, {}).get(lang, key)
 
 
+def all_variants(key: str) -> list[str]:
+    """Tugma matnining uch tildagi variantlari: ``[uz, ru, en]``.
+
+    Handlerlar ``F.text.in_(all_variants("shop"))`` orqali foydalanuvchi
+    qaysi tilda yozsa ham tugmani taniydi. Noma'lum kalit uchun ``KeyError``.
+    """
+    texts: list[str] = []
+    for lang in LANGUAGES:
+        text = BUTTONS.get(key, {}).get(lang)
+        if text and text not in texts:
+            texts.append(text)
+    if not texts:
+        raise KeyError(f"Noma'lum tugma kaliti: {key}")
+    return texts
+
+
 def all_button_texts(key: str | None = None) -> frozenset[str]:
-    """Barcha tillardagi tugma matnlari to'plami (handler filtri uchun)."""
+    """Barcha tillardagi tugma matnlari to'plami (eski API, moslik uchun)."""
     keys = [key] if key else list(BUTTONS.keys())
     texts: set[str] = set()
     for item in keys:
-        for lang in LANGUAGES:
-            text = BUTTONS.get(item, {}).get(lang)
-            if text:
-                texts.add(text)
+        texts.update(all_variants(item))
     return frozenset(texts)
 
 
@@ -236,6 +249,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "uz": "🎁 Röyxatdan ötganingiz uçun <b>{amount}</b> bepul tanga berildi!",
         "ru": "🎁 За регистрацию вам начислено <b>{amount}</b> бесплатных монет!",
         "en": "🎁 You received <b>{amount}</b> free coins for registering!",
+    },
+    "cancel_button": {
+        "uz": "❌ Bekor qiliş",
+        "ru": "❌ Отмена",
+        "en": "❌ Cancel",
     },
     "cancelled": {
         "uz": "❌ Jarayon bekor qilindi.",

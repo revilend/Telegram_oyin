@@ -25,7 +25,7 @@ from core.economy import (
 )
 from core.i18n import (
     LANGUAGE_NAMES,
-    all_button_texts,
+    all_variants,
     normalize_language,
     resolve_language,
     set_language,
@@ -164,7 +164,7 @@ def profile_keyboard(language: str) -> InlineKeyboardMarkup:
 
 
 @router.message(Command("profile", "me"))
-@router.message(F.chat.type == "private", F.text.in_(all_button_texts("profile")))
+@router.message(F.chat.type == "private", F.text.in_(all_variants("profile")))
 async def show_profile(message: Message) -> None:
     """Profil kartochkasini yuboradi."""
     user = message.from_user
@@ -200,7 +200,7 @@ async def change_language(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.message(F.chat.type == "private", F.text.in_(all_button_texts("change_language")))
+@router.message(F.chat.type == "private", F.text.in_(all_variants("change_language")))
 async def language_button(message: Message) -> None:
     """Pastki menyudagi til tugmasi: uch tilli inline klaviaturani ochadi."""
     user = message.from_user
