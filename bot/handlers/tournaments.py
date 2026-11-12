@@ -6,6 +6,9 @@ yoki ``tournament_ticket`` çiptasi sarflanadi.  Boshlanişga 15 daqiqa
 qolganda yozilgan o'yinchilarga shaxsiy eslatma (va boshlanganda xona
 havolasi) yuboriladi.  Ro'yxatdan o'tish faqat yozuvdir: xona ochilmaydi,
 Mini App ``web_app`` ga yo'naltirilmaydi.
+
+Barcha matnlar ``core/i18n_texts.py`` dagi ``tourn_*`` kalitlaridan UZ/RU/EN
+da olinadi; til foydalanuvchining ``language_code`` si bo'yicha aniqlanadi.
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from aiogram.types import (
 from bot.config import get_config
 from bot.keyboards.main_menu import mini_app_url_for
 from core.economy import format_price
+from core.i18n import all_variants, resolve_language, t
 from core.tournaments import (
     ENTRY_FEE,
     OPEN,
@@ -46,8 +50,6 @@ from core.tournaments import (
 logger = logging.getLogger(__name__)
 
 router = Router(name="tournaments")
-
-from core.i18n import all_variants, resolve_language, t
 
 TOURNAMENTS_BUTTON = "🏆 Turnirlar"
 OPEN_CALLBACK = "tournaments_open"
@@ -72,59 +74,84 @@ def _ticket_count(user_id: int | None, store: TournamentStore) -> int:
         return 0
 
 
-def poster_text(user_id: int | None = None, store: TournamentStore | None = None) -> str:
-    """Turnirlar afishasi matni (Supabase holatidan)."""
+def poster_text(
+    user_id: int | None = None,
+    store: TournamentStore | None = None,
+    *,
+    language: str = "uz",
+) -> str:
+    """Turnirlar afishasi matni (Supabase holatidan, tilga mos)."""
     storehouse = store or get_tournament_store()
     tournaments = storehouse.visible()
-    lines = ["🏆 <b>Revilend Haftalik Turnirlar</b>", ""]
+    lines = [t(language, "tourn_poster_title"), ""]
     if not tournaments:
-        lines.append(
-            "Hozirça röyxatga oliş oçiq turnir yöq. Tez orada yangi "
-            "çempionat e'lon qilinadi!"
-        )
+        lines.append(t(language, "tourn_poster_empty"))
         return "\n".join(lines)
 
-    lines.append(
-        "Haftalik çempionatlarda kuçingizni sinang — sovrin fondi va "
-        "şön-şöhrat sizni kutmoqda."
-    )
+    lines.append(t(language, "tourn_poster_lede"))
     lines.append("")
     for tournament in tournaments:
         joined = (
             user_id is not None
             and storehouse.joined(tournament.id, int(user_id))
         )
-        lines.append(f"🏆 <b>{escape(tournament.title, quote=False)}!</b>")
-        lines.append(f"🎮 Öyin: <b>{escape(tournament.game_title, quote=False)}</b>")
         lines.append(
-            f"💰 Sovrin fondi: <b>{format_price(tournament.prize_pool)} tanga</b>"
+            t(
+                language,
+                "tourn_poster_line_title",
+                title=escape(tournament.title, quote=False),
+            )
         )
         lines.append(
-            f"👥 Örinlar: <b>{storehouse.participant_count(tournament.id)}"
-            f" / {tournament.max_participants} kişi</b>"
+            t(
+                language,
+                "tourn_poster_line_game",
+                game=escape(tournament.game_title, quote=False),
+            )
         )
         lines.append(
-            f"⏰ Boşlaniş vaqti: <b>{format_local(tournament.starts_at) or '—'}</b>"
-            f" ({countdown_text(tournament.starts_at)})"
+            t(
+                language,
+                "tourn_poster_line_prize",
+                prize=format_price(tournament.prize_pool),
+            )
         )
         lines.append(
-            f"📌 Holati: <b>{escape(status_label(tournament.status), quote=False)}</b>"
+            t(
+                language,
+                "tourn_poster_line_slots",
+                joined=storehouse.participant_count(tournament.id),
+                total=tournament.max_participants,
+            )
+        )
+        lines.append(
+            t(
+                language,
+                "tourn_poster_line_start",
+                when=format_local(tournament.starts_at) or "—",
+                countdown=countdown_text(tournament.starts_at),
+            )
+        )
+        lines.append(
+            t(
+                language,
+                "tourn_poster_line_status",
+                status=escape(status_label(tournament.status), quote=False),
+            )
         )
         if joined:
-            lines.append("✅ Siz bu turnirga röyxatdan ötgansiz.")
+            lines.append(t(language, "tourn_poster_joined"))
         lines.append("")
 
     tickets = _ticket_count(user_id, storehouse)
-    lines.append(
-        f"🎟 Qatnaşiş narxi: <b>{ENTRY_FEE} tanga</b> yoki turnir çiptasi."
-    )
+    lines.append(t(language, "tourn_poster_fee", fee=ENTRY_FEE))
     if tickets:
-        lines.append(f"🎟 Sizda <b>{tickets}</b> ta turnir çiptasi bor.")
+        lines.append(t(language, "tourn_poster_tickets", count=tickets))
     lines.append("")
     if any(item.status == OPEN for item in tournaments):
-        lines.append("Örinlar çeklangan — hoziroq yoziling!")
+        lines.append(t(language, "tourn_poster_hurry"))
     else:
-        lines.append("Turnir boşlanişini kuting — barça öyinçilarga xabar beriladi.")
+        lines.append(t(language, "tourn_poster_wait"))
     return "\n".join(lines)
 
 
@@ -149,8 +176,9 @@ def poster_keyboard(
     *,
     username: str = "",
     full_name: str = "",
+    language: str = "uz",
 ) -> InlineKeyboardMarkup:
-    """Har bir turnir uchun holatga mos tugmalar."""
+    """Har bir turnir uchun holatga mos tugmalar (tilga mos)."""
     storehouse = store or get_tournament_store()
     rows: list[list[InlineKeyboardButton]] = []
     for tournament in storehouse.visible():
@@ -162,7 +190,7 @@ def poster_keyboard(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        text="▶️ Turnir boşlangan",
+                        text=t(language, "tourn_btn_started"),
                         callback_data=NOOP_CALLBACK,
                     )
                 ]
@@ -171,7 +199,7 @@ def poster_keyboard(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        text="✅ Siz röyxatdan ötgansiz",
+                        text=t(language, "tourn_btn_joined"),
                         callback_data=NOOP_CALLBACK,
                     )
                 ]
@@ -179,7 +207,7 @@ def poster_keyboard(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        text="❌ Röyxatdan çiqiş",
+                        text=t(language, "tourn_btn_leave"),
                         callback_data=f"{LEAVE_CALLBACK_PREFIX}{tournament.id}",
                     )
                 ]
@@ -188,7 +216,7 @@ def poster_keyboard(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        text="⛔ Joylar töldi",
+                        text=t(language, "tourn_btn_full"),
                         callback_data=NOOP_CALLBACK,
                     )
                 ]
@@ -197,7 +225,7 @@ def poster_keyboard(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        text="✍️ Turnirga röyxatdan ötiş",
+                        text=t(language, "tourn_btn_join"),
                         callback_data=f"{JOIN_CALLBACK_PREFIX}{tournament.id}",
                     )
                 ]
@@ -209,20 +237,32 @@ def poster_keyboard(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        text="🌐 Mini App'da köriş",
+                        text=t(language, "tourn_btn_mini_app"),
                         web_app=WebAppInfo(url=url),
                     )
                 ]
             )
         else:
             rows.append(
-                [InlineKeyboardButton(text="🌐 Mini App'da köriş", url=url)]
+                [
+                    InlineKeyboardButton(
+                        text=t(language, "tourn_btn_mini_app"), url=url
+                    )
+                ]
             )
     rows.append(
-        [InlineKeyboardButton(text="🔄 Yangilaş", callback_data=REFRESH_CALLBACK)]
+        [
+            InlineKeyboardButton(
+                text=t(language, "tourn_btn_reload"), callback_data=REFRESH_CALLBACK
+            )
+        ]
     )
     rows.append(
-        [InlineKeyboardButton(text="⬅️ Öyinlar röyxati", callback_data=BACK_CALLBACK)]
+        [
+            InlineKeyboardButton(
+                text=t(language, "tourn_btn_back"), callback_data=BACK_CALLBACK
+            )
+        ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -230,12 +270,17 @@ def poster_keyboard(
 async def show_tournaments(message: Message) -> None:
     """Turnirlar afishasini yuboradi."""
     user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
     await message.answer(
-        poster_text(user.id if user is not None else None),
+        poster_text(user.id if user is not None else None, language=language),
         reply_markup=poster_keyboard(
             user.id if user is not None else None,
             username=(user.username or "") if user is not None else "",
             full_name=(user.full_name or "") if user is not None else "",
+            language=language,
         ),
     )
 
@@ -256,18 +301,25 @@ async def _show(
     )
 
 
+def _callback_language(callback: CallbackQuery) -> str:
+    """Callback egasining tilini aniqlaydi."""
+    user = callback.from_user
+    return resolve_language(user.id, getattr(user, "language_code", None))
+
+
 async def _refresh(callback: CallbackQuery) -> None:
     user = callback.from_user
+    language = _callback_language(callback)
     await _show(
         callback,
-        poster_text(user.id),
+        poster_text(user.id, language=language),
         poster_keyboard(
             user.id,
             username=user.username or "",
             full_name=user.full_name or "",
+            language=language,
         ),
     )
-
 
 
 def parse_start(value: str) -> datetime:
@@ -293,16 +345,16 @@ async def new_tournament_command(message: Message, command: CommandObject) -> No
     from bot.handlers.admin import is_admin
 
     user = message.from_user
+    language = resolve_language(
+        user.id if user is not None else None,
+        getattr(user, "language_code", None) if user is not None else None,
+    )
     if user is None or not is_admin(user.id):
-        await message.answer("⛔ Bu buyruq faqat administrator uçun.")
+        await message.answer(t(language, "tourn_admin_only"))
         return
     parts = (command.args or "").split()
     if len(parts) != 4:
-        await message.answer(
-            "Format: <code>/new_tournament bunker 50 1000 2d</code>\n"
-            "Öyin: bunker, mafiya, josus, alias, mixed. Vaqt: <code>2h</code>, "
-            "<code>3d</code> yoki ISO sana."
-        )
+        await message.answer(t(language, "tourn_new_format"))
         return
     game, fee_raw, prize_raw, start_raw = parts
     try:
@@ -310,7 +362,7 @@ async def new_tournament_command(message: Message, command: CommandObject) -> No
         prize = int(prize_raw)
         starts_at = parse_start(start_raw)
     except (ValueError, TypeError):
-        await message.answer("⚠️ Narx, sovrin yoki vaqt notöğri kiritildi.")
+        await message.answer(t(language, "tourn_new_bad_input"))
         return
     try:
         tournament = get_tournament_store().create(
@@ -321,15 +373,18 @@ async def new_tournament_command(message: Message, command: CommandObject) -> No
             created_by=user.id,
         )
     except TournamentError as exc:
-        await message.answer(f"⚠️ {exc}")
+        await message.answer(t(language, "tourn_new_error", error=exc))
         return
     await message.answer(
-        "✅ <b>Yangi turnir yaratildi!</b>\n\n"
-        f"🔥 {tournament.title}\n"
-        f"🎮 Öyin: {tournament.game_title}\n"
-        f"💰 Sovrin: {format_price(tournament.prize_pool)} tanga\n"
-        f"🎟 Qatnaşiş: {format_price(tournament.entry_fee)} tanga\n"
-        f"🕒 Boşlaniş: {format_local(tournament.starts_at)}"
+        t(
+            language,
+            "tourn_new_created",
+            title=escape(tournament.title, quote=False),
+            game=escape(tournament.game_title, quote=False),
+            prize=format_price(tournament.prize_pool),
+            fee=format_price(tournament.entry_fee),
+            start=format_local(tournament.starts_at),
+        )
     )
 
 
@@ -343,7 +398,7 @@ async def tournaments_command(message: Message) -> None:
 
 @router.callback_query(F.data == OPEN_CALLBACK)
 async def tournaments_open(callback: CallbackQuery) -> None:
-    """Öyinlar vitrinasidan turnirlarga ötiş."""
+    """O'yinlar vitrinasidan turnirlarga o'tish."""
     await callback.answer()
     await _refresh(callback)
 
@@ -351,7 +406,8 @@ async def tournaments_open(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == REFRESH_CALLBACK)
 async def tournaments_refresh(callback: CallbackQuery) -> None:
     """Afishani yangilaydi."""
-    await callback.answer("Yangilandi")
+    language = _callback_language(callback)
+    await callback.answer(t(language, "tourn_reloaded"))
     await _refresh(callback)
 
 
@@ -363,18 +419,23 @@ def _join_tournament_id(data: str) -> str:
     return ""
 
 
-def join_success_text(tournament: Tournament, user_id: int | None = None) -> str:
+def join_success_text(
+    tournament: Tournament,
+    user_id: int | None = None,
+    *,
+    language: str = "uz",
+) -> str:
     """Ro'yxatdan o'tish tasdiq matni: boshlanish vaqti va 15 daqiqa izohi.
 
     Bu xabar ``tournament_participants`` ga yozilganidan keyin ko'rsatiladi;
     o'yin xonasi hali yaratilmagan bo'ladi.
     """
     starts = escape(format_local(tournament.starts_at) or "—", quote=False)
-    return (
-        "✅ <b>Muvaffaqiyatli röyxatdan ötdingiz!</b>\n\n"
-        f"🏆 Turnir: <b>{escape(tournament.title, quote=False)}</b>\n"
-        f"🕒 Boşlaniş: <b>{starts}</b>\n\n"
-        "Boşlanişidan 15 daqiqa oldin bot sizga xona havolasini yuboradi."
+    return t(
+        language,
+        "tourn_join_success",
+        title=escape(tournament.title, quote=False),
+        start=starts,
     )
 
 
@@ -388,6 +449,7 @@ async def tournaments_join(callback: CallbackQuery) -> None:
     O'yin xonasi faqat turnir boshlanganda (yoki admin start bosganda)
     yaratilib, havolasi qatnashchilarga shaxsan yuboriladi.
     """
+    language = _callback_language(callback)
     tournament_id = _join_tournament_id(callback.data or "")
     store = get_tournament_store()
     try:
@@ -401,78 +463,90 @@ async def tournaments_join(callback: CallbackQuery) -> None:
         # Qayta bosish pulni qayta yechmaydi: holat allaqachon yozilgan.
         tournament = store.get(tournament_id)
         if tournament is None:
-            await callback.answer("Turnir topilmadi.", show_alert=True)
+            await callback.answer(
+                t(language, "tourn_not_found"), show_alert=True
+            )
             return
-        await callback.answer("✅ Siz allaqaçon röyxatdan ötgansiz!")
+        await callback.answer(t(language, "tourn_already_joined"))
         await _show(
             callback,
-            join_success_text(tournament) + "\n\n" + poster_text(callback.from_user.id, store),
+            join_success_text(tournament, language=language)
+            + "\n\n"
+            + poster_text(callback.from_user.id, store, language=language),
             poster_keyboard(
                 callback.from_user.id,
                 store,
                 username=callback.from_user.username or "",
                 full_name=callback.from_user.full_name or "",
+                language=language,
             ),
         )
         return
     except TournamentError as exc:
-        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        await callback.answer(
+            t(language, "tourn_new_error", error=exc), show_alert=True
+        )
         return
-    await callback.answer("✅ Röyxatdan ötdingiz!")
+    await callback.answer(t(language, "tourn_joined_ok"))
     await _show(
         callback,
-        join_success_text(result.tournament) + "\n\n" + poster_text(callback.from_user.id, store),
+        join_success_text(result.tournament, language=language)
+        + "\n\n"
+        + poster_text(callback.from_user.id, store, language=language),
         poster_keyboard(
             callback.from_user.id,
             store,
             username=callback.from_user.username or "",
             full_name=callback.from_user.full_name or "",
+            language=language,
         ),
     )
 
 
 @router.callback_query(F.data.startswith(LEAVE_CALLBACK_PREFIX))
 async def tournaments_leave(callback: CallbackQuery) -> None:
-    """Foydalanuvchini turnir röyxatidan chiqaradi."""
+    """Foydalanuvchini turnir ro'yxatidan chiqaradi."""
+    language = _callback_language(callback)
     tournament_id = (callback.data or "")[len(LEAVE_CALLBACK_PREFIX) :]
     try:
         get_tournament_store().leave(callback.from_user.id, tournament_id)
     except TournamentError as exc:
-        await callback.answer(f"⚠️ {exc}", show_alert=True)
+        await callback.answer(
+            t(language, "tourn_leave_error", error=exc), show_alert=True
+        )
         return
-    await callback.answer(
-        "❌ Siz turnir röyxatidan çiqdingiz.", show_alert=True
-    )
+    await callback.answer(t(language, "tourn_left"), show_alert=True)
     await _refresh(callback)
 
 
 @router.callback_query(F.data == NOOP_CALLBACK)
 async def tournaments_noop(callback: CallbackQuery) -> None:
     """Holat tugmalari uchun ma'lumot beradi."""
-    await callback.answer("Ma'lumot yangilandi")
+    await callback.answer(t(_callback_language(callback), "tourn_noop_info"))
 
 
-def room_link_text(tournament: Tournament) -> str:
+def room_link_text(tournament: Tournament, *, language: str = "uz") -> str:
     """Turnir boşlanganda qatnaşçilarga yuboriladigan xona havolasi."""
-    link = escape(tournament.room_link, quote=False)
-    return (
-        "🏆 <b>Turnir boşlandi!</b>\n\n"
-        f"🔥 <b>{escape(tournament.title, quote=False)}</b>\n"
-        f"🎮 Öyin: <b>{escape(tournament.game_title, quote=False)}</b>\n"
-        f"🕒 Boşlaniş: <b>{format_local(tournament.starts_at)}</b>\n"
-        f"💰 Sovrin fondi: <b>{format_price(tournament.prize_pool)} tanga</b>\n\n"
-        f"🔗 <b>Xona havolasi:</b> {link}\n\n"
-        "Xonaga kirib, öyinni başlang. Omad! 🍀"
+    return t(
+        language,
+        "tourn_room_started",
+        title=escape(tournament.title, quote=False),
+        game=escape(tournament.game_title, quote=False),
+        start=format_local(tournament.starts_at),
+        prize=format_price(tournament.prize_pool),
+        link=escape(tournament.room_link, quote=False),
     )
 
 
-def room_link_keyboard(tournament: Tournament) -> InlineKeyboardMarkup:
-    """Xona havolasiga ötiş tugmasi."""
+def room_link_keyboard(
+    tournament: Tournament, *, language: str = "uz"
+) -> InlineKeyboardMarkup:
+    """Xona havolasiga o'tish tugmasi."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚪 Xonaga kiriş", url=tournament.room_link
+                    text=t(language, "tourn_btn_room"), url=tournament.room_link
                 )
             ]
         ]
@@ -489,6 +563,7 @@ async def send_room_links(
     ``tournament`` berilmasa, vaqti kelgan va havolasi hali yuborilmagan
     turnirlar tanlanadi.  Yuborilgani ``room_sent_at`` bilan belgilanadi,
     shuning uchun sikl qayta işga tushsa ham takroriy xabar ketmaydi.
+    Har bir qatnashchi o'z tilida xabar oladi.
     """
     storehouse = store or get_tournament_store()
     targets = [tournament] if tournament is not None else storehouse.due_room_links()
@@ -496,13 +571,13 @@ async def send_room_links(
     for item in targets:
         if item is None or not item.room_link:
             continue
-        keyboard = room_link_keyboard(item)
         for participant in storehouse.participants(item.id):
+            language = resolve_language(participant.user_id)
             try:
                 await bot.send_message(
                     participant.user_id,
-                    room_link_text(item),
-                    reply_markup=keyboard,
+                    room_link_text(item, language=language),
+                    reply_markup=room_link_keyboard(item, language=language),
                     disable_web_page_preview=True,
                 )
                 delivered += 1
@@ -520,15 +595,15 @@ async def send_room_links(
     return delivered
 
 
-def reminder_text(tournament: Tournament) -> str:
-    """Turnir boşlanişidan öldin yuboriladigan eslatma."""
-    return (
-        "🏆 <b>Turnir boşlanişiga 15 daqiqa qoldi!</b>\n\n"
-        f"🔥 <b>{tournament.title}</b>\n"
-        f"🎮 Öyin: <b>{tournament.game_title}</b>\n"
-        f"🕒 Boşlaniş: <b>{format_local(tournament.starts_at)}</b>\n"
-        f"💰 Sovrin fondi: <b>{format_price(tournament.prize_pool)} tanga</b>\n\n"
-        "Guruhda öyin boşlanişini kuting va tayyor turing. Omad! 🍀"
+def reminder_text(tournament: Tournament, *, language: str = "uz") -> str:
+    """Turnir boşlanişidan öldin yuboriladigan eslatma (tilga mos)."""
+    return t(
+        language,
+        "tourn_reminder",
+        title=escape(tournament.title, quote=False),
+        game=escape(tournament.game_title, quote=False),
+        start=format_local(tournament.starts_at),
+        prize=format_price(tournament.prize_pool),
     )
 
 
@@ -541,9 +616,11 @@ async def reminder_loop(bot: Bot, interval: int = REMINDER_INTERVAL_SECONDS) -> 
             for tournament in store.due_reminders():
                 store.mark_reminded(tournament.id)
                 for participant in store.participants(tournament.id):
+                    language = resolve_language(participant.user_id)
                     try:
                         await bot.send_message(
-                            participant.user_id, reminder_text(tournament)
+                            participant.user_id,
+                            reminder_text(tournament, language=language),
                         )
                     except TelegramAPIError:
                         logger.info(

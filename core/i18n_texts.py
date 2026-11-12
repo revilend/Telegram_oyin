@@ -472,4 +472,196 @@ HANDLER_STRINGS: dict[str, dict[str, str]] = {
     "shop_done": {"uz": "Bajarildi", "ru": "Выполнено", "en": "Done"},
     "shop_receipt_default": {"uz": "🧾 Tölov çeki", "ru": "🧾 Чек об оплате", "en": "🧾 Payment receipt"},
 
+
+    # --- Turnirlar (bot/handlers/tournaments.py) --------------------------
+    "tourn_poster_title": {
+        "uz": "🏆 <b>Revilend Haftalik Turnirlar</b>",
+        "ru": "🏆 <b>Еженедельные турниры Revilend</b>",
+        "en": "🏆 <b>Revilend Weekly Tournaments</b>",
+    },
+    "tourn_poster_empty": {
+        "uz": "Hozirça röyxatga oliş oçiq turnir yöq. Tez orada yangi çempionat e'lon qilinadi!",
+        "ru": "Сейчас нет турниров с открытой регистрацией. Скоро будет объявлен новый чемпионат!",
+        "en": "There are no tournaments open for registration right now. A new championship is coming soon!",
+    },
+    "tourn_poster_lede": {
+        "uz": "Haftalik çempionatlarda kuçingizni sinang — sovrin fondi va şön-şöhrat sizni kutmoqda.",
+        "ru": "Проверьте силы в еженедельных чемпионатах — призовой фонд и слава ждут вас.",
+        "en": "Test your strength in weekly championships — prize pools and glory await you.",
+    },
+    "tourn_poster_line_title": {
+        "uz": "🏆 <b>{title}!</b>",
+        "ru": "🏆 <b>{title}!</b>",
+        "en": "🏆 <b>{title}!</b>",
+    },
+    "tourn_poster_line_game": {
+        "uz": "🎮 Öyin: <b>{game}</b>",
+        "ru": "🎮 Игра: <b>{game}</b>",
+        "en": "🎮 Game: <b>{game}</b>",
+    },
+    "tourn_poster_line_prize": {
+        "uz": "💰 Sovrin fondi: <b>{prize} tanga</b>",
+        "ru": "💰 Призовой фонд: <b>{prize} монет</b>",
+        "en": "💰 Prize pool: <b>{prize} coins</b>",
+    },
+    "tourn_poster_line_slots": {
+        "uz": "👥 Örinlar: <b>{joined} / {total} kişi</b>",
+        "ru": "👥 Места: <b>{joined} / {total} человек</b>",
+        "en": "👥 Slots: <b>{joined} / {total} players</b>",
+    },
+    "tourn_poster_line_start": {
+        "uz": "⏰ Boşlaniş vaqti: <b>{when}</b> ({countdown})",
+        "ru": "⏰ Начало: <b>{when}</b> ({countdown})",
+        "en": "⏰ Starts at: <b>{when}</b> ({countdown})",
+    },
+    "tourn_poster_line_status": {
+        "uz": "📌 Holati: <b>{status}</b>",
+        "ru": "📌 Статус: <b>{status}</b>",
+        "en": "📌 Status: <b>{status}</b>",
+    },
+    "tourn_poster_joined": {
+        "uz": "✅ Siz bu turnirga röyxatdan ötgansiz.",
+        "ru": "✅ Вы зарегистрированы в этом турнире.",
+        "en": "✅ You are registered for this tournament.",
+    },
+    "tourn_poster_fee": {
+        "uz": "🎟 Qatnaşiş narxi: <b>{fee} tanga</b> yoki turnir çiptasi.",
+        "ru": "🎟 Стоимость участия: <b>{fee} монет</b> или турнирный билет.",
+        "en": "🎟 Entry fee: <b>{fee} coins</b> or a tournament ticket.",
+    },
+    "tourn_poster_tickets": {
+        "uz": "🎟 Sizda <b>{count}</b> ta turnir çiptasi bor.",
+        "ru": "🎟 У вас <b>{count}</b> турнирных билетов.",
+        "en": "🎟 You have <b>{count}</b> tournament tickets.",
+    },
+    "tourn_poster_hurry": {
+        "uz": "Örinlar çeklangan — hoziroq yoziling!",
+        "ru": "Места ограничены — регистрируйтесь сейчас!",
+        "en": "Slots are limited — register now!",
+    },
+    "tourn_poster_wait": {
+        "uz": "Turnir boşlanişini kuting — barça öyinçilarga xabar beriladi.",
+        "ru": "Ждите начала турнира — все игроки получат уведомление.",
+        "en": "Wait for the tournament to start — every player will be notified.",
+    },
+    "tourn_btn_started": {
+        "uz": "▶️ Turnir boşlangan",
+        "ru": "▶️ Турнир начался",
+        "en": "▶️ Tournament started",
+    },
+    "tourn_btn_joined": {
+        "uz": "✅ Siz röyxatdan ötgansiz",
+        "ru": "✅ Вы зарегистрированы",
+        "en": "✅ You are registered",
+    },
+    "tourn_btn_leave": {
+        "uz": "❌ Röyxatdan çiqiş",
+        "ru": "❌ Отменить регистрацию",
+        "en": "❌ Unregister",
+    },
+    "tourn_btn_full": {
+        "uz": "⛔ Joylar töldi",
+        "ru": "⛔ Мест нет",
+        "en": "⛔ Full",
+    },
+    "tourn_btn_join": {
+        "uz": "✍️ Turnirga röyxatdan ötiş",
+        "ru": "✍️ Зарегистрироваться",
+        "en": "✍️ Register for the tournament",
+    },
+    "tourn_btn_mini_app": {
+        "uz": "🌐 Mini App'da köriş",
+        "ru": "🌐 Открыть в Mini App",
+        "en": "🌐 Open in Mini App",
+    },
+    "tourn_btn_reload": {
+        "uz": "🔄 Yangilaş",
+        "ru": "🔄 Обновить",
+        "en": "🔄 Refresh",
+    },
+    "tourn_btn_back": {
+        "uz": "⬅️ Öyinlar röyxati",
+        "ru": "⬅️ Список игр",
+        "en": "⬅️ Games list",
+    },
+    "tourn_admin_only": {
+        "uz": "⛔ Bu buyruq faqat administrator uçun.",
+        "ru": "⛔ Эта команда только для администратора.",
+        "en": "⛔ This command is for the administrator only.",
+    },
+    "tourn_new_format": {
+        "uz": "Format: <code>/new_tournament bunker 50 1000 2d</code>\nÖyin: bunker, mafiya, josus, alias, mixed. Vaqt: <code>2h</code>, <code>3d</code> yoki ISO sana.",
+        "ru": "Формат: <code>/new_tournament bunker 50 1000 2d</code>\nИгра: bunker, mafiya, josus, alias, mixed. Время: <code>2h</code>, <code>3d</code> или дата ISO.",
+        "en": "Format: <code>/new_tournament bunker 50 1000 2d</code>\nGame: bunker, mafiya, josus, alias, mixed. Time: <code>2h</code>, <code>3d</code> or an ISO date.",
+    },
+    "tourn_new_bad_input": {
+        "uz": "⚠️ Narx, sovrin yoki vaqt notöğri kiritildi.",
+        "ru": "⚠️ Неверно указана цена, приз или время.",
+        "en": "⚠️ The price, prize or time is invalid.",
+    },
+    "tourn_new_error": {
+        "uz": "⚠️ {error}",
+        "ru": "⚠️ {error}",
+        "en": "⚠️ {error}",
+    },
+    "tourn_new_created": {
+        "uz": "✅ <b>Yangi turnir yaratildi!</b>\n\n🔥 {title}\n🎮 Öyin: {game}\n💰 Sovrin: {prize} tanga\n🎟 Qatnaşiş: {fee} tanga\n🕒 Boşlaniş: {start}",
+        "ru": "✅ <b>Новый турнир создан!</b>\n\n🔥 {title}\n🎮 Игра: {game}\n💰 Приз: {prize} монет\n🎟 Участие: {fee} монет\n🕒 Начало: {start}",
+        "en": "✅ <b>New tournament created!</b>\n\n🔥 {title}\n🎮 Game: {game}\n💰 Prize: {prize} coins\n🎟 Entry: {fee} coins\n🕒 Starts: {start}",
+    },
+    "tourn_reloaded": {
+        "uz": "Yangilandi",
+        "ru": "Обновлено",
+        "en": "Refreshed",
+    },
+    "tourn_join_success": {
+        "uz": "✅ <b>Muvaffaqiyatli röyxatdan ötdingiz!</b>\n\n🏆 Turnir: <b>{title}</b>\n🕒 Boşlaniş: <b>{start}</b>\n\nBoşlanişidan 15 daqiqa oldin bot sizga xona havolasini yuboradi.",
+        "ru": "✅ <b>Вы успешно зарегистрированы!</b>\n\n🏆 Турнир: <b>{title}</b>\n🕒 Начало: <b>{start}</b>\n\nЗа 15 минут до начала бот пришлёт ссылку на комнату.",
+        "en": "✅ <b>You are registered successfully!</b>\n\n🏆 Tournament: <b>{title}</b>\n🕒 Starts: <b>{start}</b>\n\nThe bot will send the room link 15 minutes before the start.",
+    },
+    "tourn_not_found": {
+        "uz": "Turnir topilmadi.",
+        "ru": "Турнир не найден.",
+        "en": "Tournament not found.",
+    },
+    "tourn_already_joined": {
+        "uz": "✅ Siz allaqaçon röyxatdan ötgansiz!",
+        "ru": "✅ Вы уже зарегистрированы!",
+        "en": "✅ You are already registered!",
+    },
+    "tourn_joined_ok": {
+        "uz": "✅ Röyxatdan ötdingiz!",
+        "ru": "✅ Вы зарегистрированы!",
+        "en": "✅ You are registered!",
+    },
+    "tourn_leave_error": {
+        "uz": "⚠️ {error}",
+        "ru": "⚠️ {error}",
+        "en": "⚠️ {error}",
+    },
+    "tourn_left": {
+        "uz": "❌ Siz turnir röyxatidan çiqdingiz.",
+        "ru": "❌ Вы отменили регистрацию в турнире.",
+        "en": "❌ You have unregistered from the tournament.",
+    },
+    "tourn_noop_info": {
+        "uz": "Ma'lumot yangilandi",
+        "ru": "Информация обновлена",
+        "en": "Information updated",
+    },
+    "tourn_room_started": {
+        "uz": "🏆 <b>Turnir boşlandi!</b>\n\n🔥 <b>{title}</b>\n🎮 Öyin: <b>{game}</b>\n🕒 Boşlaniş: <b>{start}</b>\n💰 Sovrin fondi: <b>{prize} tanga</b>\n\n🔗 <b>Xona havolasi:</b> {link}\n\nXonaga kirib, öyinni başlang. Omad! 🍀",
+        "ru": "🏆 <b>Турнир начался!</b>\n\n🔥 <b>{title}</b>\n🎮 Игра: <b>{game}</b>\n🕒 Начало: <b>{start}</b>\n💰 Призовой фонд: <b>{prize} монет</b>\n\n🔗 <b>Ссылка на комнату:</b> {link}\n\nЗаходите в комнату и начинайте игру. Удачи! 🍀",
+        "en": "🏆 <b>The tournament has started!</b>\n\n🔥 <b>{title}</b>\n🎮 Game: <b>{game}</b>\n🕒 Starts: <b>{start}</b>\n💰 Prize pool: <b>{prize} coins</b>\n\n🔗 <b>Room link:</b> {link}\n\nJoin the room and start the game. Good luck! 🍀",
+    },
+    "tourn_btn_room": {
+        "uz": "🚪 Xonaga kiriş",
+        "ru": "🚪 Войти в комнату",
+        "en": "🚪 Join the room",
+    },
+    "tourn_reminder": {
+        "uz": "🏆 <b>Turnir boşlanişiga 15 daqiqa qoldi!</b>\n\n🔥 <b>{title}</b>\n🎮 Öyin: <b>{game}</b>\n🕒 Boşlaniş: <b>{start}</b>\n💰 Sovrin fondi: <b>{prize} tanga</b>\n\nGuruhda öyin boşlanişini kuting va tayyor turing. Omad! 🍀",
+        "ru": "🏆 <b>До начала турнира 15 минут!</b>\n\n🔥 <b>{title}</b>\n🎮 Игра: <b>{game}</b>\n🕒 Начало: <b>{start}</b>\n💰 Призовой фонд: <b>{prize} монет</b>\n\nЖдите начала игры в группе и будьте готовы. Удачи! 🍀",
+        "en": "🏆 <b>15 minutes until the tournament starts!</b>\n\n🔥 <b>{title}</b>\n🎮 Game: <b>{game}</b>\n🕒 Starts: <b>{start}</b>\n💰 Prize pool: <b>{prize} coins</b>\n\nWait for the game to start in the group and be ready. Good luck! 🍀",
+    },
 }

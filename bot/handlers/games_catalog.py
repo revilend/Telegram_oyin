@@ -33,86 +33,15 @@ ALIAS_CALLBACK = "catalog_alias"
 BOMB_CALLBACK = "catalog_bomb"
 BACK_CALLBACK = "catalog_back"
 
-# Eski UZ konstantalar (orqaga moslik va testlar uchun). Yangi matnlar
-# ``core/i18n_texts.py`` dagi ``catalog_*`` kalitlaridan olinadi.
-CATALOG_TEXT = (
-    "🎲 <b>Öyinlar röyxati</b>\n\n"
-    "Platformadagi barça öyinlar. Har biri guruhda öynaladi:\n\n"
-    "🛡️ <b>Bunker</b> — <code>/bunker</code> bilan boşlanadi. Falokatdan "
-    "keyin omon qoliş uçun kartalar böyiça bahslaşasiz.\n"
-    "🕵️ <b>Mafiya</b> — <code>/mafia</code> bilan boşlanadi. Tunda yaşirin "
-    "rollar, kunduzi ovoz beriş.\n"
-    "🔍 <b>Josus</b> — <code>/spy</code> bilan boşlanadi. Hamma joyni "
-    "biladi, bitta josus bilmaydi. Savol-javob orqali uni toping.\n"
-    "🐊 <b>Alias</b> — <code>/alias</code> bilan boşlanadi. Sözni "
-    "aytmasdan, taqiqlangan sözlarsiz tuşuntirasiz.\n"
-    "💣 <b>Portlovçi Bomba</b> — <code>/bomb</code> bilan boşlanadi. "
-    "Bombani zararsizlantirib, oxirgi tirik qoling.\n\n"
-    "👇 Öyinni tanlang — guruhda boşlaş böyiça qöllanma çiqadi."
-)
-
-BUNKER_TEXT = (
-    "🛡️ <b>Bunker</b>\n\n"
-    "Falokatdan keyin faqat bir neça kişi bunkerga siğadi. Har bir "
-    "öyinçining kasbi, soğliği, qiziqişi va yuki böyiça kim omon "
-    "qolişga loyiqligini birgalikda hal qilasiz.\n\n"
-    "🎮 <b>Guruhda boşlaş:</b>\n"
-    "1. Botni guruhingizga qöşing.\n"
-    "2. Guruhda <code>/bunker</code> yuboring.\n"
-    "3. Döstlar «Guruh orqali qöşiliş»ni bosadi.\n"
-    "4. Xona egasi «Öyinni boşlaş»ni bosadi."
-)
-
-SPY_TEXT = (
-    "🔍 <b>Josus (Spyfall)</b>\n\n"
-    "Hamma bitta joyda — masalan, töyxonada yoki kosmik stantsiyada. "
-    "Faqat bitta (yoki ikkita) josus qayerda ekanligini bilmaydi. "
-    "Savol-javob orqali josusni toping, josus esa joyni taxmin qilişga "
-    "harakat qiladi.\n\n"
-    "🎮 <b>Guruhda boşlaş:</b>\n"
-    "1. Botni guruhingizga qöşing.\n"
-    "2. Guruhda <code>/spy</code> yoki <code>/josus</code> yuboring.\n"
-    "3. Kamida 3 kişi «Qöşiliş»ni bosadi.\n"
-    "4. Xona egasi öyinni boşlaydi — kartalar Mini App'da oçiladi.\n\n"
-    "🏆 Ğolibga: tinç aholi +25, josus +35 tanga."
-)
-
-ALIAS_TEXT = (
-    "🐊 <b>Alias / Krokodil</b>\n\n"
-    "Har raundda bitta öyinçi tuşuntiruvçi böladi. U sözni aytmasdan, "
-    "uçta taqiqlangan sözni işlatmasdan tuşuntiradi. Qolganlar 60 soniya "
-    "içida sözni topişga harakat qiladi.\n\n"
-    "🎮 <b>Guruhda boşlaş:</b>\n"
-    "1. Botni guruhingizga qöşing.\n"
-    "2. Guruhda <code>/alias</code> yoki <code>/krokodil</code> yuboring.\n"
-    "3. Kamida 2 kişi «➕ Qöşiliş»ni bosadi.\n"
-    "4. Xona egasi «▶️ Boşlaş»ni bosadi — söz tuşuntiruvçiga "
-    "şaxsiy xabar bilan keladi.\n\n"
-    "🏆 Topgan öyinçiga +10, tuşuntiruvçiga +5 tanga."
-)
-
-BOMB_TEXT = (
-    "💣 <b>Portlovçi Bomba</b>\n\n"
-    "Karta öyini: bombani zararsizlantir, raqiblarga hujum qil va tirik qol! "
-    "Har bir öyinçi bitta defuse va törtta harakat kartasi bilan boşlaydi.\n\n"
-    "🎮 <b>Guruhda boşlaş:</b>\n"
-    "1. Botni guruhingizga qöşing.\n"
-    "2. Guruhda <code>/bomb</code> yuboring.\n"
-    "3. Kamida 2 kişi «Qöşiliş»ni bosadi.\n"
-    "4. Xona egasi öyinni boşlaydi — qöllar Mini App'da oçiladi.\n\n"
-    "🏆 Oxirgi tirik qolgan öyinçiga +30 tanga."
-)
-
-MAFIA_TEXT = (
-    "🕵️ <b>Mafiya</b>\n\n"
-    "Şahar mafiyalar çangalida. Tunda yaşirin rollar harakat qiladi, "
-    "kunduzi şahar aholisi ovoz berib mafiyani topişga harakat qiladi.\n\n"
-    "🎮 <b>Guruhda boşlaş:</b>\n"
-    "1. Botni guruhingizga qöşing.\n"
-    "2. Guruhda <code>/mafia</code> yuboring.\n"
-    "3. Kamida 4 kişi «Qöşiliş»ni bosadi.\n"
-    "4. Xona egasi öyinni boşlaydi — rollar şaxsiy xabarda keladi."
-)
+# Eski UZ konstantalar (orqaga moslik va testlar uchun). Matnlar endi
+# ``core/i18n_texts.py`` dagi ``catalog_*`` kalitlaridan olinadi — handlerlar
+# foydalanuvchi tiliga mos ``t(language, key)`` natijasini yuboradi.
+CATALOG_TEXT = t("uz", "catalog_title")
+BUNKER_TEXT = t("uz", "catalog_bunker")
+MAFIA_TEXT = t("uz", "catalog_mafia")
+SPY_TEXT = t("uz", "catalog_spy")
+ALIAS_TEXT = t("uz", "catalog_alias")
+BOMB_TEXT = t("uz", "catalog_bomb")
 
 
 def catalog_keyboard(language: str = "uz") -> InlineKeyboardMarkup:

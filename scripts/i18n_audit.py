@@ -15,6 +15,7 @@ Strukturaviy xato bo'lsa ``exit 1`` (CI uchun).
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -78,18 +79,57 @@ def tr_keys(text: str | None = None) -> list[str]:
 
 
 def bot_literals() -> dict[str, int]:
-    """``t()`` dan o'tmagan o'zbekcha matnlar (fayl bo'yicha)."""
+    """``t()`` dan o'tmagan o'zbekcha matnlar (fayl bo'yicha).
+
+    Faqat kod ichidagi matnlar sanaladi: docstring'lar, izohlar va
+    ``logger``/``logging`` chaqiruvlaridagi log matnlari hisobga olinmaydi —
+    ular foydalanuvchiga ko'rsatilmaydi va tarjima qilinmaydi.
+    """
     per_file: dict[str, int] = {}
     for path in sorted(BOT_DIR.rglob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:  # pragma: no cover - buzuq fayl auditni to'xtatmaydi
+            continue
+
+        skipped: set[int] = set()
+        for node in ast.walk(tree):
+            if isinstance(
+                node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+            ):
+                body = node.body
+                if (
+                    body
+                    and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                    and isinstance(body[0].value.value, str)
+                ):
+                    skipped.add(id(body[0].value))
+            if isinstance(node, ast.Call):
+                func = node.func
+                if (
+                    isinstance(func, ast.Attribute)
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id in {"logger", "logging", "log"}
+                ):
+                    for argument in node.args:
+                        if (
+                            isinstance(argument, ast.Constant)
+                            and isinstance(argument.value, str)
+                        ):
+                            skipped.add(id(argument))
+
         count = 0
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if line.lstrip().startswith("#"):
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
                 continue
-            if any(call in line for call in _T_CALLS):
+            if id(node) in skipped:
                 continue
-            for match in re.finditer(r'"([^"\n]{8,120})"', line):
-                if _UZ_LETTERS.search(match.group(1)):
-                    count += 1
+            value = node.value
+            if not 8 <= len(value) <= 120:
+                continue
+            if _UZ_LETTERS.search(value):
+                count += 1
         if count:
             per_file[str(path.relative_to(ROOT))] = count
     return per_file

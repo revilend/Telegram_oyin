@@ -321,9 +321,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "🐊 <b>Alias</b>\n\nExplain the word without using forbidden words. Guess as many words as possible as a team.",
     },
     "catalog_bomb": {
-        "uz": "💣 <b>Portlovçi Bomba</b>\n\nBombani zararsizlantirib, oxirgi tirik qoling. Risk miqdorini özingiz tanlang.",
-        "ru": "💣 <b>Взрывная бомба</b>\n\nОбезвредьте бомбу и останьтесь последним в живых. Сами выбираете уровень риска.",
-        "en": "💣 <b>Ticking Bomb</b>\n\nDefuse the bomb and be the last one standing. You choose the risk level.",
+        "uz": "💣 <b>Portlovçi Bomba</b>\n\nBombani zararsizlantirib, oxirgi tirik qoling. Risk miqdorini özingiz tanlang.\n\n🏆 Oxirgi tirik qolgan öyinçiga +30 tanga.",
+        "ru": "💣 <b>Взрывная бомба</b>\n\nОбезвредьте бомбу и останьтесь последним в живых. Сами выбираете уровень риска.\n\n🏆 Последнему выжившему +30 монет.",
+        "en": "💣 <b>Ticking Bomb</b>\n\nDefuse the bomb and be the last one standing. You choose the risk level.\n\n🏆 +30 coins to the last player standing.",
     },
     # ------------------------------------------------------------------
     # Reyting

@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 
 from api.server import app
 from bot.handlers import bomb_group, games_catalog
+from core.i18n import t
 from games.bomb.cards import CardType
 from games.bomb.engine import BombRoom, BombStatus
 from games.bomb.manager import (
@@ -222,8 +223,10 @@ class BombGroupAnnouncementTest(unittest.TestCase):
 
 class BombCatalogTest(unittest.TestCase):
     def test_catalog_lists_bomb_rules_and_button(self) -> None:
-        self.assertIn("/bomb", games_catalog.BOMB_TEXT)
+        # Qoidalar va sovrin matni ``catalog_bomb`` da, buyruq tugmada.
+        self.assertIn("Bomb", games_catalog.BOMB_TEXT)
         self.assertIn("+30", games_catalog.BOMB_TEXT)
+        self.assertIn("/bomb", t("uz", "catalog_btn_bomb"))
         with patch.object(games_catalog, "get_config", return_value=CONFIG):
             markup = games_catalog.catalog_keyboard()
         callbacks = [
