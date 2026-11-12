@@ -2,10 +2,31 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Any
 
-from api.deps import *  # noqa: F401,F403 - umumiy yordamchi va sxemalar
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import (
+    TelegramUser,
+    resolve_client_user_id,
+    resolve_room_user_id,
+    resolve_user_id,
+    telegram_user,
+)
+from api.deps import (
+    CATALOG_BY_SLUG,
+    EquipRequest,
+    ShopBuyRequest,
+    SpinRequest,
+    metrics,
+    shop_meta,
+)
 from api.security import enforce_rate_limit, user_lock
+from core.daily_quests import record_daily_event
+from core.economy import get_economy
+from core.shop import get_shop_store
+from engine.boosters import boosters_payload
+
 
 router = APIRouter()
 

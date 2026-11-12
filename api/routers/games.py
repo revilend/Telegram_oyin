@@ -2,9 +2,44 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Any
 
-from api.deps import *  # noqa: F401,F403 - umumiy yordamchi va sxemalar
+from fastapi import APIRouter, Depends, HTTPException
+from starlette.websockets import WebSocket, WebSocketDisconnect
+
+from api.auth import TelegramUser, resolve_room_user_id, resolve_user_id, telegram_user
+from api.deps import (
+    ActionRequest,
+    JoinRequest,
+    MafiaBoosterRequest,
+    MafiaNightActionRequest,
+    MafiaTallyRequest,
+    MafiaVoteRequest,
+    NIGHT_ACTION_BY_ROLE,
+    NIGHT_OPTIONS_BY_ROLE,
+    UserRequest,
+    _bunker_room_or_none,
+    _card_payload,
+    _chat_access,
+    _handle_socket_payload,
+    _mafia_game_for,
+    _record_finished_room,
+    _runtime_bot,
+    _schedule_shield_offer,
+    chat_hub,
+    hub,
+    mafia_me_payload,
+    manager,
+    metrics,
+    private_state,
+    public_state,
+)
+from bot.handlers import mafia_group as mafia_bot
+from core.billing import buy_booster, decline_shield
+from core.economy import get_economy
+from games.mafia import GamePhase, MafiaError, resolve_day_vote
+from games.mafia.boosters import MafiaBoosterError, purchase_booster
+
 
 router = APIRouter()
 

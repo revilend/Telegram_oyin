@@ -2,10 +2,52 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from dataclasses import asdict
+from typing import Any
 
-from api.deps import *  # noqa: F401,F403 - umumiy yordamchi va sxemalar
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import TelegramUser, resolve_user_id, telegram_user
+from api.deps import (
+    AdminBalanceRequest,
+    AdminTournamentRequest,
+    GAMES,
+    GAME_TYPE,
+    LoginRequest,
+    MatchmakingJoinRequest,
+    MatchmakingLeaveRequest,
+    PromoCodeRequest,
+    TestBotsFillRequest,
+    UserRequest,
+    _bot_username,
+    _login_user_id,
+    card_type_options,
+    get_spyfall_manager,
+    manager,
+    metrics,
+    profile_identity,
+    require_admin,
+)
 from api.security import enforce_rate_limit, user_lock
+from bot.config import get_config
+from bot.handlers import mafia_group as mafia_bot
+from core.achievements import achievements_payload
+from core.daily_quests import (
+    claim_daily_quest,
+    claim_weekly_chest,
+    daily_quests_payload,
+    record_daily_event,
+    reroll_daily_quests,
+)
+from core.db import get_store
+from core.economy import get_economy
+from core.missions import claim_mission, mission_statuses, missions_payload
+from core.persistence import persistence_status
+from core.tournaments import get_tournament_store
+from engine import test_bots
+from engine.cleaner import get_cleaner
+from engine.matchmaking import get_matchmaker, normalize_game_type
+
 
 router = APIRouter()
 

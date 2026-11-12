@@ -2,10 +2,34 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+import asyncio
+import time
+from dataclasses import asdict
+from typing import Any
 
-from api.deps import *  # noqa: F401,F403 - umumiy yordamchi va sxemalar
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import (
+    TelegramUser,
+    resolve_client_user_id,
+    resolve_user_id,
+    telegram_user,
+)
+from api.deps import (
+    GAMES,
+    LanguageRequest,
+    UserRequest,
+    _activity_payload_async,
+    _profile_payload,
+    profile_identity,
+    shop_meta,
+)
 from api.security import enforce_rate_limit, user_lock
+from core.daily_quests import record_daily_event
+from core.economy import get_economy
+from core.tournaments import get_tournament_store
+from engine.boosters import boosters_payload
+
 
 router = APIRouter()
 

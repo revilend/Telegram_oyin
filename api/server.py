@@ -9,8 +9,65 @@ yordamchilar `api/deps.py` da.
 
 from __future__ import annotations
 
-from api.deps import *  # noqa: F401,F403 - sozlama, sxema va yordamchilar
+import asyncio
+import os
+from contextlib import asynccontextmanager
+from typing import Any
+
+from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from fastapi import FastAPI
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.staticfiles import StaticFiles
+
+from api.deps import (
+    ASSETS_DIR,
+    WEBAPP_DIR,
+    _create_match_room,
+    _matchmaking_watch,
+    _notify_match,
+    bomb_router,
+    get_alias_manager,
+    get_bomb_manager,
+    get_spyfall_manager,
+    logger,
+    metrics,
+    set_bomb_bot,
+    set_spyfall_bot,
+    setup_persistence,
+    spyfall_router,
+)
 from api.routers import games, misc, profile, shop, tournaments
+from bot.config import get_config
+from bot.handlers import mafia_group as mafia_bot, tournaments as tournaments_handler
+from bot.localized import LocalizedBot
+from bot.main import build_dispatcher, set_commands
+from core.daily_backup import start_daily_backup, stop_daily_backup
+from core.daily_quests import DailyQuestError
+from core.db import get_store
+from core.economy import EconomyError, InsufficientCoinsError, get_economy
+from core.persistence import ensure_admin_profile, ensure_persistence_or_raise
+from core.shop import (
+    ShopError,
+    ShopInsufficientCoinsError,
+    SpinUnavailableError,
+    UnknownItemError,
+    get_shop_store,
+)
+from core.tournaments import EntryFeeError, TournamentError, TournamentNotFoundError
+from engine import test_bots
+from engine.boosters import BoosterError
+from engine.cleaner import get_cleaner
+from engine.game_manager import (
+    GameError,
+    PlayerNotFoundError,
+    RoomNotFoundError,
+    get_default_manager,
+)
+from engine.matchmaking import MatchmakingError, get_matchmaker, get_queue_store
+from games.spyfall import SpyfallError, SpyfallNotFoundError
 
 
 @asynccontextmanager

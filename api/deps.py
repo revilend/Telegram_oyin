@@ -2,10 +2,13 @@
 
 `api/server.py` faqat ilovani yaratadi; barcha endpointlar `api/routers/`
 modullarida. Ular shu moduldan umumiy holat, Pydantic sxemalari va
-yordamchilarni oladi (aylanma import bo'lmasligi uchun).
+yordamchilarni **aniq nomlar bilan** oladi (`from api.deps import (...)`),
+yulduzchali import ishlatilmaydi — shuning uchun har bir nom qayerdan
+kelgani ko'rinadi va lint/IDE uni to'g'ri aniqlaydi.
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -13,117 +16,48 @@ import os
 import time
 from dataclasses import asdict
 from collections import defaultdict
-from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
+
 from aiogram import Bot
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import HTTPException, WebSocket
 from pydantic import BaseModel
-from api.auth import (
-    TelegramUser,
-    resolve_client_user_id,
-    resolve_room_user_id,
-    resolve_user_id,
-    telegram_user,
-)
+
+from api.auth import TelegramUser
 from games.bomb.api import router as bomb_router
 from games.bomb.api import set_runtime_bot as set_bomb_bot
 from games.bomb.engine import BombRoom
 from games.bomb.manager import get_default_manager as get_bomb_manager
 from games.spyfall.api import router as spyfall_router
 from games.spyfall.api import set_runtime_bot as set_spyfall_bot
-from games.spyfall.engine import SpyfallError
-from games.spyfall.manager import SpyfallNotFoundError, get_default_manager as get_spyfall_manager
+from games.spyfall.manager import get_default_manager as get_spyfall_manager
 from bot.config import get_config
 from bot.handlers import mafia_group as mafia_bot
 from bot.handlers import matchmaking as matchmaking_bot
-from bot.handlers import tournaments as tournaments_handler
 from bot.handlers.boosters import send_shield_offer
-from bot.localized import LocalizedBot
-from bot.main import build_dispatcher, set_commands
-from core.billing import buy_booster, decline_shield
-from core.daily_backup import start_daily_backup, stop_daily_backup
 from core.achievements import achievements_payload
-from core.daily_quests import (
-    DailyQuestError,
-    claim_daily_quest,
-    claim_weekly_chest,
-    daily_quests_payload,
-    record_daily_event,
-    reroll_daily_quests,
-)
+from core.daily_quests import daily_quests_payload
 from core.db import get_store
-from core.economy import (
-    COIN_PACKAGES,
-    EconomyError,
-    InsufficientCoinsError,
-    get_economy,
-    player_rating,
-)
-from core.persistence import (
-    ensure_admin_profile,
-    ensure_persistence_or_raise,
-    persistence_status,
-)
+from core.economy import COIN_PACKAGES, get_economy, player_rating
 from core.login_codes import verify_login_code
-from core.shop import (
-    CATALOG_BY_SLUG,
-    ShopError,
-    ShopInsufficientCoinsError,
-    SpinUnavailableError,
-    UnknownItemError,
-    get_shop_store,
-)
+from core.shop import CATALOG_BY_SLUG, get_shop_store
 from core.leaderboard import build_leaderboard, normalize_period
-from core.tournaments import (
-    AlreadyJoinedError,
-    EntryFeeError,
-    TournamentClosedError,
-    TournamentError,
-    TournamentFullError,
-    TournamentNotFoundError,
-    get_tournament_store,
-)
 from core.metrics import metrics
 from engine.chat import ChatAccess, ChatError, ChatHub
-from engine.cleaner import get_cleaner
-from engine.matchmaking import (
-    MatchmakingError,
-    check_and_create_matches,
-    get_matchmaker,
-    get_queue_store,
-    normalize_game_type,
-)
+from engine.matchmaking import MatchmakingError, check_and_create_matches
 from games.alias.engine import AliasRoom, get_default_manager as get_alias_manager
 from core import room_store
-from core.missions import claim_mission, mission_statuses, missions_payload
+from core.missions import mission_statuses, missions_payload
 from core.settings import get_settings_store
-from engine.boosters import BoosterError, boosters_payload
-from engine import test_bots
-from engine.game_manager import (
-    GameError,
-    GameManager,
-    PlayerNotFoundError,
-    RoomNotFoundError,
-    get_default_manager,
-)
+from engine.boosters import boosters_payload
+from engine.game_manager import GameManager, PlayerNotFoundError, get_default_manager
 from games.mafia.engine import (
     GamePhase,
-    MafiaError,
     MafiaRole,
     NIGHT_ACTION_BY_ROLE,
     NIGHT_OPTIONS_BY_ROLE,
-    resolve_day_vote,
 )
-from games.mafia.boosters import (
-    MafiaBoosterError,
-    booster_options,
-    purchase_booster,
-)
+from games.mafia.boosters import booster_options
 from games.mafia.images import COVER_IMAGE, role_image_url
 from games.mafia.roles import Faction, get_role_profile
 from models.game import GameRoom, Player, RoomStatus
@@ -1201,6 +1135,6 @@ def _mafia_game_for(code: str) -> mafia_bot.MafiaGame:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-# Routerlar ``from api.deps import *`` bilan barcha nomlarni oladi;
-# pastki chiziqli yordamchilar ham ko'rinishi uchun ro'yxat dinamik.
-__all__ = sorted(name for name in globals() if not name.startswith("__"))
+# Routerlar va server nomlarni aniq import qiladi
+# (``from api.deps import (...)``) — yulduzchali import yo'q, shuning uchun
+# dinamik ``__all__`` ham kerak emas: nima ishlatilsa, o'sha ko'rinadi.

@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Any
 
-from api.deps import *  # noqa: F401,F403 - umumiy yordamchi va sxemalar
+from fastapi import APIRouter, Depends
+
+from api.auth import TelegramUser, resolve_user_id, telegram_user
+from api.deps import TournamentJoinRequest, metrics
+from core.economy import get_economy
+from core.leaderboard import build_leaderboard, normalize_period
+from core.shop import get_shop_store
+from core.tournaments import get_tournament_store
+
 
 router = APIRouter()
 

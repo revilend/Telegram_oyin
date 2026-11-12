@@ -313,7 +313,7 @@ Natijalar va sovrin fondi yangilanadi
 |:---|:---|:---|
 | Bot | `bot/handlers/`, `bot/main.py` | Buyruqlar, admin panel, guruh oqimlari. |
 | API ilova | `api/server.py`, `api/deps.py`, `api/security.py`, `api/auth.py` | Ilova, umumiy yordamchilar, xavfsizlik, Telegram auth. |
-| API routerlari | `api/routers/` — `profile.py`, `shop.py`, `games.py`, `tournaments.py`, `misc.py` | REST va WebSocket endpointlari (URL yo‘llari o‘zgarishsiz). |
+| API routerlari | `api/routers/` — `profile.py`, `shop.py`, `games.py`, `tournaments.py`, `misc.py` | REST va WebSocket endpointlari (URL yo‘llari o‘zgarishsiz). Har bir modul umumiy yordamchilarni `api/deps.py` dan **aniq nomlar bilan** import qiladi (`from api.deps import (...)`), yulduzchali import yo‘q — nomlar ko‘rinadi va lint/IDE ishlaydi. |
 | Iqtisod | `core/economy.py`, `core/shop.py` | Balans, to‘lovlar, inventar. |
 | O‘yinlar | `games/` | Mafiya, Spyfall, Alias, Bomba. |
 | Bunker | `engine/game_manager.py` | Xonalar, raundlar, ovoz berish. |
