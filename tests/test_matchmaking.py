@@ -10,6 +10,11 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from api import server as server_module
+
+try:  # unittest discover -s tests
+    from api_patches import patch_economy
+except ImportError:  # pytest / paket sifatida
+    from tests.api_patches import patch_economy
 from api.server import app
 from core.economy import EconomyStore
 from core.leaderboard import build_leaderboard, medal_for, week_bounds
@@ -212,11 +217,8 @@ class ApiFeatureTest(unittest.TestCase):
         self.addCleanup(self.env.stop)
         self.client = TestClient(app)
         self.economy = EconomyStore(url="", key="", client=None)
-        self.patcher = patch.object(
-            server_module, "get_economy", return_value=self.economy
-        )
-        self.patcher.start()
-        self.addCleanup(self.patcher.stop)
+        self.patcher = patch_economy(self.economy)
+        self.addCleanup(self.patcher.close)
         get_matchmaker().reset()
 
     def tearDown(self) -> None:

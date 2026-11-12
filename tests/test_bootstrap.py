@@ -19,6 +19,11 @@ os.environ.setdefault("SUPABASE_KEY", "")
 from fastapi.testclient import TestClient  # noqa: E402
 
 import api.server as api_server  # noqa: E402
+
+try:  # unittest discover -s tests
+    from api_patches import patch_economy
+except ImportError:  # pytest / paket sifatida
+    from tests.api_patches import patch_economy
 from core.economy import START_COINS, EconomyStore  # noqa: E402
 
 USER_ID = 660_001
@@ -29,11 +34,8 @@ class BootstrapEndpointTest(unittest.TestCase):
         self.store = EconomyStore(url="", key="", client=None)
         self.store.ensure_user(USER_ID, "ali", "Ali Valiyev")
         self.store.add_coins(USER_ID, 25)
-        patcher = patch.object(
-            api_server, "get_economy", return_value=self.store
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        patcher = patch_economy(self.store)
+        self.addCleanup(patcher.close)
         self.client = TestClient(api_server.app)
 
     def _bootstrap(self, **params) -> dict:

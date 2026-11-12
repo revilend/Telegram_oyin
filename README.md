@@ -279,8 +279,8 @@ Natijalar va sovrin fondi yangilanadi
                             │ HTTPS + initData
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     FastAPI (api/server.py)                 │
-│  REST API · WebSocket · Telegram initData auth · Static     │
+│            FastAPI (api/server.py + api/routers/)           │
+│  REST API · WebSocket · initData auth · rate limit · Static │
 └───────────────┬─────────────────────────────┬───────────────┘
                 │                             │
                 ▼                             ▼
@@ -310,7 +310,8 @@ Natijalar va sovrin fondi yangilanadi
 | Qatlam | Fayllar | Vazifasi |
 |:---|:---|:---|
 | Bot | `bot/handlers/`, `bot/main.py` | Buyruqlar, admin panel, guruh oqimlari. |
-| API | `api/server.py`, `api/auth.py` | REST, WebSocket, Telegram auth. |
+| API ilova | `api/server.py`, `api/deps.py`, `api/security.py`, `api/auth.py` | Ilova, umumiy yordamchilar, xavfsizlik, Telegram auth. |
+| API routerlari | `api/routers/` — `profile.py`, `shop.py`, `games.py`, `tournaments.py`, `misc.py` | REST va WebSocket endpointlari (URL yo‘llari o‘zgarishsiz). |
 | Iqtisod | `core/economy.py`, `core/shop.py` | Balans, to‘lovlar, inventar. |
 | O‘yinlar | `games/` | Mafiya, Spyfall, Alias, Bomba. |
 | Bunker | `engine/game_manager.py` | Xonalar, raundlar, ovoz berish. |
@@ -327,6 +328,8 @@ Natijalar va sovrin fondi yangilanadi
 - Mehmon rejimi (`ALLOW_GUEST_AUTH`) faqat lokal test uchun; production’da `false`.
 - Admin amallari `ADMIN_ID` yoki `users.role = 'admin'` bilan himoyalangan.
 - Foydalanuvchi balansi va inventari faqat serverda o‘zgartiriladi.
+- **Rate limiting:** `buy`, `spin`, `bonus`, `promo` endpointlariga bitta foydalanuvchidan sekundiga ko‘pi bilan **2 ta** so‘rov; oshsa `429 Too Many Requests` va `Retry-After` sarlavhasi (`core/rate_limit.py`, `api/security.py`).
+- **Per-user Async Lock:** bitta foydalanuvchi uchun bir vaqtning o‘zida faqat bitta xarid/spin/bonus jarayoni ishlaydi (`asyncio.Lock`), `core/shop.py` ichida esa `buy`/`spin` butun tekshiruv-yechish-yozuv zanjiri `RLock` ostida — bir tangaga ikki buyum olish yoki bepul spin’ni ikki marta ishlatish mumkin emas.
 - Supabase `service_role` kaliti faqat serverda ishlatiladi, brauzerga chiqarilmaydi.
 - To‘lov cheklari admin tasdig‘isiz balansga ta’sir qilmaydi.
 - Har kuni **00:00 (Toshkent)** da to‘liq JSON zaxira admin chatiga yuboriladi.

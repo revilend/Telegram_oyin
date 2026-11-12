@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from api.server import app
 from core.economy import START_COINS, get_economy
+from core.rate_limit import reset_rate_limits
 from core.shop import InventoryEntry, ShopStore, get_shop_store, set_shop_store
 
 
@@ -27,6 +28,8 @@ class ShopApiTest(unittest.TestCase):
         self.economy = get_economy()
         set_shop_store(ShopStore(economy=self.economy))
         self.addCleanup(set_shop_store, None)
+        reset_rate_limits()
+        self.addCleanup(reset_rate_limits)
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
 
@@ -111,11 +114,13 @@ class ShopApiTest(unittest.TestCase):
         self.assertFalse(first.json()["spin"]["free"])
         self.assertGreaterEqual(first.json()["coins"], START_COINS)
 
+        reset_rate_limits()
         second = self.client.post("/api/spin/wheel", json={"user_id": 97014})
         self.assertEqual(second.status_code, 200)
         self.assertFalse(second.json()["free"])
 
         self.economy.spend_coins(97014, self._coins(97014))
+        reset_rate_limits()
         blocked = self.client.post("/api/spin/wheel", json={"user_id": 97014})
         self.assertEqual(blocked.status_code, 402)
         self.assertIn("Çipta yöq", blocked.json()["detail"])
@@ -128,6 +133,7 @@ class ShopApiTest(unittest.TestCase):
         store._save_entry(
             97015, InventoryEntry(item_slug="spin_extra", quantity=1)
         )
+        reset_rate_limits()
         response = self.client.post("/api/spin/wheel", json={"user_id": 97015})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["ticket_used"])
@@ -312,6 +318,8 @@ class ShopPurchaseHistoryTest(unittest.TestCase):
         self.store = ShopStore(economy=self.economy)
         set_shop_store(self.store)
         self.addCleanup(set_shop_store, None)
+        reset_rate_limits()
+        self.addCleanup(reset_rate_limits)
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
 

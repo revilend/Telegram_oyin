@@ -12,6 +12,11 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from api import server as server_module
+
+try:  # unittest discover -s tests
+    from api_patches import patch_economy
+except ImportError:  # pytest / paket sifatida
+    from tests.api_patches import patch_economy
 from api.server import app
 from bot.handlers import rewards
 from core.economy import (
@@ -227,11 +232,8 @@ class RewardsApiTest(unittest.TestCase):
         self.addCleanup(self.env.stop)
 
         self.economy = EconomyStore(url="", key="", client=None)
-        self.economy_patch = patch.object(
-            server_module, "get_economy", return_value=self.economy
-        )
-        self.economy_patch.start()
-        self.addCleanup(self.economy_patch.stop)
+        self.economy_patch = patch_economy(self.economy)
+        self.addCleanup(self.economy_patch.close)
 
         self.client = TestClient(app)
         self.addCleanup(self.client.close)

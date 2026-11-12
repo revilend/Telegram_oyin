@@ -10,6 +10,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from api import server as server_module
+
+try:  # unittest discover -s tests
+    from api_patches import patch_economy
+except ImportError:  # pytest / paket sifatida
+    from tests.api_patches import patch_economy
 from api.server import app
 from bot.handlers import mafia_group as mafia_bot
 from core.economy import START_COINS, EconomyStore
@@ -101,11 +106,8 @@ class MafiaRoleApiTest(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.economy = EconomyStore(url="", key="", client=None)
-        economy_patch = patch.object(
-            server_module, "get_economy", return_value=self.economy
-        )
-        economy_patch.start()
-        self.addCleanup(economy_patch.stop)
+        economy_patch = patch_economy(self.economy)
+        self.addCleanup(economy_patch.close)
 
         self.game = self.manager.create_game(-1001, 3001, "Ali", "ali")
         for user_id in (3002, 3003, 3004):

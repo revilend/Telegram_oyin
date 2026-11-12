@@ -675,6 +675,10 @@ class EconomyStore:
                 safe_insert(self.client, USERS_TABLE, row)
             except Exception:
                 # Parallel yaratilgan bo'lsa, mavjud yozuvni qayta o'qiymiz.
+                logger.warning(
+                    "Foydalanuvchi qatorini yaratib bo'lmadi, qayta o'qiladi: %s",
+                    uid,
+                )
                 row = self._select_one(USERS_TABLE, **{USERS_ID_COLUMN: uid})
                 if row is None:
                     raise

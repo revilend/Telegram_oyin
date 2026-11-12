@@ -874,7 +874,19 @@ class ShopStore:
     # Xarid
     # ------------------------------------------------------------------
     def buy(self, user_id: int, slug: str, quantity: int = 1) -> PurchaseResult:
-        """Buyumni tangalarga sotib oladi va inventarga qo'shadi."""
+        """Buyumni tangalarga sotib oladi va inventarga qo'shadi.
+
+        Butun tekshiruv + tanga yechish + inventar yozuvi ``RLock`` ichida:
+        bir vaqtda kelgan ikki so'rov balansni ikki marta yechmaydi
+        (double-spend himoyasi). API tomonida qo'shimcha per-user
+        ``asyncio.Lock`` ham bor.
+        """
+        with self._lock:
+            return self._buy_locked(user_id, slug, quantity)
+
+    def _buy_locked(
+        self, user_id: int, slug: str, quantity: int = 1
+    ) -> PurchaseResult:
         item = CATALOG_BY_SLUG.get(canonical_slug(slug))
         if item is None:
             raise UnknownItemError("Bunday buyum dökonda yöq")
@@ -889,6 +901,14 @@ class ShopStore:
         total = item.price * count
         account = self.economy.ensure_user(uid)
         if account.coins < total:
+            logger.warning(
+                "Xarid rad etildi (balans yetarli emas): user=%s item=%s "
+                "kerak=%s bor=%s",
+                uid,
+                item.slug,
+                total,
+                account.coins,
+            )
             raise ShopInsufficientCoinsError(
                 f"Balansda yetarli tanga yöq: {account.coins} ta bor, "
                 f"{total} ta kerak"
@@ -1037,7 +1057,25 @@ class ShopStore:
         rng: random.Random | None = None,
         stop_angle: int | None = None,
     ) -> SpinResult:
-        """Ğildirakni aylantiradi: kuniga bir bepul, keyin çipta yoki 20 tanga."""
+        """Ğildirakni aylantiradi: kuniga bir bepul, keyin çipta yoki 20 tanga.
+
+        Bepul aylantiriş tekshiruvi, çipta/tanga yechish va sovrin yozuvi
+        bitta ``RLock`` ichida — bir vaqtda kelgan so'rovlar bepul
+        aylantirişni ikki marta işlata olmaydi.
+        """
+        with self._lock:
+            return self._spin_locked(
+                user_id, now=now, rng=rng, stop_angle=stop_angle
+            )
+
+    def _spin_locked(
+        self,
+        user_id: int,
+        *,
+        now: datetime | None = None,
+        rng: random.Random | None = None,
+        stop_angle: int | None = None,
+    ) -> SpinResult:
         uid = int(user_id)
         moment = now or _now()
         status = self.spin_status(uid, moment)
@@ -1063,6 +1101,13 @@ class ShopStore:
             else:
                 account = self.economy.ensure_user(uid)
                 if account.coins < SPIN_COST:
+                    logger.warning(
+                        "Aylantiriş rad etildi (çipta va tanga yöq): "
+                        "user=%s bor=%s kerak=%s",
+                        uid,
+                        account.coins,
+                        SPIN_COST,
+                    )
                     raise SpinUnavailableError(
                         "Bepul aylantiriş işlatilgan. Çipta yöq va "
                         f"{SPIN_COST} tanga ham yetarli emas."
