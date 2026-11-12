@@ -332,6 +332,7 @@ Natijalar va sovrin fondi yangilanadi
 - Foydalanuvchi balansi va inventari faqat serverda o‘zgartiriladi.
 - **Rate limiting:** `buy`, `spin`, `bonus`, `promo` endpointlariga bitta foydalanuvchidan sekundiga ko‘pi bilan **2 ta** so‘rov; oshsa `429 Too Many Requests` va `Retry-After` sarlavhasi (`core/rate_limit.py`, `api/security.py`).
 - **Per-user Async Lock:** bitta foydalanuvchi uchun bir vaqtning o‘zida faqat bitta xarid/spin/bonus jarayoni ishlaydi (`asyncio.Lock`), `core/shop.py` ichida esa `buy`/`spin` butun tekshiruv-yechish-yozuv zanjiri `RLock` ostida — bir tangaga ikki buyum olish yoki bepul spin’ni ikki marta ishlatish mumkin emas.
+- **⚠️ Bu ikki qatlam faqat bitta jarayon ichida ishlaydi:** rate limiter hisoblagichlari (`REQUEST_LIMITER`) va per-user qulflar (`_user_locks`) jarayon xotirasida saqlanadi, ular **jarayonlar va instanslar o‘rtasida umumiy emas**. `uvicorn --workers N` bilan ishga tushirilsa har bir worker o‘z hisoblagichini yuritadi (haqiqiy limit `N × 2` bo‘ladi, `429` esa faqat o‘sha worker ichida chiqadi), gorizontal masshtablashda esa limiter instanslar orasida umuman ta’sir qilmaydi; `user_lock` ham boshqa jarayondagi qulfni ko‘rmaydi. Shu sababli loyiha **`--workers 1`** uchun mo‘ljallangan (README’ning “Muhim eslatmalar” bo‘limiga qarang); ko‘p jarayonli/ko‘p instansli deploy kerak bo‘lsa, rate limit va pul qulflarini umumiy tashqi ombor (Redis yoki DB darajasidagi atomar `SELECT … UPDATE`) bilan almashtirish shart.
 - Supabase `service_role` kaliti faqat serverda ishlatiladi, brauzerga chiqarilmaydi.
 - To‘lov cheklari admin tasdig‘isiz balansga ta’sir qilmaydi.
 - Har kuni **00:00 (Toshkent)** da to‘liq JSON zaxira admin chatiga yuboriladi.
@@ -513,6 +514,7 @@ INIT_DATA_MAX_AGE=86400
 
 - Bot polling va API bitta processda ishlaydi — alohida bot worker kerak emas.
 - Faol o‘yin xonalari RAM’da bo‘lgani uchun **bir nechta worker ishlatmang**.
+- **Rate limiter va per-user lock ham jarayon ichida:** `core/rate_limit.py` hisoblagichlari va `asyncio.Lock` qulflari xotirada, shuning uchun `--workers > 1` yoki bir nechta instansda ular umumiy emas — limit har bir worker uchun alohida hisoblanadi (`2 × workers`), jarayonlararo qulf esa yo‘q. Ko‘p jarayonli deploy faqat limiter/qulflar Redis yoki DB darajasidagi atomar amallarga ko‘chirilgandan keyin xavfsiz.
 - Mini App domeni HTTPS bo‘lishi va `MINI_APP_URL` bilan mos kelishi shart.
 - Render bepul rejimida service uxlab qolishi mumkin; production uchun doimiy reja tavsiya etiladi.
 

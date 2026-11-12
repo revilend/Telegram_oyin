@@ -10,6 +10,25 @@ Ikki mustaqil qatlam:
 
 Qulflar hodisa sikli (event loop) bo'yicha ajratiladi: testlar har safar yangi
 sikl ochsa ham ``asyncio.Lock`` "boshqa loop" xatosini bermaydi.
+
+MUHIM CHEKLOV — bu qatlam **faqat bitta jarayon (process) ichida** ishlaydi.
+Hisoblagichlar (:data:`REQUEST_LIMITER`) va qulflar (:data:`_user_locks`) oddiy
+Python xotirasida saqlanadi, ular jarayonlar yoki instanslar o'rtasida
+umumiy emas:
+
+* ``uvicorn --workers N`` bilan ishga tushirilsa har bir worker o'z
+  hisoblagichini yuritadi — haqiqiy limit **N × limit** bo'lib qoladi va
+  ``429`` faqat bitta worker ichida ishlaydi;
+* gorizontal masshtablashda (bir nechta instans/konteyner) har bir nusxa
+  o'z holatini ko'radi, ya'ni limiter ular orasida **umuman** ta'sir qilmaydi;
+* :func:`user_lock` ham faqat shu jarayon ichidagi ``asyncio.Lock``, shuning
+  uchun ikki jarayon bitta foydalanuvchining ikki so'rovini parallel
+  bajarishi mumkin.
+
+Shu sababli loyiha ``--workers 1`` (bitta jarayon) uchun mo'ljallangan. Ko'p
+jarayonli/ko'p instansli deploy kerak bo'lsa, rate limit va pul qulflarini
+tashqi umumiy ombor (masalan Redis yoki DB darajasidagi atomar
+SELECT/UPDATE) bilan almashtirish shart.
 """
 
 from __future__ import annotations
@@ -89,10 +108,14 @@ class RateLimiter:
 
 
 #: Standart limiter: bitta foydalanuvchi uchun sekundiga 2 ta so'rov.
+#: Diqqat: bu jarayon ichidagi xotira — ``--workers N`` yoki bir nechta
+#: instansda har bir jarayon o'z hisoblagichini yuritadi (umumiy emas).
 REQUEST_LIMITER = RateLimiter()
 
 # Hodisa sikli → (scope:user_id → lock). WeakKeyDictionary sikl yo'qolsa
 # qulflarni ham bo'shatadi.
+# Diqqat: ``asyncio.Lock`` faqat shu jarayon ichida ko'rinadi — boshqa worker
+# yoki instansdagi qulf bu qulfni ko'rmaydi.
 _user_locks: "weakref.WeakKeyDictionary[Any, dict[str, asyncio.Lock]]" = (
     weakref.WeakKeyDictionary()
 )
@@ -109,7 +132,12 @@ def retry_after(scope: str, user_id: int) -> float:
 
 
 def user_lock(user_id: int, scope: str = "wallet") -> asyncio.Lock:
-    """Foydalanuvchi uchun joriy hodisa siklidagi qulfni qaytaradi."""
+    """Foydalanuvchi uchun joriy jarayon va hodisa siklidagi qulfni qaytaradi.
+
+    Qulf faqat shu jarayon ichida amal qiladi: boshqa uvicorn worker yoki
+    boshqa instans o'z qulfini yaratadi, shuning uchun jarayonlararo
+    o'zaro istisno kafolatlanmaydi.
+    """
     loop = asyncio.get_running_loop()
     key = f"{scope}:{int(user_id)}"
     locks = _user_locks.get(loop)

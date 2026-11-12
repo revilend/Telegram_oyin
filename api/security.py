@@ -6,6 +6,12 @@ Routerlar pul bilan bog'liq endpointlarda shu moduldan foydalanadi:
   yuborsa ``429 Too Many Requests`` qaytaradi;
 * :func:`user_lock` — per-user ``asyncio.Lock``, bir vaqtning o'zida faqat
   bitta xarid/spin/bonus jarayoni bajarilishini ta'minlaydi.
+
+Ikkala qatlam ham **faqat bitta jarayon ichida** ishlaydi: hisoblagichlar va
+qulflar ``core/rate_limit.py`` dagi jarayon xotirasida turadi, shuning uchun
+``uvicorn --workers N`` yoki bir nechta instansda ular umumiy emas (har bir
+worker o'z limitini hisoblaydi, jarayonlararo qulf yo'q). Batafsil:
+:mod:`core.rate_limit`.
 """
 
 from __future__ import annotations
@@ -28,6 +34,8 @@ def enforce_rate_limit(scope: str, user_id: int) -> None:
     """Rate limitdan oshsa ``429`` xatosini ko'taradi.
 
     ``scope`` — amal nomi (``buy``, ``spin``, ``bonus``, ``promo``).
+    Hisoblagich jarayon xotirasida: bir nechta worker/instans bo'lsa har biri
+    o'z limitini yuritadi, ya'ni cheklov ular orasida umumiy emas.
     """
     if allow_request(scope, user_id):
         return
