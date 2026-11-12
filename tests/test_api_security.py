@@ -245,23 +245,48 @@ class ParallelPurchaseTest(unittest.TestCase):
 
     def test_spin_cost_is_not_charged_twice(self) -> None:
         user_id = 960_105
-        self._set_coins(user_id, SPIN_COST * 4)
-        # Bepul aylantirişdan foydalanib bo'lingan holat.
-        self.assertEqual(
-            self.client.post(
-                "/api/spin/wheel", json={"user_id": user_id}
-            ).status_code,
-            200,
-        )
+        # Balans aynan ikkita to'langan spin uchun yetadi.
+        self._set_coins(user_id, SPIN_COST * 2)
+
+        # 1) Bepul aylantiriş: tanga sarflanmaydi (sovrin ham tanga emas).
+        with patch("core.shop.pick_segment", return_value=NO_COIN_SEGMENT):
+            free = self.client.post("/api/spin/wheel", json={"user_id": user_id})
+        self.assertEqual(free.status_code, 200, free.text)
+        self.assertTrue(free.json()["free"])
+        self.assertEqual(free.json()["expense"], 0)
         coins_after_free = self.economy.get_user(user_id).coins
+        self.assertEqual(coins_after_free, SPIN_COST * 2)
         reset_rate_limits()
 
-        responses = self._spin_many(user_id)
+        # 2) 5 ta parallel to'langan spin: pul faqat ikkitasiga yetadi.
+        with patch("core.shop.pick_segment", return_value=NO_COIN_SEGMENT):
+            responses = self._spin_many(user_id)
+
         paid = [r for r in responses if r.status_code == 200]
-        # Rate limit 2/s: ko'pi bilan 2 ta so'rov yetadi, qolganlari 429.
-        self.assertLessEqual(len(paid), 2)
-        self.assertIn(429, [r.status_code for r in responses])
-        self.assertTrue(coins_after_free >= 0)
+        self.assertEqual(
+            len(paid), 2, [r.status_code for r in responses]
+        )
+        for status in (r.status_code for r in responses if r.status_code != 200):
+            # 402 — balans yetmadi, 429 — rate limit; 5xx bo'lmasligi kerak.
+            self.assertIn(status, {402, 429})
+
+        # Har bir to'langan spin aynan bir marta yechilgan.
+        for response in paid:
+            payload = response.json()
+            self.assertFalse(payload["free"])
+            self.assertFalse(payload["ticket_used"])
+            self.assertEqual(payload["expense"], SPIN_COST)
+
+        spent = coins_after_free - self.economy.get_user(user_id).coins
+        self.assertEqual(spent, SPIN_COST * len(paid))
+        self.assertEqual(self.economy.get_user(user_id).coins, 0)
+
+        # Chipta ishlatilmagan va ortiqcha yechim yo'q.
+        inventory = {
+            entry.item_slug: entry.quantity
+            for entry in get_shop_store().inventory(user_id)
+        }
+        self.assertFalse(inventory.get("spin_extra"))
 
 
 if __name__ == "__main__":  # pragma: no cover
