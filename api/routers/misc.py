@@ -185,15 +185,22 @@ async def claim_my_mission(
     payload: UserRequest | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Bajarilgan missiya mukofotini beradi."""
+    """Bajarilgan missiya mukofotini beradi (kuniga bir marta).
+
+    Rate limit va per-user lock: bir foydalanuvchi uchun bir vaqtda faqat
+    bitta mukofot yechiladi, shuning uchun parallel so'rovlar mukofotni
+    ikki marta olmaydi.
+    """
     resolved_id = resolve_user_id(user, payload.user_id if payload else None)
-    economy = get_economy()
-    status, account = claim_mission(economy, resolved_id, mission_key)
-    return {
-        "ok": True,
-        "mission": missions_payload([status])[0],
-        "coins": account.coins,
-    }
+    enforce_rate_limit("mission", resolved_id)
+    async with user_lock(resolved_id):
+        economy = get_economy()
+        status, account = claim_mission(economy, resolved_id, mission_key)
+        return {
+            "ok": True,
+            "mission": missions_payload([status])[0],
+            "coins": account.coins,
+        }
 
 
 @router.get("/api/quests")
@@ -217,10 +224,16 @@ async def claim_my_daily_quest(
     payload: UserRequest | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Bajarilgan kunlik topshiriq mukofotini beradi."""
+    """Bajarilgan kunlik topshiriq mukofotini beradi.
+
+    Rate limit va per-user lock: parallel so'rovlar mukofotni ikki marta
+    yechmaydi.
+    """
     resolved_id = resolve_user_id(user, payload.user_id if payload else None)
-    result = claim_daily_quest(get_economy(), resolved_id, quest_key)
-    return {"ok": True, **result}
+    enforce_rate_limit("quest", resolved_id)
+    async with user_lock(resolved_id):
+        result = claim_daily_quest(get_economy(), resolved_id, quest_key)
+        return {"ok": True, **result}
 
 
 @router.post("/api/quests/reroll")
@@ -243,10 +256,16 @@ async def claim_my_weekly_chest(
     payload: UserRequest | None = None,
     user: TelegramUser | None = Depends(telegram_user),
 ) -> dict[str, Any]:
-    """Haftalik 5 ta topshiriq sandiqini ochadi."""
+    """Haftalik 5 ta topshiriq sandiqini ochadi.
+
+    Rate limit va per-user lock: sandiq bir marta ochiladi, parallel
+    so'rovlar ikkinchi mukofot olmaydi.
+    """
     resolved_id = resolve_user_id(user, payload.user_id if payload else None)
-    result = claim_weekly_chest(get_economy(), resolved_id)
-    return {"ok": True, **result}
+    enforce_rate_limit("chest", resolved_id)
+    async with user_lock(resolved_id):
+        result = claim_weekly_chest(get_economy(), resolved_id)
+        return {"ok": True, **result}
 
 
 @router.get("/api/achievements")

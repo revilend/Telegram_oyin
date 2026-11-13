@@ -26,6 +26,7 @@ from core.economy import (
     EconomyStore,
 )
 from core.missions import claim_mission, mission_statuses
+from core.rate_limit import reset_rate_limits
 
 NOW = datetime(2026, 11, 3, 9, 0, tzinfo=timezone.utc)
 
@@ -273,6 +274,9 @@ class RewardsApiTest(unittest.TestCase):
         self.assertTrue(claim.json()["mission"]["claimed"])
         self.assertEqual(claim.json()["coins"], START_COINS + 50)
 
+        # Rate limit bir soniyalik oyna: takroriy so'rov 429 bo'lmasin uchun
+        # hisoblagichni tozalaymiz va "allaqachon olingan" javobini tekshiramiz.
+        reset_rate_limits()
         again = self.client.post(
             "/api/missions/first_game/claim", json={"user_id": 74002}
         )
