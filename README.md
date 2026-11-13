@@ -518,6 +518,7 @@ INIT_DATA_MAX_AGE=86400
 - Bot polling va API bitta processda ishlaydi — alohida bot worker kerak emas.
 - Faol o‘yin xonalari RAM’da bo‘lgani uchun **bir nechta worker ishlatmang**.
 - **Rate limiter va per-user lock ham jarayon ichida:** `core/rate_limit.py` hisoblagichlari va `asyncio.Lock` qulflari xotirada, shuning uchun `--workers > 1` yoki bir nechta instansda ular umumiy emas — limit har bir worker uchun alohida hisoblanadi (`2 × workers`), jarayonlararo qulf esa yo‘q. Ko‘p jarayonli deploy faqat limiter/qulflar Redis yoki DB darajasidagi atomar amallarga ko‘chirilgandan keyin xavfsiz.
+- **Startup ogohlantirishi:** `WEB_CONCURRENCY`, `UVICORN_WORKERS`, `GUNICORN_WORKERS` yoki `uvicorn --workers N` aniqlansa, `api/server.py` ishga tushishda `⚠️ N ta HTTP worker aniqlandi …` WARNING logini chiqaradi (har bir worker o‘z logida) — shunda jarayonlararo umumiy bo‘lmagan limiter/qulf haqida darhol bilinadi. Bitta worker bo‘lsa `Bitta worker: rate limiter va per-user lock jarayon ichida ishlaydi` (INFO) yoziladi.
 - Mini App domeni HTTPS bo‘lishi va `MINI_APP_URL` bilan mos kelishi shart.
 - Render bepul rejimida service uxlab qolishi mumkin; production uchun doimiy reja tavsiya etiladi.
 

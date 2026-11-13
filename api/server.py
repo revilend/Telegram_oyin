@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -70,9 +71,73 @@ from engine.matchmaking import MatchmakingError, get_matchmaker, get_queue_store
 from games.spyfall import SpyfallError, SpyfallNotFoundError
 
 
+#: Ko'p jarayonli rejimni bildiruvchi muhit o'zgaruvchilari (deploy platformalari).
+WORKER_ENV_VARS = (
+    "WEB_CONCURRENCY",
+    "UVICORN_WORKERS",
+    "GUNICORN_WORKERS",
+    "WORKER_COUNT",
+)
+
+
+def worker_process_count() -> int:
+    """Nechta HTTP worker jarayoni ishlashini aniqlaydi (env yoki argv).
+
+    Uvicorn ``--workers N`` ni muhit o'zgaruvchisiga yozmaydi, lekin
+    ``multiprocessing`` spawn rejimida ``sys.argv`` ota-jarayondan meros
+    qoladi, shuning uchun CLI argumenti ham tekshiriladi.
+    """
+    counts: list[int] = []
+    for name in WORKER_ENV_VARS:
+        raw = (os.getenv(name) or "").strip()
+        if raw.isdigit():
+            counts.append(int(raw))
+
+    argv = [str(part) for part in getattr(sys, "argv", []) or []]
+    if any("uvicorn" in part or "gunicorn" in part for part in argv[:3]):
+        for index, part in enumerate(argv):
+            value = ""
+            if part in {"--workers", "-w"} and index + 1 < len(argv):
+                value = argv[index + 1]
+            elif part.startswith("--workers="):
+                value = part.split("=", 1)[1]
+            if value.strip().isdigit():
+                counts.append(int(value))
+
+    return max(counts) if counts else 1
+
+
+def warn_about_multiple_workers() -> int:
+    """Bir nechta worker bo'lsa rate limit/lock cheklovi haqida ogohlantiradi.
+
+    Hisoblagichlar (``REQUEST_LIMITER``) va per-user qulflar jarayon
+    xotirasida bo'lgani uchun ular worker'lar o'rtasida umumiy emas;
+    startupda aniq ogohlantirish chiqaramiz.
+    """
+    workers = worker_process_count()
+    if workers > 1:
+        logger.warning(
+            "⚠️ %s ta HTTP worker aniqlandi (WEB_CONCURRENCY/--workers): "
+            "rate limiter va per-user lock FAQAT shu jarayon ichida ishlaydi — "
+            "jarayonlar o'rtasida umumiy emas. Natijada haqiqiy limit ~%s×2 "
+            "so'rov/s bo'ladi, 429 faqat o'z workerida chiqadi va "
+            "jarayonlararo qulf yo'q (bir tanga ikki jarayonda sarflanishi "
+            "mumkin). Production uchun --workers 1 yoki tashqi (Redis/DB) "
+            "limiter ishlatish tavsiya etiladi.",
+            workers,
+            workers,
+        )
+    else:
+        logger.info(
+            "Bitta worker: rate limiter va per-user lock jarayon ichida ishlaydi"
+        )
+    return workers
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Server bilan birga aiogram botni ishga tushiradi va to'xtatadi."""
+    warn_about_multiple_workers()
     setup_persistence()
     # Database-first: Supabase sozlanmagan prod server ishga tushmaydi
     # (RAM fallback deployda hamma narsani nol qiladi).
