@@ -33,16 +33,6 @@ ALIAS_CALLBACK = "catalog_alias"
 BOMB_CALLBACK = "catalog_bomb"
 BACK_CALLBACK = "catalog_back"
 
-# Eski UZ konstantalar (orqaga moslik va testlar uchun). Matnlar endi
-# ``core/i18n_texts.py`` dagi ``catalog_*`` kalitlaridan olinadi — handlerlar
-# foydalanuvchi tiliga mos ``t(language, key)`` natijasini yuboradi.
-CATALOG_TEXT = t("uz", "catalog_title")
-BUNKER_TEXT = t("uz", "catalog_bunker")
-MAFIA_TEXT = t("uz", "catalog_mafia")
-SPY_TEXT = t("uz", "catalog_spy")
-ALIAS_TEXT = t("uz", "catalog_alias")
-BOMB_TEXT = t("uz", "catalog_bomb")
-
 
 def catalog_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
     """Har bir o'yin alohida qatorda + guruhga qo'shish tugmasi."""

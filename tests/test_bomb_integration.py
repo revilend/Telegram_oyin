@@ -224,8 +224,8 @@ class BombGroupAnnouncementTest(unittest.TestCase):
 class BombCatalogTest(unittest.TestCase):
     def test_catalog_lists_bomb_rules_and_button(self) -> None:
         # Qoidalar va sovrin matni ``catalog_bomb`` da, buyruq tugmada.
-        self.assertIn("Bomb", games_catalog.BOMB_TEXT)
-        self.assertIn("+30", games_catalog.BOMB_TEXT)
+        self.assertIn("Bomb", t("uz", "catalog_bomb"))
+        self.assertIn("+30", t("uz", "catalog_bomb"))
         self.assertIn("/bomb", t("uz", "catalog_btn_bomb"))
         with patch.object(games_catalog, "get_config", return_value=CONFIG):
             markup = games_catalog.catalog_keyboard()

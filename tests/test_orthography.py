@@ -104,18 +104,18 @@ class BotOrthographyTest(unittest.TestCase):
                 self.assertEqual(old_words(text), set())
 
     def test_games_catalog_uses_the_new_alphabet(self) -> None:
-        from bot.handlers import games_catalog
+        from core.i18n import t
 
-        for name in (
-            "CATALOG_TEXT",
-            "BUNKER_TEXT",
-            "MAFIA_TEXT",
-            "SPY_TEXT",
-            "ALIAS_TEXT",
-            "BOMB_TEXT",
+        for key in (
+            "catalog_title",
+            "catalog_bunker",
+            "catalog_mafia",
+            "catalog_spy",
+            "catalog_alias",
+            "catalog_bomb",
         ):
-            with self.subTest(text=name):
-                self.assertEqual(old_words(getattr(games_catalog, name)), set())
+            with self.subTest(text=key):
+                self.assertEqual(old_words(t("uz", key)), set())
 
     def test_menu_buttons_use_the_new_alphabet(self) -> None:
         from bot.keyboards import __all__ as exported

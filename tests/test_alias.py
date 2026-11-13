@@ -483,9 +483,9 @@ class AliasHandlerTest(unittest.TestCase):
         markup = games_catalog.catalog_keyboard()
         texts = [button.text for row in markup.inline_keyboard for button in row]
         self.assertTrue(any("Alias" in text for text in texts))
-        self.assertIn("Alias", games_catalog.CATALOG_TEXT)
+        self.assertIn("Alias", t("uz", "catalog_title"))
         # Qoidalar matni ``catalog_alias`` da, buyruq ko'rsatmasi tugmada.
-        self.assertIn("Alias", games_catalog.ALIAS_TEXT)
+        self.assertIn("Alias", t("uz", "catalog_alias"))
         self.assertIn("/alias", t("uz", "catalog_btn_alias"))
 
 
