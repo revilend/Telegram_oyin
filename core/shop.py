@@ -7,6 +7,19 @@ jadvalida, xarid tarixi esa ``shop_transactions`` jadvalida saqlanadi.
 
 Supabase sozlanmagan bo'lsa hammasi xotirada ishlaydi — testlar va lokal
 ishga tushirish uchun qulay.
+
+MUHIM CHEKLOV — ``ShopStore._lock`` (``threading.RLock``) **faqat shu jarayon
+ichida** himoya beradi. U Python xotirasidagi qulf bo'lgani uchun
+``uvicorn --workers N``, bir nechta instans yoki konteyner o'rtasida
+**umumiy emas**: har bir jarayon o'z ``ShopStore`` nusxasi va o'z qulfi bilan
+ishlaydi, shuning uchun ikki jarayon bir vaqtda kelgan xarid/spin so'rovlarini
+ketma-ketlashtira olmaydi va jarayonlararo double-spend himoyasi
+kafolatlanmaydi. API darajasidagi per-user ``asyncio.Lock`` ham xuddi shunday
+jarayon ichida ishlaydi (:mod:`core.rate_limit`).
+
+Ko'p jarayonli deploy kerak bo'lsa, pul amallarini DB darajasidagi atomar
+operatsiyalar (masalan ``UPDATE ... SET coins = coins - :cost WHERE coins >=
+:cost``) yoki tashqi Redis qulfi bilan himoyalash shart.
 """
 
 from __future__ import annotations
@@ -605,7 +618,14 @@ def segment_from_stop_angle(stop_angle: int) -> tuple[WheelSegment, int, int]:
 
 
 class ShopStore:
-    """Buyumlar, inventar va omad ğildiragini boshqaradi."""
+    """Buyumlar, inventar va omad ğildiragini boshqaradi.
+
+    Barcha o'zgartiruvchi amallar (``buy``, ``spin``, inventar yozuvlari)
+    :attr:`_lock` — ``threading.RLock`` ostida bajariladi. Bu qulf **faqat
+    joriy jarayon ichida** ishlaydi: boshqa uvicorn worker yoki instansdagi
+    ``ShopStore`` o'z qulfiga ega va bu qulfni ko'rmaydi, shuning uchun
+    jarayonlararo double-spend himoyasi yo'q (batafsil: modul docstringi).
+    """
 
     def __init__(
         self,
@@ -614,6 +634,8 @@ class ShopStore:
     ) -> None:
         self.economy = economy if economy is not None else get_economy()
         self._client = client
+        # Jarayon ichidagi qulf: worker/instanslar o'rtasida umumiy emas,
+        # shuning uchun faqat bitta jarayon ichida double-spend dan himoya qiladi.
         self._lock = threading.RLock()
         # user_id -> item_slug -> {"quantity": int, "is_equipped": bool}
         self._inventory: dict[int, dict[str, dict[str, Any]]] = {}
@@ -880,6 +902,10 @@ class ShopStore:
         bir vaqtda kelgan ikki so'rov balansni ikki marta yechmaydi
         (double-spend himoyasi). API tomonida qo'shimcha per-user
         ``asyncio.Lock`` ham bor.
+
+        Ikkala qulf ham **jarayon ichida** ishlaydi — ko'p worker/instansli
+        deployda ular umumiy emas va bu kafolat faqat bitta jarayon uchun
+        amal qiladi.
         """
         with self._lock:
             return self._buy_locked(user_id, slug, quantity)
@@ -1062,6 +1088,10 @@ class ShopStore:
         Bepul aylantiriş tekshiruvi, çipta/tanga yechish va sovrin yozuvi
         bitta ``RLock`` ichida — bir vaqtda kelgan so'rovlar bepul
         aylantirişni ikki marta işlata olmaydi.
+
+        ``RLock`` jarayon ichidagi qulf: boshqa worker yoki instansdagi
+        ``ShopStore`` uni ko'rmaydi, shuning uchun bu kafolat faqat shu
+        jarayonga tegishli (batafsil: modul docstringi).
         """
         with self._lock:
             return self._spin_locked(
